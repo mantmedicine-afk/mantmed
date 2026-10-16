@@ -212,6 +212,7 @@ class Patient(BaseDocument):
     name: str
     birth_date: str
     sex: Literal["F", "M"]
+    fiscal_code: str = ""
     guardian: str = ""
     allergies: str = ""
     notes: str = ""
@@ -222,6 +223,7 @@ class PatientIn(BaseModel):
     name: str
     birth_date: str
     sex: Literal["F", "M"]
+    fiscal_code: str = ""
     guardian: str = ""
     allergies: str = ""
     notes: str = ""
@@ -231,6 +233,7 @@ class PatientPatch(BaseModel):
     name: Optional[str] = None
     birth_date: Optional[str] = None
     sex: Optional[Literal["F", "M"]] = None
+    fiscal_code: Optional[str] = None
     guardian: Optional[str] = None
     allergies: Optional[str] = None
     notes: Optional[str] = None
@@ -564,7 +567,7 @@ async def consultation_pdf(cid: str, user: dict = Depends(current_user)):
     if not doc:
         raise HTTPException(404, "Consultazione non trovata")
     c = Consultation.from_mongo(doc).out()
-    pdf = build_report(c, user["name"])
+    pdf = build_report(c, user["name"], await get_patient(c.get("patient_id")))
     name = f"Referto_{re.sub(r'[^A-Za-z0-9]+', '_', c['patient_name']).strip('_')}_{c['created_at'][:10]}.pdf"
     return Response(pdf, media_type="application/pdf",
                     headers={"Content-Disposition": f"attachment; filename=\"{name}\"; filename*=UTF-8''{quote(name)}"})

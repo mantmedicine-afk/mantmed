@@ -36,7 +36,7 @@ export const Passport = ({ patientId, onClose, onEdit }) => {
                 <h2 className="font-display text-5xl leading-none lg:text-6xl" data-testid="passport-name">{p.name}</h2>
                 <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-300">
                   <span data-testid="passport-age">{p.age_label}</span><span>{p.sex === "F" ? "Femmina" : "Maschio"}</span>
-                  <span>nata/o il {new Date(p.birth_date).toLocaleDateString("it-IT")}</span>{p.guardian && <span>{p.guardian}</span>}
+                  <span>nata/o il {new Date(p.birth_date).toLocaleDateString("it-IT")}</span>{p.fiscal_code && <span className="font-mono" data-testid="passport-cf">CF {p.fiscal_code}</span>}{p.guardian && <span>{p.guardian}</span>}
                   <button onClick={() => onEdit(p)} className="flex items-center gap-1 text-[#A9C2FF] hover:text-white" data-testid="passport-edit-btn"><Pencil size={13} /> Modifica</button>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">

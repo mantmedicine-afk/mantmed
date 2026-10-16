@@ -18,15 +18,22 @@ pdfmetrics.registerFont(TTFont("SerifIt", str(FONTS / "InstrumentSerif-Italic.tt
 pdfmetrics.registerFont(TTFont("Sans", str(FONTS / "LiberationSans-Regular.ttf")))
 pdfmetrics.registerFont(TTFont("SansB", str(FONTS / "LiberationSans-Bold.ttf")))
 
-NIGHT = HexColor("#0B1736")
-ICE = HexColor("#7FA6FF")
+NIGHT = HexColor("#0A192F")
+ICE = HexColor("#E5E4E2")
+PLATINUM = HexColor("#C9CCD3")
 MUTED = HexColor("#5B6478")
-LINE = HexColor("#DCE2EE")
-MIST = HexColor("#F3F5FA")
+LINE = HexColor("#DADDE3")
+MIST = HexColor("#F4F5F7")
 
 BRAND = "MantMed"
-STUDIO_CONTACTS = "[Indirizzo studio] · [Telefono] · [Email studio]"
-REG_NUMBER = "Iscr. Ordine dei Medici [n. iscrizione]"
+
+
+def studio_info(clinic: str) -> dict:
+    key = "STUDIO_PROVINCIA" if "Provincia" in (clinic or "") else "STUDIO_CENTRO"
+    return {"specialty": os.environ.get("DOCTOR_SPECIALTY", "Specialista in Pediatria"),
+            "order": os.environ.get("DOCTOR_ORDER_NUMBER", "[n. iscrizione]"),
+            "phone": os.environ.get("STUDIO_PHONE", "[Telefono]"), "email": os.environ.get("STUDIO_EMAIL", "[Email]"),
+            "address": os.environ.get(f"{key}_ADDRESS", "[Indirizzo studio]"), "city": os.environ.get(f"{key}_CITY", "[Città]")}
 
 W, H = A4
 MX = 18 * mm
@@ -48,19 +55,21 @@ def P(text, style="body"):
 
 
 def draw_monogram(c, x, y, s, stroke=white, accent=ICE):
+    u = s / 40
     c.saveState()
     c.setLineJoin(1)
     c.setLineCap(1)
-    c.setLineWidth(s * 0.075)
+    c.setLineWidth(2.6 * u)
     c.setStrokeColor(stroke)
+    P_ = lambda px, py: (x + px * u, y + (40 - py) * u)
     p = c.beginPath()
-    p.moveTo(x, y); p.lineTo(x, y + s); p.lineTo(x + s / 2, y + s * 0.38); p.lineTo(x + s, y + s); p.lineTo(x + s, y)
+    p.moveTo(*P_(9, 30)); p.lineTo(*P_(9, 10)); p.lineTo(*P_(20, 23)); p.lineTo(*P_(31, 10)); p.lineTo(*P_(31, 30))
     c.drawPath(p, stroke=1, fill=0)
     c.setStrokeColor(accent)
     p = c.beginPath()
-    p.moveTo(x + s * 0.2, y); p.lineTo(x + s / 2, y + s * 0.92); p.lineTo(x + s * 0.8, y)
+    p.moveTo(*P_(13, 30)); p.lineTo(*P_(20, 12)); p.lineTo(*P_(27, 30))
     c.drawPath(p, stroke=1, fill=0)
-    c.line(x + s * 0.3, y + s * 0.3, x + s * 0.7, y + s * 0.3)
+    c.line(*P_(15.6, 24), *P_(24.4, 24))
     c.restoreState()
 
 
@@ -94,7 +103,7 @@ def dose_for(d, peso):
 
 
 def section(n, title, rows):
-    head = Table([[Paragraph(f'<font name="Sans" size="8" color="#3B6CF6">{n}</font>&nbsp;&nbsp;{escape(title)}', S["sec"])]],
+    head = Table([[Paragraph(f'<font name="Sans" size="8" color="#8A93A6">{n}</font>&nbsp;&nbsp;{escape(title)}', S["sec"])]],
                  colWidths=[W - 2 * MX])
     head.setStyle(TableStyle([("LINEBELOW", (0, 0), (-1, -1), 0.6, NIGHT), ("LEFTPADDING", (0, 0), (-1, -1), 0),
                               ("BOTTOMPADDING", (0, 0), (-1, -1), 5)]))
@@ -115,34 +124,47 @@ def grid(header, rows, widths):
     return t
 
 
-def build_report(c: dict, doctor: str) -> bytes:
+def build_report(c: dict, doctor: str, patient: dict | None = None) -> bytes:
     note = c.get("note") or {}
     g = note.get("crescita") or {}
     created = datetime.fromisoformat(c["created_at"])
     date_s = created.strftime("%d/%m/%Y")
     ref_no = f"MM-{created.strftime('%Y%m%d')}-{c['id'][-5:].upper()}"
     clinic = c.get("clinic") or "Studio"
+    info = studio_info(clinic)
+    parts = (c["patient_name"] or "").split()
+    first, last = (parts[0], " ".join(parts[1:])) if len(parts) > 1 else (c["patient_name"], "")
+    blank = "____________________"
+    cf = (patient or {}).get("fiscal_code") or blank
+    birth = (patient or {}).get("birth_date")
+    birth_s = datetime.fromisoformat(birth).strftime("%d/%m/%Y") if birth else blank
 
     def on_page(cv, doc):
         cv.saveState()
         cv.setFillColor(NIGHT)
-        cv.rect(0, H - 34 * mm, W, 34 * mm, stroke=0, fill=1)
-        draw_monogram(cv, MX, H - 25 * mm, 14 * mm)
-        cv.setFillColor(white)
-        cv.setFont("Serif", 24)
-        cv.drawString(MX + 19 * mm, H - 17 * mm, BRAND)
-        cv.setFont("Sans", 7.5)
-        cv.setFillColor(HexColor("#C9D6F5"))
-        cv.drawString(MX + 19 * mm, H - 22.5 * mm, "PEDIATRIA SPECIALISTICA")
-        cv.setFillColor(white)
-        cv.setFont("Serif", 15)
-        cv.drawRightString(W - MX, H - 14 * mm, doctor)
-        cv.setFont("Sans", 8)
-        cv.setFillColor(HexColor("#C9D6F5"))
-        cv.drawRightString(W - MX, H - 19 * mm, f"Specialista in Pediatria · {REG_NUMBER}")
-        cv.drawRightString(W - MX, H - 23.5 * mm, f"{clinic} · {STUDIO_CONTACTS}")
-        cv.setStrokeColor(LINE)
+        cv.rect(0, H - 38 * mm, W, 38 * mm, stroke=0, fill=1)
+        cv.setFillColor(PLATINUM)
+        cv.rect(0, H - 38.8 * mm, W, 0.8 * mm, stroke=0, fill=1)
+        cv.setStrokeColor(PLATINUM)
         cv.setLineWidth(0.5)
+        cv.roundRect(MX, H - 29 * mm, 18 * mm, 18 * mm, 4 * mm, stroke=1, fill=0)
+        draw_monogram(cv, MX + 1 * mm, H - 28 * mm, 16 * mm, stroke=white, accent=PLATINUM)
+        cv.setFillColor(white)
+        cv.setFont("Serif", 25)
+        cv.drawString(MX + 23 * mm, H - 19 * mm, BRAND)
+        cv.setFont("Sans", 7)
+        cv.setFillColor(PLATINUM)
+        cv.drawString(MX + 23 * mm, H - 24.5 * mm, "STUDIO MEDICO SPECIALISTICO · PEDIATRIA")
+        cv.setFillColor(white)
+        cv.setFont("Serif", 16)
+        cv.drawRightString(W - MX, H - 13 * mm, doctor)
+        cv.setFont("Sans", 7.8)
+        cv.setFillColor(ICE)
+        cv.drawRightString(W - MX, H - 18.5 * mm, info["specialty"])
+        cv.drawRightString(W - MX, H - 22.5 * mm, f"Iscr. Ordine dei Medici n. {info['order']}")
+        cv.drawRightString(W - MX, H - 26.5 * mm, f"{clinic} · {info['address']}, {info['city']}")
+        cv.drawRightString(W - MX, H - 30.5 * mm, f"Tel. {info['phone']} · {info['email']}")
+        cv.setStrokeColor(LINE)
         cv.line(MX, 16 * mm, W - MX, 16 * mm)
         cv.setFont("Sans", 6.8)
         cv.setFillColor(MUTED)
@@ -154,16 +176,19 @@ def build_report(c: dict, doctor: str) -> bytes:
 
     buf = io.BytesIO()
     doc = BaseDocTemplate(buf, pagesize=A4, title=f"Referto {c['patient_name']}", author=doctor,
-                          leftMargin=MX, rightMargin=MX, topMargin=44 * mm, bottomMargin=24 * mm)
-    doc.addPageTemplates([PageTemplate(frames=[Frame(MX, 24 * mm, W - 2 * MX, H - 68 * mm, id="f", leftPadding=0,
+                          leftMargin=MX, rightMargin=MX, topMargin=48 * mm, bottomMargin=24 * mm)
+    doc.addPageTemplates([PageTemplate(frames=[Frame(MX, 24 * mm, W - 2 * MX, H - 72 * mm, id="f", leftPadding=0,
                                                      rightPadding=0, topPadding=0, bottomPadding=0)], onPage=on_page)])
 
-    meta = Table([[P("PAZIENTE", "label"), P("DATA VISITA", "label"), P("SEDE", "label"), P("N. REFERTO", "label")],
-                  [Paragraph(escape(c["patient_name"]), S["sec"]), P(date_s), P(clinic), P(ref_no)]],
-                 colWidths=[62 * mm, 28 * mm, 34 * mm, W - 2 * MX - 124 * mm])
+    cw = (W - 2 * MX) / 5
+    meta = Table([[P("NOME", "label"), P("COGNOME", "label"), P("CODICE FISCALE", "label"), P("DATA DI NASCITA", "label"), P("DATA VISITA", "label")],
+                  [Paragraph(escape(first), S["sec"]), Paragraph(escape(last or "—"), S["sec"]), P(cf), P(birth_s), P(date_s)],
+                  [P(f"Sede: {clinic}", "small"), "", "", P(f"Referto n. {ref_no}", "small"), ""]],
+                 colWidths=[cw, cw, cw * 1.25, cw * 0.95, cw * 0.8])
     meta.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), MIST), ("LEFTPADDING", (0, 0), (-1, -1), 8),
-                              ("TOPPADDING", (0, 0), (-1, 0), 8), ("BOTTOMPADDING", (0, -1), (-1, -1), 9),
-                              ("VALIGN", (0, 0), (-1, -1), "BOTTOM")]))
+                              ("TOPPADDING", (0, 0), (-1, 0), 9), ("BOTTOMPADDING", (0, -1), (-1, -1), 8),
+                              ("LINEABOVE", (0, 0), (-1, 0), 1.2, NIGHT), ("LINEABOVE", (0, 2), (-1, 2), 0.4, LINE),
+                              ("SPAN", (0, 2), (2, 2)), ("SPAN", (3, 2), (4, 2)), ("VALIGN", (0, 0), (-1, 1), "BOTTOM")]))
 
     story = [Paragraph("Referto di visita", S["title"]), Paragraph("pediatrica specialistica", S["titleIt"]),
              Spacer(1, 6 * mm), meta, Spacer(1, 9 * mm)]
@@ -202,11 +227,12 @@ def build_report(c: dict, doctor: str) -> bytes:
     story += section("05", "Diagnosi e terapia", rows)
 
     box = lambda label, content: [P(label, "label"), Spacer(1, 2 * mm), content]
-    sign = Table([[box("DATA", P(date_s)), box("TIMBRO DELLO STUDIO", Spacer(1, 22 * mm)),
-                   box("FIRMA DIGITALE DEL MEDICO", Paragraph(escape(doctor), S["sec"]))]],
-                 colWidths=[38 * mm, 62 * mm, W - 2 * MX - 100 * mm])
-    sign.setStyle(TableStyle([("BOX", (1, 0), (1, 0), 0.6, LINE), ("BOX", (2, 0), (2, 0), 0.6, LINE),
-                              ("LINEBELOW", (0, 0), (0, 0), 0.6, LINE), ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    sign = Table([[box("LUOGO", P(info["city"])), box("DATA", P(date_s)), box("TIMBRO DELLO STUDIO", Spacer(1, 24 * mm)),
+                   box("FIRMA DIGITALE / AUTOGRAFA", [Spacer(1, 12 * mm), Paragraph(escape(doctor), S["body"])])]],
+                 colWidths=[32 * mm, 26 * mm, 54 * mm, W - 2 * MX - 112 * mm])
+    sign.setStyle(TableStyle([("BOX", (2, 0), (2, 0), 0.6, PLATINUM), ("BOX", (3, 0), (3, 0), 0.6, PLATINUM),
+                              ("LINEBELOW", (0, 0), (1, 0), 0.6, PLATINUM), ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                              ("LINEABOVE", (0, 0), (-1, 0), 1.2, NIGHT),
                               ("LEFTPADDING", (0, 0), (-1, -1), 8), ("TOPPADDING", (0, 0), (-1, -1), 8),
                               ("BOTTOMPADDING", (0, 0), (-1, -1), 8)]))
     story.append(KeepTogether([Spacer(1, 4 * mm), sign, Spacer(1, 3 * mm),

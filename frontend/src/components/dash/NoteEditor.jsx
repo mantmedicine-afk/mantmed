@@ -63,8 +63,8 @@ export const NoteEditor = ({ consultation, onSaved }) => {
           <span className="flex items-center gap-3">
             <span className="grid h-11 w-11 place-items-center rounded-full bg-white text-night">{pdfBusy ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />}</span>
             <span>
-              <span className="block font-display text-2xl leading-none">{pdfBusy ? "Generazione in corso…" : "Genera Referto PDF"}</span>
-              <span className="mt-1 block text-xs text-slate-300">Salva le modifiche e scarica il referto ufficiale firmabile</span>
+              <span className="block font-display text-2xl leading-none">{pdfBusy ? "Generazione in corso…" : "Genera & Scarica Referto PDF"}</span>
+              <span className="mt-1 block text-xs text-slate-300">Salva la visita e scarica subito il referto ufficiale, pronto per la firma</span>
             </span>
           </span>
           <span className="text-[11px] uppercase tracking-[0.2em] text-[#A9C2FF] transition-transform group-hover:translate-x-1">A4 · PDF</span>
