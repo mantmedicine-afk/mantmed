@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { api, errMsg } from "@/lib/api";
 import { Field } from "./AppointmentDialog";
 
-const EMPTY = { name: "", birth_date: "", sex: "F", fiscal_code: "", guardian: "", allergies: "", notes: "" };
+const EMPTY = { name: "", birth_date: "", sex: "F", fiscal_code: "", guardian: "", guardian_email: "", allergies: "", notes: "" };
 
 export const PatientDialog = ({ value, onClose, onSaved }) => {
   const [f, setF] = useState(EMPTY);
@@ -19,7 +19,9 @@ export const PatientDialog = ({ value, onClose, onSaved }) => {
     if (!f.name.trim() || !f.birth_date) return toast.error("Nome e data di nascita sono obbligatori");
     const cf = f.fiscal_code.trim().toUpperCase();
     if (cf && !/^[A-Z0-9]{16}$/.test(cf)) return toast.error("Il codice fiscale deve avere 16 caratteri");
-    const body = { name: f.name, birth_date: f.birth_date, sex: f.sex, fiscal_code: cf, guardian: f.guardian, allergies: f.allergies, notes: f.notes };
+    const mail = (f.guardian_email || "").trim();
+    if (mail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) return toast.error("Email del genitore non valida");
+    const body = { name: f.name, birth_date: f.birth_date, sex: f.sex, fiscal_code: cf, guardian: f.guardian, guardian_email: mail, allergies: f.allergies, notes: f.notes };
     try {
       const p = isEdit ? await api.updatePatient(value.id, body) : await api.addPatient(body);
       toast.success(isEdit ? "Passaporto aggiornato" : "Paziente aggiunto al passaporto sanitario");
@@ -46,6 +48,7 @@ export const PatientDialog = ({ value, onClose, onSaved }) => {
           </div>
           <Field label="Codice fiscale"><Input value={f.fiscal_code} onChange={set("fiscal_code")} maxLength={16} className="font-mono uppercase" data-testid="patient-cf-input" /></Field>
           <Field label="Genitore / tutore"><Input value={f.guardian} onChange={set("guardian")} placeholder="es. Mamma: Nome Cognome" data-testid="patient-guardian-input" /></Field>
+          <Field label="Email del genitore (per l'invio dei referti)"><Input type="email" value={f.guardian_email} onChange={set("guardian_email")} placeholder="nome@email.it" data-testid="patient-guardian-email-input" /></Field>
           <Field label="Allergie"><Input value={f.allergies} onChange={set("allergies")} data-testid="patient-allergies-input" /></Field>
           <Field label="Note cliniche"><Input value={f.notes} onChange={set("notes")} data-testid="patient-notes-input" /></Field>
         </div>

@@ -20,6 +20,9 @@ from emergentintegrations.llm.openai import OpenAISpeechToText
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 from auth import build_auth, seed_doctor
 from report import build_report
+from mailer import send_email
+import base64
+from html import escape as hesc
 from growth import age_months, all_percentiles, curves, lms, value_at
 from checkpoints import BANDS, band_for, evaluate
 from datetime import date, timedelta
@@ -191,6 +194,8 @@ class Consultation(BaseDocument):
     transcript: str
     note: ClinicalNote
     duration_sec: int = 0
+    report_sent_at: Optional[str] = None
+    report_sent_to: Optional[str] = None
     created_at: str = Field(default_factory=now_iso)
 
 
@@ -214,6 +219,7 @@ class Patient(BaseDocument):
     sex: Literal["F", "M"]
     fiscal_code: str = ""
     guardian: str = ""
+    guardian_email: str = ""
     allergies: str = ""
     notes: str = ""
     created_at: str = Field(default_factory=now_iso)
@@ -225,6 +231,7 @@ class PatientIn(BaseModel):
     sex: Literal["F", "M"]
     fiscal_code: str = ""
     guardian: str = ""
+    guardian_email: str = ""
     allergies: str = ""
     notes: str = ""
 
@@ -234,6 +241,7 @@ class PatientPatch(BaseModel):
     birth_date: Optional[str] = None
     sex: Optional[Literal["F", "M"]] = None
     fiscal_code: Optional[str] = None
+    guardian_email: Optional[str] = None
     guardian: Optional[str] = None
     allergies: Optional[str] = None
     notes: Optional[str] = None
@@ -573,6 +581,44 @@ async def consultation_pdf(cid: str, user: dict = Depends(current_user)):
                     headers={"Content-Disposition": f"attachment; filename=\"{name}\"; filename*=UTF-8''{quote(name)}"})
 
 
+@api.post("/consultations/{cid}/send-report")
+async def send_report(cid: str, user: dict = Depends(current_user)):
+    doc = await db.consultations.find_one({"_id": oid(cid)})
+    if not doc:
+        raise HTTPException(404, "Consultazione non trovata")
+    c = Consultation.from_mongo(doc).out()
+    patient = await get_patient(c.get("patient_id"))
+    to = (patient or {}).get("guardian_email", "").strip()
+    if not EMAIL_RE.match(to):
+        raise HTTPException(400, "Email del genitore mancante o non valida nel passaporto del paziente")
+    pdf = build_report(c, user["name"], patient)
+    day = datetime.fromisoformat(c["created_at"]).strftime("%d/%m/%Y")
+    fname = f"Referto_{re.sub(r'[^A-Za-z0-9]+', '_', c['patient_name']).strip('_')}_{c['created_at'][:10]}.pdf"
+    subject = f"Referto della visita pediatrica di {c['patient_name']} – {day}"
+    html = (
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F5F7;padding:24px 0"><tr><td align="center">'
+        '<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;font-family:Arial,sans-serif;color:#0A192F">'
+        '<tr><td style="background:#0A192F;padding:22px 28px;color:#ffffff;font-family:Georgia,serif;font-size:24px">MantMed'
+        '<div style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:2px;color:#C9CCD3;margin-top:4px">STUDIO MEDICO SPECIALISTICO · PEDIATRIA</div></td></tr>'
+        f'<tr><td style="padding:28px;font-size:15px;line-height:1.6"><p>Gentile {hesc(patient.get("guardian") or "famiglia")},</p>'
+        f'<p>in allegato trova il referto della visita di <strong>{hesc(c["patient_name"])}</strong> del {day}'
+        f'{" presso lo " + hesc(c["clinic"]) if c.get("clinic") else ""}.</p>'
+        '<p>Per qualsiasi chiarimento può rispondere a questa email o contattare lo studio.</p>'
+        f'<p style="margin-top:24px">Cordiali saluti,<br><strong>{hesc(user["name"])}</strong><br>'
+        f'<span style="color:#5B6478;font-size:13px">{hesc(os.environ["DOCTOR_SPECIALTY"])}<br>Tel. {hesc(os.environ["STUDIO_PHONE"])}</span></p></td></tr>'
+        '<tr><td style="padding:16px 28px;border-top:1px solid #DADDE3;font-size:11px;color:#5B6478;line-height:1.5">'
+        'Comunicazione riservata contenente dati sanitari (art. 9 Reg. UE 2016/679 – GDPR), destinata esclusivamente al genitore o tutore del paziente. '
+        'Se l\'ha ricevuta per errore, la elimini e avvisi lo studio. Inviata da MantMed.</td></tr></table></td></tr></table>')
+    email_id = await send_email(to=to, subject=subject, html=html,
+                                attachments=[{"filename": fname, "content": base64.b64encode(pdf).decode()}])
+    sent_at = now_iso()
+    await db.consultations.update_one({"_id": oid(cid)}, {"$set": {"report_sent_at": sent_at, "report_sent_to": to}})
+    return {"sent": True, "to": to, "sent_at": sent_at, "email_id": email_id}
+
+
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
 @api.patch("/consultations/{cid}")
 async def update_consultation(cid: str, body: ConsultationPatch):
     existing = await db.consultations.find_one({"_id": oid(cid)})
@@ -603,12 +649,16 @@ async def list_patients():
 @api.post("/patients")
 async def create_patient(body: PatientIn):
     date.fromisoformat(body.birth_date)
+    if body.guardian_email and not EMAIL_RE.match(body.guardian_email.strip()):
+        raise HTTPException(400, "Email del genitore non valida")
     res = await db.patients.insert_one(Patient(**body.model_dump()).to_mongo())
     return patient_out(await db.patients.find_one({"_id": res.inserted_id}))
 
 
 @api.patch("/patients/{pid}")
 async def update_patient(pid: str, body: PatientPatch):
+    if body.guardian_email and not EMAIL_RE.match(body.guardian_email.strip()):
+        raise HTTPException(400, "Email del genitore non valida")
     doc = await db.patients.find_one_and_update({"_id": oid(pid)}, {"$set": body.model_dump(exclude_none=True)}, return_document=True)
     if not doc:
         raise HTTPException(404, "Paziente non trovato")

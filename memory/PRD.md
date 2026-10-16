@@ -46,6 +46,12 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Campo codice fiscale nel passaporto paziente (validazione 16 caratteri)
 - Pulsante "Genera & Scarica Referto PDF" nella schermata di fine visita
 
+## Implemented (2026-10-16, dati reali + invio email)
+- Dati reali Dott.ssa Tiziana Foti nel referto (titoli, iscrizione OMCeO Reggio Calabria n. 4582, indirizzi Via Roma 12 RC / Via Pozzicello 59 Gallico, tel, email) da backend/.env
+- Login medico migrato a medico@mantmed.it
+- Tabella crescita PDF riprogettata (Parametro/Valore/Percentile OMS/z-score + BMI), tabella farmaci con dose e volume allineati a destra
+- Invio referto ai genitori via email (Resend gestito Emergent, PDF allegato, reply-to studio): POST /api/consultations/{id}/send-report, email genitore nel passaporto
+
 ## Backlog
 - P1: percentili automatici con curve OMS, storico crescita del paziente, dati demo pediatrici in agenda/sala d'attesa, rinomina brand in "MantMed"
 - P1 (prec.): storico paziente, export PDF dedicato, recupero password

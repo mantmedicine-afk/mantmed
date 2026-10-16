@@ -1,5 +1,6 @@
 import io
 import os
+import re
 from datetime import datetime
 from pathlib import Path
 from xml.sax.saxutils import escape
@@ -30,10 +31,9 @@ BRAND = "MantMed"
 
 def studio_info(clinic: str) -> dict:
     key = "STUDIO_PROVINCIA" if "Provincia" in (clinic or "") else "STUDIO_CENTRO"
-    return {"specialty": os.environ.get("DOCTOR_SPECIALTY", "Specialista in Pediatria"),
-            "order": os.environ.get("DOCTOR_ORDER_NUMBER", "[n. iscrizione]"),
-            "phone": os.environ.get("STUDIO_PHONE", "[Telefono]"), "email": os.environ.get("STUDIO_EMAIL", "[Email]"),
-            "address": os.environ.get(f"{key}_ADDRESS", "[Indirizzo studio]"), "city": os.environ.get(f"{key}_CITY", "[Città]")}
+    return {"specialty": os.environ["DOCTOR_SPECIALTY"], "titles": os.environ.get("DOCTOR_TITLES", ""),
+            "order": os.environ["DOCTOR_ORDER_NUMBER"], "phone": os.environ["STUDIO_PHONE"], "email": os.environ["STUDIO_EMAIL"],
+            "address": os.environ[f"{key}_ADDRESS"], "city": os.environ["REPORT_CITY"]}
 
 W, H = A4
 MX = 18 * mm
@@ -47,6 +47,11 @@ S = {
     "small": ParagraphStyle("sm", fontName="Sans", fontSize=8, leading=11, textColor=MUTED),
     "cell": ParagraphStyle("c", fontName="Sans", fontSize=9, leading=12, textColor=NIGHT),
     "cellH": ParagraphStyle("ch", fontName="SansB", fontSize=7.5, leading=10, textColor=white),
+    "cellR": ParagraphStyle("cr", fontName="Sans", fontSize=9, leading=12, textColor=NIGHT, alignment=2),
+    "cellHR": ParagraphStyle("chr", fontName="SansB", fontSize=7.5, leading=10, textColor=white, alignment=2),
+    "hdName": ParagraphStyle("hn", fontName="Serif", fontSize=17, leading=19, textColor=white, alignment=2),
+    "hdSpec": ParagraphStyle("hs", fontName="SansB", fontSize=7.8, leading=10, textColor=white, alignment=2),
+    "hdText": ParagraphStyle("ht", fontName="Sans", fontSize=6.6, leading=8.6, textColor=HexColor("#D9DCE2"), alignment=2),
 }
 
 
@@ -115,12 +120,14 @@ def section(n, title, rows):
     return [KeepTogether([head, t]), Spacer(1, 7 * mm)]
 
 
-def grid(header, rows, widths):
-    t = Table([[Paragraph(escape(h), S["cellH"]) for h in header]] + [[P(c, "cell") for c in r] for r in rows],
-              colWidths=widths, repeatRows=1)
+def grid(header, rows, widths, right=()):
+    head = [Paragraph(escape(h), S["cellHR" if i in right else "cellH"]) for i, h in enumerate(header)]
+    body = [[P(c, "cellR" if i in right else "cell") for i, c in enumerate(r)] for r in rows]
+    t = Table([head] + body, colWidths=widths, repeatRows=1)
     t.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), NIGHT), ("ROWBACKGROUNDS", (0, 1), (-1, -1), [white, MIST]),
                            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("TOPPADDING", (0, 0), (-1, -1), 5),
-                           ("BOTTOMPADDING", (0, 0), (-1, -1), 5), ("LEFTPADDING", (0, 0), (-1, -1), 6)]))
+                           ("BOTTOMPADDING", (0, 0), (-1, -1), 5), ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                           ("RIGHTPADDING", (0, 0), (-1, -1), 6), ("LINEBELOW", (0, -1), (-1, -1), 0.6, PLATINUM)]))
     return t
 
 
@@ -134,36 +141,42 @@ def build_report(c: dict, doctor: str, patient: dict | None = None) -> bytes:
     info = studio_info(clinic)
     parts = (c["patient_name"] or "").split()
     first, last = (parts[0], " ".join(parts[1:])) if len(parts) > 1 else (c["patient_name"], "")
-    blank = "____________________"
+    blank = "_______________"
     cf = (patient or {}).get("fiscal_code") or blank
     birth = (patient or {}).get("birth_date")
     birth_s = datetime.fromisoformat(birth).strftime("%d/%m/%Y") if birth else blank
 
+    HB = 50 * mm
+
     def on_page(cv, doc):
         cv.saveState()
         cv.setFillColor(NIGHT)
-        cv.rect(0, H - 38 * mm, W, 38 * mm, stroke=0, fill=1)
+        cv.rect(0, H - HB, W, HB, stroke=0, fill=1)
         cv.setFillColor(PLATINUM)
-        cv.rect(0, H - 38.8 * mm, W, 0.8 * mm, stroke=0, fill=1)
+        cv.rect(0, H - HB - 0.8 * mm, W, 0.8 * mm, stroke=0, fill=1)
         cv.setStrokeColor(PLATINUM)
         cv.setLineWidth(0.5)
-        cv.roundRect(MX, H - 29 * mm, 18 * mm, 18 * mm, 4 * mm, stroke=1, fill=0)
-        draw_monogram(cv, MX + 1 * mm, H - 28 * mm, 16 * mm, stroke=white, accent=PLATINUM)
+        cv.roundRect(MX, H - 30 * mm, 18 * mm, 18 * mm, 4 * mm, stroke=1, fill=0)
+        draw_monogram(cv, MX + 1 * mm, H - 29 * mm, 16 * mm, stroke=white, accent=PLATINUM)
         cv.setFillColor(white)
         cv.setFont("Serif", 25)
-        cv.drawString(MX + 23 * mm, H - 19 * mm, BRAND)
+        cv.drawString(MX + 23 * mm, H - 20 * mm, BRAND)
         cv.setFont("Sans", 7)
         cv.setFillColor(PLATINUM)
-        cv.drawString(MX + 23 * mm, H - 24.5 * mm, "STUDIO MEDICO SPECIALISTICO · PEDIATRIA")
-        cv.setFillColor(white)
-        cv.setFont("Serif", 16)
-        cv.drawRightString(W - MX, H - 13 * mm, doctor)
-        cv.setFont("Sans", 7.8)
-        cv.setFillColor(ICE)
-        cv.drawRightString(W - MX, H - 18.5 * mm, info["specialty"])
-        cv.drawRightString(W - MX, H - 22.5 * mm, f"Iscr. Ordine dei Medici n. {info['order']}")
-        cv.drawRightString(W - MX, H - 26.5 * mm, f"{clinic} · {info['address']}, {info['city']}")
-        cv.drawRightString(W - MX, H - 30.5 * mm, f"Tel. {info['phone']} · {info['email']}")
+        cv.drawString(MX + 23 * mm, H - 25.5 * mm, "STUDIO MEDICO SPECIALISTICO · PEDIATRIA")
+        col_w = 86 * mm
+        y = H - 9 * mm
+        blocks = [(doctor, "hdName", 1.5), (info["specialty"], "hdSpec", 1.2), (info["titles"], "hdText", 1.6),
+                  (info["order"], "hdText", 0.6), (f"{clinic} · {info['address']}", "hdText", 0.6),
+                  (f"Tel. {info['phone']} · {info['email']}", "hdText", 0)]
+        for text, style, gap in blocks:
+            if not text:
+                continue
+            para = Paragraph(escape(text), S[style])
+            _, h = para.wrap(col_w, 30 * mm)
+            y -= h
+            para.drawOn(cv, W - MX - col_w, y)
+            y -= gap * mm
         cv.setStrokeColor(LINE)
         cv.line(MX, 16 * mm, W - MX, 16 * mm)
         cv.setFont("Sans", 6.8)
@@ -176,8 +189,8 @@ def build_report(c: dict, doctor: str, patient: dict | None = None) -> bytes:
 
     buf = io.BytesIO()
     doc = BaseDocTemplate(buf, pagesize=A4, title=f"Referto {c['patient_name']}", author=doctor,
-                          leftMargin=MX, rightMargin=MX, topMargin=48 * mm, bottomMargin=24 * mm)
-    doc.addPageTemplates([PageTemplate(frames=[Frame(MX, 24 * mm, W - 2 * MX, H - 72 * mm, id="f", leftPadding=0,
+                          leftMargin=MX, rightMargin=MX, topMargin=60 * mm, bottomMargin=24 * mm)
+    doc.addPageTemplates([PageTemplate(frames=[Frame(MX, 24 * mm, W - 2 * MX, H - 84 * mm, id="f", leftPadding=0,
                                                      rightPadding=0, topPadding=0, bottomPadding=0)], onPage=on_page)])
 
     cw = (W - 2 * MX) / 5
@@ -199,15 +212,24 @@ def build_report(c: dict, doctor: str, patient: dict | None = None) -> bytes:
     story += section("03", "Esame obiettivo", [("TORL", note.get("torl")), ("Torace · Auscultazione", note.get("torace_auscultazione")),
                                                ("Addome", note.get("addome"))])
 
-    peso, alt = g.get("peso_kg"), g.get("altezza_cm")
+    peso, alt, cc = g.get("peso_kg"), g.get("altezza_cm"), g.get("circonferenza_cranica_cm")
     bmi = peso / (alt / 100) ** 2 if peso and alt else None
     sesso = {"F": "Femmina", "M": "Maschio"}.get(g.get("sesso"), "—")
-    growth = grid(["Età", "Sesso", "Peso", "Altezza", "Circ. cranica", "BMI"],
-                  [[fmt(g.get("eta_mesi"), "mesi"), sesso, f"{fmt(peso, 'kg')}\n{g.get('percentile_peso') or ''}",
-                    f"{fmt(alt, 'cm')}\n{g.get('percentile_altezza') or ''}",
-                    f"{fmt(g.get('circonferenza_cranica_cm'), 'cm')}\n{g.get('percentile_cc') or ''}", fmt(bmi)]],
-                  [(W - 2 * MX - 42 * mm) / 6] * 6)
-    story += section("04", "Parametri di crescita", [("Misure e percentili", growth)])
+
+    def split_pct(s):
+        m = re.match(r"^(.*?)\s*\(z\s*([^)]+)\)\s*$", s or "")
+        return (m.group(1), f"z {m.group(2)}") if m else ((s or "—"), "—")
+
+    rows_g = []
+    for label, val, unit, pct in (("Peso", peso, "kg", g.get("percentile_peso")), ("Altezza / lunghezza", alt, "cm", g.get("percentile_altezza")),
+                                  ("Circonferenza cranica", cc, "cm", g.get("percentile_cc"))):
+        p, z = split_pct(pct) if val is not None else ("—", "—")
+        rows_g.append([label, fmt(val, unit), p, z])
+    rows_g.append(["BMI", f"{fmt(bmi)} kg/m²" if bmi else "—", "—", "—"])
+    gw = W - 2 * MX - 42 * mm
+    growth = grid(["Parametro", "Valore", "Percentile OMS", "z-score"], rows_g, [gw * 0.34, gw * 0.22, gw * 0.24, gw * 0.20], right=(1, 2, 3))
+    story += section("04", "Parametri di crescita", [("Età · sesso", f"{fmt(g.get('eta_mesi'), 'mesi')} · {sesso}"),
+                                                     ("Misure e percentili", growth)])
 
     rows = [("Diagnosi", note.get("diagnosi")), ("Terapia", note.get("terapia"))]
     drugs = [d for d in note.get("farmaci") or [] if d.get("nome")]
@@ -215,12 +237,14 @@ def build_report(c: dict, doctor: str, patient: dict | None = None) -> bytes:
         lines = []
         for d in drugs:
             x = dose_for(d, peso)
-            dose = f"{fmt(x['mg'], 'mg')}" + (f" = {fmt(x['ml'], 'ml')}" if x and x["ml"] else "") if x else "—"
+            dose = fmt(x["mg"], "mg") if x else "—"
+            ml = fmt(x["ml"], "ml") if x and x["ml"] else "—"
             freq = f"{int(d['dosi_giorno'])} volte/die" if d.get("dosi_giorno") else "al bisogno"
-            dur = f"{int(d['giorni'])} giorni" if d.get("giorni") else "—"
-            lines.append([d["nome"], fmt(d.get("mg_kg_dose"), "mg/kg"), dose, freq, dur])
-        rows.append(("Prescrizione su misura", grid(["Farmaco", "Posologia", "Dose singola", "Frequenza", "Durata"], lines,
-                                                    [30 * mm, 22 * mm, 28 * mm, 22 * mm, W - 2 * MX - 144 * mm])))
+            dur = f"{int(d['giorni'])} gg" if d.get("giorni") else "—"
+            lines.append([d["nome"], fmt(d.get("mg_kg_dose"), "mg/kg"), dose, ml, freq, dur])
+        dw = W - 2 * MX - 42 * mm
+        rows.append(("Prescrizione su misura", grid(["Farmaco", "Posologia", "Dose", "Volume", "Frequenza", "Durata"], lines,
+                                                    [dw * 0.25, dw * 0.15, dw * 0.14, dw * 0.13, dw * 0.19, dw * 0.14], right=(1, 2, 3, 5))))
         if peso:
             rows.append(("", P(f"Dosi calcolate sul peso di {fmt(peso, 'kg')} rilevato in visita.", "small")))
     rows.append(("Follow-up", note.get("follow_up")))

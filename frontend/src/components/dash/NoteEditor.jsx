@@ -6,6 +6,7 @@ import { api, errMsg } from "@/lib/api";
 import { TABS, tabDone, noteToText } from "@/lib/pediatric";
 import { GrowthPanel } from "./GrowthPanel";
 import { DoseCalculator } from "./DoseCalculator";
+import { SendToParents } from "./SendToParents";
 
 export const NoteEditor = ({ consultation, onSaved }) => {
   const [note, setNote] = useState(consultation.note ?? {});
@@ -41,7 +42,7 @@ export const NoteEditor = ({ consultation, onSaved }) => {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[0.75fr_1.6fr]" data-testid="note-editor">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[0.75fr_1.6fr]" data-testid="note-editor">
       <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
         <div className="text-[11px] uppercase tracking-[0.22em] text-slate-300">Trascrizione · Whisper</div>
         <p className="mt-3 max-h-[22vh] overflow-auto whitespace-pre-wrap text-[15px] leading-relaxed text-slate-200 lg:max-h-[60vh]" data-testid="note-transcript" data-lenis-prevent>{consultation.transcript}</p>
@@ -59,7 +60,8 @@ export const NoteEditor = ({ consultation, onSaved }) => {
           </div>
         </div>
 
-        <button onClick={generatePdf} disabled={pdfBusy} className="group mt-5 flex w-full items-center justify-between gap-4 rounded-2xl bg-night px-5 py-4 text-left text-white transition-transform hover:-translate-y-0.5 active:scale-[0.99] disabled:opacity-70" data-testid="generate-pdf-btn">
+        <div className="mt-5 grid grid-cols-1 gap-3 xl:grid-cols-[1.25fr_1fr]">
+        <button onClick={generatePdf} disabled={pdfBusy} className="group flex w-full items-center justify-between gap-4 rounded-2xl bg-night px-5 py-4 text-left text-white transition-transform hover:-translate-y-0.5 active:scale-[0.99] disabled:opacity-70" data-testid="generate-pdf-btn">
           <span className="flex items-center gap-3">
             <span className="grid h-11 w-11 place-items-center rounded-full bg-white text-night">{pdfBusy ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />}</span>
             <span>
@@ -69,6 +71,8 @@ export const NoteEditor = ({ consultation, onSaved }) => {
           </span>
           <span className="text-[11px] uppercase tracking-[0.2em] text-[#A9C2FF] transition-transform group-hover:translate-x-1">A4 · PDF</span>
         </button>
+        <SendToParents consultation={consultation} beforeSend={() => api.updateConsultation(consultation.id, note)} />
+        </div>
 
         <div className="-mx-1 mt-5 flex gap-1 overflow-x-auto px-1 pb-1 md:mx-0 md:grid md:grid-cols-5 md:overflow-visible md:rounded-2xl md:bg-slate-100 md:p-1" role="tablist" data-testid="note-tabs">
           {TABS.map((t) => {

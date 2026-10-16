@@ -53,7 +53,7 @@ export const Agenda = ({ appointments, onChange, patients = [], onPassport }) =>
       </div>
 
       <div className="mt-2 flex items-center gap-1.5 px-1 text-xs text-slate-500">
-        <MapPin size={12} /> {clinic === "Studio Centro" ? "Via Roma 12 · mattina" : "Piazza Garibaldi 4 · pomeriggio"}
+        <MapPin size={12} /> {clinic === "Studio Centro" ? "Via Roma 12, Reggio Calabria · mattina" : "Via Pozzicello 59, Gallico · pomeriggio"}
       </div>
 
       <ol className="relative mt-4 flex-1 space-y-1" data-testid="agenda-list">

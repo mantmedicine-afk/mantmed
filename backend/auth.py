@@ -117,6 +117,11 @@ async def seed_doctor(db):
     name = os.environ["DOCTOR_NAME"]
     existing = await db.users.find_one({"email": email})
     if existing is None:
+        prev = await db.users.find_one({"role": "doctor"})
+        if prev:
+            await db.users.update_one({"_id": prev["_id"]}, {"$set": {"email": email}})
+            existing = await db.users.find_one({"email": email})
+    if existing is None:
         await db.users.insert_one({"email": email, "password_hash": hash_password(pwd), "name": name, "role": "doctor",
                                    "created_at": datetime.now(timezone.utc).isoformat()})
     elif not verify_password(pwd, existing["password_hash"]) or existing.get("name") != name:

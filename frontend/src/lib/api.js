@@ -46,6 +46,7 @@ export const api = {
   },
   createConsultation: (b) => http.post("/consultations", b).then((r) => r.data),
   updateConsultation: (id, note) => http.patch(`/consultations/${id}`, { note }).then((r) => r.data),
+  sendReport: (id) => http.post(`/consultations/${id}/send-report`).then((r) => r.data),
   downloadReport: async (id) => {
     const r = await http.get(`/consultations/${id}/pdf`, { responseType: "blob" });
     const name = /filename="([^"]+)"/.exec(r.headers["content-disposition"] ?? "")?.[1] ?? "Referto.pdf";
