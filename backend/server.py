@@ -26,6 +26,7 @@ from html import escape as hesc
 from growth import age_months, all_percentiles, curves, lms, value_at
 from checkpoints import BANDS, band_for, evaluate
 from datetime import date, timedelta
+from zoneinfo import ZoneInfo
 from fastapi.responses import Response
 from urllib.parse import quote
 
@@ -681,6 +682,7 @@ async def passport(pid: str):
     cons = [Consultation.from_mongo(c).out() for c in await db.consultations.find({"patient_id": pid}).sort("created_at", -1).to_list(200)]
     meas = [measurement_out(m, patient) for m in await db.measurements.find({"patient_id": pid}).sort("date", 1).to_list(500)]
     cps = [CheckpointDoc.from_mongo(c).out() for c in await db.checkpoints.find({"patient_id": pid}).sort("created_at", -1).to_list(100)]
+    pays = [Payment.from_mongo(x).out() for x in await db.payments.find({"patient_id": pid}).sort("created_at", -1).to_list(500)]
     clinics = {c: {"clinic": c, "visits": 0, "measurements": 0, "checkpoints": 0} for c in CLINICS}
     for c in cons:
         clinics.setdefault(c["clinic"] or "Altro", {"clinic": c["clinic"] or "Altro", "visits": 0, "measurements": 0, "checkpoints": 0})["visits"] += 1
@@ -690,7 +692,7 @@ async def passport(pid: str):
     for c in cps:
         if c["clinic"] in clinics:
             clinics[c["clinic"]]["checkpoints"] += 1
-    return {"patient": patient, "consultations": cons, "measurements": meas, "checkpoints": cps,
+    return {"patient": patient, "consultations": cons, "measurements": meas, "checkpoints": cps, "payments": pays,
             "clinics": list(clinics.values()), "synced_at": now_iso()}
 
 
@@ -714,6 +716,109 @@ async def growth_percentiles(sex: Literal["F", "M"], age_months: float, weight: 
 @api.get("/growth/curves")
 async def growth_curves(sex: Literal["F", "M"], indicator: Literal["wfa", "lhfa", "hcfa"], max_month: float = 24):
     return curves(indicator, sex, max_month)
+
+
+# ---------- Registro cassa ----------
+ROME = ZoneInfo("Europe/Rome")
+METHODS = {"contanti": "Contanti", "pos": "POS", "bonifico": "Bonifico"}
+
+
+def today_rome() -> str:
+    return datetime.now(ROME).date().isoformat()
+
+
+class Payment(BaseDocument):
+    consultation_id: Optional[str] = None
+    patient_id: Optional[str] = None
+    patient_name: str
+    clinic: str = ""
+    service: str = "Visita pediatrica specialistica"
+    amount: float
+    method: Literal["contanti", "pos", "bonifico"]
+    date: str = Field(default_factory=today_rome)
+    created_at: str = Field(default_factory=now_iso)
+
+
+class PaymentIn(BaseModel):
+    consultation_id: Optional[str] = None
+    patient_id: Optional[str] = None
+    patient_name: str
+    clinic: str = ""
+    service: str = "Visita pediatrica specialistica"
+    amount: float = Field(gt=0, le=100000)
+    method: Literal["contanti", "pos", "bonifico"]
+
+
+def summarize(items: list) -> dict:
+    by_method = {m: {"method": m, "label": l, "total": 0.0, "count": 0} for m, l in METHODS.items()}
+    by_clinic = {c: {"clinic": c, "total": 0.0, "count": 0} for c in CLINICS}
+    for p in items:
+        by_method[p["method"]]["total"] += p["amount"]
+        by_method[p["method"]]["count"] += 1
+        bc = by_clinic.setdefault(p["clinic"] or "Altro", {"clinic": p["clinic"] or "Altro", "total": 0.0, "count": 0})
+        bc["total"] += p["amount"]
+        bc["count"] += 1
+    r2 = lambda d: {**d, "total": round(d["total"], 2)}
+    return {"total": round(sum(p["amount"] for p in items), 2), "count": len(items),
+            "by_method": [r2(v) for v in by_method.values()], "by_clinic": [r2(v) for v in by_clinic.values()]}
+
+
+async def payments_between(start: str, end: str) -> list:
+    date.fromisoformat(start)
+    date.fromisoformat(end)
+    docs = await db.payments.find({"date": {"$gte": start, "$lte": end}}).sort("created_at", 1).to_list(5000)
+    return [Payment.from_mongo(d).out() for d in docs]
+
+
+@api.post("/payments")
+async def create_payment(body: PaymentIn):
+    if not body.patient_name.strip():
+        raise HTTPException(400, "Paziente obbligatorio")
+    p = Payment(**{**body.model_dump(), "amount": round(body.amount, 2)})
+    res = await db.payments.insert_one(p.to_mongo())
+    p.id = str(res.inserted_id)
+    return p.out()
+
+
+@api.get("/payments")
+async def list_payments(start: Optional[str] = None, end: Optional[str] = None, consultation_id: Optional[str] = None):
+    if consultation_id:
+        docs = await db.payments.find({"consultation_id": consultation_id}).sort("created_at", 1).to_list(50)
+        items = [Payment.from_mongo(d).out() for d in docs]
+    else:
+        s = start or today_rome()
+        items = await payments_between(s, end or s)
+    return {"items": items, "summary": summarize(items), "today": today_rome()}
+
+
+@api.delete("/payments/{pid}")
+async def delete_payment(pid: str):
+    res = await db.payments.delete_one({"_id": oid(pid)})
+    if not res.deleted_count:
+        raise HTTPException(404, "Incasso non trovato")
+    return {"deleted": pid}
+
+
+@api.get("/payments/export")
+async def export_payments(start: Optional[str] = None, end: Optional[str] = None):
+    s = start or today_rome()
+    e = end or s
+    items = await payments_between(s, e)
+    eur = lambda v: f"{v:.2f}".replace(".", ",")
+    clean = lambda v: str(v or "").replace(";", ",").replace("\n", " ")
+    rows = ["Data;Ora;Paziente;Prestazione;Studio;Metodo;Importo (EUR)"]
+    for p in items:
+        t = datetime.fromisoformat(p["created_at"]).astimezone(ROME).strftime("%H:%M")
+        d = datetime.fromisoformat(p["date"]).strftime("%d/%m/%Y")
+        rows.append(";".join([d, t, clean(p["patient_name"]), clean(p["service"]), clean(p["clinic"]), METHODS[p["method"]], eur(p["amount"])]))
+    sm = summarize(items)
+    rows += ["", "Riepilogo;;;;;Metodo;Totale (EUR)"]
+    rows += [f";;;;;{m['label']};{eur(m['total'])}" for m in sm["by_method"]]
+    rows += [f";;;;;Totale;{eur(sm['total'])}"]
+    csv = "\ufeff" + "\r\n".join(rows) + "\r\n"
+    name = f"Registro_cassa_{s}" + (f"_{e}" if e != s else "") + ".csv"
+    return Response(csv.encode("utf-8"), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f"attachment; filename=\"{name}\""})
 
 
 @api.get("/checkpoints/bands")

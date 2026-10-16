@@ -47,17 +47,24 @@ export const api = {
   createConsultation: (b) => http.post("/consultations", b).then((r) => r.data),
   updateConsultation: (id, note) => http.patch(`/consultations/${id}`, { note }).then((r) => r.data),
   sendReport: (id) => http.post(`/consultations/${id}/send-report`).then((r) => r.data),
-  downloadReport: async (id) => {
-    const r = await http.get(`/consultations/${id}/pdf`, { responseType: "blob" });
-    const name = /filename="([^"]+)"/.exec(r.headers["content-disposition"] ?? "")?.[1] ?? "Referto.pdf";
-    const url = URL.createObjectURL(r.data);
-    const a = Object.assign(document.createElement("a"), { href: url, download: name });
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-  },
+  payments: (params) => http.get("/payments", { params }).then((r) => ({ items: Array.isArray(r.data?.items) ? r.data.items : [], summary: r.data?.summary ?? null, today: r.data?.today })),
+  addPayment: (b) => http.post("/payments", b).then((r) => r.data),
+  deletePayment: (id) => http.delete(`/payments/${id}`),
+  exportPayments: async (params) => saveBlob(await http.get("/payments/export", { params, responseType: "blob" }), "Registro_cassa.csv"),
+  downloadReport: async (id) => saveBlob(await http.get(`/consultations/${id}/pdf`, { responseType: "blob" }), "Referto.pdf"),
 };
+
+const saveBlob = (r, fallback) => {
+  const name = /filename="([^"]+)"/.exec(r.headers["content-disposition"] ?? "")?.[1] ?? fallback;
+  const url = URL.createObjectURL(r.data);
+  const a = Object.assign(document.createElement("a"), { href: url, download: name });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+};
+
+export const eur = (v) => (Number(v) || 0).toLocaleString("it-IT", { style: "currency", currency: "EUR" });
 
 export const CLINICS = ["Studio Centro", "Studio Provincia"];
 

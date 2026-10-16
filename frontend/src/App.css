@@ -22,7 +22,9 @@ html.lenis, html.lenis body { height: auto; }
 }
 
 @media print {
-  [data-testid="dashboard"] > *:not([data-testid="consultation-overlay"]) { display: none !important; }
+  body:not(.print-cash) [data-testid="dashboard"] > *:not([data-testid="consultation-overlay"]) { display: none !important; }
+  body.print-cash [data-testid="dashboard"] > *:not([data-testid="cash-register"]) { display: none !important; }
+  body.print-cash [data-testid="cash-register"] button, body.print-cash [data-testid="cash-register"] input { display: none !important; }
   [data-testid="consultation-overlay"] { position: static !important; background: #fff !important; color: #000 !important; }
   [data-testid="consultation-overlay"] button { display: none !important; }
 }

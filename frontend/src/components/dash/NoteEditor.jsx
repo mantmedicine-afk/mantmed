@@ -7,6 +7,7 @@ import { TABS, tabDone, noteToText } from "@/lib/pediatric";
 import { GrowthPanel } from "./GrowthPanel";
 import { DoseCalculator } from "./DoseCalculator";
 import { SendToParents } from "./SendToParents";
+import { CashPanel } from "./CashPanel";
 
 export const NoteEditor = ({ consultation, onSaved }) => {
   const [note, setNote] = useState(consultation.note ?? {});
@@ -73,6 +74,7 @@ export const NoteEditor = ({ consultation, onSaved }) => {
         </button>
         <SendToParents consultation={consultation} beforeSend={() => api.updateConsultation(consultation.id, note)} />
         </div>
+        <CashPanel consultation={consultation} service={note.motivo_visita && note.motivo_visita !== "Non riportato" ? `Visita pediatrica · ${note.motivo_visita}` : ""} onChange={onSaved} />
 
         <div className="-mx-1 mt-5 flex gap-1 overflow-x-auto px-1 pb-1 md:mx-0 md:grid md:grid-cols-5 md:overflow-visible md:rounded-2xl md:bg-slate-100 md:p-1" role="tablist" data-testid="note-tabs">
           {TABS.map((t) => {

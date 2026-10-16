@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { X, RefreshCw, Cloud, FileDown, Sparkles, AlertCircle, Pencil } from "lucide-react";
-import { api, CLINICS, errMsg } from "@/lib/api";
+import { api, CLINICS, errMsg, eur } from "@/lib/api";
+import { methodLabel } from "./CashPanel";
 import { GrowthChart } from "./GrowthChart";
 import { CheckpointWizard, CheckpointResult } from "./CheckpointWizard";
 
@@ -63,7 +64,7 @@ export const Passport = ({ patientId, onClose, onEdit }) => {
           {!data ? <div className="h-60 animate-pulse rounded-3xl bg-slate-100" /> : (
             <>
               {tab === "crescita" && <GrowthChart patient={p} measurements={data.measurements ?? []} onAdded={load} />}
-              {tab === "visite" && <Visits items={data.consultations ?? []} />}
+              {tab === "visite" && <Visits items={data.consultations ?? []} payments={data.payments ?? []} />}
               {tab === "checkpoint" && <Checkpoints patient={p} items={data.checkpoints ?? []} onDone={load} />}
             </>
           )}
@@ -91,7 +92,7 @@ const SyncPanel = ({ data, syncing, onSync }) => (
   </div>
 );
 
-const Visits = ({ items }) => {
+const Visits = ({ items, payments = [] }) => {
   const pdf = async (id) => {
     try { await api.downloadReport(id); toast.success("Referto PDF scaricato"); } catch (e) { toast.error(errMsg(e)); }
   };
@@ -106,6 +107,9 @@ const Visits = ({ items }) => {
               <div className="flex items-center gap-2 text-xs text-slate-500"><span className="font-mono">{new Date(c.created_at).toLocaleDateString("it-IT")}</span><span className="rounded-full bg-slate-100 px-2 py-0.5 text-night">{c.clinic || "Consultazione libera"}</span></div>
               <div className="mt-1 font-display text-2xl text-night">{c.note?.motivo_visita || "Visita"}</div>
               <div className="text-sm text-slate-600"><span className="font-semibold text-night">Diagnosi:</span> {c.note?.diagnosi || "—"}</div>
+              {payments.filter((x) => x.consultation_id === c.id).map((x) => (
+                <span key={x.id} className="mt-2 mr-2 inline-flex items-center gap-1.5 rounded-full bg-[#ECEDEF] px-3 py-1 text-xs font-medium text-night" data-testid={`passport-payment-${x.id}`}>{eur(x.amount)} · {methodLabel(x.method)}</span>
+              ))}
             </div>
             <button onClick={() => pdf(c.id)} className="flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-night hover:border-night" data-testid={`passport-visit-pdf-${c.id}`}><FileDown size={15} /> Referto PDF</button>
           </div>

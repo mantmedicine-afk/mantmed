@@ -13,6 +13,7 @@ import { ConsultationOverlay } from "@/components/dash/ConsultationOverlay";
 import { PassportSection } from "@/components/dash/PassportSection";
 import { Passport } from "@/components/dash/Passport";
 import { PatientDialog } from "@/components/dash/PatientDialog";
+import { CashRegister } from "@/components/dash/CashRegister";
 
 const isToday = (iso) => new Date(iso).toDateString() === new Date().toDateString();
 
@@ -29,8 +30,12 @@ export default function Dashboard() {
   const [passportId, setPassportId] = useState(null);
   const [editPatient, setEditPatient] = useState(null);
   const [passportKey, setPassportKey] = useState(0);
+  const [income, setIncome] = useState(0);
+  const [cashKey, setCashKey] = useState(0);
 
   const load = useCallback(() => {
+    api.payments().then((r) => setIncome(r.summary?.total ?? 0)).catch(() => {});
+    setCashKey((k) => k + 1);
     api.appointments().then(setAppointments).catch(() => {});
     api.waiting().then(setWaiting).catch(() => {});
     api.consultations().then(setNotes).catch(() => {});
@@ -60,13 +65,14 @@ export default function Dashboard() {
     <div className="min-h-screen overflow-x-clip bg-paper" data-testid="dashboard">
       <TopBar />
       <Marquee items={ticker} />
-      <Hero total={appointments.length} waiting={waiting.length} name={shortName} />
+      <Hero total={appointments.length} waiting={waiting.length} name={shortName} income={income} />
       <main className="mx-auto grid max-w-[1440px] grid-cols-1 gap-5 px-5 pb-10 lg:grid-cols-12 lg:px-8">
         <motion.div {...col(0.35)} className="order-2 min-w-0 lg:order-1 lg:col-span-4"><Agenda appointments={appointments} onChange={load} patients={patients} onPassport={setPassportId} /></motion.div>
         <motion.div {...col(0.45)} className="order-1 min-w-0 lg:order-2 lg:col-span-4"><ConsultHub next={next} onStart={start} /></motion.div>
         <motion.div {...col(0.55)} className="order-3 min-w-0 lg:col-span-4"><WaitingList waiting={waiting} onChange={load} onStart={start} patients={patients} onPassport={setPassportId} /></motion.div>
       </main>
       <RecentNotes items={notes.filter((c) => isToday(c.created_at))} onOpen={(c) => setOverlay({ open: true, patient: null, initial: c })} />
+      <CashRegister refreshKey={cashKey} />
       <PassportSection patients={patients} onOpen={setPassportId} onAdd={() => setEditPatient({})} />
       {passportId && <Passport key={`${passportId}-${passportKey}`} patientId={passportId} onClose={() => { setPassportId(null); load(); }} onEdit={setEditPatient} />}
       <PatientDialog value={editPatient} onClose={() => setEditPatient(null)} onSaved={() => { load(); setPassportKey((k) => k + 1); }} />
