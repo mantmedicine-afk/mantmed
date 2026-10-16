@@ -10,6 +10,11 @@ import { WaitingList } from "@/components/dash/WaitingList";
 import { ConsultHub } from "@/components/dash/ConsultHub";
 import { RecentNotes } from "@/components/dash/RecentNotes";
 import { ConsultationOverlay } from "@/components/dash/ConsultationOverlay";
+import { PassportSection } from "@/components/dash/PassportSection";
+import { Passport } from "@/components/dash/Passport";
+import { PatientDialog } from "@/components/dash/PatientDialog";
+
+const isToday = (iso) => new Date(iso).toDateString() === new Date().toDateString();
 
 const col = (d) => ({ initial: { opacity: 0, y: 24 }, animate: { opacity: 1, y: 0 }, transition: { delay: d, duration: 0.7, ease: [0.22, 1, 0.36, 1] } });
 
@@ -20,11 +25,16 @@ export default function Dashboard() {
   const [waiting, setWaiting] = useState([]);
   const [notes, setNotes] = useState([]);
   const [overlay, setOverlay] = useState({ open: false, patient: null, initial: null });
+  const [patients, setPatients] = useState([]);
+  const [passportId, setPassportId] = useState(null);
+  const [editPatient, setEditPatient] = useState(null);
+  const [passportKey, setPassportKey] = useState(0);
 
   const load = useCallback(() => {
     api.appointments().then(setAppointments).catch(() => {});
     api.waiting().then(setWaiting).catch(() => {});
     api.consultations().then(setNotes).catch(() => {});
+    api.patients().then(setPatients).catch(() => {});
   }, []);
   useEffect(() => {
     load();
@@ -38,6 +48,8 @@ export default function Dashboard() {
     `Studio Provincia · ${provincia} visite`,
     `${waiting.length} pazienti in sala d'attesa`,
     next ? `Prossimo: ${next.name}` : "Sala d'attesa libera",
+    `${patients.length} passaporti sanitari sincronizzati`,
+    "Percentili OMS automatici · Check-point di benessere per l'età evolutiva",
     "Trascrizione AI attiva · Whisper",
     "Cartella pediatrica · Anamnesi · Sintomi · Esame obiettivo · Crescita · Terapia su misura",
   ];
@@ -50,11 +62,14 @@ export default function Dashboard() {
       <Marquee items={ticker} />
       <Hero total={appointments.length} waiting={waiting.length} name={shortName} />
       <main className="mx-auto grid max-w-[1440px] grid-cols-1 gap-5 px-5 pb-10 lg:grid-cols-12 lg:px-8">
-        <motion.div {...col(0.35)} className="order-2 min-w-0 lg:order-1 lg:col-span-4"><Agenda appointments={appointments} onChange={load} /></motion.div>
+        <motion.div {...col(0.35)} className="order-2 min-w-0 lg:order-1 lg:col-span-4"><Agenda appointments={appointments} onChange={load} patients={patients} onPassport={setPassportId} /></motion.div>
         <motion.div {...col(0.45)} className="order-1 min-w-0 lg:order-2 lg:col-span-4"><ConsultHub next={next} onStart={start} /></motion.div>
-        <motion.div {...col(0.55)} className="order-3 min-w-0 lg:col-span-4"><WaitingList waiting={waiting} onChange={load} onStart={start} /></motion.div>
+        <motion.div {...col(0.55)} className="order-3 min-w-0 lg:col-span-4"><WaitingList waiting={waiting} onChange={load} onStart={start} patients={patients} onPassport={setPassportId} /></motion.div>
       </main>
-      <RecentNotes items={notes} onOpen={(c) => setOverlay({ open: true, patient: null, initial: c })} />
+      <RecentNotes items={notes.filter((c) => isToday(c.created_at))} onOpen={(c) => setOverlay({ open: true, patient: null, initial: c })} />
+      <PassportSection patients={patients} onOpen={setPassportId} onAdd={() => setEditPatient({})} />
+      {passportId && <Passport key={`${passportId}-${passportKey}`} patientId={passportId} onClose={() => { setPassportId(null); load(); }} onEdit={setEditPatient} />}
+      <PatientDialog value={editPatient} onClose={() => setEditPatient(null)} onSaved={() => { load(); setPassportKey((k) => k + 1); }} />
       <ConsultationOverlay
         open={overlay.open}
         patient={overlay.patient}

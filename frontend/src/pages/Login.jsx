@@ -32,7 +32,7 @@ export default function Login() {
       <section className="grain relative flex flex-col justify-between overflow-hidden bg-night px-6 py-8 text-white lg:px-14 lg:py-12">
         <div className="relative z-10 flex items-center gap-3">
           <LogoMark light />
-          <span className="font-display text-[28px]">Auscula</span>
+          <span className="font-display text-[28px]">MantMed</span>
         </div>
         <h1 className="relative z-10 my-12 font-display text-4xl leading-[1.02] sm:text-5xl lg:text-6xl">
           <Line delay={0.1}>Ascolta il paziente.</Line>

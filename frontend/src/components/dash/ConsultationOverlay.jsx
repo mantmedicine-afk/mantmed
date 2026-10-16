@@ -40,7 +40,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
         if (!t) throw new Error("Nessun parlato rilevato nella registrazione");
       }
       setStep("Compilazione del modello standard di nota clinica…");
-      const c = await api.createConsultation({ patient_name: name, clinic: sel?.clinic ?? "", waiting_id: sel?.id ?? null, transcript: t, duration_sec: duration });
+      const c = await api.createConsultation({ patient_name: name, patient_id: sel?.patient_id ?? null, clinic: sel?.clinic ?? "", waiting_id: sel?.id ?? null, transcript: t, duration_sec: duration });
       setResult(c);
       setStage("note");
       onDone();

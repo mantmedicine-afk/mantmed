@@ -29,6 +29,15 @@ export const api = {
   updateWaiting: (id, b) => http.patch(`/waiting/${id}`, b).then((r) => r.data),
   deleteWaiting: (id) => http.delete(`/waiting/${id}`),
   consultations: () => http.get("/consultations").then(list),
+  patients: () => http.get("/patients").then(list),
+  addPatient: (b) => http.post("/patients", b).then((r) => r.data),
+  updatePatient: (id, b) => http.patch(`/patients/${id}`, b).then((r) => r.data),
+  passport: (id) => http.get(`/patients/${id}/passport`).then((r) => r.data),
+  addMeasurement: (id, b) => http.post(`/patients/${id}/measurements`, b).then((r) => r.data),
+  percentiles: (params) => http.get("/growth/percentiles", { params }).then((r) => r.data),
+  curves: (params) => http.get("/growth/curves", { params }).then(list),
+  checkpointTemplate: (id) => http.get(`/patients/${id}/checkpoint`).then((r) => r.data),
+  submitCheckpoint: (id, b) => http.post(`/patients/${id}/checkpoints`, b).then((r) => r.data),
   transcribe: (blob) => {
     const fd = new FormData();
     const ext = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "webm";

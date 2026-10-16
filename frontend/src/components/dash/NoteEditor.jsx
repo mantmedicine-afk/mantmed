@@ -21,7 +21,7 @@ export const NoteEditor = ({ consultation, onSaved }) => {
 
   const save = async () => {
     setSaving(true);
-    try { await api.updateConsultation(consultation.id, note); toast.success("Cartella pediatrica salvata"); onSaved?.(); }
+    try { const r = await api.updateConsultation(consultation.id, note); if (r?.note) setNote(r.note); toast.success("Cartella pediatrica salvata"); onSaved?.(); }
     catch (e) { toast.error(errMsg(e)); }
     setSaving(false);
   };

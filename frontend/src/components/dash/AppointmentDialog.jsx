@@ -5,11 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api, CLINICS, errMsg } from "@/lib/api";
+import { PatientSelect } from "./PatientSelect";
 
-const EMPTY = { clinic: CLINICS[0], time: "09:00", patient_name: "", visit_type: "Visita di controllo", duration: 30, status: "programmato" };
+const EMPTY = { clinic: CLINICS[0], time: "09:00", patient_name: "", patient_id: null, visit_type: "Visita pediatrica", duration: 30, status: "programmato" };
 const STATUSES = [["programmato", "Programmato"], ["in_attesa", "In attesa"], ["in_corso", "In corso"], ["completato", "Completato"]];
 
-export const AppointmentDialog = ({ value, onClose, onSaved }) => {
+export const AppointmentDialog = ({ value, onClose, onSaved, patients = [] }) => {
   const [f, setF] = useState(EMPTY);
   const isEdit = Boolean(value?.id);
   useEffect(() => {
@@ -18,8 +19,8 @@ export const AppointmentDialog = ({ value, onClose, onSaved }) => {
   const set = (k) => (v) => setF((p) => ({ ...p, [k]: v?.target ? v.target.value : v }));
 
   const save = async () => {
-    if (!f.patient_name.trim()) return toast.error("Inserisci il nome del paziente");
-    const body = { clinic: f.clinic, time: f.time, patient_name: f.patient_name, visit_type: f.visit_type, duration: Number(f.duration) || 30, status: f.status };
+    if (!f.patient_name.trim()) return toast.error("Seleziona il paziente");
+    const body = { clinic: f.clinic, time: f.time, patient_name: f.patient_name, patient_id: f.patient_id, visit_type: f.visit_type, duration: Number(f.duration) || 30, status: f.status };
     try {
       isEdit ? await api.updateAppointment(value.id, body) : await api.addAppointment(body);
       toast.success(isEdit ? "Appuntamento aggiornato" : "Appuntamento aggiunto");
@@ -37,7 +38,7 @@ export const AppointmentDialog = ({ value, onClose, onSaved }) => {
       <DialogContent className="rounded-3xl bg-white sm:max-w-md" data-testid="appointment-dialog">
         <DialogHeader><DialogTitle className="font-display text-3xl font-normal text-night">{isEdit ? "Modifica appuntamento" : "Nuovo appuntamento"}</DialogTitle></DialogHeader>
         <div className="grid gap-4">
-          <Field label="Paziente"><Input value={f.patient_name} onChange={set("patient_name")} data-testid="appointment-patient-input" /></Field>
+          <Field label="Paziente"><PatientSelect patients={patients} value={f.patient_id} onChange={(p) => setF((x) => ({ ...x, patient_id: p.id, patient_name: p.name }))} testId="appointment-patient-select" /></Field>
           <Field label="Tipo di visita"><Input value={f.visit_type} onChange={set("visit_type")} data-testid="appointment-type-input" /></Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Orario"><Input type="time" value={f.time} onChange={set("time")} data-testid="appointment-time-input" /></Field>

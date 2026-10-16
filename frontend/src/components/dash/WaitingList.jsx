@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Pencil, Trash2, DoorOpen, Mic } from "lucide-react";
+import { Plus, Pencil, Trash2, DoorOpen, Mic, BookUser } from "lucide-react";
 import { toast } from "sonner";
 import { api, errMsg, minutesSince } from "@/lib/api";
 import { WaitingDialog } from "./WaitingDialog";
 
-export const WaitingList = ({ waiting, onChange, onStart }) => {
+export const WaitingList = ({ waiting, onChange, onStart, patients = [], onPassport }) => {
   const [editing, setEditing] = useState(null);
   const [, tick] = useState(0);
   useEffect(() => {
@@ -39,17 +39,17 @@ export const WaitingList = ({ waiting, onChange, onStart }) => {
         <AnimatePresence initial={false}>
           {waiting.map((w, i) => (
             <motion.li key={w.id} layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: 30 }} transition={{ duration: 0.3, delay: 0.04 * i }}>
-              <WaitingCard w={w} onCall={() => call(w)} onEdit={() => setEditing(w)} onRemove={() => remove(w)} onStart={() => onStart(w)} />
+              <WaitingCard w={w} age={patients.find((p) => p.id === w.patient_id)?.age_label} onPassport={w.patient_id && onPassport ? () => onPassport(w.patient_id) : null} onCall={() => call(w)} onEdit={() => setEditing(w)} onRemove={() => remove(w)} onStart={() => onStart(w)} />
             </motion.li>
           ))}
         </AnimatePresence>
       </ul>
-      <WaitingDialog value={editing} onClose={() => setEditing(null)} onSaved={onChange} />
+      <WaitingDialog value={editing} onClose={() => setEditing(null)} onSaved={onChange} patients={patients} />
     </section>
   );
 };
 
-const WaitingCard = ({ w, onCall, onEdit, onRemove, onStart }) => {
+const WaitingCard = ({ w, age, onPassport, onCall, onEdit, onRemove, onStart }) => {
   const inStudio = w.status === "in_studio";
   const mins = minutesSince(w.arrived_at);
   return (
@@ -58,7 +58,7 @@ const WaitingCard = ({ w, onCall, onEdit, onRemove, onStart }) => {
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="truncate text-[15px] font-semibold">{w.name}</span>
-            {w.age ? <span className={`text-xs ${inStudio ? "text-slate-300" : "text-slate-500"}`}>{w.age} anni</span> : null}
+            {age ? <span className={`text-xs ${inStudio ? "text-slate-300" : "text-slate-500"}`}>{age}</span> : null}
           </div>
           <p className={`mt-1 line-clamp-2 text-sm ${inStudio ? "text-slate-300" : "text-slate-600"}`}>{w.reason}</p>
         </div>
@@ -71,6 +71,7 @@ const WaitingCard = ({ w, onCall, onEdit, onRemove, onStart }) => {
         {w.priority === "urgente" && <span className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-red-700" data-testid={`waiting-priority-${w.id}`}>Urgente</span>}
         <span className={`text-xs ${inStudio ? "text-slate-300" : "text-slate-500"}`}>{w.clinic}</span>
         <div className="ml-auto flex items-center gap-1">
+          {onPassport && <IconBtn onClick={onPassport} label="Passaporto sanitario" id={`waiting-passport-${w.id}`} dark={inStudio}><BookUser size={14} /></IconBtn>}
           <IconBtn onClick={onEdit} label="Modifica" id={`waiting-edit-${w.id}`} dark={inStudio}><Pencil size={14} /></IconBtn>
           <IconBtn onClick={onRemove} label="Rimuovi" id={`waiting-remove-${w.id}`} dark={inStudio}><Trash2 size={14} /></IconBtn>
           <button onClick={onCall} className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors ${inStudio ? "bg-white/10 text-white hover:bg-white/20" : "bg-white text-night ring-1 ring-slate-200 hover:ring-night"}`} data-testid={`waiting-call-${w.id}`}>

@@ -34,6 +34,13 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - PDF A4 boutique: header blu notte con monogramma A/M + "MantMed", intestazione medico/studio (placeholder), sezioni 01–05, tabella prescrizione con dosi calcolate, box data/timbro/firma, footer GDPR + n. referto
 - Font incorporati in backend/fonts (Instrument Serif, Liberation Sans)
 
+## Implemented (2026-10-16, MantMed pediatria)
+- Rebrand completo in MantMed (monogramma A/M animato, favicon, titoli, login)
+- Dati demo pediatrici (seed v2): 11 pazienti con data di nascita, agenda per studio, sala d'attesa, storico misure e visite tra i due studi
+- Percentili OMS automatici (LMS, who_lms.json: WHO 0–5 anni + Reference 2007 peso 5–10a / altezza 5–19a) nella scheda 4 e nel passaporto
+- Passaporto Sanitario Dinamico: anagrafica, allergie, sincronizzazione per studio, grafico di crescita con curve OMS, tabella misure, aggiunta misure, visite con PDF
+- Check-point di Benessere: micro-questionari per 6 fasce d'età, punteggio, aree, segnalazioni con consigli, storico
+
 ## Backlog
 - P1: percentili automatici con curve OMS, storico crescita del paziente, dati demo pediatrici in agenda/sala d'attesa, rinomina brand in "MantMed"
 - P1 (prec.): storico paziente, export PDF dedicato, recupero password
