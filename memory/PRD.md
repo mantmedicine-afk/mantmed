@@ -24,6 +24,12 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 ## Implemented (2026-10-16)
 - Login protetto JWT (cookie httpOnly, refresh, blocco dopo 5 tentativi), account medico unico da .env, nessuna registrazione pubblica; tutte le API protette; logout in top bar; nome medico dinamico
 
+## Implemented (2026-10-16, pediatria)
+- Cartella pediatrica per Dott.ssa Tiziana Foti in 5 schede: 01 Anamnesi (fisiologica, allattamento, svezzamento), 02 Motivo e sintomi, 03 Esame obiettivo (TORL, torace/auscultazione, addome), 04 Crescita (età, sesso, peso, altezza, circ. cranica, percentili manuali, BMI auto), 05 Diagnosi e terapia con calcolatore dosi mg/kg (mg/dose, ml/dose, mg/die, dose max)
+- L'AI compila tutte le schede dalla trascrizione; i farmaci vengono estratti solo se prescritti a voce
+- Copia/stampa della cartella completa
+
 ## Backlog
-- P1: storico paziente, export PDF dedicato, recupero password
+- P1: percentili automatici con curve OMS, storico crescita del paziente, dati demo pediatrici in agenda/sala d'attesa, rinomina brand in "MantMed"
+- P1 (prec.): storico paziente, export PDF dedicato, recupero password
 - P2: agenda multi-giorno, trascrizione in streaming durante la registrazione

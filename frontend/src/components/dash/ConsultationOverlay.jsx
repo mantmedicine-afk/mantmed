@@ -107,7 +107,7 @@ const Setup = ({ waiting, sel, setSel, freeName, setFreeName, manual, setManual,
   <div className="grid gap-10 lg:grid-cols-[1.1fr_1fr]" data-testid="consultation-setup">
     <div>
       <h2 className="font-display text-5xl leading-[1.02] lg:text-6xl">Chi stai<br /><span className="italic text-[#A9C2FF]">visitando?</span></h2>
-      <p className="mt-4 max-w-md text-slate-300">La conversazione viene registrata, trascritta e trasformata nel modello standard: anamnesi, esame obiettivo, diagnosi, terapia, follow-up.</p>
+      <p className="mt-4 max-w-md text-slate-300">La visita viene registrata, trascritta e trasformata nella cartella pediatrica: anamnesi, motivo e sintomi, esame obiettivo, crescita, diagnosi e terapia su misura.</p>
     </div>
     <div className="space-y-3">
       {waiting.map((w) => (

@@ -121,11 +121,53 @@ class WaitingPatch(BaseModel):
     status: Optional[Literal["in_attesa", "in_studio"]] = None
 
 
+def _num(v):
+    try:
+        return None if v in (None, "") else float(str(v).replace(",", "."))
+    except ValueError:
+        return None
+
+
+Num = Annotated[Optional[float], BeforeValidator(_num)]
+
+
+class Growth(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    eta_mesi: Num = None
+    sesso: str = ""
+    peso_kg: Num = None
+    altezza_cm: Num = None
+    circonferenza_cranica_cm: Num = None
+    percentile_peso: str = ""
+    percentile_altezza: str = ""
+    percentile_cc: str = ""
+
+
+class Drug(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    nome: str = ""
+    mg_kg_dose: Num = None
+    dosi_giorno: Num = None
+    concentrazione_mg_ml: Num = None
+    max_mg_dose: Num = None
+    giorni: Num = None
+    note: str = ""
+
+
 class ClinicalNote(BaseModel):
-    anamnesi: str = ""
-    esame_obiettivo: str = ""
+    model_config = ConfigDict(extra="ignore")
+    anamnesi_fisiologica: str = ""
+    allattamento: str = ""
+    svezzamento: str = ""
+    motivo_visita: str = ""
+    sintomi: str = ""
+    torl: str = ""
+    torace_auscultazione: str = ""
+    addome: str = ""
+    crescita: Growth = Field(default_factory=Growth)
     diagnosi: str = ""
     terapia: str = ""
+    farmaci: List[Drug] = Field(default_factory=list)
     follow_up: str = ""
 
 
@@ -277,7 +319,7 @@ async def transcribe(audio: UploadFile = File(...)):
     try:
         stt = OpenAISpeechToText(api_key=LLM_KEY)
         res = await stt.transcribe(file=buf, model="whisper-1", response_format="json", language="it",
-                                   prompt="Consultazione medica specialistica tra medico e paziente.")
+                                   prompt="Visita pediatrica specialistica: pediatra, genitori e bambino. Termini: allattamento, svezzamento, otoscopia, percentile, mg/kg.")
     except Exception as e:
         logger.exception("Trascrizione fallita")
         raise HTTPException(502, f"Trascrizione fallita: {e}")
@@ -285,10 +327,17 @@ async def transcribe(audio: UploadFile = File(...)):
 
 
 NOTE_SYSTEM = (
-    "Sei un assistente clinico per medici specialisti italiani. Ricevi la trascrizione di una consultazione "
-    "e la trasformi nel MODELLO STANDARD UNICO di nota clinica. Rispondi SOLO con un JSON valido con le chiavi: "
-    "anamnesi, esame_obiettivo, diagnosi, terapia, follow_up. Ogni valore è testo in italiano, conciso e clinico. "
-    "Non inventare dati non presenti: se un'informazione manca scrivi 'Non riportato'."
+    "Sei un assistente clinico per una pediatra specialista italiana. Ricevi la trascrizione di una visita pediatrica "
+    "e compili la CARTELLA PEDIATRICA STANDARD. Rispondi SOLO con un JSON valido con queste chiavi:\n"
+    "anamnesi_fisiologica, allattamento, svezzamento, motivo_visita, sintomi, torl, torace_auscultazione, addome, "
+    "diagnosi, terapia, follow_up (stringhe in italiano, concise e cliniche);\n"
+    "crescita: {eta_mesi (numero|null), sesso ('M'|'F'|''), peso_kg (numero|null), altezza_cm (numero|null), "
+    "circonferenza_cranica_cm (numero|null), percentile_peso, percentile_altezza, percentile_cc (stringhe)};\n"
+    "farmaci: lista di {nome, mg_kg_dose (numero|null), dosi_giorno (intero|null), concentrazione_mg_ml (numero|null), "
+    "max_mg_dose (numero|null), giorni (intero|null), note}.\n"
+    "Regole: usa solo informazioni presenti nella trascrizione. Se un campo testuale manca scrivi 'Non riportato'; "
+    "se un numero manca usa null. Per i farmaci riporta SOLO quelli prescritti dal medico e SOLO i dosaggi da lui indicati: "
+    "non proporre mai dosaggi o farmaci non menzionati. torl = testa, orecchie, rino, laringe/faringe (otoscopia, faringe, linfonodi)."
 )
 
 
@@ -297,7 +346,11 @@ async def structure_note(transcript: str, session: str) -> ClinicalNote:
     raw = await chat.send_message(UserMessage(text=f"Trascrizione:\n{transcript}"))
     match = re.search(r"\{.*\}", raw, re.S)
     data = json.loads(match.group(0)) if match else {}
-    return ClinicalNote(**{k: str(data.get(k, "")) for k in ClinicalNote.model_fields})
+    text_keys = [k for k, f in ClinicalNote.model_fields.items() if f.annotation is str]
+    clean = {k: str(data.get(k) or "") for k in text_keys}
+    clean["crescita"] = data.get("crescita") if isinstance(data.get("crescita"), dict) else {}
+    clean["farmaci"] = [d for d in data.get("farmaci") or [] if isinstance(d, dict)]
+    return ClinicalNote.model_validate(clean)
 
 
 @api.post("/consultations")

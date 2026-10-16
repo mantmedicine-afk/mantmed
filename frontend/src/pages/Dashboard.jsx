@@ -39,7 +39,7 @@ export default function Dashboard() {
     `${waiting.length} pazienti in sala d'attesa`,
     next ? `Prossimo: ${next.name}` : "Sala d'attesa libera",
     "Trascrizione AI attiva · Whisper",
-    "Modello standard · Anamnesi · Esame obiettivo · Diagnosi · Terapia · Follow-up",
+    "Cartella pediatrica · Anamnesi · Sintomi · Esame obiettivo · Crescita · Terapia su misura",
   ];
 
   const start = (patient) => setOverlay({ open: true, patient: patient ?? null, initial: null });
