@@ -6,11 +6,12 @@ import { Loader2 } from "lucide-react";
 import Dashboard from "@/pages/Dashboard";
 import Login from "@/pages/Login";
 import { AuthProvider, useAuth } from "@/lib/auth";
+import { IdleWarning } from "@/components/dash/Security";
 
 const Gate = () => {
   const { user } = useAuth();
   if (user === null) return <div className="grid min-h-screen place-items-center bg-night" data-testid="auth-loading"><Loader2 className="animate-spin text-white" /></div>;
-  return user ? <Dashboard /> : <Login />;
+  return user ? <><Dashboard /><IdleWarning /></> : <Login />;
 };
 
 function App() {

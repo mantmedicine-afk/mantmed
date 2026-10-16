@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { X, Lock, ShieldCheck, Server, FileCheck2, AlertTriangle, CheckCircle2, ScrollText } from "lucide-react";
 import { http } from "@/lib/api";
+import { TwoFactorCard } from "./Security";
 
 const ACTION = { accesso_passaporto: "Accesso al passaporto", referto_pdf: "Referto PDF generato", referto_email: "Referto inviato via email", consenso_registrato: "Consenso registrato", consenso_revocato: "Consenso revocato" };
 const STEPS = [
@@ -50,7 +51,8 @@ export const CompliancePanel = ({ onClose }) => {
           <Row label="Connessione">HTTPS/TLS con HSTS</Row>
           <Row label="Cookie di sessione">{d?.transit?.cookies}</Row>
           <Row label="Sessione">{d?.transit?.session}</Row>
-          <Row label="Accesso">Account unico del medico · blocco dopo 5 tentativi</Row>
+          <Row label="Accesso">Account unico del medico · blocco 15 min dopo 5 tentativi · 2FA opzionale</Row>
+          <Row label="Inattività">Chiusura automatica della sessione (server e browser)</Row>
         </Card>
         <Card icon={Server} title="Localizzazione del database" ok={d?.database?.eu} id="compliance-database">
           <Row label="Provider">{d?.database?.provider}</Row>
@@ -65,6 +67,7 @@ export const CompliancePanel = ({ onClose }) => {
           <p className="text-sm text-slate-600">pazienti con consenso privacy valido · {d?.consents?.version}</p>
           <p className="mt-2 text-sm text-slate-600">Senza consenso valido la visita non può essere avviata; l'invio email richiede il consenso specifico.</p>
         </Card>
+        <TwoFactorCard />
         <Card icon={ScrollText} title="Registro accessi (audit)" ok id="compliance-audit" wide>
           {(d?.audit ?? []).length === 0 ? <p className="text-sm text-slate-500">Nessun evento registrato.</p> : (
             <ul className="divide-y divide-slate-100">

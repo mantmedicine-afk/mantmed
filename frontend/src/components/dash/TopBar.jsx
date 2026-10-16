@@ -33,7 +33,7 @@ export const TopBar = ({ onCompliance }) => {
           <button onClick={onCompliance} className="grid h-10 w-10 place-items-center rounded-full border border-slate-200 text-slate-600 transition-colors hover:border-night hover:text-night" data-testid="compliance-button" aria-label="Sicurezza e GDPR" title="Sicurezza e GDPR">
             <ShieldCheck size={16} />
           </button>
-          <button onClick={logout} className="grid h-10 w-10 place-items-center rounded-full border border-slate-200 text-slate-600 transition-colors hover:border-night hover:text-night" data-testid="logout-button" aria-label="Esci" title="Esci">
+          <button onClick={() => logout()} className="grid h-10 w-10 place-items-center rounded-full border border-slate-200 text-slate-600 transition-colors hover:border-night hover:text-night" data-testid="logout-button" aria-label="Esci" title="Esci">
             <LogOut size={16} />
           </button>
         </div>
