@@ -57,6 +57,14 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Contatore "Incassato oggi" nell'hero; sezione Riepilogo giornaliero con totale, per metodo, per studio, movimenti, selezione data, stampa ed export CSV per commercialista (separatore ;, decimali italiani)
 - API: POST/GET/DELETE /api/payments, GET /api/payments/export (giornata Europe/Rome)
 
+## Implemented (2026-10-16, GDPR e sicurezza)
+- Crittografia applicativa AES-256-GCM (crypto.py, chiave DATA_ENCRYPTION_KEY in .env) dei campi sanitari in patients, consultations, measurements, checkpoints, waiting, appointments, payments, consents; migrazione automatica all'avvio
+- Header di sicurezza (HSTS, nosniff, X-Frame DENY, no-referrer, no-store sulle API)
+- Consenso informato: firma su tablet o modulo cartaceo, versione informativa, revoca, storico nel passaporto (tab Privacy); visita bloccata senza consenso (412), email referti solo con consenso specifico; visita libera richiede conferma consenso cartaceo
+- Registro accessi (audit) crittografato: accesso passaporto, PDF, email, consensi
+- Pannello "Sicurezza e GDPR" (icona scudo in top bar): stato crittografia, transito, regione DB (attualmente USA/India piattaforma, non UE), consensi, audit, guida MongoDB Atlas UE (DATA_REGION), adempimenti del titolare
+- NOTA: Emergent non consente la scelta della regione né è certificato GDPR/AGID (verificato con supporto)
+
 ## Backlog
 - P1: percentili automatici con curve OMS, storico crescita del paziente, dati demo pediatrici in agenda/sala d'attesa, rinomina brand in "MantMed"
 - P1 (prec.): storico paziente, export PDF dedicato, recupero password

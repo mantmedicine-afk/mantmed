@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { X, RefreshCw, Cloud, FileDown, Sparkles, AlertCircle, Pencil } from "lucide-react";
+import { X, RefreshCw, Cloud, FileDown, Sparkles, AlertCircle, Pencil, ShieldCheck, ShieldAlert } from "lucide-react";
+import { ConsentDialog } from "./ConsentDialog";
+import { http } from "@/lib/api";
 import { api, CLINICS, errMsg, eur } from "@/lib/api";
 import { methodLabel } from "./CashPanel";
 import { GrowthChart } from "./GrowthChart";
 import { CheckpointWizard, CheckpointResult } from "./CheckpointWizard";
 
-const TABS = [["crescita", "Crescita"], ["visite", "Visite"], ["checkpoint", "Check-point benessere"]];
+const TABS = [["crescita", "Crescita"], ["visite", "Visite"], ["checkpoint", "Check-point benessere"], ["privacy", "Privacy e consensi"]];
 
 export const Passport = ({ patientId, onClose, onEdit }) => {
   const [data, setData] = useState(null);
@@ -41,6 +43,7 @@ export const Passport = ({ patientId, onClose, onEdit }) => {
                   <button onClick={() => onEdit(p)} className="flex items-center gap-1 text-[#A9C2FF] hover:text-white" data-testid="passport-edit-btn"><Pencil size={13} /> Modifica</button>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
+                  <button onClick={() => setTab("privacy")} className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${p.consent_at ? "bg-emerald-400/15 text-emerald-200" : "bg-red-500/20 text-red-200"}`} data-testid="passport-consent-badge">{p.consent_at ? <ShieldCheck size={13} /> : <ShieldAlert size={13} />} {p.consent_at ? "Consenso privacy valido" : "Consenso privacy mancante"}</button>
                   {p.allergies && <span className="flex items-center gap-1.5 rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold text-red-200" data-testid="passport-allergies"><AlertCircle size={13} /> Allergie: {p.allergies}</span>}
                   {p.notes && <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-slate-200">{p.notes}</span>}
                 </div>
@@ -66,6 +69,7 @@ export const Passport = ({ patientId, onClose, onEdit }) => {
               {tab === "crescita" && <GrowthChart patient={p} measurements={data.measurements ?? []} onAdded={load} />}
               {tab === "visite" && <Visits items={data.consultations ?? []} payments={data.payments ?? []} />}
               {tab === "checkpoint" && <Checkpoints patient={p} items={data.checkpoints ?? []} onDone={load} />}
+              {tab === "privacy" && <ConsentsTab patient={p} items={data.consents ?? []} onChange={load} />}
             </>
           )}
         </div>
@@ -116,6 +120,37 @@ const Visits = ({ items, payments = [] }) => {
         </li>
       ))}
     </ol>
+  );
+};
+
+const ConsentsTab = ({ patient, items, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const revoke = async (id) => {
+    try { await http.post(`/consents/${id}/revoke`); toast.success("Consenso revocato"); onChange(); } catch (e) { toast.error(errMsg(e)); }
+  };
+  return (
+    <div className="space-y-3" data-testid="passport-consents">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-night p-6 text-white">
+        <div>
+          <div className="text-[11px] uppercase tracking-[0.22em] text-[#C9CCD3]">Consenso informato · GDPR art. 9</div>
+          <div className="mt-1 font-display text-3xl">{patient.consent_at ? `Valido dal ${new Date(patient.consent_at).toLocaleDateString("it-IT")}` : "Da registrare prima della visita"}</div>
+          <p className="mt-1 text-sm text-slate-300">Email referti: {patient.consent_email ? "autorizzata" : "non autorizzata"}</p>
+        </div>
+        <button onClick={() => setOpen(true)} className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-night" data-testid="passport-consent-register-btn">{patient.consent_at ? "Aggiorna consenso" : "Registra consenso"}</button>
+      </div>
+      {items.map((c) => (
+        <div key={c.id} className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white p-5 text-sm" data-testid={`consent-row-${c.id}`}>
+          <div>
+            <div className="font-medium text-night">{c.signer_name} · {c.signer_relation} · {c.method === "firma_tablet" ? "firma su tablet" : "modulo cartaceo"}</div>
+            <div className="text-slate-600">{c.version} · {new Date(c.signed_at).toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" })} · email {c.email_reports ? "sì" : "no"}</div>
+          </div>
+          {c.signature && <img src={c.signature} alt="Firma" className="h-12 rounded-lg border border-slate-200 bg-slate-50" />}
+          {c.revoked_at ? <span className="text-xs text-slate-500">Revocato il {new Date(c.revoked_at).toLocaleDateString("it-IT")}</span>
+            : <button onClick={() => revoke(c.id)} className="text-xs font-medium text-red-600 hover:underline" data-testid={`consent-revoke-${c.id}`}>Revoca</button>}
+        </div>
+      ))}
+      <ConsentDialog patient={patient} open={open} onClose={() => setOpen(false)} onSaved={onChange} />
+    </div>
   );
 };
 

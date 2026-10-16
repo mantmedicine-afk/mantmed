@@ -26,11 +26,12 @@ export const SendToParents = ({ consultation, beforeSend }) => {
 
   const hint = !consultation.patient_id ? "Visita libera: collega il paziente al passaporto per inviare il referto"
     : !email ? "Aggiungi l'email del genitore nel passaporto del paziente"
+    : !patient?.consent_email ? "Manca il consenso del genitore all'invio via email"
     : sent ? `Inviato a ${sent.to} il ${new Date(sent.at).toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" })}`
     : `Destinatario: ${patient?.guardian || "genitore"} · ${email}`;
 
   return (
-    <button onClick={send} disabled={busy || !email} className="group flex w-full items-center gap-3 rounded-2xl border border-night px-5 py-4 text-left text-night transition-all hover:-translate-y-0.5 hover:bg-slate-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:opacity-70" data-testid="send-parents-btn">
+    <button onClick={send} disabled={busy || !email || !patient?.consent_email} className="group flex w-full items-center gap-3 rounded-2xl border border-night px-5 py-4 text-left text-night transition-all hover:-translate-y-0.5 hover:bg-slate-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:opacity-70" data-testid="send-parents-btn">
       <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-night text-white">{busy ? <Loader2 size={18} className="animate-spin" /> : sent ? <CheckCircle2 size={18} /> : <Mail size={18} />}</span>
       <span className="min-w-0">
         <span className="block font-display text-2xl leading-none">{busy ? "Invio in corso…" : sent ? "Invia di nuovo ai genitori" : "Invia ai genitori"}</span>

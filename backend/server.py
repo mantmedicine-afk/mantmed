@@ -14,8 +14,9 @@ import uuid
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
-from typing import List, Optional, Annotated, Literal
+from typing import List, Optional, Annotated, Literal, ClassVar
 from datetime import datetime, timezone
+from crypto import seal_fields, unseal_fields, is_sealed, KEY_FINGERPRINT
 from emergentintegrations.llm.openai import OpenAISpeechToText
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 from auth import build_auth, seed_doctor
@@ -47,15 +48,20 @@ PyObjectId = Annotated[str, BeforeValidator(lambda v: str(v) if isinstance(v, Ob
 class BaseDocument(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    __encrypted__: ClassVar[tuple] = ()
 
     @classmethod
     def from_mongo(cls, doc):
-        return cls.model_validate(doc)
+        return cls.model_validate(unseal_fields(doc, cls.__encrypted__))
 
     def to_mongo(self):
         data = self.model_dump(by_alias=True, exclude={"id"})
         data.pop("_id", None)
-        return data
+        return seal_fields(data, self.__encrypted__)
+
+    @classmethod
+    def sealed_set(cls, data: dict) -> dict:
+        return seal_fields(data, cls.__encrypted__)
 
     def out(self):
         return self.model_dump(by_alias=False)
@@ -83,6 +89,7 @@ class Appointment(BaseDocument):
     duration: int = 30
     status: Literal["programmato", "in_attesa", "in_corso", "completato"] = "programmato"
     notes: str = ""
+    __encrypted__: ClassVar[tuple] = ("visit_type", "notes")
 
 
 class AppointmentIn(BaseModel):
@@ -116,6 +123,7 @@ class WaitingPatient(BaseDocument):
     priority: Literal["normale", "urgente"] = "normale"
     arrived_at: str = Field(default_factory=now_iso)
     status: Literal["in_attesa", "in_studio"] = "in_attesa"
+    __encrypted__: ClassVar[tuple] = ("reason",)
 
 
 class WaitingIn(BaseModel):
@@ -197,7 +205,9 @@ class Consultation(BaseDocument):
     duration_sec: int = 0
     report_sent_at: Optional[str] = None
     report_sent_to: Optional[str] = None
+    paper_consent: bool = False
     created_at: str = Field(default_factory=now_iso)
+    __encrypted__: ClassVar[tuple] = ("transcript", "note", "report_sent_to")
 
 
 class ConsultationIn(BaseModel):
@@ -207,6 +217,7 @@ class ConsultationIn(BaseModel):
     waiting_id: Optional[str] = None
     transcript: str
     duration_sec: int = 0
+    paper_consent: bool = False
 
 
 class ConsultationPatch(BaseModel):
@@ -223,7 +234,11 @@ class Patient(BaseDocument):
     guardian_email: str = ""
     allergies: str = ""
     notes: str = ""
+    consent_at: Optional[str] = None
+    consent_version: Optional[str] = None
+    consent_email: bool = False
     created_at: str = Field(default_factory=now_iso)
+    __encrypted__: ClassVar[tuple] = ("fiscal_code", "guardian", "guardian_email", "allergies", "notes")
 
 
 class PatientIn(BaseModel):
@@ -257,6 +272,7 @@ class Measurement(BaseDocument):
     hc: Num = None
     source: str = "manuale"
     consultation_id: Optional[str] = None
+    __encrypted__: ClassVar[tuple] = ("weight", "height", "hc")
 
 
 class MeasurementIn(BaseModel):
@@ -276,6 +292,7 @@ class CheckpointDoc(BaseDocument):
     answers: dict
     result: dict
     created_at: str = Field(default_factory=now_iso)
+    __encrypted__: ClassVar[tuple] = ("answers", "result")
 
 
 class CheckpointIn(BaseModel):
@@ -302,7 +319,8 @@ def patient_out(doc) -> dict:
 async def get_patient(pid: Optional[str]):
     if not pid or not ObjectId.is_valid(pid):
         return None
-    return await db.patients.find_one({"_id": ObjectId(pid)})
+    doc = await db.patients.find_one({"_id": ObjectId(pid)})
+    return unseal_fields(doc, Patient.__encrypted__) if doc else None
 
 
 def enrich_growth(note: ClinicalNote, patient: Optional[dict], visit_day: date):
@@ -417,6 +435,7 @@ async def seed_pediatric():
 async def seed():
     await seed_doctor(db)
     await seed_pediatric()
+    await encrypt_existing()
 
 
 # ---------- Routes ----------
@@ -452,7 +471,7 @@ async def create_appointment(body: AppointmentIn):
 @api.patch("/appointments/{aid}")
 async def update_appointment(aid: str, body: AppointmentPatch):
     upd = body.model_dump(exclude_none=True)
-    doc = await db.appointments.find_one_and_update({"_id": oid(aid)}, {"$set": upd}, return_document=True)
+    doc = await db.appointments.find_one_and_update({"_id": oid(aid)}, {"$set": Appointment.sealed_set(upd)}, return_document=True)
     if not doc:
         raise HTTPException(404, "Appuntamento non trovato")
     return Appointment.from_mongo(doc).out()
@@ -483,7 +502,7 @@ async def create_waiting(body: WaitingIn):
 
 @api.patch("/waiting/{wid}")
 async def update_waiting(wid: str, body: WaitingPatch):
-    doc = await db.waiting.find_one_and_update({"_id": oid(wid)}, {"$set": body.model_dump(exclude_none=True)}, return_document=True)
+    doc = await db.waiting.find_one_and_update({"_id": oid(wid)}, {"$set": WaitingPatient.sealed_set(body.model_dump(exclude_none=True))}, return_document=True)
     if not doc:
         raise HTTPException(404, "Paziente non trovato")
     return WaitingPatient.from_mongo(doc).out()
@@ -547,12 +566,16 @@ async def structure_note(transcript: str, session: str) -> ClinicalNote:
 async def create_consultation(body: ConsultationIn):
     if not body.transcript.strip():
         raise HTTPException(400, "Trascrizione vuota")
+    patient = await get_patient(body.patient_id)
+    if patient and not patient.get("consent_at"):
+        raise HTTPException(412, "Consenso privacy non registrato: registralo nel passaporto prima di avviare la visita")
+    if not patient and not body.paper_consent:
+        raise HTTPException(412, "Conferma l'acquisizione del consenso privacy per la visita libera")
     try:
         note = await structure_note(body.transcript, f"consult-{uuid.uuid4()}")
     except Exception as e:
         logger.exception("Strutturazione fallita")
         raise HTTPException(502, f"Generazione nota fallita: {e}")
-    patient = await get_patient(body.patient_id)
     enrich_growth(note, patient, date.today())
     c = Consultation(**body.model_dump(), note=note)
     res = await db.consultations.insert_one(c.to_mongo())
@@ -577,6 +600,7 @@ async def consultation_pdf(cid: str, user: dict = Depends(current_user)):
         raise HTTPException(404, "Consultazione non trovata")
     c = Consultation.from_mongo(doc).out()
     pdf = build_report(c, user["name"], await get_patient(c.get("patient_id")))
+    await audit("referto_pdf", c["patient_name"])
     name = f"Referto_{re.sub(r'[^A-Za-z0-9]+', '_', c['patient_name']).strip('_')}_{c['created_at'][:10]}.pdf"
     return Response(pdf, media_type="application/pdf",
                     headers={"Content-Disposition": f"attachment; filename=\"{name}\"; filename*=UTF-8''{quote(name)}"})
@@ -592,6 +616,8 @@ async def send_report(cid: str, user: dict = Depends(current_user)):
     to = (patient or {}).get("guardian_email", "").strip()
     if not EMAIL_RE.match(to):
         raise HTTPException(400, "Email del genitore mancante o non valida nel passaporto del paziente")
+    if not patient.get("consent_email"):
+        raise HTTPException(412, "Il genitore non ha acconsentito all'invio dei referti via email")
     pdf = build_report(c, user["name"], patient)
     day = datetime.fromisoformat(c["created_at"]).strftime("%d/%m/%Y")
     fname = f"Referto_{re.sub(r'[^A-Za-z0-9]+', '_', c['patient_name']).strip('_')}_{c['created_at'][:10]}.pdf"
@@ -613,7 +639,8 @@ async def send_report(cid: str, user: dict = Depends(current_user)):
     email_id = await send_email(to=to, subject=subject, html=html,
                                 attachments=[{"filename": fname, "content": base64.b64encode(pdf).decode()}])
     sent_at = now_iso()
-    await db.consultations.update_one({"_id": oid(cid)}, {"$set": {"report_sent_at": sent_at, "report_sent_to": to}})
+    await db.consultations.update_one({"_id": oid(cid)}, {"$set": Consultation.sealed_set({"report_sent_at": sent_at, "report_sent_to": to})})
+    await audit("referto_email", c["patient_name"])
     return {"sent": True, "to": to, "sent_at": sent_at, "email_id": email_id}
 
 
@@ -626,7 +653,7 @@ async def update_consultation(cid: str, body: ConsultationPatch):
     if not existing:
         raise HTTPException(404, "Consultazione non trovata")
     enrich_growth(body.note, await get_patient(existing.get("patient_id")), date.fromisoformat(existing["created_at"][:10]))
-    doc = await db.consultations.find_one_and_update({"_id": oid(cid)}, {"$set": {"note": body.note.model_dump()}}, return_document=True)
+    doc = await db.consultations.find_one_and_update({"_id": oid(cid)}, {"$set": Consultation.sealed_set({"note": body.note.model_dump()})}, return_document=True)
     out = Consultation.from_mongo(doc).out()
     await sync_measurement(out)
     return out
@@ -660,7 +687,7 @@ async def create_patient(body: PatientIn):
 async def update_patient(pid: str, body: PatientPatch):
     if body.guardian_email and not EMAIL_RE.match(body.guardian_email.strip()):
         raise HTTPException(400, "Email del genitore non valida")
-    doc = await db.patients.find_one_and_update({"_id": oid(pid)}, {"$set": body.model_dump(exclude_none=True)}, return_document=True)
+    doc = await db.patients.find_one_and_update({"_id": oid(pid)}, {"$set": Patient.sealed_set(body.model_dump(exclude_none=True))}, return_document=True)
     if not doc:
         raise HTTPException(404, "Paziente non trovato")
     return patient_out(doc)
@@ -679,6 +706,8 @@ async def passport(pid: str):
     if not doc:
         raise HTTPException(404, "Paziente non trovato")
     patient = patient_out(doc)
+    await audit("accesso_passaporto", patient["name"])
+    consents = [Consent.from_mongo(x).out() for x in await db.consents.find({"patient_id": pid}).sort("signed_at", -1).to_list(50)]
     cons = [Consultation.from_mongo(c).out() for c in await db.consultations.find({"patient_id": pid}).sort("created_at", -1).to_list(200)]
     meas = [measurement_out(m, patient) for m in await db.measurements.find({"patient_id": pid}).sort("date", 1).to_list(500)]
     cps = [CheckpointDoc.from_mongo(c).out() for c in await db.checkpoints.find({"patient_id": pid}).sort("created_at", -1).to_list(100)]
@@ -692,7 +721,7 @@ async def passport(pid: str):
     for c in cps:
         if c["clinic"] in clinics:
             clinics[c["clinic"]]["checkpoints"] += 1
-    return {"patient": patient, "consultations": cons, "measurements": meas, "checkpoints": cps, "payments": pays,
+    return {"patient": patient, "consultations": cons, "measurements": meas, "checkpoints": cps, "payments": pays, "consents": consents,
             "clinics": list(clinics.values()), "synced_at": now_iso()}
 
 
@@ -737,6 +766,7 @@ class Payment(BaseDocument):
     method: Literal["contanti", "pos", "bonifico"]
     date: str = Field(default_factory=today_rome)
     created_at: str = Field(default_factory=now_iso)
+    __encrypted__: ClassVar[tuple] = ("service",)
 
 
 class PaymentIn(BaseModel):
@@ -847,6 +877,130 @@ async def submit_checkpoint(pid: str, body: CheckpointIn):
     res = await db.checkpoints.insert_one(cp.to_mongo())
     cp.id = str(res.inserted_id)
     return cp.out()
+
+
+# ---------- GDPR: consensi, audit, crittografia ----------
+CONSENT_VERSION = "Informativa privacy v1.0 · 2026-10"
+
+
+class Consent(BaseDocument):
+    patient_id: str
+    version: str = CONSENT_VERSION
+    signer_name: str
+    signer_relation: str
+    privacy_policy: bool
+    health_data: bool
+    email_reports: bool = False
+    method: Literal["firma_tablet", "modulo_cartaceo"]
+    signature: Optional[str] = None
+    signed_at: str = Field(default_factory=now_iso)
+    revoked_at: Optional[str] = None
+    __encrypted__: ClassVar[tuple] = ("signer_name", "signature")
+
+
+class ConsentIn(BaseModel):
+    signer_name: str
+    signer_relation: str
+    privacy_policy: bool
+    health_data: bool
+    email_reports: bool = False
+    method: Literal["firma_tablet", "modulo_cartaceo"]
+    signature: Optional[str] = Field(default=None, max_length=400_000)
+
+
+async def audit(action: str, subject: str = ""):
+    await db.audit.insert_one({"action": action, "subject": seal_fields({"s": subject}, ("s",))["s"], "at": now_iso()})
+
+
+async def refresh_patient_consent(pid: str):
+    active = await db.consents.find({"patient_id": pid, "revoked_at": None}).sort("signed_at", -1).to_list(1)
+    c = active[0] if active else None
+    await db.patients.update_one({"_id": oid(pid)}, {"$set": {
+        "consent_at": c["signed_at"] if c and c["privacy_policy"] and c["health_data"] else None,
+        "consent_version": c["version"] if c else None, "consent_email": bool(c and c.get("email_reports"))}})
+
+
+@api.post("/patients/{pid}/consents")
+async def record_consent(pid: str, body: ConsentIn):
+    doc = await db.patients.find_one({"_id": oid(pid)})
+    if not doc:
+        raise HTTPException(404, "Paziente non trovato")
+    if not (body.privacy_policy and body.health_data):
+        raise HTTPException(400, "Informativa privacy e trattamento dei dati sanitari sono obbligatori")
+    if not body.signer_name.strip():
+        raise HTTPException(400, "Nome del firmatario obbligatorio")
+    if body.method == "firma_tablet" and not (body.signature or "").startswith("data:image/png;base64,"):
+        raise HTTPException(400, "Firma mancante")
+    await db.consents.update_many({"patient_id": pid, "revoked_at": None}, {"$set": {"revoked_at": now_iso()}})
+    c = Consent(patient_id=pid, **body.model_dump())
+    res = await db.consents.insert_one(c.to_mongo())
+    c.id = str(res.inserted_id)
+    await refresh_patient_consent(pid)
+    await audit("consenso_registrato", doc["name"])
+    return c.out()
+
+
+@api.post("/consents/{cid}/revoke")
+async def revoke_consent(cid: str):
+    doc = await db.consents.find_one_and_update({"_id": oid(cid), "revoked_at": None}, {"$set": {"revoked_at": now_iso()}}, return_document=True)
+    if not doc:
+        raise HTTPException(404, "Consenso non trovato o già revocato")
+    await refresh_patient_consent(doc["patient_id"])
+    await audit("consenso_revocato", "")
+    return Consent.from_mongo(doc).out()
+
+
+ENCRYPTED_COLLECTIONS = {"patients": Patient, "consultations": Consultation, "measurements": Measurement,
+                         "checkpoints": CheckpointDoc, "waiting": WaitingPatient, "appointments": Appointment,
+                         "payments": Payment, "consents": Consent}
+
+
+async def encrypt_existing():
+    for name, model in ENCRYPTED_COLLECTIONS.items():
+        async for d in db[name].find():
+            todo = {k: d[k] for k in model.__encrypted__ if k in d and d[k] is not None and not is_sealed(d[k])}
+            if todo:
+                await db[name].update_one({"_id": d["_id"]}, {"$set": seal_fields(todo, tuple(todo))})
+
+
+@api.get("/compliance/status")
+async def compliance_status():
+    stats = []
+    for name, model in ENCRYPTED_COLLECTIONS.items():
+        total = await db[name].count_documents({})
+        plain = 0
+        async for d in db[name].find({}, {k: 1 for k in model.__encrypted__}):
+            if any(d.get(k) is not None and not is_sealed(d.get(k)) for k in model.__encrypted__):
+                plain += 1
+        stats.append({"collection": name, "documents": total, "encrypted": total - plain, "fields": list(model.__encrypted__)})
+    url = os.environ["MONGO_URL"]
+    host = re.sub(r"^mongodb(\+srv)?://([^@]*@)?", "", url).split("/")[0].split("?")[0]
+    atlas = "mongodb.net" in host
+    region = os.environ.get("DATA_REGION", "")
+    eu = atlas and bool(region)
+    patients = await db.patients.count_documents({})
+    with_consent = await db.patients.count_documents({"consent_at": {"$ne": None}})
+    logs = await db.audit.find().sort("at", -1).to_list(15)
+    return {
+        "encryption": {"algorithm": "AES-256-GCM", "key_fingerprint": KEY_FINGERPRINT, "key_storage": "Variabile d'ambiente del server, separata dal database", "collections": stats},
+        "transit": {"https": True, "hsts": True, "cookies": "httpOnly · Secure · SameSite=Lax", "session": "Token di accesso 15 min · rinnovo 7 giorni"},
+        "database": {"provider": "MongoDB Atlas" if atlas else "MongoDB gestito dalla piattaforma", "host": "cluster Atlas" if atlas else ("locale/anteprima" if "localhost" in host else "gestito"),
+                     "region": region or ("non dichiarata" if atlas else "USA/India (piattaforma Emergent)"), "eu": eu},
+        "consents": {"patients": patients, "with_consent": with_consent, "version": CONSENT_VERSION},
+        "audit": [{"action": a["action"], "subject": unseal_fields({"s": a.get("subject")}, ("s",))["s"], "at": a["at"]} for a in logs],
+    }
+
+
+@app.middleware("http")
+async def security_headers(request, call_next):
+    resp = await call_next(request)
+    resp.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    resp.headers["X-Frame-Options"] = "DENY"
+    resp.headers["Referrer-Policy"] = "no-referrer"
+    if request.url.path.startswith("/api/") and request.url.path != "/api/":
+        resp.headers["Cache-Control"] = "no-store"
+    return resp
 
 
 public_api.include_router(auth_router)

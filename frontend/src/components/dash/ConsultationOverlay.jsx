@@ -6,8 +6,10 @@ import { api, errMsg } from "@/lib/api";
 import { useRecorder, fmtClock } from "@/hooks/useRecorder";
 import { Waveform } from "./Waveform";
 import { NoteEditor } from "./NoteEditor";
+import { ConsentGate } from "./ConsentGate";
 
-export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, onDone }) => {
+export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, onDone, patients = [], onPatientsChange }) => {
+  const [paper, setPaper] = useState(false);
   const [stage, setStage] = useState("setup");
   const [sel, setSel] = useState(null);
   const [freeName, setFreeName] = useState("");
@@ -40,7 +42,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
         if (!t) throw new Error("Nessun parlato rilevato nella registrazione");
       }
       setStep("Compilazione del modello standard di nota clinica…");
-      const c = await api.createConsultation({ patient_name: name, patient_id: sel?.patient_id ?? null, clinic: sel?.clinic ?? "", waiting_id: sel?.id ?? null, transcript: t, duration_sec: duration });
+      const c = await api.createConsultation({ patient_name: name, patient_id: sel?.patient_id ?? null, clinic: sel?.clinic ?? "", waiting_id: sel?.id ?? null, transcript: t, duration_sec: duration, paper_consent: paper });
       setResult(c);
       setStage("note");
       onDone();
@@ -52,6 +54,9 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
 
   const start = async () => {
     if (!name) return toast.error("Seleziona o inserisci il paziente");
+    const linked = patients.find((p) => p.id === sel?.patient_id);
+    if (linked && !linked.consent_at) return toast.error("Registra prima il consenso privacy del paziente");
+    if (!sel?.patient_id && !paper) return toast.error("Conferma l'acquisizione del consenso privacy");
     if (manual) {
       if (text.trim().length < 20) return toast.error("Trascrizione troppo breve");
       return process(text, 0);
@@ -82,7 +87,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
         </div>
         <div className="flex flex-1 flex-col justify-center py-8">
           {stage === "setup" && (
-            <Setup {...{ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start }} />
+            <Setup {...{ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start }} gate={<ConsentGate patient={patients.find((p) => p.id === sel?.patient_id)} free={!sel?.patient_id && Boolean(freeName.trim())} paper={paper} setPaper={setPaper} onSaved={onPatientsChange} />} />
           )}
           {(stage === "recording") && (
             <Recording name={name} rec={rec} onStop={() => process(null, rec.seconds)} />
@@ -103,7 +108,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
 
 const stageLabel = { setup: "preparazione", recording: "registrazione", processing: "elaborazione AI", note: "nota clinica" };
 
-const Setup = ({ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start }) => (
+const Setup = ({ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, gate }) => (
   <div className="grid gap-10 lg:grid-cols-[1.1fr_1fr]" data-testid="consultation-setup">
     <div>
       <h2 className="font-display text-5xl leading-[1.02] lg:text-6xl">Chi stai<br /><span className="italic text-[#A9C2FF]">visitando?</span></h2>
@@ -117,6 +122,7 @@ const Setup = ({ waiting, sel, setSel, freeName, setFreeName, manual, setManual,
         </button>
       ))}
       <input value={freeName} onChange={(e) => { setFreeName(e.target.value); setSel(null); }} placeholder="Oppure scrivi nome e cognome del paziente" className="w-full rounded-2xl border border-white/15 bg-transparent px-5 py-4 text-white placeholder:text-slate-400 outline-none focus:border-white/50" data-testid="consult-free-name-input" />
+      {gate}
       <button onClick={() => setManual(!manual)} className="flex items-center gap-2 text-sm text-slate-300 hover:text-white" data-testid="consult-manual-toggle"><Keyboard size={15} /> {manual ? "Torna alla registrazione vocale" : "Senza microfono? Incolla una trascrizione"}</button>
       {manual && <textarea value={text} onChange={(e) => setText(e.target.value)} rows={5} placeholder="Medico: Buongiorno, cosa la porta qui oggi? Paziente: …" className="w-full rounded-2xl border border-white/15 bg-white/5 px-5 py-4 text-white placeholder:text-slate-400 outline-none focus:border-white/50" data-testid="consult-manual-textarea" />}
       <button onClick={start} className="mt-2 flex w-full items-center justify-center gap-3 rounded-full bg-white py-5 text-lg font-semibold text-night transition-transform hover:-translate-y-0.5 active:scale-[0.98]" data-testid="consult-begin-btn">
