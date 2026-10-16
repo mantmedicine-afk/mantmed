@@ -18,11 +18,11 @@ const greeting = () => {
   return h < 13 ? "Buongiorno" : h < 18 ? "Buon pomeriggio" : "Buonasera";
 };
 
-export const Hero = ({ total, waiting }) => (
+export const Hero = ({ total, waiting, name }) => (
   <section className="mx-auto max-w-[1440px] px-5 pb-6 pt-8 lg:px-8 lg:pt-10" data-testid="hero">
     <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
       <h1 className="font-display text-4xl leading-[1.02] tracking-tight text-night sm:text-5xl lg:text-6xl">
-        <Line delay={0.1}>{greeting()}, Dott.ssa Ferri.</Line>
+        <Line delay={0.1}>{greeting()}, {name}.</Line>
         <Line delay={0.22}>
           <span className="italic text-slate-500">{total} visite, due studi, </span>
           <span className="italic">una giornata.</span>

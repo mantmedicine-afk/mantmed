@@ -1,11 +1,25 @@
 import axios from "axios";
 
 const BASE = process.env.REACT_APP_BACKEND_URL;
-export const http = axios.create({ baseURL: `${BASE}/api` });
+export const http = axios.create({ baseURL: `${BASE}/api`, withCredentials: true });
+
+let refreshing = null;
+http.interceptors.response.use(undefined, async (error) => {
+  const cfg = error.config;
+  if (error.response?.status !== 401 || cfg?._retry || cfg?.url?.startsWith("/auth/")) throw error;
+  cfg._retry = true;
+  refreshing = refreshing ?? http.post("/auth/refresh").finally(() => { refreshing = null; });
+  try { await refreshing; } catch { window.dispatchEvent(new Event("auth:expired")); throw error; }
+  return http(cfg);
+});
 
 const list = (r) => (Array.isArray(r?.data) ? r.data : []);
 
 export const api = {
+  me: () => http.get("/auth/me").then((r) => r.data),
+  refresh: () => http.post("/auth/refresh").then((r) => r.data),
+  login: (email, password) => http.post("/auth/login", { email, password }).then((r) => r.data),
+  logout: () => http.post("/auth/logout"),
   appointments: () => http.get("/appointments").then(list),
   addAppointment: (b) => http.post("/appointments", b).then((r) => r.data),
   updateAppointment: (id, b) => http.patch(`/appointments/${id}`, b).then((r) => r.data),
@@ -29,4 +43,9 @@ export const CLINICS = ["Studio Centro", "Studio Provincia"];
 
 export const minutesSince = (iso) => Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
 
-export const errMsg = (e) => e?.response?.data?.detail || "Operazione non riuscita";
+export const errMsg = (e) => {
+  const d = e?.response?.data?.detail;
+  if (typeof d === "string") return d;
+  if (Array.isArray(d)) return d.map((x) => x?.msg).filter(Boolean).join(" ") || "Dati non validi";
+  return "Operazione non riuscita";
+};

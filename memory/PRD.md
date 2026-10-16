@@ -21,6 +21,9 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Pulsante centrale con tilt 3D + anelli → overlay consultazione: selezione paziente, registrazione microfono (timer, waveform, pausa), Whisper → nota clinica standard modificabile (salva/copia/stampa); fallback trascrizione incollata
 - Note cliniche di oggi riapribili
 
+## Implemented (2026-10-16)
+- Login protetto JWT (cookie httpOnly, refresh, blocco dopo 5 tentativi), account medico unico da .env, nessuna registrazione pubblica; tutte le API protette; logout in top bar; nome medico dinamico
+
 ## Backlog
-- P1: login medico, storico paziente, export PDF dedicato
+- P1: storico paziente, export PDF dedicato, recupero password
 - P2: agenda multi-giorno, trascrizione in streaming durante la registrazione

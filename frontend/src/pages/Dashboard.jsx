@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { TopBar } from "@/components/dash/TopBar";
 import { Marquee } from "@/components/dash/Marquee";
 import { Hero } from "@/components/dash/Hero";
@@ -13,6 +14,8 @@ import { ConsultationOverlay } from "@/components/dash/ConsultationOverlay";
 const col = (d) => ({ initial: { opacity: 0, y: 24 }, animate: { opacity: 1, y: 0 }, transition: { delay: d, duration: 0.7, ease: [0.22, 1, 0.36, 1] } });
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const shortName = (user?.name || "Dottore").replace(/^(Dott\.ssa|Dott\.)\s*(\S+)\s+/, "$1 ");
   const [appointments, setAppointments] = useState([]);
   const [waiting, setWaiting] = useState([]);
   const [notes, setNotes] = useState([]);
@@ -45,7 +48,7 @@ export default function Dashboard() {
     <div className="min-h-screen overflow-x-clip bg-paper" data-testid="dashboard">
       <TopBar />
       <Marquee items={ticker} />
-      <Hero total={appointments.length} waiting={waiting.length} />
+      <Hero total={appointments.length} waiting={waiting.length} name={shortName} />
       <main className="mx-auto grid max-w-[1440px] grid-cols-1 gap-5 px-5 pb-10 lg:grid-cols-12 lg:px-8">
         <motion.div {...col(0.35)} className="order-2 min-w-0 lg:order-1 lg:col-span-4"><Agenda appointments={appointments} onChange={load} /></motion.div>
         <motion.div {...col(0.45)} className="order-1 min-w-0 lg:order-2 lg:col-span-4"><ConsultHub next={next} onStart={start} /></motion.div>

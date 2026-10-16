@@ -63,7 +63,7 @@ const WaitingCard = ({ w, onCall, onEdit, onRemove, onStart }) => {
           <p className={`mt-1 line-clamp-2 text-sm ${inStudio ? "text-slate-300" : "text-slate-600"}`}>{w.reason}</p>
         </div>
         <div className="shrink-0 text-right">
-          <div className="font-mono text-xl tabular-nums leading-none" data-testid={`waiting-minutes-${w.id}`}>{mins}′</div>
+          <div className="font-mono text-xl tabular-nums leading-none" data-testid={`waiting-minutes-${w.id}`}>{mins < 60 ? `${mins}′` : mins < 1440 ? `${Math.floor(mins / 60)}h ${mins % 60}′` : `${Math.floor(mins / 1440)}g`}</div>
           <div className={`mt-1 text-[10px] uppercase tracking-[0.18em] ${inStudio ? "text-slate-300" : "text-slate-500"}`}>attesa</div>
         </div>
       </div>

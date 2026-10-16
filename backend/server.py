@@ -1,5 +1,8 @@
-from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File
 from dotenv import load_dotenv
+from pathlib import Path
+load_dotenv(Path(__file__).parent / '.env')
+
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Depends
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
@@ -15,16 +18,16 @@ from typing import List, Optional, Annotated, Literal
 from datetime import datetime, timezone
 from emergentintegrations.llm.openai import OpenAISpeechToText
 from emergentintegrations.llm.chat import LlmChat, UserMessage
-
-ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
+from auth import build_auth, seed_doctor
 
 client = AsyncIOMotorClient(os.environ['MONGO_URL'])
 db = client[os.environ['DB_NAME']]
 LLM_KEY = os.environ['EMERGENT_LLM_KEY']
 
 app = FastAPI()
-api = APIRouter(prefix="/api")
+auth_router, current_user = build_auth(db)
+public_api = APIRouter(prefix="/api")
+api = APIRouter(prefix="/api", dependencies=[Depends(current_user)])
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
@@ -169,6 +172,7 @@ SEED_WAITING = [
 
 @app.on_event("startup")
 async def seed():
+    await seed_doctor(db)
     if await db.appointments.count_documents({}) == 0:
         await db.appointments.insert_many([
             Appointment(clinic=c, time=t, patient_name=p, visit_type=v, status=s).to_mongo()
@@ -184,9 +188,14 @@ async def seed():
 
 
 # ---------- Routes ----------
-@api.get("/")
+@public_api.get("/")
 async def root():
     return {"app": "Auscula", "ok": True}
+
+
+@api.get("/auth/me")
+async def me(user: dict = Depends(current_user)):
+    return user
 
 
 @api.get("/clinics")
@@ -323,11 +332,13 @@ async def update_consultation(cid: str, body: ConsultationPatch):
     return Consultation.from_mongo(doc).out()
 
 
+public_api.include_router(auth_router)
+app.include_router(public_api)
 app.include_router(api)
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=os.environ['CORS_ORIGINS'].split(','),
     allow_methods=["*"],
     allow_headers=["*"],
 )
