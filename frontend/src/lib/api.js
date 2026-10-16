@@ -37,6 +37,16 @@ export const api = {
   },
   createConsultation: (b) => http.post("/consultations", b).then((r) => r.data),
   updateConsultation: (id, note) => http.patch(`/consultations/${id}`, { note }).then((r) => r.data),
+  downloadReport: async (id) => {
+    const r = await http.get(`/consultations/${id}/pdf`, { responseType: "blob" });
+    const name = /filename="([^"]+)"/.exec(r.headers["content-disposition"] ?? "")?.[1] ?? "Referto.pdf";
+    const url = URL.createObjectURL(r.data);
+    const a = Object.assign(document.createElement("a"), { href: url, download: name });
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  },
 };
 
 export const CLINICS = ["Studio Centro", "Studio Provincia"];

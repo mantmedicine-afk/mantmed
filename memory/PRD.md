@@ -29,6 +29,11 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - L'AI compila tutte le schede dalla trascrizione; i farmaci vengono estratti solo se prescritti a voce
 - Copia/stampa della cartella completa
 
+## Implemented (2026-10-16, referto PDF)
+- Pulsante "Genera Referto PDF" nella schermata fine visita: salva e scarica con un click (GET /api/consultations/{id}/pdf, reportlab)
+- PDF A4 boutique: header blu notte con monogramma A/M + "MantMed", intestazione medico/studio (placeholder), sezioni 01–05, tabella prescrizione con dosi calcolate, box data/timbro/firma, footer GDPR + n. referto
+- Font incorporati in backend/fonts (Instrument Serif, Liberation Sans)
+
 ## Backlog
 - P1: percentili automatici con curve OMS, storico crescita del paziente, dati demo pediatrici in agenda/sala d'attesa, rinomina brand in "MantMed"
 - P1 (prec.): storico paziente, export PDF dedicato, recupero password

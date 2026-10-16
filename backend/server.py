@@ -19,6 +19,9 @@ from datetime import datetime, timezone
 from emergentintegrations.llm.openai import OpenAISpeechToText
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 from auth import build_auth, seed_doctor
+from report import build_report
+from fastapi.responses import Response
+from urllib.parse import quote
 
 client = AsyncIOMotorClient(os.environ['MONGO_URL'])
 db = client[os.environ['DB_NAME']]
@@ -377,6 +380,18 @@ async def list_consultations():
     return [Consultation.from_mongo(d).out() for d in docs]
 
 
+@api.get("/consultations/{cid}/pdf")
+async def consultation_pdf(cid: str, user: dict = Depends(current_user)):
+    doc = await db.consultations.find_one({"_id": oid(cid)})
+    if not doc:
+        raise HTTPException(404, "Consultazione non trovata")
+    c = Consultation.from_mongo(doc).out()
+    pdf = build_report(c, user["name"])
+    name = f"Referto_{re.sub(r'[^A-Za-z0-9]+', '_', c['patient_name']).strip('_')}_{c['created_at'][:10]}.pdf"
+    return Response(pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": f"attachment; filename=\"{name}\"; filename*=UTF-8''{quote(name)}"})
+
+
 @api.patch("/consultations/{cid}")
 async def update_consultation(cid: str, body: ConsultationPatch):
     doc = await db.consultations.find_one_and_update({"_id": oid(cid)}, {"$set": {"note": body.note.model_dump()}}, return_document=True)
@@ -394,6 +409,7 @@ app.add_middleware(
     allow_origins=os.environ['CORS_ORIGINS'].split(','),
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"],
 )
 
 

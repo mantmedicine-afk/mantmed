@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { Copy, Printer, Save, Check } from "lucide-react";
+import { Copy, Printer, Save, Check, FileDown, Loader2 } from "lucide-react";
 import { api, errMsg } from "@/lib/api";
 import { TABS, tabDone, noteToText } from "@/lib/pediatric";
 import { GrowthPanel } from "./GrowthPanel";
@@ -11,6 +11,7 @@ export const NoteEditor = ({ consultation, onSaved }) => {
   const [note, setNote] = useState(consultation.note ?? {});
   const [tab, setTab] = useState(TABS[0].id);
   const [saving, setSaving] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
   useEffect(() => {
     setNote(consultation.note ?? {});
   }, [consultation]);
@@ -23,6 +24,16 @@ export const NoteEditor = ({ consultation, onSaved }) => {
     try { await api.updateConsultation(consultation.id, note); toast.success("Cartella pediatrica salvata"); onSaved?.(); }
     catch (e) { toast.error(errMsg(e)); }
     setSaving(false);
+  };
+  const generatePdf = async () => {
+    setPdfBusy(true);
+    try {
+      await api.updateConsultation(consultation.id, note);
+      await api.downloadReport(consultation.id);
+      toast.success("Referto PDF scaricato");
+      onSaved?.();
+    } catch (e) { toast.error(errMsg(e)); }
+    setPdfBusy(false);
   };
   const copy = async () => {
     try { await navigator.clipboard.writeText(noteToText(consultation, note)); toast.success("Nota copiata negli appunti"); }
@@ -47,6 +58,17 @@ export const NoteEditor = ({ consultation, onSaved }) => {
             <button onClick={save} disabled={saving} className="flex items-center gap-2 rounded-full bg-night px-4 py-2 text-sm font-medium text-white transition-transform hover:-translate-y-0.5 disabled:opacity-60" data-testid="note-save-btn"><Save size={15} /> {saving ? "Salvataggio…" : "Salva"}</button>
           </div>
         </div>
+
+        <button onClick={generatePdf} disabled={pdfBusy} className="group mt-5 flex w-full items-center justify-between gap-4 rounded-2xl bg-night px-5 py-4 text-left text-white transition-transform hover:-translate-y-0.5 active:scale-[0.99] disabled:opacity-70" data-testid="generate-pdf-btn">
+          <span className="flex items-center gap-3">
+            <span className="grid h-11 w-11 place-items-center rounded-full bg-white text-night">{pdfBusy ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />}</span>
+            <span>
+              <span className="block font-display text-2xl leading-none">{pdfBusy ? "Generazione in corso…" : "Genera Referto PDF"}</span>
+              <span className="mt-1 block text-xs text-slate-300">Salva le modifiche e scarica il referto ufficiale firmabile</span>
+            </span>
+          </span>
+          <span className="text-[11px] uppercase tracking-[0.2em] text-[#A9C2FF] transition-transform group-hover:translate-x-1">A4 · PDF</span>
+        </button>
 
         <div className="-mx-1 mt-5 flex gap-1 overflow-x-auto px-1 pb-1 md:mx-0 md:grid md:grid-cols-5 md:overflow-visible md:rounded-2xl md:bg-slate-100 md:p-1" role="tablist" data-testid="note-tabs">
           {TABS.map((t) => {
