@@ -1,0 +1,23 @@
+{
+  "summary": "First-run testing of Task 4.1 Beta Feedback & Metrics module. Backend (7/7 pytest cases passing against external REACT_APP_BACKEND_URL with real 2FA flow) and frontend (end-to-end dialog + metrics + scope toggle + mobile layout) all pass. No bugs found.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_beta_full.py",
+    "/app/backend/tests/test_beta.py",
+    "/app/test_reports/pytest/beta_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "beta.py: GET /beta/metrics scans up to 10000 consultations and 5000 feedback and recomputes all stats in Python on every request. Fine for beta scale but will not scale - consider Mongo aggregation pipeline when corpus grows.",
+    "beta.py app_seconds(): if ai_sec is None but finalized_at is set, the review time is still added via sum(app_seconds(c) for c in timed) - but 'timed' filter is c.get('ai_sec'), so OK. However total_saved_min only considers 'timed' consultations; non-timed legacy reports are counted in reports KPI but excluded from saved time (correctly), yet the KPI card label says 'Media per visita · X min in totale' which could be misleading when most visits are not timed. Minor UX note.",
+    "BetaMetrics.jsx: api.betaMetrics() has no error toast; silently sets data=null and the whole section becomes invisible. Add an error state or at least a log so failures aren't hidden from the doctor."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "medico@mantmed.it / Auscula-Studio-2026 + TOTP from `python /app/backend/tests/totp_code.py`",
+  "seed_data_creation": "Submitted 3 TEST_-prefixed feedback entries during tests (areas: pdf, trascrizione). Safe to leave or purge from db.feedback where text LIKE 'TEST_%' (field is sealed, filter on doctor_id + text after unseal if cleanup needed).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "test_beta_full.py uses external REACT_APP_BACKEND_URL and handles the 2FA login via tests/totp_code.py (requires /root/.venv/bin/python because pyotp/pymongo live there). The internal /app/backend/tests/test_beta.py still points to localhost:8001 and only works if 2FA happens to be disabled - keep test_beta_full.py as the regression file. UI selectors verified: feedback-beta-button, feedback-dialog, feedback-star-1..5, feedback-rating-label, feedback-area-{trascrizione|pdf|agenda|cassa|altro}, feedback-text-input, feedback-submit-btn, feedback-thanks, feedback-close-btn, beta-metrics, beta-kpi-{reports|saved|feedback|rating}-value, beta-area-{area}, beta-recent, beta-scope-{mine|all}, beta-feedback-btn. Scope toggle values observed: all.reports=11 (legacy seeded), mine.reports=0 (no new consultations created in this run)."
+}
