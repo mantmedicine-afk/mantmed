@@ -59,8 +59,8 @@ export const api = {
   sendFeedback: (b) => http.post("/beta/feedback", b).then((r) => r.data),
   betaMetrics: () => http.get("/beta/metrics").then((r) => r.data),
   sendLead: (b) => http.post("/public/leads", b).then((r) => r.data),
-  leads: () => http.get("/leads").then(list),
-  updateLead: (id, status) => http.patch(`/leads/${id}`, { status }).then((r) => r.data),
+  leads: () => http.get("/admin/leads").then(list),
+  updateLead: (id, b) => http.patch(`/admin/leads/${id}`, b).then((r) => r.data),
   downloadReport: async (id) => saveBlob(await http.get(`/consultations/${id}/pdf`, { responseType: "blob" }), "Referto.pdf"),
 };
 

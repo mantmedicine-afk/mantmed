@@ -229,3 +229,22 @@ async def seed_doctor(db):
                                    "created_at": datetime.now(timezone.utc).isoformat()})
     elif not verify_password(pwd, existing["password_hash"]) or existing.get("name") != name:
         await db.users.update_one({"email": email}, {"$set": {"password_hash": hash_password(pwd), "name": name}})
+
+
+async def seed_admin(db):
+    email = os.environ["ADMIN_EMAIL"].strip().lower()
+    pwd = os.environ["ADMIN_PASSWORD"]
+    existing = await db.users.find_one({"email": email})
+    if existing is None:
+        await db.users.insert_one({"email": email, "password_hash": hash_password(pwd), "name": "Founder MantMed", "role": "admin",
+                                   "created_at": datetime.now(timezone.utc).isoformat()})
+    elif existing.get("role") != "admin" or not verify_password(pwd, existing["password_hash"]):
+        await db.users.update_one({"email": email}, {"$set": {"password_hash": hash_password(pwd), "role": "admin"}})
+
+
+def require_role(current_user, role: str):
+    async def dep(user: dict = Depends(current_user)) -> dict:
+        if user["role"] != role:
+            raise HTTPException(403, "Accesso non consentito per questo account")
+        return user
+    return dep

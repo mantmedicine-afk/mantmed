@@ -19,7 +19,7 @@ const Hint = ({ ok, show, children, id }) => show ? (
 
 const inputCls = "mt-1.5 w-full rounded-2xl border bg-white/5 px-4 py-3.5 text-white outline-none transition-colors placeholder:text-slate-400 focus:bg-white/10";
 
-export default function Login() {
+export default function Login({ subtitle = "Studio medico specialistico · Pediatria" }) {
   const { login, verify2fa, reason } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -50,7 +50,7 @@ export default function Login() {
         <div className="mb-8 flex flex-col items-center text-center">
           <div className="rounded-2xl border border-[#C9CCD3]/40 p-1.5"><LogoMark size={52} /></div>
           <div className="mt-4 font-display text-4xl">MantMed</div>
-          <div className="mt-1 text-[11px] uppercase tracking-[0.28em] text-[#C9CCD3]">Studio medico specialistico · Pediatria</div>
+          <div className="mt-1 text-[11px] uppercase tracking-[0.28em] text-[#C9CCD3]" data-testid="login-subtitle">{subtitle}</div>
         </div>
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25, duration: 0.6 }} className="rounded-[28px] border border-[#C9CCD3]/25 bg-white/[0.04] p-7 backdrop-blur-xl">
           {mfa ? <MfaStep token={mfa} onBack={() => { setMfa(null); setPassword(""); }} verify2fa={verify2fa} /> : (

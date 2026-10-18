@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 from crypto import seal_fields, unseal_fields, is_sealed, KEY_FINGERPRINT
 from emergentintegrations.llm.openai import OpenAISpeechToText
 from emergentintegrations.llm.chat import LlmChat, UserMessage
-from auth import build_auth, seed_doctor
+from auth import build_auth, seed_doctor, seed_admin, require_role
 from report import build_report
 from mailer import send_email
 import base64
@@ -41,7 +41,7 @@ LLM_KEY = os.environ['EMERGENT_LLM_KEY']
 app = FastAPI()
 auth_router, current_user = build_auth(db)
 public_api = APIRouter(prefix="/api")
-api = APIRouter(prefix="/api", dependencies=[Depends(current_user)])
+api = APIRouter(prefix="/api", dependencies=[Depends(require_role(current_user, "doctor"))])
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
@@ -441,6 +441,7 @@ async def seed_pediatric():
 @app.on_event("startup")
 async def seed():
     await seed_doctor(db)
+    await seed_admin(db)
     await seed_pediatric()
     await encrypt_existing()
 
@@ -1013,9 +1014,9 @@ async def security_headers(request, call_next):
 
 
 api.include_router(build_beta(db, current_user))
-leads_public, leads_private = build_leads(db, current_user)
-api.include_router(leads_private)
+leads_public, leads_private = build_leads(db, require_role(current_user, "admin"))
 public_api.include_router(leads_public)
+public_api.include_router(leads_private)
 public_api.include_router(auth_router)
 app.include_router(public_api)
 app.include_router(api)

@@ -3,7 +3,7 @@ import re
 import logging
 from datetime import datetime, timezone, timedelta
 from html import escape as hesc
-from typing import Literal
+from typing import Literal, Optional
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
@@ -11,7 +11,7 @@ from crypto import seal_fields, unseal_fields
 from mailer import send_email
 
 logger = logging.getLogger(__name__)
-SEALED = ("name", "email", "city", "message")
+SEALED = ("name", "email", "city", "message", "note")
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 KINDS = {"beta": "Accesso alla beta sul campo", "commerciale": "Informazioni commerciali"}
 MAX_PER_HOUR = 5
@@ -37,12 +37,13 @@ class LeadIn(BaseModel):
 
 
 class LeadPatch(BaseModel):
-    status: Literal["nuova", "contattato", "archiviata"]
+    status: Optional[Literal["nuova", "contattato", "attivato", "archiviata"]] = None
+    note: Optional[str] = Field(default=None, max_length=2000)
 
 
 def lead_out(d: dict) -> dict:
     d = unseal_fields(d, SEALED)
-    return {"id": str(d["_id"]), **{k: d.get(k) for k in ("name", "email", "specialty", "city", "kind", "message", "status", "created_at")},
+    return {"id": str(d["_id"]), **{k: d.get(k) for k in ("name", "email", "specialty", "city", "kind", "message", "status", "note", "created_at", "contacted_at", "activated_at")},
             "kind_label": KINDS.get(d.get("kind"), d.get("kind"))}
 
 
@@ -56,12 +57,12 @@ def notify_html(lead: dict) -> str:
             '<div style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:2px;color:#C9CCD3;margin-top:4px">NUOVA RICHIESTA DALLA LANDING PAGE</div></td></tr>'
             f'<tr><td style="padding:24px 28px;font-size:14px"><table width="100%">{rows}</table>'
             f'<p style="margin-top:16px;white-space:pre-wrap;line-height:1.6">{hesc(lead["message"] or "")}</p>'
-            '<p style="margin-top:16px;color:#5B6478;font-size:12px">La trova anche nella dashboard, sezione "Richieste dalla landing".</p></td></tr></table></td></tr></table>')
+            '<p style="margin-top:16px;color:#5B6478;font-size:12px">La trova nel Pannello Founder di MantMed (/admin).</p></td></tr></table></td></tr></table>')
 
 
-def build_leads(db, current_user):
+def build_leads(db, admin_user):
     public = APIRouter(prefix="/public")
-    private = APIRouter(prefix="/leads", dependencies=[Depends(current_user)])
+    private = APIRouter(prefix="/admin/leads", dependencies=[Depends(admin_user)])
 
     @public.post("/leads")
     async def create_lead(body: LeadIn, request: Request):
@@ -74,11 +75,11 @@ def build_leads(db, current_user):
         if await db.leads.count_documents({"ip": ip, "created_at": {"$gte": since}}) >= MAX_PER_HOUR:
             raise HTTPException(429, "Troppe richieste inviate. Riprovi tra un'ora.")
         lead = {**body.model_dump(exclude={"website"}), "name": body.name.strip(), "specialty": body.specialty.strip(),
-                "city": body.city.strip(), "message": body.message.strip(), "status": "nuova", "ip": ip,
+                "city": body.city.strip(), "message": body.message.strip(), "status": "nuova", "note": "", "ip": ip,
                 "created_at": datetime.now(timezone.utc).isoformat()}
         await db.leads.insert_one(seal_fields(dict(lead), SEALED))
         try:
-            await send_email(to=os.environ["STUDIO_EMAIL"], subject=f"MantMed · {KINDS[body.kind]} da {lead['name']}", html=notify_html(lead))
+            await send_email(to=os.environ["ADMIN_EMAIL"], subject=f"MantMed · {KINDS[body.kind]} da {lead['name']}", html=notify_html(lead))
         except Exception:
             logger.exception("Notifica email richiesta landing non inviata")
         return {"ok": True}
@@ -91,7 +92,17 @@ def build_leads(db, current_user):
     async def update_lead(lid: str, body: LeadPatch):
         if not ObjectId.is_valid(lid):
             raise HTTPException(404, "Richiesta non trovata")
-        doc = await db.leads.find_one_and_update({"_id": ObjectId(lid)}, {"$set": {"status": body.status}}, return_document=True)
+        upd = {}
+        if body.status:
+            upd["status"] = body.status
+            stamp = {"contattato": "contacted_at", "attivato": "activated_at"}.get(body.status)
+            if stamp:
+                upd[stamp] = datetime.now(timezone.utc).isoformat()
+        if body.note is not None:
+            upd.update(seal_fields({"note": body.note.strip()}, ("note",)))
+        if not upd:
+            raise HTTPException(400, "Nessuna modifica")
+        doc = await db.leads.find_one_and_update({"_id": ObjectId(lid)}, {"$set": upd}, return_document=True)
         if not doc:
             raise HTTPException(404, "Richiesta non trovata")
         return lead_out(doc)
