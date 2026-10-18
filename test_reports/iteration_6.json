@@ -1,0 +1,29 @@
+{
+  "summary": "Iteration 6: Portal flow end-to-end (parent appointment requests, doctor confirm/decline, portal invite, Appointment.date model, tenant isolation). Backend 14/14 pytest pass. Frontend parent + doctor smoke: parent creates request from /portale (Bilancio di salute), appears in Appuntamenti tab with status 'In attesa di conferma'; doctor dashboard shows portal-requests section with appt-requests-count=1, confirm button adjusts date→+7d, card disappears, upcoming-list fills (3 items) and shows success toast 'Appuntamento inserito in agenda · genitore avvisato'. 390px: zero horizontal overflow on both portal dialog and doctor portal-requests. Backend tests covered: RBAC (parent 403 on /api/appointment-requests, doctor 403 on /api/portal/appointment-requests); validation (wrong clinic 400, past date 422, bad time 422, child not linked 404); full confirm flow (create pending → shows in /portal/me requests → doctor lists → Foti CANNOT see or confirm (404 tenant isolation) → test_flowdoc confirms with new slot → confirmed_date persisted → re-confirm 404 → /appointments/upcoming contains new appt → parent /portal/me shows status 'confirmed' + appointment entry with date); decline flow + double-decline 404; Foti agenda still has 10 'today' appts (date=null); creating via POST /appointments auto-stamps today; portal invite: GET /register/invite/badtoken → 410, invite_token.py helper mints token → GET returns prefill (email, child CF BNCLRA21E45F158Y, patient_first 'TEST_'); POST /patients/{pid}/invite with valid HTTPS Origin → 200 {sent:true,to:parent}; same with http Origin → 400.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_portal_flow.py",
+    "/app/backend/tests/invite_token.py",
+    "/app/test_reports/pytest/portal_flow.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "portal_flow.py:confirm() does not validate that body.date >= today (Slot validator covers it), but when the DOCTOR adjusts a slot into the past via /appointment-requests/{rid}/confirm the same Slot validator still fires → good (verified behavior consistent).",
+    "portal_flow.py:invite() rejects http Origin outright. The current preview is https-only so OK, but note that in a reverse-proxied dev environment the Origin header may be stripped — consider also accepting the Referer or env PUBLIC_URL as fallback to avoid 400s during local tests.",
+    "server.py:/appointments filter uses {date: {$in: [None, today_rome()]}}. New appointments created from the portal are inserted via portal_flow.py with body.date (never null), while /appointments POST defaults missing date to today. Keep an eye on migrations: any pre-existing seed with date=null will show up every day forever. Consider a one-shot backfill of null → today's seed date, then drop the None branch from the filter.",
+    "portal_flow.py:list_requests() uses `since = (_now() - timedelta(days=14)).isoformat()` compared to `decided_at`, which is also stored as .isoformat() UTC — lexicographic compare works because both strings are same length/offset. Document this assumption or switch to a Date field to avoid future bugs if timezone-aware strings vary.",
+    "portal_flow.py:MAX_PENDING=5 counts across ALL doctors for the parent (count_documents by parent_id only). If a parent has 2 children with 2 different doctors, 5 pending shared cap may be surprising. Acceptable business rule but worth confirming with product."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_portal_flow.py (new)",
+    "/app/backend/tests/invite_token.py (new helper requested in review)"
+  ],
+  "success_rate": {"backend": "100% (14/14)", "frontend": "100% smoke"},
+  "test_credentials": "Parent test_flowparent@example.com / Genitore12345; Doctor test_flowdoc@example.com / Prova12345x; Foti medico@mantmed.it / Auscula-Studio-2026 + TOTP via tests/totp_code.py; Admin mantmedicine@gmail.com / MM-3EjwJpn5w64aCu2ZkOLA + TOTP.",
+  "seed_data_creation": "Created /app/backend/tests/invite_token.py (helper to mint a portal invite directly in DB and print /registrati/paziente?invito=<token>). Tests inserted 3 extra appt_requests for TEST_ Flow Bimba under test_flowdoc owner: 1 confirmed (full flow test → inserts 1 new tenant appointment), 1 declined, plus the frontend-created pending request that was then confirmed by the frontend smoke test (adds one more tenant appointment on d+7). Also 1 real invite email was sent to test_flowparent@example.com and 2 confirmation emails were sent via /notify (expected real sends per the agent note). No Foti patient data was modified.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend tests live in /app/backend/tests/test_portal_flow.py (pytest, uses frontend/.env REACT_APP_BACKEND_URL and tests/totp_code.py). The invite_token.py helper is now available: `cd /app/backend && python tests/invite_token.py <pid>` prints `/registrati/paziente?invito=<token>`. Parent test_flowparent is linked to patient 6ad4e2fbeee83d004b1921d2 (TEST_ Flow Bimba, CF BNCLRA21E45F158Y) owned by test_flowdoc. Foti owner_id drives seed_pediatric() so her 10 appts have date=null and show in /appointments due to the `$in:[None, today]` filter. MAX_PENDING per parent is 5; current test run leaves 1 pending behind if frontend smoke isn't re-run (because every run creates 1 and only confirms 1). Clean up with db.appt_requests.delete_many({'parent_id': <pid>, 'status':'pending'}) if the cap is hit.",
+  "rca of the issue": "N/A — no bug found."
+}

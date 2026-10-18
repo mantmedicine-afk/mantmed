@@ -102,6 +102,13 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Portale Paziente /portale (ruolo parent): collegamento automatico figlio solo se CF (indice HMAC cf_hash) + email genitore coincidono; più figli; referti solo se inviati via email o "Pubblica nel portale" (toggle nel passaporto); consensi firmati; appuntamenti; download PDF con audit
 - Testato: iteration_5 + verifica manuale pubblicazione/PDF portale
 
+## Implemented (2026-10-18, Richieste appuntamento e Invito portale)
+- Appuntamenti con data (agenda = oggi; legacy senza data = oggi; GET /api/appointments/upcoming per "Prossimi giorni")
+- Portale: "Richiedi appuntamento" (figlio, studio, prestazione, data/ora, nota cifrata) → collezione appt_requests; max 5 in attesa per genitore
+- Dashboard medico: sezione "Richieste di appuntamento" (conferma con data/ora modificabili → appuntamento in agenda; rifiuta) + "Prossimi giorni"; email automatica al genitore; stato nel portale
+- Passaporto: "Invita Genitore al Portale" → email con link personale 7 giorni (/registrati/paziente?invito=…) che precompila email e CF (GET /api/register/invite/{token}); richiede email genitore e CF nel passaporto
+- Codice in backend/portal_flow.py; test helper tests/invite_token.py; testato iteration_6 100%
+
 ## Backlog
 - P1: percentili automatici con curve OMS, storico crescita del paziente, dati demo pediatrici in agenda/sala d'attesa, rinomina brand in "MantMed"
 - P1 (prec.): storico paziente, export PDF dedicato, recupero password
