@@ -14,6 +14,7 @@ import { PassportSection } from "@/components/dash/PassportSection";
 import { Passport } from "@/components/dash/Passport";
 import { PatientDialog } from "@/components/dash/PatientDialog";
 import { CashRegister } from "@/components/dash/CashRegister";
+import { PortalRequests } from "@/components/dash/PortalRequests";
 import { CompliancePanel } from "@/components/dash/CompliancePanel";
 import { FeedbackDialog } from "@/components/dash/FeedbackDialog";
 import { BetaMetrics } from "@/components/dash/BetaMetrics";
@@ -74,6 +75,7 @@ export default function Dashboard() {
         <motion.div {...col(0.55)} className="order-3 min-w-0 lg:col-span-4"><WaitingList waiting={waiting} onChange={load} onStart={start} patients={patients} onPassport={setPassportId} /></motion.div>
       </main>
       <RecentNotes items={notes.filter((c) => isToday(c.created_at))} onOpen={(c) => setOverlay({ open: true, patient: null, initial: c })} />
+      <PortalRequests onChange={load} />
       <CashRegister refreshKey={cashKey} />
       <BetaMetrics refreshKey={cashKey} onFeedback={() => setFeedback(true)} />
       <PassportSection patients={patients} onOpen={setPassportId} onAdd={() => setEditPatient({})} />

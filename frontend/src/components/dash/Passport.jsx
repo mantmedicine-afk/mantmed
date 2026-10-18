@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { X, RefreshCw, Cloud, FileDown, Sparkles, AlertCircle, Pencil, ShieldCheck, ShieldAlert, Globe } from "lucide-react";
+import { X, RefreshCw, Cloud, FileDown, Sparkles, AlertCircle, Pencil, ShieldCheck, ShieldAlert, Globe, Send, Loader2 } from "lucide-react";
 import { ConsentDialog } from "./ConsentDialog";
 import { http } from "@/lib/api";
 import { api, CLINICS, errMsg, eur } from "@/lib/api";
@@ -31,7 +31,10 @@ export const Passport = ({ patientId, onClose, onEdit }) => {
         <div className="relative z-10 mx-auto max-w-[1280px] px-5 pb-8 pt-6 lg:px-10">
           <div className="flex items-center justify-between">
             <div className="text-[11px] uppercase tracking-[0.22em] text-slate-300">Passaporto sanitario dinamico</div>
-            <button onClick={onClose} className="grid h-11 w-11 place-items-center rounded-full border border-white/20 transition-colors hover:bg-white hover:text-night" data-testid="passport-close-btn" aria-label="Chiudi"><X size={18} /></button>
+            <div className="flex items-center gap-2">
+              {p && <InviteButton p={p} onSent={load} />}
+              <button onClick={onClose} className="grid h-11 w-11 place-items-center rounded-full border border-white/20 transition-colors hover:bg-white hover:text-night" data-testid="passport-close-btn" aria-label="Chiudi"><X size={18} /></button>
+            </div>
           </div>
           {p && (
             <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -95,6 +98,20 @@ const SyncPanel = ({ data, syncing, onSync }) => (
     <div className="mt-2 text-[11px] text-slate-300" data-testid="passport-synced-at">Ultima sincronizzazione: {data?.synced_at ? new Date(data.synced_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—"}</div>
   </div>
 );
+
+const InviteButton = ({ p, onSent }) => {
+  const [busy, setBusy] = useState(false);
+  const send = async () => {
+    setBusy(true);
+    try { const r = await api.invitePortal(p.id); toast.success(`Invito inviato a ${r.to}`); onSent(); } catch (e) { toast.error(errMsg(e)); }
+    setBusy(false);
+  };
+  return (
+    <button onClick={send} disabled={busy} className="flex h-11 items-center gap-2 rounded-full bg-white px-4 text-sm font-semibold text-night transition-transform hover:-translate-y-0.5 disabled:opacity-60" title={p.portal_invited_at ? `Ultimo invito: ${new Date(p.portal_invited_at).toLocaleDateString("it-IT")}` : ""} data-testid="passport-invite-btn">
+      {busy ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} <span className="hidden sm:inline">{p.portal_invited_at ? "Invita di nuovo al Portale" : "Invita Genitore al Portale"}</span><span className="sm:hidden">Invita</span>
+    </button>
+  );
+};
 
 const PortalToggle = ({ c }) => {
   const [on, setOn] = useState(Boolean(c.portal_published || c.report_sent_at));

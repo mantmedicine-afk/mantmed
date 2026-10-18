@@ -248,13 +248,17 @@ def build_registration(db, current_user, start_session, models, pdf_for):
         pt = Patient.from_mongo(p).out()
         pid, owner = pt["id"], link["owner_id"]
         doc = await db.users.find_one({"_id": ObjectId(owner)})
-        appts = [Appointment.from_mongo(a).out() async for a in db.appointments.find({"patient_id": pid, "owner_id": owner, "status": {"$ne": "completato"}}).sort("time", 1)]
+        appts = [Appointment.from_mongo(a).out() async for a in db.appointments.find({"patient_id": pid, "owner_id": owner, "status": {"$ne": "completato"},
+                                                                                   "$or": [{"date": None}, {"date": {"$gte": _now().date().isoformat()}}]}).sort([("date", 1), ("time", 1)])]
+        from portal_flow import req_out
+        requests = [req_out(r) async for r in db.appt_requests.find({"patient_id": pid, "owner_id": owner}).sort("created_at", -1).limit(20)]
         consents = [Consent.from_mongo(c).out() async for c in db.consents.find({"patient_id": pid, "owner_id": owner}).sort("signed_at", -1)]
         reports = [Consultation.from_mongo(c).out() async for c in db.consultations.find(
             {"patient_id": pid, "owner_id": owner, "$or": [{"report_sent_at": {"$ne": None}}, {"portal_published": True}]}).sort("created_at", -1)]
         return {"patient": {"id": pid, "name": pt["name"], "birth_date": pt["birth_date"], "sex": pt["sex"]},
                 "doctor": {"name": (doc or {}).get("name", ""), "clinics": (doc or {}).get("clinics", [])},
-                "appointments": [{"id": a["id"], "time": a["time"], "clinic": a["clinic"], "visit_type": a["visit_type"], "status": a["status"]} for a in appts],
+                "appointments": [{"id": a["id"], "date": a.get("date"), "time": a["time"], "clinic": a["clinic"], "visit_type": a["visit_type"], "status": a["status"]} for a in appts],
+                "requests": [{k: r[k] for k in ("id", "clinic", "service", "date", "time", "status", "reason", "confirmed_date", "confirmed_time", "created_at")} for r in requests],
                 "consents": [{"id": c["id"], "version": c["version"], "signer_name": c["signer_name"], "signer_relation": c["signer_relation"],
                               "method": c["method"], "email_reports": c["email_reports"], "signed_at": c["signed_at"], "revoked_at": c["revoked_at"]} for c in consents],
                 "reports": [{"id": r["id"], "created_at": r["created_at"], "clinic": r["clinic"], "motivo": (r["note"] or {}).get("motivo_visita", ""),

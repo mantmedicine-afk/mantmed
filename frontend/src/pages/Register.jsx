@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { ArrowLeft, ArrowRight, Loader2, MailCheck, Hourglass, Stethoscope, Baby } from "lucide-react";
@@ -65,6 +65,14 @@ export default function Register({ role }) {
   const [f, setF] = useState({ password: "", confirm: "", terms: false, privacy_policy: false, health_data: false });
   const [step, setStep] = useState("form");
   const [busy, setBusy] = useState(false);
+  const [params] = useSearchParams();
+  const [invite, setInvite] = useState(null);
+  const token = params.get("invito");
+  useEffect(() => {
+    if (doctor || !token) return;
+    api.inviteInfo(token).then((inv) => { setInvite(inv); setF((p) => ({ ...p, email: inv.email, child_fiscal_code: inv.child_fiscal_code })); })
+      .catch((e) => toast.error(errMsg(e)));
+  }, [doctor, token]);
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value }));
 
   const submit = async (e) => {
@@ -89,6 +97,7 @@ export default function Register({ role }) {
       {step === "code" && <CodeStep email={(f.email || "").trim().toLowerCase()} onDone={done} onBack={() => setStep("form")} />}
       {step === "form" && (
         <form onSubmit={submit} className="space-y-4" data-testid={`register-${role}-form`}>
+          {invite && <p className="rounded-2xl border border-[#C9CCD3]/30 bg-white/5 p-4 text-sm text-slate-200" data-testid="register-invite-banner">Invito di <strong className="text-white">{invite.doctor}</strong> per il portale di {invite.patient_first}: email e codice fiscale sono già compilati.</p>}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {fields.map(([k, label, ph, type = "text", wide]) => (
               <label key={k} className={wide ? "sm:col-span-2" : ""}>

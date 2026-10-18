@@ -17,6 +17,7 @@ from beta import build_beta
 from leads import build_leads
 from tenancy import TenantDB, set_tenant, tenant_clinics, cf_hash
 from registration import build_registration
+from portal_flow import build_portal_flow
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
 from typing import List, Optional, Annotated, Literal, ClassVar
@@ -110,6 +111,7 @@ CLINICS = ["Studio Centro", "Studio Provincia"]
 
 class Appointment(BaseDocument):
     clinic: str
+    date: Optional[str] = None
     time: str
     patient_name: str
     patient_id: Optional[str] = None
@@ -122,6 +124,7 @@ class Appointment(BaseDocument):
 
 class AppointmentIn(BaseModel):
     clinic: str
+    date: Optional[str] = None
     time: str
     patient_name: str
     patient_id: Optional[str] = None
@@ -133,6 +136,7 @@ class AppointmentIn(BaseModel):
 
 class AppointmentPatch(BaseModel):
     clinic: Optional[str] = None
+    date: Optional[str] = None
     time: Optional[str] = None
     patient_name: Optional[str] = None
     patient_id: Optional[str] = None
@@ -270,6 +274,7 @@ class Patient(BaseDocument):
     consent_at: Optional[str] = None
     consent_version: Optional[str] = None
     consent_email: bool = False
+    portal_invited_at: Optional[str] = None
     created_at: str = Field(default_factory=now_iso)
     __encrypted__: ClassVar[tuple] = ("fiscal_code", "guardian", "guardian_email", "allergies", "notes")
 
@@ -498,13 +503,19 @@ async def clinics():
 
 @api.get("/appointments")
 async def list_appointments():
-    docs = await tdb.appointments.find().sort("time", 1).to_list(500)
+    docs = await tdb.appointments.find({"date": {"$in": [None, today_rome()]}}).sort("time", 1).to_list(500)
+    return [Appointment.from_mongo(d).out() for d in docs]
+
+
+@api.get("/appointments/upcoming")
+async def upcoming_appointments():
+    docs = await tdb.appointments.find({"date": {"$gt": today_rome()}}).sort([("date", 1), ("time", 1)]).to_list(200)
     return [Appointment.from_mongo(d).out() for d in docs]
 
 
 @api.post("/appointments")
 async def create_appointment(body: AppointmentIn):
-    appt = Appointment(**body.model_dump())
+    appt = Appointment(**{**body.model_dump(), "date": body.date or today_rome()})
     res = await tdb.appointments.insert_one(appt.to_mongo())
     appt.id = str(res.inserted_id)
     return appt.out()
@@ -1076,6 +1087,10 @@ api.include_router(build_beta(db, current_user))
 reg_router, admin_doctors, portal_router = build_registration(
     db, current_user, start_session, {"patient": Patient, "consultation": Consultation, "consent": Consent, "appointment": Appointment}, portal_pdf_for)
 public_api.include_router(reg_router)
+flow_doctor, flow_parent, flow_public = build_portal_flow(db, tdb, current_user, Appointment, tenant_clinics)
+api.include_router(flow_doctor)
+public_api.include_router(flow_parent)
+public_api.include_router(flow_public)
 public_api.include_router(admin_doctors)
 public_api.include_router(portal_router)
 leads_public, leads_private = build_leads(db, require_role(current_user, "admin"))

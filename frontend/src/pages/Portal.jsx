@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { LogOut, CalendarClock, FileSignature, FileDown, Plus, Loader2, Baby, Info } from "lucide-react";
+import { LogOut, CalendarClock, FileSignature, FileDown, Plus, Loader2, Baby, Info, CalendarPlus } from "lucide-react";
+import { RequestDialog } from "@/components/portal/RequestDialog";
 import { LogoMark } from "@/components/dash/Logo";
 import { api, errMsg } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -22,12 +23,30 @@ const Reports = ({ items }) => {
   ));
 };
 
-const Appointments = ({ items }) => (items.length ? items.map((a) => (
-  <div key={a.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4" data-testid={`portal-appt-${a.id}`}>
-    <div><div className="font-medium text-night">{a.visit_type}</div><div className="text-sm text-slate-600">{a.clinic}</div></div>
-    <div className="text-right"><div className="font-display text-2xl text-night">{a.time}</div><div className="text-xs text-slate-600">{a.status === "in_attesa" ? "In sala d'attesa" : "Oggi"}</div></div>
-  </div>
-)) : <Empty text="Nessun appuntamento in programma." />);
+const REQ = { pending: ["In attesa di conferma", "bg-amber-100 text-amber-900"], confirmed: ["Confermata", "bg-emerald-100 text-emerald-900"], declined: ["Non confermata", "bg-slate-200 text-slate-700"] };
+const dshort = (d) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString("it-IT", { weekday: "short", day: "numeric", month: "short" }) : "Oggi");
+
+const Appointments = ({ items, requests = [] }) => (
+  <>
+    {items.length ? items.map((a) => (
+      <div key={a.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4" data-testid={`portal-appt-${a.id}`}>
+        <div><div className="font-medium text-night">{a.visit_type}</div><div className="text-sm text-slate-600">{a.clinic}</div></div>
+        <div className="text-right"><div className="font-display text-2xl text-night">{a.time}</div><div className="text-xs capitalize text-slate-600">{a.status === "in_attesa" ? "In sala d'attesa" : dshort(a.date)}</div></div>
+      </div>
+    )) : <Empty text="Nessun appuntamento in programma." />}
+    {requests.length > 0 && <div className="pt-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600">Le sue richieste</div>}
+    {requests.map((r) => {
+      const [label, cls] = REQ[r.status] ?? REQ.pending;
+      const d = r.status === "confirmed" ? `${dshort(r.confirmed_date)} · ${r.confirmed_time}` : `${dshort(r.date)} · ${r.time}`;
+      return (
+        <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-dashed border-slate-300 bg-white p-4" data-testid={`portal-request-${r.id}`}>
+          <div><div className="font-medium text-night">{r.service}</div><div className="text-sm capitalize text-slate-600">{d} · {r.clinic}</div>{r.reason && <div className="text-xs text-slate-600">Nota dello studio: {r.reason}</div>}</div>
+          <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${cls}`} data-testid={`portal-request-status-${r.id}`}>{label}</span>
+        </div>
+      );
+    })}
+  </>
+);
 
 const Consents = ({ items }) => (items.length ? items.map((c) => (
   <div key={c.id} className="rounded-2xl border border-slate-200 bg-white p-4" data-testid={`portal-consent-${c.id}`}>
@@ -37,13 +56,14 @@ const Consents = ({ items }) => (items.length ? items.map((c) => (
   </div>
 )) : <Empty text="Nessun consenso registrato dallo studio." />);
 
-const Child = ({ c }) => {
+const Child = ({ c, onRequest }) => {
   const [tab, setTab] = useState("reports");
   const p = c.patient;
   return (
     <section className="rounded-[28px] border border-slate-200 bg-[#F4F5F7] p-5 sm:p-7" data-testid={`portal-child-${p.id}`}>
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div><div className="text-[11px] uppercase tracking-[0.2em] text-slate-600">Nato/a il {day(p.birth_date)}</div><h2 className="font-display text-4xl text-night">{p.name}</h2><div className="text-sm text-slate-600">Medico: {c.doctor.name}</div></div>
+        <div><div className="text-[11px] uppercase tracking-[0.2em] text-slate-600">Nato/a il {day(p.birth_date)}</div><h2 className="font-display text-4xl text-night">{p.name}</h2><div className="text-sm text-slate-600">Medico: {c.doctor.name}</div>
+          <button onClick={() => onRequest(p.id)} className="mt-3 flex h-10 items-center gap-2 rounded-full bg-night px-4 text-sm font-medium text-white transition-transform hover:-translate-y-0.5" data-testid={`portal-request-btn-${p.id}`}><CalendarPlus size={15} /> Richiedi appuntamento</button></div>
         <div className="flex flex-wrap gap-1 rounded-full bg-white p-1 ring-1 ring-slate-200" role="tablist">
           {TABS.map((t) => (
             <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} className={`flex h-9 items-center gap-1.5 rounded-full px-3 text-sm transition-colors ${tab === t.id ? "bg-night text-white" : "text-slate-600 hover:text-night"}`} data-testid={`portal-tab-${t.id}-${p.id}`}>
@@ -54,7 +74,7 @@ const Child = ({ c }) => {
       </div>
       <div className="mt-5 space-y-2">
         {tab === "reports" && <Reports items={c.reports} />}
-        {tab === "appointments" && <Appointments items={c.appointments} />}
+        {tab === "appointments" && <Appointments items={c.appointments} requests={c.requests ?? []} />}
         {tab === "consents" && <Consents items={c.consents} />}
       </div>
     </section>
@@ -86,6 +106,7 @@ const AddChild = ({ onLinked }) => {
 export default function Portal() {
   const { user, logout } = useAuth();
   const [data, setData] = useState(null);
+  const [req, setReq] = useState(null);
   const load = useCallback(() => api.portalMe().then(setData).catch((e) => toast.error(errMsg(e))), []);
   useEffect(() => {
     load();
@@ -107,7 +128,8 @@ export default function Portal() {
           <div className="flex gap-3 rounded-[28px] bg-[#0A192F] p-6 text-white" data-testid="portal-no-children"><Baby className="shrink-0 text-[#C9CCD3]" />
             <p className="text-sm leading-relaxed text-slate-200">Non abbiamo ancora trovato una cartella collegata. Il collegamento avviene in automatico quando lo studio registra il codice fiscale del bambino e la sua email ({user?.email}). Se ha già fatto una visita, chieda allo studio di verificare questi due dati.</p></div>
         )}
-        {children.map((c) => <Child key={c.patient.id} c={c} />)}
+        {children.map((c) => <Child key={c.patient.id} c={c} onRequest={setReq} />)}
+        <RequestDialog open={!!req} initial={req} kids={children} onClose={() => setReq(null)} onSent={load} />
         {data && <AddChild onLinked={load} />}
         {data?.consent && <p className="flex items-center gap-2 text-xs text-slate-600" data-testid="portal-consent-note"><Info size={13} /> Consenso accettato il {day(data.consent.at)} · {data.consent.version}</p>}
       </main>
