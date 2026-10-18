@@ -993,7 +993,7 @@ async def compliance_status():
         "encryption": {"algorithm": "AES-256-GCM", "key_fingerprint": KEY_FINGERPRINT, "key_storage": "Variabile d'ambiente del server, separata dal database", "collections": stats},
         "transit": {"https": True, "hsts": True, "cookies": "httpOnly · Secure · SameSite=Lax", "session": "Token di accesso 15 min · rinnovo 7 giorni"},
         "database": {"provider": "MongoDB Atlas" if atlas else "MongoDB gestito dalla piattaforma", "host": "cluster Atlas" if atlas else ("locale/anteprima" if "localhost" in host else "gestito"),
-                     "region": region or ("non dichiarata" if atlas else "USA/India (piattaforma Emergent)"), "eu": eu},
+                     "region": (region or "non dichiarata") if atlas else "USA/India (piattaforma Emergent)", "eu": eu},
         "consents": {"patients": patients, "with_consent": with_consent, "version": CONSENT_VERSION},
         "audit": [{"action": a["action"], "subject": unseal_fields({"s": a.get("subject")}, ("s",))["s"], "at": a["at"]} for a in logs],
     }
