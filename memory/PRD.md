@@ -89,6 +89,12 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Dashboard: sezione "Richieste dai medici" con stato Nuova/Contattato/Archiviata (GET/PATCH /api/leads, POST pubblico /api/public/leads)
 - Testato: iteration_3 100%
 
+## Implemented (2026-10-18, Pannello Founder)
+- Account admin (ADMIN_EMAIL/ADMIN_PASSWORD in backend/.env, seed all'avvio) con RBAC: API cliniche solo ruolo doctor, /api/admin/leads solo admin
+- Lead rimossi dalla dashboard medico; nuovo Pannello Founder su /admin: KPI (totali, nuove, contattati, attivati, conversione), filtri stato/tipo, ricerca, export CSV, dettaglio con stato Nuova/Contattato/Attivato/Archiviata (date), nota interna cifrata, 2FA attivabile
+- Email di avviso nuove richieste solo a ADMIN_EMAIL
+- Testato: iteration_4 (fix: /api/auth/me spostato su router pubblico autenticato)
+
 ## Backlog
 - P1: percentili automatici con curve OMS, storico crescita del paziente, dati demo pediatrici in agenda/sala d'attesa, rinomina brand in "MantMed"
 - P1 (prec.): storico paziente, export PDF dedicato, recupero password

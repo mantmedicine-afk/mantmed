@@ -452,7 +452,7 @@ async def root():
     return {"app": "MantMed", "ok": True}
 
 
-@api.get("/auth/me")
+@public_api.get("/auth/me")
 async def me(user: dict = Depends(current_user)):
     return user
 

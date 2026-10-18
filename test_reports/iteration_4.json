@@ -1,0 +1,37 @@
+{
+  "summary": "Iteration 4 (admin Pannello Founder + RBAC separation) tested end-to-end. Backend: 12/12 pytest passing (RBAC: admin 403 on /patients, /consultations, /beta/metrics, /compliance/status; doctor 403 on /admin/leads; anon 401 — plus public /leads validation, honeypot drop, admin private list/patch lifecycle with status transitions setting contacted_at/activated_at, note persistence via encrypted-at-rest field decrypted on read, invalid id 404, invalid status 422, empty body 400). Frontend: /admin login shows login-subtitle 'Pannello Founder · accesso amministratore'; admin login (no 2FA) lands on admin-page with all KPI testids (total/nuova/contattato/attivato/conversion), all five filter buttons, kind-filter, search-input, export-btn; lead row toggle expands; status set updates both badge and KPI (nuova 1→2 verified); note save persists after full page reload. admin-security-btn opens admin-security-dialog (2FA setup card present, NOT enabled). Admin at /app shows wrong-area with link=/admin. Doctor fully logged in at /admin shows wrong-area, no admin-lead rows leaked; wrong-area-go navigates to /app where dashboard loads and leads-panel is absent (removed). Landing contact form submits → lead-success and the lead reaches /admin. 390px /admin has 0px horizontal overflow.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_landing_leads.py",
+    "/app/test_reports/pytest/landing_leads.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "FIXED by test agent: /api/auth/me was declared on the doctor-restricted api router (server.py), so admin users (role=admin) received HTTP 403 when AuthProvider called api.me() on mount — this made the entire /admin SPA unusable (infinite login loop). Moved the endpoint to public_api so any authenticated user (admin OR doctor) can fetch their own profile. This fix is required and should remain.",
+    "server.py: consider also moving /api/auth/ping and /api/auth/logout out of the implicit doctor-protected router for consistency (currently they live on the standalone auth_router mounted via public_api, so they are OK; just worth re-reading since the pattern is subtle).",
+    "leads.py: rate limit uses lexicographic ISO-string compare on created_at and trusts the first value in X-Forwarded-For — behind a shared ingress this cap can be bypassed. Consider storing BSON Date and adding a trusted-proxy allow-list (previously flagged in iter_3).",
+    "Admin.jsx: leads list is loaded once in a useEffect with no refresh/polling and no error toast when the fetch fails (catches to empty array silently). Add a periodic refresh (e.g. every 60s) or a manual refresh button + user-visible error state.",
+    "LeadRow.jsx: 'Save note' button only disables while note === lead.note, but after successful patch the local `note` state is not re-synced from the server response — subsequent server-side normalization (trim) would leave the button enabled with no change to save. Minor UX nit.",
+    "Admin.jsx CSV export writes a BOM + semicolons which is fine for Excel-IT but has no header row localization and includes raw ISO created_at; consider formatting dates it-IT for consistency with the UI.",
+    "Admin at 390px: KPI grid uses grid-cols-2 which forces two columns and makes the 'Conversione' KPI span a single orphan row — visually acceptable but a 1-col stacked layout on <sm would be cleaner."
+  ],
+  "updated_files": [
+    "/app/backend/server.py (moved /api/auth/me from doctor router to public_api — unblocks admin AuthProvider)",
+    "/app/backend/tests/test_landing_leads.py (rewritten for new /api/admin/leads + admin auth + RBAC assertions)"
+  ],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100%"},
+  "test_credentials": "Admin: mantmedicine@gmail.com / MM-3EjwJpn5w64aCu2ZkOLA (no 2FA). Doctor: medico@mantmed.it / Auscula-Studio-2026 + TOTP from `cd /app/backend && python tests/totp_code.py`.",
+  "seed_data_creation": "Backend lifecycle test created 1 real lead: TEST_Dr Verifica / verifica+mantmed@test.it (1 real email to ADMIN_EMAIL). Landing-form test created 1 more: TEST_landing_<ts>. Both left in DB with status 'archiviata'/'nuova' respectively. Real lead 'Marcello Bello' NOT touched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Admin cookie-based login works via /api/auth/login + /api/auth/me (both anonymous-safe for the latter — fix landed this iteration). Rate limit is 5 valid public lead submissions / hour / IP so avoid re-running the lifecycle test more than 4 extra times. TOTP code must be fetched fresh (30s window) — in the browser-automation sandbox pyotp is NOT installed so pre-compute the code via `cd /app/backend && python tests/totp_code.py` and inject it. Expected lead testids in Admin.jsx: admin-page, admin-user-email, admin-security-btn/dialog, admin-logout-btn, admin-kpi-{total|nuova|contattato|attivato|conversion}, admin-filter-{tutte|nuova|contattato|attivato|archiviata}, admin-kind-filter, admin-search-input, admin-export-btn, admin-leads-list, admin-leads-empty, admin-lead-{id}, admin-lead-toggle-{id}, admin-lead-status-{id}, admin-lead-set-{id}-{status}, admin-lead-note-{id}, admin-lead-save-note-{id}, admin-lead-mail-{id}. Login form testids: login-email-input, login-password-input, login-submit-button, login-subtitle, login-page, mfa-step, mfa-digit-0..5, mfa-error.",
+  "rca of the issue": "Admin /auth/me 403 bug: /api/auth/me endpoint was placed on `api = APIRouter(prefix='/api', dependencies=[Depends(require_role(current_user, 'doctor'))])`, which enforces doctor-only access on every route it owns. The admin cookie satisfies `current_user` (session valid) but fails `require_role('doctor')` → 403. The frontend AuthProvider (lib/auth.js:15) treats any non-2xx from api.me() as 'not authenticated', so the admin was redirected to Login after each successful login (infinite loop). Fix: moved the single-line @api.get('/auth/me') route to @public_api.get('/auth/me') — public_api has no role dependency, only the `Depends(current_user)` on the handler, which still enforces authentication. Reproduction: before fix, `curl -c jar -X POST .../api/auth/login -d admin creds` returned 200, then `curl -b jar .../api/auth/me` returned 403 'Accesso non consentito per questo account'. After fix: 200 with the admin user payload."
+}

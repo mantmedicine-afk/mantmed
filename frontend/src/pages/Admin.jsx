@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, LogOut, ShieldCheck, Download, Inbox } from "lucide-react";
+import { Search, LogOut, ShieldCheck, Download, Inbox, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LogoMark } from "@/components/dash/Logo";
 import { TwoFactorCard } from "@/components/dash/Security";
@@ -16,8 +16,8 @@ const csv = (rows) => {
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 };
 
-const Kpi = ({ label, value, dark, testid }) => (
-  <div className={`rounded-3xl p-5 ${dark ? "grain relative overflow-hidden bg-night text-white" : "border border-slate-200 bg-white text-night"}`} data-testid={testid}>
+const Kpi = ({ label, value, dark, testid, wide }) => (
+  <div className={`rounded-3xl p-5 ${wide ? "col-span-2 lg:col-span-1" : ""} ${dark ? "grain relative overflow-hidden bg-night text-white" : "border border-slate-200 bg-white text-night"}`} data-testid={testid}>
     <div className={`relative text-[11px] uppercase tracking-[0.2em] ${dark ? "text-[#C9CCD3]" : "text-slate-500"}`}>{label}</div>
     <div className="relative mt-2 font-display text-5xl leading-none">{value}</div>
   </div>
@@ -30,8 +30,9 @@ export default function Admin() {
   const [kind, setKind] = useState("tutti");
   const [q, setQ] = useState("");
   const [sec, setSec] = useState(false);
+  const load = () => api.leads().then(setLeads).catch(() => setLeads([]));
   useEffect(() => {
-    api.leads().then(setLeads).catch(() => setLeads([]));
+    load();
   }, []);
 
   const count = (s) => leads.filter((l) => l.status === s).length;
@@ -60,7 +61,7 @@ export default function Admin() {
           <Kpi label="Nuove" value={count("nuova")} testid="admin-kpi-nuova" />
           <Kpi label="Contattati" value={count("contattato")} testid="admin-kpi-contattato" />
           <Kpi label="Attivati" value={count("attivato")} testid="admin-kpi-attivato" />
-          <Kpi label="Conversione" value={`${conv}%`} testid="admin-kpi-conversion" />
+          <Kpi wide label="Conversione" value={`${conv}%`} testid="admin-kpi-conversion" />
         </div>
         <div className="mt-8 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap gap-1.5">
@@ -73,6 +74,7 @@ export default function Admin() {
               <option value="tutti">Tutti i tipi</option><option value="beta">Accesso beta</option><option value="commerciale">Info commerciali</option>
             </select>
             <label className="flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-4"><Search size={14} className="text-slate-500" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cerca nome, città…" className="w-40 bg-transparent text-sm text-night outline-none" data-testid="admin-search-input" /></label>
+            <button onClick={load} className="grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-night hover:border-night" aria-label="Aggiorna" data-testid="admin-refresh-btn"><RefreshCw size={14} /></button>
             <button onClick={() => csv(shown)} className="flex h-10 items-center gap-2 rounded-full bg-night px-4 text-sm font-medium text-white" data-testid="admin-export-btn"><Download size={14} /> CSV</button>
           </div>
         </div>
