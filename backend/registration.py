@@ -16,6 +16,10 @@ from crypto import seal_fields, unseal_fields
 from mailer import send_email
 from tenancy import cf_hash
 
+
+def in_network(u: dict) -> bool:
+    return u.get("in_network", not u.get("profile"))
+
 logger = logging.getLogger(__name__)
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 CF_RE = re.compile(r"^[A-Z]{6}[0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{3}[A-Z]$")
@@ -210,7 +214,8 @@ def build_registration(db, current_user, start_session, models, pdf_for):
         out = []
         async for u in db.users.find({"role": "doctor"}).sort("created_at", -1):
             p = u.get("profile") or {}
-            out.append({"id": str(u["_id"]), "name": u.get("name", ""), "email": u["email"], "status": u.get("status", "active"),
+            out.append({"id": str(u["_id"]), "name": u.get("name", ""), "email": u["email"], "status": u.get("status", "active"), "in_network": in_network(u),
+                        "clinics": u.get("clinics") or [],
                         "founder": not u.get("profile"), "specialty": p.get("specialty", ""), "order_number": p.get("order_number", ""),
                         "phone": p.get("phone", ""), "studio_address": p.get("studio_address", ""), "created_at": u.get("created_at"),
                         "approved_at": u.get("approved_at"), "patients": await db.patients.count_documents({"owner_id": str(u["_id"])})})
@@ -258,7 +263,9 @@ def build_registration(db, current_user, start_session, models, pdf_for):
         reports = [Consultation.from_mongo(c).out() async for c in db.consultations.find(
             {"patient_id": pid, "owner_id": owner, "$or": [{"report_sent_at": {"$ne": None}}, {"portal_published": True}]}).sort("created_at", -1)]
         return {"patient": {"id": pid, "name": pt["name"], "birth_date": pt["birth_date"], "sex": pt["sex"]},
-                "doctor": {"name": (doc or {}).get("name", ""), "clinics": (doc or {}).get("clinics", [])},
+                "doctor": {"id": owner, "name": (doc or {}).get("name", ""), "clinics": (doc or {}).get("clinics", []),
+                           "specialty": ((doc or {}).get("profile") or {}).get("specialty") or "Pediatria"},
+                "group": p.get("cf_hash") or pid,
                 "appointments": [{"id": a["id"], "date": a.get("date"), "time": a["time"], "clinic": a["clinic"], "visit_type": a["visit_type"], "status": a["status"],
                                   "paid_online": a.get("paid_online", False)} for a in appts],
                 "receipts": [{k: x.get(k) for k in ("id", "receipt_no", "date", "service", "amount", "visit_date", "visit_time", "clinic", "refunded_at")} for x in receipts],

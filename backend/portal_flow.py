@@ -6,7 +6,7 @@ import secrets
 import logging
 from datetime import datetime, timezone, timedelta, date as Date
 from html import escape as hesc
-from typing import Literal, Optional
+from typing import Optional
 from zoneinfo import ZoneInfo
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -15,10 +15,9 @@ from auth import require_role
 from crypto import seal_fields, unseal_fields
 from mailer import send_email
 from registration import mail_shell
-from scheduling import free_slots, schedule_of
+from scheduling import free_slots, schedule_of, network_doctor
 
 logger = logging.getLogger(__name__)
-SERVICES = ["Prima visita", "Bilancio di salute", "Visita di controllo", "Visita urgente"]
 TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 INVITE_DAYS = 7
@@ -60,8 +59,9 @@ class Slot(BaseModel):
 
 class RequestIn(Slot):
     patient_id: str
+    doctor_id: str = ""
     clinic: str
-    service: Literal["Prima visita", "Bilancio di salute", "Visita di controllo", "Visita urgente"]
+    service: str = Field(min_length=2, max_length=60)
     note: str = Field(default="", max_length=1000)
 
 
@@ -83,25 +83,49 @@ def req_out(r: dict) -> dict:
                                                          "status", "reason", "confirmed_date", "confirmed_time", "created_at", "decided_at", "pay_online", "amount")}}
 
 
+PATIENT_SEALED = ("fiscal_code", "guardian", "guardian_email", "allergies", "notes")
+
+
+async def child_at(db, u: dict, src: dict, doc: dict) -> dict:
+    """The child's record at another network doctor: reuse the linked one (same CF) or create it with basic data only."""
+    owner = str(doc["_id"])
+    for c in u.get("children", []):
+        if c["owner_id"] == owner:
+            p = await db.patients.find_one({"_id": ObjectId(c["patient_id"]), "owner_id": owner})
+            if p and src.get("cf_hash") and p.get("cf_hash") == src["cf_hash"]:
+                return p
+    s = unseal_fields(src, PATIENT_SEALED)
+    if not src.get("cf_hash"):
+        raise HTTPException(400, "Manca il codice fiscale del bambino: chieda al suo pediatra di inserirlo")
+    p = {"name": src["name"], "birth_date": src["birth_date"], "sex": src["sex"], "consent_at": None, "consent_version": None, "consent_email": False,
+         "portal_invited_at": None, "created_at": _now().isoformat(), "owner_id": owner, "cf_hash": src["cf_hash"], "created_from": "portale_rete",
+         **seal_fields({"fiscal_code": s.get("fiscal_code") or "", "guardian": u["name"], "guardian_email": u["email"], "allergies": "", "notes": ""}, PATIENT_SEALED)}
+    p["_id"] = (await db.patients.insert_one(p)).inserted_id
+    await db.users.update_one({"_id": u["_id"]}, {"$push": {"children": {"patient_id": str(p["_id"]), "owner_id": owner, "linked_at": _now().isoformat()}}})
+    return p
+
+
 async def check_request(db, body: RequestIn, user_id: str):
-    """Validate a parent's booking (child link, clinic, free slot) and return (parent, doctor, patient)."""
+    """Validate a parent's booking (child link, doctor, clinic, free slot) and return (parent, doctor, patient at that doctor)."""
     u = await db.users.find_one({"_id": ObjectId(user_id)})
     link = next((c for c in u.get("children", []) if c["patient_id"] == body.patient_id), None)
     if not link:
         raise HTTPException(404, "Figlio non collegato al suo account")
-    doc = await db.users.find_one({"_id": ObjectId(link["owner_id"])})
+    other = body.doctor_id and body.doctor_id != link["owner_id"]
+    doc = await network_doctor(db, body.doctor_id) if other else await db.users.find_one({"_id": ObjectId(link["owner_id"])})
     if body.clinic not in [c["name"] for c in (doc or {}).get("clinics", [])]:
         raise HTTPException(400, "Studio non valido")
     if body.time not in await free_slots(db, doc, body.clinic, body.service, body.date):
         raise HTTPException(409, "L'orario scelto non è più disponibile: ne selezioni un altro")
-    p = await db.patients.find_one({"_id": ObjectId(body.patient_id), "owner_id": link["owner_id"]})
-    if not p:
+    src = await db.patients.find_one({"_id": ObjectId(body.patient_id), "owner_id": link["owner_id"]})
+    if not src:
         raise HTTPException(404, "Cartella non trovata")
+    p = await child_at(db, u, src, doc) if other else src
     return u, doc, p
 
 
 def request_doc(body: RequestIn, u: dict, doc: dict, p: dict, status: str) -> dict:
-    return {"owner_id": str(doc["_id"]), "patient_id": body.patient_id, "patient_name": p["name"], "parent_id": str(u["_id"]), "parent_name": u["name"],
+    return {"owner_id": str(doc["_id"]), "patient_id": str(p["_id"]), "patient_name": p["name"], "parent_id": str(u["_id"]), "parent_name": u["name"],
             "parent_email": u["email"], "clinic": body.clinic, "service": body.service, "date": body.date, "time": body.time,
             **seal_fields({"note": body.note.strip()}, ("note",)), "status": status, "created_at": _now().isoformat()}
 

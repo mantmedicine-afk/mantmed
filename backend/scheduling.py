@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field, field_validator
 from auth import require_role
 from crypto import unseal_fields
 from mailer import send_email
-from registration import mail_shell
+from registration import mail_shell, in_network
 
 logger = logging.getLogger(__name__)
 ROME = ZoneInfo("Europe/Rome")
@@ -67,35 +67,57 @@ class Billing(BaseModel):
     note: str = Field(default="", max_length=300)
 
 
+class ServiceIn(BaseModel):
+    name: str = Field(min_length=2, max_length=60)
+    duration: int = Field(ge=5, le=240)
+    price: float = Field(default=0, ge=0, le=5000)
+
+
+class ClinicIn(BaseModel):
+    name: str = Field(min_length=2, max_length=60)
+    address: str = Field(default="", max_length=200)
+
+
 class ScheduleIn(BaseModel):
     hours: dict[str, Hours]
-    durations: dict[str, int]
-    prices: dict[str, float] = Field(default_factory=dict)
+    services: list[ServiceIn] = Field(min_length=1, max_length=20)
+    clinics: list[ClinicIn] = Field(min_length=1, max_length=6)
     billing: Billing = Field(default_factory=Billing)
 
-    @field_validator("prices")
+    @field_validator("services")
     @classmethod
-    def v_prices(cls, v):
-        if set(v) - set(DEFAULT_DURATIONS) or any(not 0 <= p <= 5000 for p in v.values()):
-            raise ValueError("Tariffe non valide (0-5000 euro)")
-        return {k: round(p, 2) for k, p in v.items()}
+    def v_services(cls, v):
+        names = [s.name.strip() for s in v]
+        if len(set(n.lower() for n in names)) != len(names):
+            raise ValueError("Ogni prestazione deve avere un nome diverso")
+        return [ServiceIn(name=s.name.strip(), duration=s.duration, price=round(s.price, 2)) for s in v]
 
-    @field_validator("durations")
+    @field_validator("clinics")
     @classmethod
-    def v_dur(cls, v):
-        if set(v) != set(DEFAULT_DURATIONS) or any(not 5 <= m <= 240 for m in v.values()):
-            raise ValueError("Durate non valide (5-240 minuti per ogni prestazione)")
-        return v
+    def v_clinics(cls, v):
+        names = [c.name.strip() for c in v]
+        if len(set(n.lower() for n in names)) != len(names):
+            raise ValueError("Ogni sede deve avere un nome diverso")
+        return [ClinicIn(name=c.name.strip(), address=c.address.strip()) for c in v]
+
+
+def services_of(user: dict) -> list[dict]:
+    saved = user.get("schedule") or {}
+    if saved.get("services"):
+        return saved["services"]
+    durs, prices = {**DEFAULT_DURATIONS, **(saved.get("durations") or {})}, saved.get("prices") or {}
+    return [{"name": k, "duration": int(d), "price": float(prices.get(k) or 0)} for k, d in durs.items()]
 
 
 def schedule_of(user: dict) -> dict:
-    """Opening hours per clinic (days 1=Mon..7=Sun) and service durations, with defaults."""
+    """Opening hours per clinic (days 1=Mon..7=Sun), the doctor's own services (name, duration, price) and fiscal data."""
     names = [c["name"] for c in user.get("clinics") or []] or ["Studio principale"]
     saved = user.get("schedule") or {}
     hours = {n: {**{"days": [1, 2, 3, 4, 5], "start": FOUNDER_HOURS.get(n, ("09:00", "18:00"))[0], "end": FOUNDER_HOURS.get(n, ("09:00", "18:00"))[1]},
                  **(saved.get("hours", {}).get(n) or {})} for n in names}
-    return {"hours": hours, "durations": {**DEFAULT_DURATIONS, **(saved.get("durations") or {})},
-            "prices": {**{k: 0.0 for k in DEFAULT_DURATIONS}, **(saved.get("prices") or {})},
+    services = services_of(user)
+    return {"hours": hours, "services": services, "clinics": user.get("clinics") or [{"name": "Studio principale", "address": ""}],
+            "durations": {s["name"]: s["duration"] for s in services}, "prices": {s["name"]: s["price"] for s in services},
             "billing": {**Billing().model_dump(), "holder": user.get("name", ""), **(user.get("billing") or {})}}
 
 
@@ -122,7 +144,9 @@ async def free_slots(db, owner: dict, clinic: str, service: str, day: str) -> li
     now = datetime.now(ROME)
     if d < now.date() or d.isoweekday() not in h["days"]:
         return []
-    dur = sch["durations"].get(service, 30)
+    dur = sch["durations"].get(service)
+    if not dur:
+        raise HTTPException(400, "Prestazione non disponibile presso questo medico")
     owner_id = str(owner["_id"])
     busy = []
     async for a in db.appointments.find({"owner_id": owner_id, "date": day, "status": {"$ne": "annullato"}}):
@@ -139,6 +163,13 @@ async def free_slots(db, owner: dict, clinic: str, service: str, day: str) -> li
     return out
 
 
+async def network_doctor(db, doctor_id: str) -> dict:
+    d = await db.users.find_one({"_id": ObjectId(doctor_id), "role": "doctor", "status": "active"}) if ObjectId.is_valid(doctor_id) else None
+    if not d or not in_network(d):
+        raise HTTPException(404, "Specialista non disponibile")
+    return d
+
+
 def build_scheduling(db, tdb, current_user):
     doctor = APIRouter(prefix="/settings")
     portal = APIRouter(prefix="/portal", dependencies=[Depends(require_role(current_user, "parent"))])
@@ -151,19 +182,20 @@ def build_scheduling(db, tdb, current_user):
     @doctor.put("/schedule")
     async def put_schedule(body: ScheduleIn, user: dict = Depends(current_user)):
         u = await db.users.find_one({"_id": ObjectId(user["id"])})
-        names = set(schedule_of(u)["hours"])
+        names = {c.name for c in body.clinics}
         if set(body.hours) != names:
-            raise HTTPException(400, "Indicare gli orari per tutti gli studi")
+            raise HTTPException(400, "Indicare gli orari per tutte le sedi")
         for n, h in body.hours.items():
             if mins(h.start) >= mins(h.end):
                 raise HTTPException(400, f"{n}: l'orario di chiusura deve seguire l'apertura")
-        await db.users.update_one({"_id": u["_id"]}, {"$set": {"schedule": {"hours": {k: v.model_dump() for k, v in body.hours.items()}, "durations": body.durations,
-                                                                              "prices": body.prices},
+        await db.users.update_one({"_id": u["_id"]}, {"$set": {"schedule": {"hours": {k: v.model_dump() for k, v in body.hours.items()},
+                                                                              "services": [s.model_dump() for s in body.services]},
+                                                                 "clinics": [c.model_dump() for c in body.clinics],
                                                                  "billing": {**body.billing.model_dump(), "tax_code": body.billing.tax_code.strip().upper()}}})
         return schedule_of(await db.users.find_one({"_id": u["_id"]}))
 
     @portal.get("/slots")
-    async def slots(patient_id: str, clinic: str, service: str, date: str, user: dict = Depends(current_user)):
+    async def slots(patient_id: str, clinic: str, service: str, date: str, doctor_id: str = "", user: dict = Depends(current_user)):
         u = await db.users.find_one({"_id": ObjectId(user["id"])})
         link = next((c for c in u.get("children", []) if c["patient_id"] == patient_id), None)
         if not link:
@@ -172,7 +204,7 @@ def build_scheduling(db, tdb, current_user):
             Date.fromisoformat(date)
         except ValueError:
             raise HTTPException(422, "Data non valida")
-        owner = await db.users.find_one({"_id": ObjectId(link["owner_id"])})
+        owner = await network_doctor(db, doctor_id) if doctor_id and doctor_id != link["owner_id"] else await db.users.find_one({"_id": ObjectId(link["owner_id"])})
         sch = schedule_of(owner)
         return {"slots": await free_slots(db, owner, clinic, service, date), "duration": sch["durations"].get(service, 30),
                 "hours": sch["hours"].get(clinic), "quote": online_quote(owner, service)}

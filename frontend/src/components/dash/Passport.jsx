@@ -8,8 +8,9 @@ import { api, CLINICS, errMsg, eur } from "@/lib/api";
 import { methodLabel } from "./CashPanel";
 import { GrowthChart } from "./GrowthChart";
 import { CheckpointWizard, CheckpointResult } from "./CheckpointWizard";
+import { LinkedSpecialists } from "./LinkedSpecialists";
 
-const TABS = [["crescita", "Crescita"], ["visite", "Visite"], ["checkpoint", "Check-point benessere"], ["privacy", "Privacy e consensi"]];
+const TABS = [["crescita", "Crescita"], ["visite", "Visite"], ["checkpoint", "Check-point benessere"], ["rete", "Specialisti Collegati"], ["privacy", "Privacy e consensi"]];
 
 export const Passport = ({ patientId, onClose, onEdit }) => {
   const [data, setData] = useState(null);
@@ -72,6 +73,7 @@ export const Passport = ({ patientId, onClose, onEdit }) => {
               {tab === "crescita" && <GrowthChart patient={p} measurements={data.measurements ?? []} onAdded={load} />}
               {tab === "visite" && <Visits items={data.consultations ?? []} payments={data.payments ?? []} />}
               {tab === "checkpoint" && <Checkpoints patient={p} items={data.checkpoints ?? []} onDone={load} />}
+              {tab === "rete" && <LinkedSpecialists patientId={patientId} />}
               {tab === "privacy" && <ConsentsTab patient={p} items={data.consents ?? []} onChange={load} />}
             </>
           )}

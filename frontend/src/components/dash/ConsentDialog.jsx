@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth";
 
 const informativa = (doctor) => `Ai sensi degli artt. 13 e 9 del Reg. UE 2016/679, il titolare del trattamento (${doctor}) tratta i dati personali e sanitari del minore esclusivamente per finalità di diagnosi, cura e gestione amministrativa della visita. I dati sono conservati con crittografia AES-256, accessibili solo al medico e non diffusi. Il genitore può esercitare in ogni momento i diritti di accesso, rettifica, cancellazione e revoca del consenso contattando lo studio. [Testo da validare con il proprio consulente privacy/DPO]`;
 
-const SignaturePad = ({ onChange }) => {
+export const SignaturePad = ({ onChange }) => {
   const ref = useRef(null);
   const drawing = useRef(false);
   useEffect(() => {

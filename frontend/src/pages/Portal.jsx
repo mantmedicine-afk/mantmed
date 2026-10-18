@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { LogOut, CalendarClock, FileSignature, FileDown, Plus, Loader2, Baby, Info, CalendarPlus, ReceiptText, CheckCircle2, AlertCircle } from "lucide-react";
 import { RequestDialog } from "@/components/portal/RequestDialog";
 import { CancelVisit } from "@/components/portal/CancelVisit";
+import { NetworkSharing } from "@/components/portal/NetworkSharing";
 import { useSearchParams } from "react-router-dom";
 import { LogoMark } from "@/components/dash/Logo";
 import { api, errMsg, eur } from "@/lib/api";
@@ -81,7 +82,7 @@ const Child = ({ c, onRequest, focus, onChange }) => {
   return (
     <section className="rounded-[28px] border border-slate-200 bg-[#F4F5F7] p-5 sm:p-7" data-testid={`portal-child-${p.id}`}>
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div><div className="text-[11px] uppercase tracking-[0.2em] text-slate-600">Nato/a il {day(p.birth_date)}</div><h2 className="font-display text-4xl text-night">{p.name}</h2><div className="text-sm text-slate-600">Medico: {c.doctor.name}</div>
+        <div><div className="text-[11px] uppercase tracking-[0.2em] text-slate-600">Nato/a il {day(p.birth_date)}</div><h2 className="font-display text-4xl text-night">{p.name}</h2><div className="text-sm text-slate-600" data-testid={`portal-child-doctor-${p.id}`}>{c.doctor.name} · {c.doctor.specialty}</div>
           <button onClick={() => onRequest(p.id)} className="mt-3 flex h-10 items-center gap-2 rounded-full bg-night px-4 text-sm font-medium text-white transition-transform hover:-translate-y-0.5" data-testid={`portal-request-btn-${p.id}`}><CalendarPlus size={15} /> Richiedi appuntamento</button></div>
         <div className="flex flex-wrap gap-1 rounded-full bg-white p-1 ring-1 ring-slate-200" role="tablist">
           {TABS.map((t) => (
@@ -195,6 +196,7 @@ export default function Portal() {
             <p className="text-sm leading-relaxed text-slate-200">Non abbiamo ancora trovato una cartella collegata. Il collegamento avviene in automatico quando lo studio registra il codice fiscale del bambino e la sua email ({user?.email}). Se ha già fatto una visita, chieda allo studio di verificare questi due dati.</p></div>
         )}
         {children.map((c) => <Child key={c.patient.id} c={c} onRequest={setReq} focus={focus} onChange={load} />)}
+        {[...new Set(children.map((c) => c.group))].map((g) => <NetworkSharing key={g} entries={children.filter((c) => c.group === g)} />)}
         <RequestDialog open={!!req} initial={req} kids={children} onClose={() => setReq(null)} onSent={load} />
         {data && <AddChild onLinked={load} />}
         {data?.consent && <p className="flex items-center gap-2 text-xs text-slate-600" data-testid="portal-consent-note"><Info size={13} /> Consenso accettato il {day(data.consent.at)} · {data.consent.version}</p>}

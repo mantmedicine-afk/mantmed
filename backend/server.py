@@ -20,6 +20,7 @@ from registration import build_registration
 from portal_flow import build_portal_flow
 from scheduling import build_scheduling
 from billing import build_billing
+from network import build_network
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
 from typing import List, Optional, Annotated, Literal, ClassVar
@@ -1119,6 +1120,11 @@ api.include_router(bill_doctor)
 public_api.include_router(bill_parent)
 public_api.include_router(bill_public)
 flow_doctor, flow_parent, flow_public = build_portal_flow(db, tdb, current_user, Appointment, tenant_clinics, refund_online)
+net_admin, net_public, net_parent, net_doctor = build_network(db, current_user, Consultation, portal_pdf_for)
+public_api.include_router(net_admin)
+public_api.include_router(net_public)
+public_api.include_router(net_parent)
+api.include_router(net_doctor)
 api.include_router(flow_doctor)
 public_api.include_router(flow_parent)
 public_api.include_router(flow_public)

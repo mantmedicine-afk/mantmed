@@ -8,6 +8,7 @@ import Login from "@/pages/Login";
 import Landing from "@/pages/Landing";
 import Admin from "@/pages/Admin";
 import Register from "@/pages/Register";
+import Activate from "@/pages/Activate";
 import Portal from "@/pages/Portal";
 import { setClinics } from "@/lib/api";
 import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
@@ -74,6 +75,7 @@ function App() {
         <Route path="/portale" element={<AuthProvider><PortalGate /></AuthProvider>} />
         <Route path="/registrati/medico" element={<Register key="doctor" role="doctor" />} />
         <Route path="/registrati/paziente" element={<Register key="parent" role="parent" />} />
+        <Route path="/attiva" element={<Activate />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Toaster position="top-center" richColors />

@@ -56,7 +56,8 @@ def public(user: dict) -> dict:
 
 
 STATUS_MSG = {"pending": "Account in attesa di approvazione da parte di MantMed: riceverà un'email all'attivazione",
-              "suspended": "Account sospeso: contatti MantMed"}
+              "suspended": "Account sospeso: contatti MantMed",
+              "invited": "Account non ancora attivato: usi il link ricevuto via email per scegliere la password"}
 
 
 def ensure_active(user: dict):
