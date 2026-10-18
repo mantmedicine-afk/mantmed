@@ -123,7 +123,7 @@ def mail_shell(title: str, body: str) -> str:
 
 
 def build_registration(db, current_user, start_session, models, pdf_for):
-    Patient, Consultation, Consent, Appointment = models["patient"], models["consultation"], models["consent"], models["appointment"]
+    Patient, Consultation, Consent, Appointment, Payment = models["patient"], models["consultation"], models["consent"], models["appointment"], models["payment"]
     reg = APIRouter(prefix="/register")
     admin = APIRouter(prefix="/admin/doctors", dependencies=[Depends(require_role(current_user, "admin"))])
     portal = APIRouter(prefix="/portal")
@@ -251,13 +251,17 @@ def build_registration(db, current_user, start_session, models, pdf_for):
         appts = [Appointment.from_mongo(a).out() async for a in db.appointments.find({"patient_id": pid, "owner_id": owner, "status": {"$nin": ["completato", "annullato"]},
                                                                                    "$or": [{"date": None}, {"date": {"$gte": _now().date().isoformat()}}]}).sort([("date", 1), ("time", 1)])]
         from portal_flow import req_out
-        requests = [req_out(r) async for r in db.appt_requests.find({"patient_id": pid, "owner_id": owner}).sort("created_at", -1).limit(20)]
+        requests = [req_out(r) async for r in db.appt_requests.find({"patient_id": pid, "owner_id": owner, "status": {"$nin": ["awaiting_payment", "expired"]}}).sort("created_at", -1).limit(20)]
+        receipts = [Payment.from_mongo(x).out() async for x in db.payments.find({"patient_id": pid, "owner_id": owner, "method": "online", "refund_of": None,
+                                                                                 "receipt_no": {"$ne": None}}).sort("created_at", -1)]
         consents = [Consent.from_mongo(c).out() async for c in db.consents.find({"patient_id": pid, "owner_id": owner}).sort("signed_at", -1)]
         reports = [Consultation.from_mongo(c).out() async for c in db.consultations.find(
             {"patient_id": pid, "owner_id": owner, "$or": [{"report_sent_at": {"$ne": None}}, {"portal_published": True}]}).sort("created_at", -1)]
         return {"patient": {"id": pid, "name": pt["name"], "birth_date": pt["birth_date"], "sex": pt["sex"]},
                 "doctor": {"name": (doc or {}).get("name", ""), "clinics": (doc or {}).get("clinics", [])},
-                "appointments": [{"id": a["id"], "date": a.get("date"), "time": a["time"], "clinic": a["clinic"], "visit_type": a["visit_type"], "status": a["status"]} for a in appts],
+                "appointments": [{"id": a["id"], "date": a.get("date"), "time": a["time"], "clinic": a["clinic"], "visit_type": a["visit_type"], "status": a["status"],
+                                  "paid_online": a.get("paid_online", False)} for a in appts],
+                "receipts": [{k: x.get(k) for k in ("id", "receipt_no", "date", "service", "amount", "visit_date", "visit_time", "clinic", "refunded_at")} for x in receipts],
                 "requests": [{k: r[k] for k in ("id", "clinic", "service", "date", "time", "status", "reason", "confirmed_date", "confirmed_time", "created_at")} for r in requests],
                 "consents": [{"id": c["id"], "version": c["version"], "signer_name": c["signer_name"], "signer_relation": c["signer_relation"],
                               "method": c["method"], "email_reports": c["email_reports"], "signed_at": c["signed_at"], "revoked_at": c["revoked_at"]} for c in consents],

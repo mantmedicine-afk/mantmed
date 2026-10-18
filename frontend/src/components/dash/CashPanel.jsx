@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { Banknote, CreditCard, Landmark, Loader2, Undo2, Euro } from "lucide-react";
+import { Banknote, CreditCard, Landmark, Loader2, Undo2, Euro, Globe } from "lucide-react";
 import { api, errMsg, eur } from "@/lib/api";
 
 export const METHODS = [
   { id: "contanti", label: "Contanti", icon: Banknote },
   { id: "pos", label: "POS", icon: CreditCard },
   { id: "bonifico", label: "Bonifico", icon: Landmark },
+  { id: "online", label: "Pagamento Digitale / Online", icon: Globe },
 ];
+const MANUAL = METHODS.filter((m) => m.id !== "online");
 export const methodLabel = (m) => METHODS.find((x) => x.id === m)?.label ?? m;
 
 export const CashPanel = ({ consultation, service, onChange }) => {
@@ -58,7 +60,7 @@ export const CashPanel = ({ consultation, service, onChange }) => {
           <input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Prestazione" className="h-12 rounded-xl border border-slate-200 bg-white px-3 text-sm text-night outline-none focus:border-night" data-testid="cash-service-input" />
         </div>
         <div className="grid grid-cols-3 gap-1 rounded-xl bg-white p-1 ring-1 ring-slate-200" role="radiogroup">
-          {METHODS.map(({ id, label, icon: Icon }) => (
+          {MANUAL.map(({ id, label, icon: Icon }) => (
             <button key={id} role="radio" aria-checked={method === id} onClick={() => setMethod(id)} className={`relative flex h-10 items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-colors ${method === id ? "text-white" : "text-slate-600 hover:text-night"}`} data-testid={`cash-method-${id}`}>
               {method === id && <motion.span layoutId={`cash-method-pill-${consultation.id}`} className="absolute inset-0 rounded-lg bg-night" transition={{ type: "spring", stiffness: 400, damping: 32 }} />}
               <Icon size={15} className="relative" /><span className="relative">{label}</span>
@@ -74,7 +76,7 @@ export const CashPanel = ({ consultation, service, onChange }) => {
           <motion.div key={p.id} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
             <div className="mt-2 flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2 text-sm" data-testid={`cash-item-${p.id}`}>
               <span className="min-w-0 truncate text-night"><span className="font-semibold">{eur(p.amount)}</span> · {methodLabel(p.method)} · <span className="text-slate-500">{p.service}</span></span>
-              <button onClick={() => undo(p)} className="flex shrink-0 items-center gap-1 text-xs text-slate-500 hover:text-red-600" data-testid={`cash-undo-${p.id}`}><Undo2 size={13} /> Annulla</button>
+              {p.method !== "online" && <button onClick={() => undo(p)} className="flex shrink-0 items-center gap-1 text-xs text-slate-500 hover:text-red-600" data-testid={`cash-undo-${p.id}`}><Undo2 size={13} /> Annulla</button>}
             </div>
           </motion.div>
         ))}

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Loader2, XCircle, Phone } from "lucide-react";
-import { api, errMsg } from "@/lib/api";
+import { api, errMsg, eur } from "@/lib/api";
 
 const CUTOFF_H = 12;
 
@@ -19,7 +19,7 @@ export const CancelVisit = ({ a, onDone, autoOpen = false }) => {
   }
   const go = async () => {
     setBusy(true);
-    try { await api.cancelAppointment(a.id, reason); toast.success("Visita annullata: lo studio è stato avvisato"); onDone(); }
+    try { const r = await api.cancelAppointment(a.id, reason); toast.success(r?.refunded ? `Visita annullata e ${eur(r.refunded)} rimborsati sulla carta` : "Visita annullata: lo studio è stato avvisato"); onDone(); }
     catch (e) { toast.error(errMsg(e)); }
     setBusy(false);
   };
@@ -28,7 +28,7 @@ export const CancelVisit = ({ a, onDone, autoOpen = false }) => {
   }
   return (
     <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50/60 p-3" data-testid={`portal-cancel-box-${a.id}`}>
-      <p className="text-sm text-night">Vuole annullare questa visita? L'orario tornerà disponibile per altri pazienti.</p>
+      <p className="text-sm text-night">Vuole annullare questa visita? L'orario tornerà disponibile per altri pazienti.{a.paid_online ? " Il pagamento online le sarà rimborsato per intero." : ""}</p>
       <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} placeholder="Motivo (facoltativo)" className="mt-2 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-night outline-none focus:border-night" data-testid={`portal-cancel-reason-${a.id}`} />
       <div className="mt-2 flex flex-wrap gap-2">
         <button onClick={go} disabled={busy} className="flex h-9 items-center gap-1.5 rounded-full bg-rose-700 px-4 text-xs font-semibold text-white disabled:opacity-60" data-testid={`portal-cancel-confirm-${a.id}`}>{busy ? <Loader2 size={13} className="animate-spin" /> : <XCircle size={13} />} Conferma annullamento</button>

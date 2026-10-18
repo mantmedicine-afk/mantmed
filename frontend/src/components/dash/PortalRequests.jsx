@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Check, X, Loader2, Inbox, CalendarDays, Clock } from "lucide-react";
-import { api, errMsg } from "@/lib/api";
+import { api, errMsg, eur } from "@/lib/api";
 import { ScheduleDialog } from "@/components/dash/ScheduleDialog";
 
 const day = (d) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString("it-IT", { weekday: "short", day: "numeric", month: "short" }) : "Oggi");
@@ -70,6 +70,7 @@ export const PortalRequests = ({ onChange }) => {
                   <div key={c.id} className="rounded-2xl border border-rose-200 bg-rose-50/60 p-3 text-sm" data-testid={`cancellation-${c.id}`}>
                     <div className="flex flex-wrap justify-between gap-2"><span className="font-medium text-night">{c.patient_name}</span><span className="font-mono text-xs capitalize text-slate-600">{day(c.date)} · {c.time} · {c.clinic}</span></div>
                     <div className="text-xs text-slate-600">{c.visit_type} · orario tornato libero{c.reason ? ` · Motivo: ${c.reason}` : ""}</div>
+                    {c.refunded ? <div className="mt-1 text-xs font-medium text-rose-800" data-testid={`cancellation-refund-${c.id}`}>Pagamento online di {eur(c.refunded)} rimborsato in automatico</div> : null}
                   </div>
                 ))}
               </div>
@@ -79,7 +80,7 @@ export const PortalRequests = ({ onChange }) => {
         <div>
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-slate-500"><CalendarDays size={13} /> Agenda</div>
-            <button onClick={() => setSched(true)} className="flex h-9 items-center gap-1.5 rounded-full border border-slate-200 px-4 text-xs font-medium text-night hover:border-night" data-testid="schedule-open-btn"><Clock size={13} /> Orari studio</button>
+            <button onClick={() => setSched(true)} className="flex h-9 items-center gap-1.5 rounded-full border border-slate-200 px-4 text-xs font-medium text-night hover:border-night" data-testid="schedule-open-btn"><Clock size={13} /> Orari e tariffe</button>
           </div>
           <ScheduleDialog open={sched} onClose={() => setSched(false)} />
           <h2 className="mt-1 font-display text-4xl text-night">Prossimi <span className="italic text-slate-500">giorni</span></h2>
@@ -87,7 +88,7 @@ export const PortalRequests = ({ onChange }) => {
             {next.length === 0 && <p className="text-sm text-slate-600">Nessun appuntamento nei prossimi giorni.</p>}
             {next.map((a) => (
               <div key={a.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4" data-testid={`upcoming-${a.id}`}>
-                <div className="min-w-0"><div className="truncate font-medium text-night">{a.patient_name}</div><div className="truncate text-xs text-slate-600">{a.visit_type} · {a.clinic}</div></div>
+                <div className="min-w-0"><div className="truncate font-medium text-night">{a.patient_name}</div><div className="truncate text-xs text-slate-600">{a.visit_type} · {a.clinic}</div>{a.paid_online && <span className="mt-1 inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-900" data-testid={`upcoming-paid-${a.id}`}>Confermato & Pagato online</span>}</div>
                 <div className="shrink-0 text-right"><div className="text-xs capitalize text-slate-600">{day(a.date)}</div><div className="font-mono text-lg text-night">{a.time}</div></div>
               </div>
             ))}

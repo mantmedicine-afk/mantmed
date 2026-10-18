@@ -90,6 +90,7 @@ const AgendaRow = ({ a, i, age, onClick, onPassport }) => {
           <span className="flex items-center gap-2 text-xs">
             <span className="truncate text-slate-500">{a.visit_type}</span>
             <span className={`shrink-0 ${s.text}`}>· {s.label}</span>
+            {a.paid_online && <span className="shrink-0 font-medium text-emerald-700" data-testid={`appointment-paid-${a.id}`}>· Pagato online</span>}
           </span>
         </span>
       </button>

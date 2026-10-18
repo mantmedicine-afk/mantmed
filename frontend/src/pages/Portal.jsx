@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { LogOut, CalendarClock, FileSignature, FileDown, Plus, Loader2, Baby, Info, CalendarPlus } from "lucide-react";
+import { LogOut, CalendarClock, FileSignature, FileDown, Plus, Loader2, Baby, Info, CalendarPlus, ReceiptText, CheckCircle2, AlertCircle } from "lucide-react";
 import { RequestDialog } from "@/components/portal/RequestDialog";
 import { CancelVisit } from "@/components/portal/CancelVisit";
 import { useSearchParams } from "react-router-dom";
 import { LogoMark } from "@/components/dash/Logo";
-import { api, errMsg } from "@/lib/api";
+import { api, errMsg, eur } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 const day = (iso) => new Date(iso).toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" });
-const TABS = [{ id: "reports", label: "Referti", icon: FileDown }, { id: "appointments", label: "Appuntamenti", icon: CalendarClock }, { id: "consents", label: "Consensi", icon: FileSignature }];
+const TABS = [{ id: "reports", label: "Referti", icon: FileDown }, { id: "appointments", label: "Appuntamenti", icon: CalendarClock }, { id: "receipts", label: "Ricevute", icon: ReceiptText }, { id: "consents", label: "Consensi", icon: FileSignature }];
 
 const Empty = ({ text }) => <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-600">{text}</p>;
 
@@ -25,6 +25,19 @@ const Reports = ({ items }) => {
   ));
 };
 
+const Receipts = ({ items }) => {
+  const [busy, setBusy] = useState("");
+  const dl = async (id) => { setBusy(id); try { await api.portalReceipt(id); toast.success("Ricevuta scaricata"); } catch (e) { toast.error(errMsg(e)); } setBusy(""); };
+  if (!items.length) return <Empty text="Nessuna ricevuta. Le ricevute sanitarie dei pagamenti online compaiono qui in automatico." />;
+  return items.map((r) => (
+    <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4" data-testid={`portal-receipt-${r.id}`}>
+      <div className="min-w-0"><div className="text-xs text-slate-600">Ricevuta n. {r.receipt_no} · {day(r.date)}</div><div className="font-medium text-night">{r.service} · {eur(r.amount)}</div>
+        <div className="text-sm text-slate-600">{r.visit_date ? `Visita del ${day(r.visit_date)} ore ${r.visit_time}` : r.clinic}{r.refunded_at ? ` · rimborsata il ${day(r.refunded_at)}` : ""}</div></div>
+      <button onClick={() => dl(r.id)} disabled={busy === r.id} className="flex h-10 items-center gap-2 rounded-full bg-night px-4 text-sm font-medium text-white disabled:opacity-60" data-testid={`portal-receipt-pdf-${r.id}`}>{busy === r.id ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />} PDF</button>
+    </div>
+  ));
+};
+
 const REQ = { pending: ["In attesa di conferma", "bg-amber-100 text-amber-900"], confirmed: ["Confermata", "bg-emerald-100 text-emerald-900"], declined: ["Non confermata", "bg-slate-200 text-slate-700"], cancelled: ["Annullata da lei", "bg-rose-100 text-rose-800"] };
 const dshort = (d) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString("it-IT", { weekday: "short", day: "numeric", month: "short" }) : "Oggi");
 
@@ -33,7 +46,7 @@ const Appointments = ({ items, requests = [], focus, onChange }) => (
     {items.length ? items.map((a) => (
       <div key={a.id} className={`rounded-2xl border bg-white p-4 ${focus === a.id ? "border-night ring-2 ring-night/15" : "border-slate-200"}`} data-testid={`portal-appt-${a.id}`}>
         <div className="flex items-center justify-between gap-3">
-          <div><div className="font-medium text-night">{a.visit_type}</div><div className="text-sm text-slate-600">{a.clinic}</div></div>
+          <div><div className="font-medium text-night">{a.visit_type}</div><div className="text-sm text-slate-600">{a.clinic}</div>{a.paid_online && <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-900" data-testid={`portal-appt-paid-${a.id}`}><CheckCircle2 size={12} /> Confermato & Pagato</span>}</div>
           <div className="text-right"><div className="font-display text-2xl text-night">{a.time}</div><div className="text-xs capitalize text-slate-600">{a.status === "in_attesa" ? "In sala d'attesa" : dshort(a.date)}</div></div>
         </div>
         {a.status === "programmato" && <CancelVisit a={a} onDone={onChange} autoOpen={focus === a.id} />}
@@ -73,7 +86,7 @@ const Child = ({ c, onRequest, focus, onChange }) => {
         <div className="flex flex-wrap gap-1 rounded-full bg-white p-1 ring-1 ring-slate-200" role="tablist">
           {TABS.map((t) => (
             <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} className={`flex h-9 items-center gap-1.5 rounded-full px-3 text-sm transition-colors ${tab === t.id ? "bg-night text-white" : "text-slate-600 hover:text-night"}`} data-testid={`portal-tab-${t.id}-${p.id}`}>
-              <t.icon size={14} /> {t.label} <span className="font-mono text-xs opacity-70">{c[t.id].length}</span>
+              <t.icon size={14} /> {t.label} <span className="font-mono text-xs opacity-70">{c[t.id]?.length ?? 0}</span>
             </button>
           ))}
         </div>
@@ -81,6 +94,7 @@ const Child = ({ c, onRequest, focus, onChange }) => {
       <div className="mt-5 space-y-2">
         {tab === "reports" && <Reports items={c.reports} />}
         {tab === "appointments" && <Appointments items={c.appointments} requests={c.requests ?? []} focus={focus} onChange={onChange} />}
+        {tab === "receipts" && <Receipts items={c.receipts ?? []} />}
         {tab === "consents" && <Consents items={c.consents} />}
       </div>
     </section>
@@ -109,13 +123,56 @@ const AddChild = ({ onLinked }) => {
   );
 };
 
+const PAY_BANNER = {
+  checking: ["bg-[#F4F5F7] text-night", Loader2, "Verifica del pagamento in corso…"],
+  paid: ["bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200", CheckCircle2, "Pagamento ricevuto: la visita è Confermata & Pagata. La ricevuta sanitaria è nella sezione Ricevute."],
+  failed: ["bg-amber-50 text-amber-900 ring-1 ring-amber-200", AlertCircle, "Non abbiamo ancora la conferma del pagamento. Se l'addebito risulta, la visita comparirà a breve tra gli appuntamenti."],
+};
+
+const usePaymentReturn = (params, setParams, load) => {
+  const [state, setState] = useState(null);
+  useEffect(() => {
+    const kind = params.get("pagamento");
+    if (!kind) return undefined;
+    let alive = true;
+    let timer;
+    const clear = () => setParams({}, { replace: true });
+    if (kind === "annullato") {
+      const rid = params.get("richiesta");
+      if (rid) api.abandonCheckout(rid).then((r) => { if (!alive) return; if (r?.paid) setState("paid"); load(); }).catch(() => {});
+      toast.message("Pagamento annullato: l'orario è stato liberato. Può riprovare o scegliere Paga in Studio.");
+      clear();
+      return () => { alive = false; };
+    }
+    const sid = params.get("session_id");
+    let n = 0;
+    setState("checking");
+    const poll = () => api.checkoutStatus(sid).then((r) => {
+      if (!alive) return;
+      if (r?.payment_status === "paid") { setState("paid"); load(); clear(); }
+      else if (r?.payment_status === "expired" || ++n >= 10) { setState("failed"); clear(); }
+      else timer = setTimeout(poll, 2000);
+    }).catch(() => { if (alive) setState("failed"); });
+    poll();
+    return () => { alive = false; clearTimeout(timer); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return state;
+};
+
+const PayBanner = ({ state }) => {
+  if (!state) return null;
+  const [cls, Icon, text] = PAY_BANNER[state];
+  return <div className={`flex items-center gap-3 rounded-2xl p-4 text-sm ${cls}`} data-testid={`portal-pay-banner-${state}`}><Icon size={18} className={`shrink-0 ${state === "checking" ? "animate-spin" : ""}`} /> {text}</div>;
+};
+
 export default function Portal() {
   const { user, logout } = useAuth();
   const [data, setData] = useState(null);
   const [req, setReq] = useState(null);
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const focus = params.get("visita");
   const load = useCallback(() => api.portalMe().then(setData).catch((e) => toast.error(errMsg(e))), []);
+  const payState = usePaymentReturn(params, setParams, load);
   useEffect(() => {
     load();
   }, [load]);
@@ -131,6 +188,7 @@ export default function Portal() {
       </header>
       <main className="mx-auto max-w-[1100px] space-y-5 px-5 py-10">
         <div><div className="text-[11px] uppercase tracking-[0.22em] text-slate-600">Area personale protetta</div><h1 className="mt-1 font-display text-4xl text-night sm:text-5xl">Buongiorno, <span className="italic text-slate-500">{user?.name?.split(" ")[0]}</span></h1></div>
+        <PayBanner state={payState} />
         {!data && <Loader2 className="animate-spin text-night" />}
         {data && children.length === 0 && (
           <div className="flex gap-3 rounded-[28px] bg-[#0A192F] p-6 text-white" data-testid="portal-no-children"><Baby className="shrink-0 text-[#C9CCD3]" />

@@ -6,6 +6,8 @@ import { api, errMsg } from "@/lib/api";
 
 const DAYS = [[1, "Lun"], [2, "Mar"], [3, "Mer"], [4, "Gio"], [5, "Ven"], [6, "Sab"], [7, "Dom"]];
 const inp = "h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-night outline-none focus:border-night";
+const BILLING = [["holder", "Intestatario", "Nome e cognome"], ["tax_code", "Codice fiscale", "16 caratteri"], ["vat_number", "Partita IVA", "11 cifre"],
+  ["address", "Domicilio fiscale", "Via, CAP, Città"], ["note", "Nota in calce (facoltativa)", "Es. regime fiscale applicato"]];
 
 export const ScheduleDialog = ({ open, onClose }) => {
   const [s, setS] = useState(null);
@@ -20,7 +22,7 @@ export const ScheduleDialog = ({ open, onClose }) => {
   const toggleDay = (n, d) => setHour(n, "days", s.hours[n].days.includes(d) ? s.hours[n].days.filter((x) => x !== d) : [...s.hours[n].days, d].sort());
   const save = async () => {
     setBusy(true);
-    try { setS(await api.saveSchedule(s)); toast.success("Orari salvati: il portale mostra subito i nuovi orari liberi"); onClose(); }
+    try { setS(await api.saveSchedule(s)); toast.success("Impostazioni salvate: il portale mostra subito orari liberi e tariffe"); onClose(); }
     catch (e) { toast.error(errMsg(e)); }
     setBusy(false);
   };
@@ -28,7 +30,7 @@ export const ScheduleDialog = ({ open, onClose }) => {
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl bg-white sm:max-w-xl" data-testid="schedule-dialog">
         <DialogHeader>
-          <DialogTitle className="font-display text-3xl font-normal text-night">Orari studio</DialogTitle>
+          <DialogTitle className="font-display text-3xl font-normal text-night">Orari, tariffe e dati fiscali</DialogTitle>
           <DialogDescription className="text-sm text-slate-600">Il Portale Paziente propone solo gli orari liberi dentro questi orari, in base alla durata della prestazione.</DialogDescription>
         </DialogHeader>
         {!s ? <Loader2 className="animate-spin text-night" /> : (
@@ -53,6 +55,28 @@ export const ScheduleDialog = ({ open, onClose }) => {
                 {Object.entries(s.durations).map(([k, v]) => (
                   <label key={k} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2 text-sm text-night">{k}
                     <input type="number" min={5} max={240} step={5} value={v} onChange={(e) => setS((p) => ({ ...p, durations: { ...p.durations, [k]: Number(e.target.value) } }))} className={`${inp} w-20`} data-testid={`schedule-duration-${k.split(" ")[0].toLowerCase()}-${k.split(" ").pop().toLowerCase()}`} />
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div data-testid="schedule-prices">
+              <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">Listino per il pagamento online (euro)</div>
+              <p className="mb-2 text-xs text-slate-600">Lasci 0 per non offrire il pagamento online di una prestazione. Sopra 77,47 € il portale aggiunge 2 € di imposta di bollo.</p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {Object.entries(s.prices ?? {}).map(([k, v]) => (
+                  <label key={k} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2 text-sm text-night">{k}
+                    <input type="number" min={0} max={5000} step={1} value={v} onChange={(e) => setS((p) => ({ ...p, prices: { ...p.prices, [k]: Number(e.target.value) } }))} className={`${inp} w-24`} data-testid={`schedule-price-${k.split(" ")[0].toLowerCase()}-${k.split(" ").pop().toLowerCase()}`} />
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div data-testid="schedule-billing">
+              <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">Dati fiscali per le ricevute</div>
+              <p className="mb-2 text-xs text-slate-600">Servono per attivare il pagamento online: compaiono su ogni ricevuta sanitaria.</p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {BILLING.map(([k, l, ph]) => (
+                  <label key={k} className={k === "address" || k === "note" ? "sm:col-span-2" : ""}><span className="mb-1 block text-xs text-slate-600">{l}</span>
+                    <input value={s.billing?.[k] ?? ""} placeholder={ph} onChange={(e) => setS((p) => ({ ...p, billing: { ...p.billing, [k]: k === "tax_code" ? e.target.value.toUpperCase() : e.target.value } }))} className={`${inp} w-full`} data-testid={`schedule-billing-${k}`} />
                   </label>
                 ))}
               </div>

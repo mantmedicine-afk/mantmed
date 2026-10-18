@@ -80,10 +80,33 @@ class CancelIn(BaseModel):
 def req_out(r: dict) -> dict:
     r = unseal_fields(r, ("note", "reason"))
     return {"id": str(r["_id"]), **{k: r.get(k) for k in ("patient_id", "patient_name", "parent_name", "clinic", "service", "date", "time", "note",
-                                                         "status", "reason", "confirmed_date", "confirmed_time", "created_at", "decided_at")}}
+                                                         "status", "reason", "confirmed_date", "confirmed_time", "created_at", "decided_at", "pay_online", "amount")}}
 
 
-def build_portal_flow(db, tdb, current_user, Appointment, tenant_clinics):
+async def check_request(db, body: RequestIn, user_id: str):
+    """Validate a parent's booking (child link, clinic, free slot) and return (parent, doctor, patient)."""
+    u = await db.users.find_one({"_id": ObjectId(user_id)})
+    link = next((c for c in u.get("children", []) if c["patient_id"] == body.patient_id), None)
+    if not link:
+        raise HTTPException(404, "Figlio non collegato al suo account")
+    doc = await db.users.find_one({"_id": ObjectId(link["owner_id"])})
+    if body.clinic not in [c["name"] for c in (doc or {}).get("clinics", [])]:
+        raise HTTPException(400, "Studio non valido")
+    if body.time not in await free_slots(db, doc, body.clinic, body.service, body.date):
+        raise HTTPException(409, "L'orario scelto non è più disponibile: ne selezioni un altro")
+    p = await db.patients.find_one({"_id": ObjectId(body.patient_id), "owner_id": link["owner_id"]})
+    if not p:
+        raise HTTPException(404, "Cartella non trovata")
+    return u, doc, p
+
+
+def request_doc(body: RequestIn, u: dict, doc: dict, p: dict, status: str) -> dict:
+    return {"owner_id": str(doc["_id"]), "patient_id": body.patient_id, "patient_name": p["name"], "parent_id": str(u["_id"]), "parent_name": u["name"],
+            "parent_email": u["email"], "clinic": body.clinic, "service": body.service, "date": body.date, "time": body.time,
+            **seal_fields({"note": body.note.strip()}, ("note",)), "status": status, "created_at": _now().isoformat()}
+
+
+def build_portal_flow(db, tdb, current_user, Appointment, tenant_clinics, refund_online):
     doctor = APIRouter()
     parent = APIRouter(prefix="/portal", dependencies=[Depends(require_role(current_user, "parent"))])
     public = APIRouter(prefix="/register")
@@ -145,7 +168,7 @@ def build_portal_flow(db, tdb, current_user, Appointment, tenant_clinics):
         docs = await tdb.appointments.find({"status": "annullato", "cancelled_by": "genitore", "cancelled_at": {"$gte": since}}).sort("cancelled_at", -1).to_list(50)
         return [{"id": str(d["_id"]), "patient_name": d["patient_name"], "date": d.get("date"), "time": d["time"], "clinic": d["clinic"],
                  "visit_type": unseal_fields(d, Appointment.__encrypted__).get("visit_type"), "cancelled_at": d["cancelled_at"],
-                 "reason": unseal_fields(d, ("cancel_reason",)).get("cancel_reason") or ""} for d in docs]
+                 "reason": unseal_fields(d, ("cancel_reason",)).get("cancel_reason") or "", "refunded": d.get("refunded_amount")} for d in docs]
 
     # ---------- Medico: invito al portale ----------
     @doctor.post("/patients/{pid}/invite")
@@ -207,16 +230,19 @@ def build_portal_flow(db, tdb, current_user, Appointment, tenant_clinics):
         start = datetime.fromisoformat(f"{day}T{a['time']}").replace(tzinfo=ROME)
         if start - datetime.now(ROME) < timedelta(hours=CANCEL_CUTOFF_H):
             raise HTTPException(409, f"Mancano meno di {CANCEL_CUTOFF_H} ore alla visita: per annullare telefoni allo studio al {phone}")
+        refunded = await refund_online(a)
         now = _now().isoformat()
-        await db.appointments.update_one({"_id": a["_id"]}, {"$set": {"status": "annullato", "cancelled_by": "genitore", "cancelled_at": now,
+        await db.appointments.update_one({"_id": a["_id"]}, {"$set": {"status": "annullato", "cancelled_by": "genitore", "cancelled_at": now, "refunded_amount": refunded,
                                                                     **seal_fields({"cancel_reason": body.reason.strip()}, ("cancel_reason",))}})
         await db.appt_requests.update_many({"appointment_id": aid}, {"$set": {"status": "cancelled", "decided_at": now}})
         await db.audit.insert_one({"action": "visita_annullata_genitore", "subject": seal_fields({"s": a["patient_name"]}, ("s",))["s"], "at": now, "owner_id": a["owner_id"]})
         await notify({"parent_email": u["email"]}, f"MantMed · visita di {a['patient_name']} annullata",
                      f"<p>Gentile {hesc(u['name'])},</p><p>confermiamo l'annullamento della visita di <strong>{hesc(a['patient_name'])}</strong> "
                      f"del {_fmt_day(day)} alle {a['time']} ({hesc(a['clinic'])}). Lo studio è stato avvisato.</p>"
-                     "<p>Può richiedere un nuovo appuntamento in qualsiasi momento dal Portale Paziente.</p>")
-        return {"cancelled": True}
+                     + (f"<p>Il pagamento online di <strong>{f'{refunded:.2f}'.replace('.', ',')} €</strong> è stato rimborsato per intero: l'accredito sulla carta "
+                        "arriva di solito in 5-10 giorni lavorativi.</p>" if refunded else "")
+                     + "<p>Può richiedere un nuovo appuntamento in qualsiasi momento dal Portale Paziente.</p>")
+        return {"cancelled": True, "refunded": refunded}
 
     @parent.post("/appointment-requests/{rid}/cancel")
     async def cancel_request(rid: str, user: dict = Depends(current_user)):
@@ -229,23 +255,10 @@ def build_portal_flow(db, tdb, current_user, Appointment, tenant_clinics):
     # ---------- Genitore: nuova richiesta ----------
     @parent.post("/appointment-requests")
     async def create_request(body: RequestIn, user: dict = Depends(current_user)):
-        u = await db.users.find_one({"_id": ObjectId(user["id"])})
-        link = next((c for c in u.get("children", []) if c["patient_id"] == body.patient_id), None)
-        if not link:
-            raise HTTPException(404, "Figlio non collegato al suo account")
-        doc = await db.users.find_one({"_id": ObjectId(link["owner_id"])})
-        if body.clinic not in [c["name"] for c in (doc or {}).get("clinics", [])]:
-            raise HTTPException(400, "Studio non valido")
-        if body.time not in await free_slots(db, doc, body.clinic, body.service, body.date):
-            raise HTTPException(409, "L'orario scelto non è più disponibile: ne selezioni un altro")
         if await db.appt_requests.count_documents({"parent_id": user["id"], "status": "pending"}) >= MAX_PENDING:
             raise HTTPException(429, f"Ha già {MAX_PENDING} richieste in attesa di conferma")
-        p = await db.patients.find_one({"_id": ObjectId(body.patient_id), "owner_id": link["owner_id"]})
-        if not p:
-            raise HTTPException(404, "Cartella non trovata")
-        r = {"owner_id": link["owner_id"], "patient_id": body.patient_id, "patient_name": p["name"], "parent_id": user["id"], "parent_name": u["name"],
-             "parent_email": u["email"], "clinic": body.clinic, "service": body.service, "date": body.date, "time": body.time,
-             **seal_fields({"note": body.note.strip()}, ("note",)), "status": "pending", "created_at": _now().isoformat()}
+        u, doc, p = await check_request(db, body, user["id"])
+        r = request_doc(body, u, doc, p, "pending")
         res = await db.appt_requests.insert_one(r)
         return req_out({**r, "_id": res.inserted_id})
 

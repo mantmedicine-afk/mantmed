@@ -59,9 +59,26 @@ class Hours(BaseModel):
         return v
 
 
+class Billing(BaseModel):
+    holder: str = Field(default="", max_length=120)
+    tax_code: str = Field(default="", max_length=16)
+    vat_number: str = Field(default="", max_length=13)
+    address: str = Field(default="", max_length=200)
+    note: str = Field(default="", max_length=300)
+
+
 class ScheduleIn(BaseModel):
     hours: dict[str, Hours]
     durations: dict[str, int]
+    prices: dict[str, float] = Field(default_factory=dict)
+    billing: Billing = Field(default_factory=Billing)
+
+    @field_validator("prices")
+    @classmethod
+    def v_prices(cls, v):
+        if set(v) - set(DEFAULT_DURATIONS) or any(not 0 <= p <= 5000 for p in v.values()):
+            raise ValueError("Tariffe non valide (0-5000 euro)")
+        return {k: round(p, 2) for k, p in v.items()}
 
     @field_validator("durations")
     @classmethod
@@ -77,7 +94,23 @@ def schedule_of(user: dict) -> dict:
     saved = user.get("schedule") or {}
     hours = {n: {**{"days": [1, 2, 3, 4, 5], "start": FOUNDER_HOURS.get(n, ("09:00", "18:00"))[0], "end": FOUNDER_HOURS.get(n, ("09:00", "18:00"))[1]},
                  **(saved.get("hours", {}).get(n) or {})} for n in names}
-    return {"hours": hours, "durations": {**DEFAULT_DURATIONS, **(saved.get("durations") or {})}}
+    return {"hours": hours, "durations": {**DEFAULT_DURATIONS, **(saved.get("durations") or {})},
+            "prices": {**{k: 0.0 for k in DEFAULT_DURATIONS}, **(saved.get("prices") or {})},
+            "billing": {**Billing().model_dump(), "holder": user.get("name", ""), **(user.get("billing") or {})}}
+
+
+STAMP_THRESHOLD = 77.47
+STAMP_DUTY = 2.0
+
+
+def online_quote(user: dict, service: str) -> dict:
+    """Online price for a service: tariff + 2 euro stamp duty above 77,47 euro. Online only if tariff and fiscal data are set."""
+    sch = schedule_of(user)
+    price = float(sch["prices"].get(service) or 0)
+    b = sch["billing"]
+    stamp = STAMP_DUTY if price > STAMP_THRESHOLD else 0.0
+    return {"price": price, "stamp": stamp, "total": round(price + stamp, 2),
+            "online": price > 0 and bool(b.get("tax_code") or b.get("vat_number"))}
 
 
 async def free_slots(db, owner: dict, clinic: str, service: str, day: str) -> list[str]:
@@ -94,7 +127,8 @@ async def free_slots(db, owner: dict, clinic: str, service: str, day: str) -> li
     busy = []
     async for a in db.appointments.find({"owner_id": owner_id, "date": day, "status": {"$ne": "annullato"}}):
         busy.append((mins(a["time"]), mins(a["time"]) + int(a.get("duration") or 30)))
-    async for r in db.appt_requests.find({"owner_id": owner_id, "date": day, "status": "pending"}):
+    held = {"status": "awaiting_payment", "hold_until": {"$gte": datetime.now(timezone.utc).isoformat()}}
+    async for r in db.appt_requests.find({"owner_id": owner_id, "date": day, "$or": [{"status": "pending"}, held]}):
         busy.append((mins(r["time"]), mins(r["time"]) + sch["durations"].get(r["service"], 30)))
     earliest = now.hour * 60 + now.minute + 60 if d == now.date() else 0
     out, t = [], mins(h["start"])
@@ -123,7 +157,9 @@ def build_scheduling(db, tdb, current_user):
         for n, h in body.hours.items():
             if mins(h.start) >= mins(h.end):
                 raise HTTPException(400, f"{n}: l'orario di chiusura deve seguire l'apertura")
-        await db.users.update_one({"_id": u["_id"]}, {"$set": {"schedule": {"hours": {k: v.model_dump() for k, v in body.hours.items()}, "durations": body.durations}}})
+        await db.users.update_one({"_id": u["_id"]}, {"$set": {"schedule": {"hours": {k: v.model_dump() for k, v in body.hours.items()}, "durations": body.durations,
+                                                                              "prices": body.prices},
+                                                                 "billing": {**body.billing.model_dump(), "tax_code": body.billing.tax_code.strip().upper()}}})
         return schedule_of(await db.users.find_one({"_id": u["_id"]}))
 
     @portal.get("/slots")
@@ -139,7 +175,7 @@ def build_scheduling(db, tdb, current_user):
         owner = await db.users.find_one({"_id": ObjectId(link["owner_id"])})
         sch = schedule_of(owner)
         return {"slots": await free_slots(db, owner, clinic, service, date), "duration": sch["durations"].get(service, 30),
-                "hours": sch["hours"].get(clinic)}
+                "hours": sch["hours"].get(clinic), "quote": online_quote(owner, service)}
 
     # ---------- Promemoria 24 ore prima ----------
     async def send_reminders(base: str):

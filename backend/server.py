@@ -19,6 +19,7 @@ from tenancy import TenantDB, set_tenant, tenant_clinics, cf_hash
 from registration import build_registration
 from portal_flow import build_portal_flow
 from scheduling import build_scheduling
+from billing import build_billing
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
 from typing import List, Optional, Annotated, Literal, ClassVar
@@ -120,6 +121,8 @@ class Appointment(BaseDocument):
     duration: int = 30
     status: Literal["programmato", "in_attesa", "in_corso", "completato", "annullato"] = "programmato"
     notes: str = ""
+    paid_online: bool = False
+    payment_id: Optional[str] = None
     __encrypted__: ClassVar[tuple] = ("visit_type", "notes")
 
 
@@ -825,7 +828,7 @@ async def growth_curves(sex: Literal["F", "M"], indicator: Literal["wfa", "lhfa"
 
 # ---------- Registro cassa ----------
 ROME = ZoneInfo("Europe/Rome")
-METHODS = {"contanti": "Contanti", "pos": "POS", "bonifico": "Bonifico"}
+METHODS = {"contanti": "Contanti", "pos": "POS", "bonifico": "Bonifico", "online": "Pagamento Digitale / Online"}
 
 
 def today_rome() -> str:
@@ -839,9 +842,17 @@ class Payment(BaseDocument):
     clinic: str = ""
     service: str = "Visita pediatrica specialistica"
     amount: float
-    method: Literal["contanti", "pos", "bonifico"]
+    method: Literal["contanti", "pos", "bonifico", "online"]
     date: str = Field(default_factory=today_rome)
     created_at: str = Field(default_factory=now_iso)
+    appointment_id: Optional[str] = None
+    receipt_no: Optional[str] = None
+    stamp: float = 0
+    payer_name: Optional[str] = None
+    visit_date: Optional[str] = None
+    visit_time: Optional[str] = None
+    refunded_at: Optional[str] = None
+    refund_of: Optional[str] = None
     __encrypted__: ClassVar[tuple] = ("service",)
 
 
@@ -899,6 +910,8 @@ async def list_payments(start: Optional[str] = None, end: Optional[str] = None, 
 
 @api.delete("/payments/{pid}")
 async def delete_payment(pid: str):
+    if await tdb.payments.count_documents({"_id": oid(pid), "method": "online"}):
+        raise HTTPException(409, "Gli incassi online si stornano solo con il rimborso automatico all'annullamento della visita")
     res = await tdb.payments.delete_one({"_id": oid(pid)})
     if not res.deleted_count:
         raise HTTPException(404, "Incasso non trovato")
@@ -1089,9 +1102,13 @@ async def portal_pdf_for(c: dict):
 
 api.include_router(build_beta(db, current_user))
 reg_router, admin_doctors, portal_router = build_registration(
-    db, current_user, start_session, {"patient": Patient, "consultation": Consultation, "consent": Consent, "appointment": Appointment}, portal_pdf_for)
+    db, current_user, start_session, {"patient": Patient, "consultation": Consultation, "consent": Consent, "appointment": Appointment, "payment": Payment}, portal_pdf_for)
 public_api.include_router(reg_router)
-flow_doctor, flow_parent, flow_public = build_portal_flow(db, tdb, current_user, Appointment, tenant_clinics)
+bill_doctor, bill_parent, bill_public, refund_online = build_billing(db, current_user, Appointment, Payment, today_rome)
+api.include_router(bill_doctor)
+public_api.include_router(bill_parent)
+public_api.include_router(bill_public)
+flow_doctor, flow_parent, flow_public = build_portal_flow(db, tdb, current_user, Appointment, tenant_clinics, refund_online)
 api.include_router(flow_doctor)
 public_api.include_router(flow_parent)
 public_api.include_router(flow_public)
