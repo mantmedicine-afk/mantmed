@@ -132,6 +132,13 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Medico: "Orari e tariffe" con listino per prestazione e dati fiscali (intestatario, CF, P.IVA, domicilio, nota). Online attivo solo con tariffa > 0 e CF o P.IVA
 - Testato iteration_9 (15/15 backend, frontend OK) · tests/test_online_payment.py
 
+## Implemented (2026-10-18, Tour Iniziale e report mensile)
+- OnboardingTour.jsx: tour a 3 step con riflettore (Agenda e Sedi · Trascrizione Ambientale AI · Cassa e Commercialista), card blu notte/platino, Avanti/Indietro/Salta Tour/"Inizia a usare MantMed", Esc chiude; bottom sheet su mobile
+- Apertura automatica al primo accesso del medico (users.tour_completed_at assente); completamento salvato con POST /api/onboarding/tour; /auth/me espone tour_done; pulsante "Rivedi Tour" nell'intestazione
+- Registro Cassa: "Report mensile per il commercialista" (selettore mese → CSV del mese con incassi in studio, online e rimborsi)
+- Testato iteration_10 (7/7 backend, frontend 100%) · tests/test_onboarding_tour.py; tour del medico demo reimpostato per la prova
+
+
 
 ## Backlog
 - P1: percentili automatici con curve OMS, storico crescita del paziente, dati demo pediatrici in agenda/sala d'attesa, rinomina brand in "MantMed"

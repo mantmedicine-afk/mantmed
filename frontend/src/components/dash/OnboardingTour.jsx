@@ -88,7 +88,7 @@ export const OnboardingTour = ({ open, name, onDone }) => {
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-[#C9CCD3]/40 bg-white/5 text-[#E5E4E2]"><Icon size={20} /></span>
             <div>
               <div className="font-mono text-xs text-[#C9CCD3]" data-testid="tour-progress">Passo {i + 1} di {STEPS.length}</div>
-              <h2 id="tour-title" className="font-display text-3xl leading-tight text-white">{step.title}</h2>
+              <h2 id="tour-title" className="font-display text-2xl leading-tight text-white sm:text-3xl">{step.title}</h2>
             </div>
           </div>
           <p className="relative mt-3 text-sm leading-relaxed text-slate-200">{step.text}</p>

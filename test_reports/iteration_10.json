@@ -1,0 +1,23 @@
+{
+  "summary": "Full backend + frontend validation of the Onboarding Tour and Monthly Cash Export features. 7/7 pytest cases pass; all UI flows (auto-open on first login, step navigation, back disabled on step 1, finish button on step 3, persistence to /auth/me, header reopen via tour-open-button, Escape close, no auto-open after reload, mobile bottom-sheet layout at 390px, monthly CSV download, daily CSV download, no regression on start-consultation-btn) pass. Demo doctor tour has been reset to false at end so the user can see the tour at next login.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_onboarding_tour.py",
+    "/app/test_reports/pytest/onboarding_tour.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "OnboardingTour.jsx uses requestAnimationFrame in a continuous loop (tick calls requestAnimationFrame recursively) to re-measure the spotlight rect while open. This keeps the main thread busy at 60fps for the entire duration of the tour. Consider only re-measuring on scroll/resize or using a ResizeObserver + MutationObserver combo instead of a rAF loop.",
+    "In Dashboard.jsx effect deps use `user?.tour_done` with eslint-disable; could use a ref or memo to avoid the disable comment.",
+    "CashRegister: new Date(y, m, 0).getDate() correctly returns last day of month `m` due to 0-based day; good. Note the daily and monthly inputs are both capped at today's month – acceptable."
+  ],
+  "updated_files": ["/app/backend/tests/test_onboarding_tour.py"],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "100% (all scripted flows pass)"},
+  "test_credentials": "medico@mantmed.it / Auscula-Studio-2026 + 2FA via /app/backend/tests/totp_code.py",
+  "seed_data_creation": "None. Reset tour_completed_at=null for the demo doctor at the end of testing as requested.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Onboarding tour and monthly cash export are fully working. Demo doctor currently has tour_done=false. Backend endpoints: POST /api/onboarding/tour {completed:bool}; GET /api/payments/export?start=YYYY-MM-DD&end=YYYY-MM-DD returns CSV. Frontend data-testids: onboarding-tour, tour-step-{1..3}, tour-spotlight, tour-progress, tour-next-btn, tour-back-btn, tour-skip-btn, tour-finish-btn, tour-open-button, tour-body, cash-monthly, cash-month-input, cash-export-month-btn, cash-export-btn.",
+  "rca of the issue": "N/A — no issues found."
+}
