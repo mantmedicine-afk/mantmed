@@ -109,6 +109,13 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Passaporto: "Invita Genitore al Portale" → email con link personale 7 giorni (/registrati/paziente?invito=…) che precompila email e CF (GET /api/register/invite/{token}); richiede email genitore e CF nel passaporto
 - Codice in backend/portal_flow.py; test helper tests/invite_token.py; testato iteration_6 100%
 
+## Implemented (2026-10-18, Orari liberi e promemoria)
+- backend/scheduling.py: orari per studio (default Centro lun-ven 9-13, Provincia lun-ven 15-19; nuovi medici 9-18) e durate (45/30/20/20) salvati su users.schedule; GET/PUT /api/settings/schedule; pannello "Orari studio" nella dashboard
+- GET /api/portal/slots: slot da 15 min dentro l'orario, durata prestazione, senza sovrapposizioni con appuntamenti del giorno (tutti gli studi) e richieste in attesa; oggi solo da +1h; la richiesta fuori slot → 409; conferma usa la durata impostata
+- Promemoria email 24h prima: cron piattaforma .emergent/crons.yml ogni 15 min → POST /api/cron/visit-reminders (Bearer WEBHOOK_CRON_SECRET, idempotenza X-Webhook-Id in cron_runs, lavoro in background); campi reminder_sent_at (reset su cambio data/ora); testo "da portare" per prestazione
+- Nota: indirizzi @example.com rifiutati dal provider email (undeliverable) → promemoria non marcato; consegna verificata con delivered@resend.dev
+- Testato iteration_7 100%
+
 ## Backlog
 - P1: percentili automatici con curve OMS, storico crescita del paziente, dati demo pediatrici in agenda/sala d'attesa, rinomina brand in "MantMed"
 - P1 (prec.): storico paziente, export PDF dedicato, recupero password
