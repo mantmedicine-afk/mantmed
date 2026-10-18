@@ -1,0 +1,41 @@
+{
+  "summary": "Backend + frontend validation of the Multi-Specialist Network: Founder onboarding, email activation flow, portal doctor directory with per-doctor clinics/services/slots, auto-created child record at a new specialist on booking, and parent-signed sharing consent (plus read-only linked-specialists view on the doctor passport). 15/15 pytest cases pass. Frontend admin add-specialist form, Doctors list (status badge + resend + network toggle), parent booking dialog with doctor selector cascading to clinic + services + slots, and share card (active state + revoke) all show the expected data-testids and work on both desktop (1920) and mobile (390).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/auth/login (invited doctor)", "issue": "Spec says invited doctor should receive 403 'Account non ancora attivato' but current implementation verifies password BEFORE status, so any attempt with the unknown random seed password returns 401 'Email o password non corretti'. The invited doctor is still effectively locked out, but the error message is misleading. Fix: call ensure_active(user) before verify_password() in auth.py login handler."},
+      {"endpoint": "POST /api/admin/doctors + POST /api/admin/doctors/{id}/invite", "issue": "The founder invite flow calls send_email synchronously inside the request handler. For @example.com destinations the SMTP provider sometimes takes >60s and the Cloudflare ingress returns 502 Bad Gateway even though the doctor is created server-side. Consider moving send_email to a BackgroundTask so the API returns within the ingress budget regardless of SMTP latency."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "RequestDialog <select> options", "issues": ["Dev-mode debug wrapper injects <span> inside <option> which produces a React hydration warning ('In HTML, <span> cannot be a child of <option>'). Does not affect functionality — options render and are selectable — but shows a noisy console warning on every open. Likely coming from the Emergent IDE debug overlay, not from app code."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_network.py",
+    "/app/test_reports/pytest/network.xml"
+  ],
+  "action_items": [
+    "Reorder auth.py login: ensure_active(user) BEFORE verify_password() so invited/pending/suspended accounts always get 403 with the explanatory message (matches the spec).",
+    "Move send_email() calls out of the request path in network.create_doctor and network.resend_invite (BackgroundTasks / fire-and-forget) to avoid 502s on slow SMTP for @example.com addresses."
+  ],
+  "critical_code_review_comments": [
+    "network.py create_doctor: catches generic Exception around send_invite and returns {invited:false} but the HTTPException branch re-raises; however when send_email hangs long enough to cross the ingress timeout, the FastAPI handler never returns and the client sees 502 — the fallback does not help. Prefer BackgroundTasks.",
+    "auth.py login order: ensure_active is called AFTER verify_password, so invited doctors cannot distinguish an unactivated account from a wrong password. Suggest swap order (same also for pending/suspended).",
+    "scheduling.put_schedule enforces unique service and clinic names via Pydantic validators (good) and requires hours for every clinic. network.create_doctor also enforces unique clinic names (good).",
+    "portal_flow.child_at correctly dedupes by cf_hash so repeated bookings at the same new specialist reuse the auto-created record; the user.children list grows once per (owner_id). Good.",
+    "network.active_share uses $elemMatch on members (owner_id + patient_id) and shared_pdf verifies the consultation's owner_id is in members and != requesting user — safely blocks fetching own report through the shared endpoint. Verified by test.",
+    "RequestDialog relies on net.length ? net : fallback = kid.doctor; if portalNetwork() fails silently the parent sees only their main doctor. The fallback is a sensible UX but should surface a toast on network error."
+  ],
+  "updated_files": ["/app/backend/tests/test_network.py"],
+  "success_rate": {"backend": "100% (15/15)", "frontend": "100% (all scripted flows pass)"},
+  "test_credentials": "Admin mantmedicine@gmail.com / MM-3EjwJpn5w64aCu2ZkOLA (2FA off). Doctor medico@mantmed.it / Auscula-Studio-2026 (2FA ON — code via `python tests/totp_code.py`). Parent genitore.demo@example.com / Portale-Demo-2026. Nutri test.nutri@example.com / Nutri-Test-2026 (kept, per request).",
+  "seed_data_creation": "A short-lived TEST doctor (testspec.network@example.com) is created, activated and then cleaned up by the session cleanup fixture (users + children links + patients/appointments/appt_requests/payments/share_consents). The Nutri test doctor (test.nutri@example.com) is intentionally NOT cleaned per the main agent's note. Foti's prices/fiscal data were not touched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Multi-specialist network end-to-end works. Pre-existing seed: parent genitore.demo has two children entries (Aurora at Foti + Aurora at Nutri with same CF, auto-created), and one ACTIVE sharing consent between Foti and Nutri. Backend test file at /app/backend/tests/test_network.py uses pytest -n 0 (serial). Known env quirk: @example.com SMTP destination occasionally causes 502 Bad Gateway on POST /admin/doctors + /admin/doctors/{id}/invite — the test tolerates 502 by inspecting the DB. Data-testids verified: admin-add-specialist-{btn,form,cancel,submit}, admin-specialist-{name,specialty,email,phone,order_number,clinic-name-{i},clinic-address-{i},add-clinic,clinic-remove-{i}}, admin-doctor-{id,status-{id},network-{id},resend-{id}}, activate-{page,info,password,password-confirm,submit,done,error,login-link}, portal-request-{dialog,child,doctor,clinic,service-{i},date,note,submit,slots,no-slots}, portal-pay-{online,studio,choice,note}, share-{card-{group},open-btn,dialog,member-{pid},informativa,accept,signer,submit,active,none,need-two,revoke-btn}, linked-specialist-{doctorId}, linked-report-{cid}, linked-report-pdf-{cid}, linked-summary-*.",
+  "rca of the issue": "Login 401 vs 403 discrepancy for invited doctors — root cause: auth.login() in /app/backend/auth.py line 150 calls `verify_password(body.password, user['password_hash'])` before `ensure_active(user)`. Because create_doctor seeds `password_hash = hash_password(secrets.token_urlsafe(32))` the comparison always fails for the invited doctor → 401. Fix: swap order so ensure_active runs first when a user with that email exists. 502 on admin create/resend — root cause: send_email is awaited inside the HTTP handler; if SMTP latency exceeds the Cloudflare ingress limit the client sees 502 even though the DB mutation and (eventually) the email succeed. Fix: BackgroundTasks."
+}

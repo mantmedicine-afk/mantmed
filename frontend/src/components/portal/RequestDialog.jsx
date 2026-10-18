@@ -59,7 +59,7 @@ export const RequestDialog = ({ open, onClose, kids, initial, onSent }) => {
   useEffect(() => {
     if (!open) return undefined;
     let alive = true;
-    api.portalNetwork().then((r) => alive && setNet(r)).catch(() => alive && setNet([]));
+    api.portalNetwork().then((r) => alive && setNet(r)).catch(() => { if (alive) { setNet([]); toast.error("Elenco specialisti non disponibile: può prenotare con il suo medico"); } });
     return () => { alive = false; };
   }, [open]);
   const children = kids.filter((k, i) => kids.findIndex((x) => x.group === k.group) === i);

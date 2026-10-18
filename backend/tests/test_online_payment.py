@@ -74,12 +74,7 @@ class TestSchedule:
     def test_put_schedule_updates_prices_and_billing_persists(self, doctor):
         r = doctor.get(f"{API}/settings/schedule")
         cur = r.json()
-        payload = {
-            "hours": cur["hours"],
-            "durations": cur["durations"],
-            "prices": {"Prima visita": 90.0, "Bilancio di salute": 70.0, "Visita di controllo": 60.0, "Visita urgente": 80.0},
-            "billing": cur["billing"],
-        }
+        payload = {"hours": cur["hours"], "services": cur["services"], "clinics": cur["clinics"], "billing": cur["billing"]}
         r = doctor.put(f"{API}/settings/schedule", json=payload)
         assert r.status_code == 200, r.text
         j = r.json()
@@ -91,8 +86,8 @@ class TestSchedule:
     def test_put_schedule_rejects_bad_price(self, doctor):
         r = doctor.get(f"{API}/settings/schedule")
         cur = r.json()
-        payload = {"hours": cur["hours"], "durations": cur["durations"],
-                   "prices": {**cur["prices"], "Prima visita": -10}, "billing": cur["billing"]}
+        payload = {"hours": cur["hours"], "clinics": cur["clinics"], "billing": cur["billing"],
+                   "services": [{**cur["services"][0], "price": -10}]}
         r = doctor.put(f"{API}/settings/schedule", json=payload)
         assert r.status_code == 422
 
@@ -121,9 +116,8 @@ class TestSlotsQuote:
         # Set a service to price 0 temporarily
         cur = doctor.get(f"{API}/settings/schedule").json()
         try:
-            new_prices = {**cur["prices"], "Visita di controllo": 0}
-            doctor.put(f"{API}/settings/schedule", json={"hours": cur["hours"], "durations": cur["durations"],
-                                                         "prices": new_prices, "billing": cur["billing"]})
+            zero = [{**s, "price": 0} if s["name"] == "Visita di controllo" else s for s in cur["services"]]
+            doctor.put(f"{API}/settings/schedule", json={"hours": cur["hours"], "services": zero, "clinics": cur["clinics"], "billing": cur["billing"]})
             me = parent.get(f"{API}/portal/me").json()
             pid = me["children"][0]["patient"]["id"]
             from datetime import date, timedelta
@@ -136,8 +130,7 @@ class TestSlotsQuote:
             assert q["online"] is False
             assert q["price"] == 0
         finally:
-            doctor.put(f"{API}/settings/schedule", json={"hours": cur["hours"], "durations": cur["durations"],
-                                                         "prices": cur["prices"], "billing": cur["billing"]})
+            doctor.put(f"{API}/settings/schedule", json={"hours": cur["hours"], "services": cur["services"], "clinics": cur["clinics"], "billing": cur["billing"]})
 
 
 # ---------- Checkout ----------

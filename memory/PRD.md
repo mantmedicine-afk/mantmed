@@ -140,8 +140,17 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 
 
 
+## Implemented (2026-10-18, Rete Multispecialistica)
+- Pannello Founder: "Aggiungi specialista alla rete" (nome, specializzazione, email, telefono, Ordine, sedi) → utente doctor status "invited", email con link /attiva?token (7 gg, invio in background), "Reinvia invito", interruttore "Nella rete" (in_network; studio fondatore incluso di default) · network.py, AddSpecialist.jsx, Activate.jsx
+- Ogni medico configura in autonomia sedi (nome/indirizzo), orari per sede, elenco prestazioni proprio (nome, durata, tariffa) e dati fiscali; il pediatra parte con le 4 prestazioni storiche (services_of migra durations/prices)
+- Portale: "Scegli Specialista / Medico" (GET /api/portal/network) → sedi, prestazioni e slot solo di quel medico (slots?doctor_id=); prima prenotazione presso nuovo specialista crea la cartella del bambino con soli dati anagrafici (child_at, dedup per cf_hash); pagamenti/cassa/ricevute separati per medico
+- Consenso di rete: il genitore sceglie gli specialisti, legge l'informativa e firma con il dito (share_consents, firma e testo cifrati, revocabile, audit); passaporto medico: tab "Specialisti Collegati" con riepilogo (ultima diagnosi, terapia, ultime misure) e referti PDF in sola lettura
+- Testato iteration_11 (15/15 backend, frontend 100%); test legacy di orari/pagamenti/annullamenti aggiornati al nuovo formato
+
 ## Backlog
 - P1: percentili automatici con curve OMS, storico crescita del paziente, dati demo pediatrici in agenda/sala d'attesa, rinomina brand in "MantMed"
 - P1 (prec.): storico paziente, export PDF dedicato, recupero password
 - P2: agenda multi-giorno, trascrizione in streaming durante la registrazione
 - P2 (pagamenti): rimborso/storno manuale dal medico, export ricevute per Sistema Tessera Sanitaria, selettore data shadcn nel portale
+- P2 (rete): tipi visita della dashboard medico (AppointmentDialog) allineati all'elenco prestazioni del medico; aggiornamento sedi in dashboard senza ricaricare la pagina
+- Test legacy test_portal_flow.py dipendono da account TEST eliminati (429 per blocco tentativi): da rigenerare

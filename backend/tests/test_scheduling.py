@@ -56,21 +56,22 @@ def next_saturday():
     return next_weekday(5)
 
 
-DEFAULT_SCHEDULE = {
-    "hours": {
-        "Studio Centro": {"days": [1, 2, 3, 4, 5], "start": "09:00", "end": "13:00"},
-        "Studio Provincia": {"days": [1, 2, 3, 4, 5], "start": "15:00", "end": "19:00"},
-    },
-    "durations": {"Prima visita": 45, "Bilancio di salute": 30,
-                  "Visita di controllo": 20, "Visita urgente": 20},
+DEFAULT_HOURS = {
+    "Studio Centro": {"days": [1, 2, 3, 4, 5], "start": "09:00", "end": "13:00"},
+    "Studio Provincia": {"days": [1, 2, 3, 4, 5], "start": "15:00", "end": "19:00"},
 }
+SAVED = {}
+
+
+def body(cur, hours=None, services=None):
+    return {"hours": hours or cur["hours"], "services": services or cur["services"], "clinics": cur["clinics"], "billing": cur["billing"]}
 
 
 @pytest.fixture(scope="module", autouse=True)
 def restore_schedule(foti_sess):
-    # Save current to restore at end
+    SAVED.update(foti_sess.get(f"{BASE_URL}/api/settings/schedule").json())
     yield
-    r = foti_sess.put(f"{BASE_URL}/api/settings/schedule", json=DEFAULT_SCHEDULE)
+    r = foti_sess.put(f"{BASE_URL}/api/settings/schedule", json=body(SAVED))
     assert r.status_code == 200, r.text
 
 
@@ -80,38 +81,30 @@ class TestScheduleSettings:
         r = foti_sess.get(f"{BASE_URL}/api/settings/schedule")
         assert r.status_code == 200
         data = r.json()
-        assert "hours" in data and "durations" in data
-        assert set(data["durations"]) == set(DEFAULT_SCHEDULE["durations"])
+        assert "hours" in data and "services" in data and "durations" in data
+        assert {"Prima visita", "Bilancio di salute", "Visita di controllo", "Visita urgente"} <= set(data["durations"])
 
     def test_put_schedule_ok(self, foti_sess):
-        r = foti_sess.put(f"{BASE_URL}/api/settings/schedule", json=DEFAULT_SCHEDULE)
+        r = foti_sess.put(f"{BASE_URL}/api/settings/schedule", json=body(SAVED, hours=DEFAULT_HOURS))
         assert r.status_code == 200, r.text
-        data = r.json()
-        assert data["hours"]["Studio Centro"]["start"] == "09:00"
+        assert r.json()["hours"]["Studio Centro"]["start"] == "09:00"
 
     def test_put_schedule_missing_clinic(self, foti_sess):
-        bad = {"hours": {"Studio Centro": DEFAULT_SCHEDULE["hours"]["Studio Centro"]},
-               "durations": DEFAULT_SCHEDULE["durations"]}
-        r = foti_sess.put(f"{BASE_URL}/api/settings/schedule", json=bad)
+        r = foti_sess.put(f"{BASE_URL}/api/settings/schedule", json=body(SAVED, hours={"Studio Centro": DEFAULT_HOURS["Studio Centro"]}))
         assert r.status_code == 400
 
     def test_put_schedule_end_before_start(self, foti_sess):
-        bad = {"hours": {"Studio Centro": {"days": [1, 2, 3, 4, 5], "start": "13:00", "end": "09:00"},
-                         "Studio Provincia": DEFAULT_SCHEDULE["hours"]["Studio Provincia"]},
-               "durations": DEFAULT_SCHEDULE["durations"]}
-        r = foti_sess.put(f"{BASE_URL}/api/settings/schedule", json=bad)
+        bad = {**DEFAULT_HOURS, "Studio Centro": {"days": [1, 2, 3, 4, 5], "start": "13:00", "end": "09:00"}}
+        r = foti_sess.put(f"{BASE_URL}/api/settings/schedule", json=body(SAVED, hours=bad))
         assert r.status_code == 400
 
     def test_put_schedule_duration_out_of_range(self, foti_sess):
-        bad = {"hours": DEFAULT_SCHEDULE["hours"],
-               "durations": {**DEFAULT_SCHEDULE["durations"], "Prima visita": 999}}
-        r = foti_sess.put(f"{BASE_URL}/api/settings/schedule", json=bad)
+        r = foti_sess.put(f"{BASE_URL}/api/settings/schedule", json=body(SAVED, services=[{"name": "Prima visita", "duration": 999, "price": 0}]))
         assert r.status_code == 422
 
-    def test_put_schedule_missing_duration_key(self, foti_sess):
-        bad = {"hours": DEFAULT_SCHEDULE["hours"],
-               "durations": {"Prima visita": 30}}  # missing other 3
-        r = foti_sess.put(f"{BASE_URL}/api/settings/schedule", json=bad)
+    def test_put_schedule_duplicate_service(self, foti_sess):
+        dup = [{"name": "Prima visita", "duration": 30, "price": 0}, {"name": "prima visita", "duration": 30, "price": 0}]
+        r = foti_sess.put(f"{BASE_URL}/api/settings/schedule", json=body(SAVED, services=dup))
         assert r.status_code == 422
 
 
@@ -222,8 +215,7 @@ class TestConfirmUsesDuration:
     def test_confirm_sets_duration(self, parent_sess, foti_sess):
         d = (next_monday() + timedelta(days=2)).isoformat()  # Wednesday
         # Change duration for "Visita di controllo" to 25
-        custom = {"hours": DEFAULT_SCHEDULE["hours"],
-                  "durations": {**DEFAULT_SCHEDULE["durations"], "Visita di controllo": 25}}
+        custom = body(SAVED, services=[{**s, "duration": 25} if s["name"] == "Visita di controllo" else s for s in SAVED["services"]])
         rp = foti_sess.put(f"{BASE_URL}/api/settings/schedule", json=custom)
         assert rp.status_code == 200
         try:
@@ -253,7 +245,7 @@ class TestConfirmUsesDuration:
             # Cleanup
             foti_sess.delete(f"{BASE_URL}/api/appointments/{created['id']}")
         finally:
-            foti_sess.put(f"{BASE_URL}/api/settings/schedule", json=DEFAULT_SCHEDULE)
+            foti_sess.put(f"{BASE_URL}/api/settings/schedule", json=body(SAVED))
 
 
 # ------------ Cron reminders ------------

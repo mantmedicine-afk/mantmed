@@ -1,4 +1,5 @@
 """Multi-specialist network: Founder-managed doctor onboarding, network directory for the portal, parent-signed report sharing."""
+import asyncio
 import hashlib
 import logging
 import re
@@ -18,6 +19,7 @@ from scheduling import ClinicIn, in_network, schedule_of, online_quote
 
 logger = logging.getLogger(__name__)
 INVITE_DAYS = 7
+ORIGIN_RE = re.compile(r"^https?://[A-Za-z0-9.\-:]+$")
 SHARE_VERSION = "Consenso condivisione referti in rete v1.0"
 SHARE_TEXT = ("Autorizzo gli specialisti selezionati della rete MantMed, che seguono mio figlio/a, a consultare reciprocamente in sola lettura "
               "i referti delle visite e un riepilogo clinico (diagnosi, terapia, ultime misure di crescita), per una cura coordinata. "
@@ -87,21 +89,29 @@ def build_network(db, current_user, Consultation, pdf_for):
 
     # ---------- Founder: censimento specialisti ----------
     async def send_invite(u: dict, origin: str):
-        if not re.match(r"^https?://[A-Za-z0-9.\-:]+$", origin):
+        if not ORIGIN_RE.match(origin):
             raise HTTPException(400, "Origine non valida")
         token = secrets.token_urlsafe(24)
         await db.users.update_one({"_id": u["_id"]}, {"$set": {"invite": {"token": _h(token), "expires_at": (_now() + timedelta(days=INVITE_DAYS)).isoformat()}}})
         link = f"{origin}/attiva?token={token}"
-        await send_email(to=u["email"], subject="MantMed · attivi il suo studio nella rete specialistica", html=mail_shell("INVITO NELLA RETE MANTMED",
+        asyncio.create_task(mail_invite(u, link))
+
+    async def mail_invite(u: dict, link: str):
+        try:
+            await send_email(to=u["email"], subject="MantMed · attivi il suo studio nella rete specialistica", html=mail_shell("INVITO NELLA RETE MANTMED",
             f"<p>Gentile {hesc(u['name'])},</p><p>MantMed l'ha inserita nella rete multispecialistica come <strong>{hesc(u['profile']['specialty'])}</strong>.</p>"
             "<p><strong>Come attivare l'account</strong></p><ol style=\"padding-left:18px\"><li>Apra il link personale qui sotto.</li>"
             "<li>Scelga la sua password: da quel momento accede con questa email.</li>"
             "<li>Dalla dashboard, in \"Orari e tariffe\", configuri sedi, orari, prestazioni con tariffe e dati fiscali: il Portale Paziente mostrerà solo i suoi orari liberi.</li></ol>"
             f"<p style=\"margin:22px 0\"><a href=\"{hesc(link)}\" style=\"background:#0A192F;color:#ffffff;padding:14px 22px;border-radius:999px;text-decoration:none\">Attiva il mio account</a></p>"
             f"<p style=\"color:#5B6478;font-size:13px\">Il link è personale e scade tra {INVITE_DAYS} giorni.</p>"))
+        except Exception:
+            logger.exception("Invito medico non inviato")
 
     @admin.post("")
     async def create_doctor(body: DoctorIn):
+        if not ORIGIN_RE.match(body.origin_url.rstrip("/")):
+            raise HTTPException(400, "Origine non valida")
         if await db.users.find_one({"email": body.email}):
             raise HTTPException(409, "Esiste già un account con questa email")
         names = [c.name.strip() for c in body.clinics]
@@ -114,13 +124,7 @@ def build_network(db, current_user, Consultation, pdf_for):
              "profile": {"specialty": body.specialty.strip(), "order_number": body.order_number.strip(), "phone": body.phone,
                          "studio_address": clinics[0]["address"]}}
         u["_id"] = (await db.users.insert_one(u)).inserted_id
-        try:
-            await send_invite(u, body.origin_url.rstrip("/"))
-        except HTTPException:
-            raise
-        except Exception:
-            logger.exception("Invito medico non inviato")
-            return {"id": str(u["_id"]), "invited": False}
+        await send_invite(u, body.origin_url.rstrip("/"))
         return {"id": str(u["_id"]), "invited": True}
 
     @admin.post("/{uid}/invite")

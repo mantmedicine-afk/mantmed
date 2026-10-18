@@ -127,7 +127,7 @@ class TestCancelAppointmentCutoff:
             r = parent.post(f"{BASE_URL}/api/portal/appointments/{aid}/cancel",
                             json={"reason": "TEST_motivo_annullo"})
             assert r.status_code == 200, r.text
-            assert r.json() == {"cancelled": True}
+            assert r.json() == {"cancelled": True, "refunded": None}
 
             # Already cancelled -> second call 409
             r2 = parent.post(f"{BASE_URL}/api/portal/appointments/{aid}/cancel", json={"reason": ""})
