@@ -15,6 +15,8 @@ import { Passport } from "@/components/dash/Passport";
 import { PatientDialog } from "@/components/dash/PatientDialog";
 import { CashRegister } from "@/components/dash/CashRegister";
 import { CompliancePanel } from "@/components/dash/CompliancePanel";
+import { FeedbackDialog } from "@/components/dash/FeedbackDialog";
+import { BetaMetrics } from "@/components/dash/BetaMetrics";
 
 const isToday = (iso) => new Date(iso).toDateString() === new Date().toDateString();
 
@@ -34,6 +36,7 @@ export default function Dashboard() {
   const [income, setIncome] = useState(0);
   const [cashKey, setCashKey] = useState(0);
   const [compliance, setCompliance] = useState(false);
+  const [feedback, setFeedback] = useState(false);
 
   const load = useCallback(() => {
     api.payments().then((r) => setIncome(r.summary?.total ?? 0)).catch(() => {});
@@ -65,7 +68,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen overflow-x-clip bg-paper" data-testid="dashboard">
-      <TopBar onCompliance={() => setCompliance(true)} />
+      <TopBar onCompliance={() => setCompliance(true)} onFeedback={() => setFeedback(true)} />
       <Marquee items={ticker} />
       <Hero total={appointments.length} waiting={waiting.length} name={shortName} income={income} />
       <main className="mx-auto grid max-w-[1440px] grid-cols-1 gap-5 px-5 pb-10 lg:grid-cols-12 lg:px-8">
@@ -75,10 +78,12 @@ export default function Dashboard() {
       </main>
       <RecentNotes items={notes.filter((c) => isToday(c.created_at))} onOpen={(c) => setOverlay({ open: true, patient: null, initial: c })} />
       <CashRegister refreshKey={cashKey} />
+      <BetaMetrics refreshKey={cashKey} onFeedback={() => setFeedback(true)} />
       <PassportSection patients={patients} onOpen={setPassportId} onAdd={() => setEditPatient({})} />
       {passportId && <Passport key={`${passportId}-${passportKey}`} patientId={passportId} onClose={() => { setPassportId(null); load(); }} onEdit={setEditPatient} />}
       <PatientDialog value={editPatient} onClose={() => setEditPatient(null)} onSaved={() => { load(); setPassportKey((k) => k + 1); }} />
       {compliance && <CompliancePanel onClose={() => setCompliance(false)} />}
+      <FeedbackDialog open={feedback} onClose={() => setFeedback(false)} onSent={() => setCashKey((k) => k + 1)} />
       <ConsultationOverlay
         patients={patients}
         onPatientsChange={load}

@@ -56,6 +56,8 @@ export const api = {
   addPayment: (b) => http.post("/payments", b).then((r) => r.data),
   deletePayment: (id) => http.delete(`/payments/${id}`),
   exportPayments: async (params) => saveBlob(await http.get("/payments/export", { params, responseType: "blob" }), "Registro_cassa.csv"),
+  sendFeedback: (b) => http.post("/beta/feedback", b).then((r) => r.data),
+  betaMetrics: () => http.get("/beta/metrics").then((r) => r.data),
   downloadReport: async (id) => saveBlob(await http.get(`/consultations/${id}/pdf`, { responseType: "blob" }), "Referto.pdf"),
 };
 

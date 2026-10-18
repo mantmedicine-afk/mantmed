@@ -11,7 +11,9 @@ import io
 import json
 import re
 import uuid
+import time
 import logging
+from beta import build_beta
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
 from typing import List, Optional, Annotated, Literal, ClassVar
@@ -206,6 +208,10 @@ class Consultation(BaseDocument):
     report_sent_at: Optional[str] = None
     report_sent_to: Optional[str] = None
     paper_consent: bool = False
+    doctor_id: Optional[str] = None
+    ai_sec: float = 0
+    finalized_at: Optional[str] = None
+    pdf_exports: int = 0
     created_at: str = Field(default_factory=now_iso)
     __encrypted__: ClassVar[tuple] = ("transcript", "note", "report_sent_to")
 
@@ -563,7 +569,7 @@ async def structure_note(transcript: str, session: str) -> ClinicalNote:
 
 
 @api.post("/consultations")
-async def create_consultation(body: ConsultationIn):
+async def create_consultation(body: ConsultationIn, user: dict = Depends(current_user)):
     if not body.transcript.strip():
         raise HTTPException(400, "Trascrizione vuota")
     patient = await get_patient(body.patient_id)
@@ -571,13 +577,14 @@ async def create_consultation(body: ConsultationIn):
         raise HTTPException(412, "Consenso privacy non registrato: registralo nel passaporto prima di avviare la visita")
     if not patient and not body.paper_consent:
         raise HTTPException(412, "Conferma l'acquisizione del consenso privacy per la visita libera")
+    t0 = time.monotonic()
     try:
         note = await structure_note(body.transcript, f"consult-{uuid.uuid4()}")
     except Exception as e:
         logger.exception("Strutturazione fallita")
         raise HTTPException(502, f"Generazione nota fallita: {e}")
     enrich_growth(note, patient, date.today())
-    c = Consultation(**body.model_dump(), note=note)
+    c = Consultation(**body.model_dump(), note=note, doctor_id=user["id"], ai_sec=round(time.monotonic() - t0, 1))
     res = await db.consultations.insert_one(c.to_mongo())
     c.id = str(res.inserted_id)
     await sync_measurement(c.out())
@@ -600,6 +607,7 @@ async def consultation_pdf(cid: str, user: dict = Depends(current_user)):
         raise HTTPException(404, "Consultazione non trovata")
     c = Consultation.from_mongo(doc).out()
     pdf = build_report(c, user["name"], await get_patient(c.get("patient_id")))
+    await db.consultations.update_one({"_id": oid(cid)}, {"$set": {"finalized_at": now_iso()}, "$inc": {"pdf_exports": 1}})
     await audit("referto_pdf", c["patient_name"])
     name = f"Referto_{re.sub(r'[^A-Za-z0-9]+', '_', c['patient_name']).strip('_')}_{c['created_at'][:10]}.pdf"
     return Response(pdf, media_type="application/pdf",
@@ -639,7 +647,7 @@ async def send_report(cid: str, user: dict = Depends(current_user)):
     email_id = await send_email(to=to, subject=subject, html=html,
                                 attachments=[{"filename": fname, "content": base64.b64encode(pdf).decode()}])
     sent_at = now_iso()
-    await db.consultations.update_one({"_id": oid(cid)}, {"$set": Consultation.sealed_set({"report_sent_at": sent_at, "report_sent_to": to})})
+    await db.consultations.update_one({"_id": oid(cid)}, {"$set": {**Consultation.sealed_set({"report_sent_at": sent_at, "report_sent_to": to}), "finalized_at": sent_at}, "$inc": {"pdf_exports": 1}})
     await audit("referto_email", c["patient_name"])
     return {"sent": True, "to": to, "sent_at": sent_at, "email_id": email_id}
 
@@ -653,7 +661,7 @@ async def update_consultation(cid: str, body: ConsultationPatch):
     if not existing:
         raise HTTPException(404, "Consultazione non trovata")
     enrich_growth(body.note, await get_patient(existing.get("patient_id")), date.fromisoformat(existing["created_at"][:10]))
-    doc = await db.consultations.find_one_and_update({"_id": oid(cid)}, {"$set": Consultation.sealed_set({"note": body.note.model_dump()})}, return_document=True)
+    doc = await db.consultations.find_one_and_update({"_id": oid(cid)}, {"$set": {**Consultation.sealed_set({"note": body.note.model_dump()}), "finalized_at": now_iso()}}, return_document=True)
     out = Consultation.from_mongo(doc).out()
     await sync_measurement(out)
     return out
@@ -1003,6 +1011,7 @@ async def security_headers(request, call_next):
     return resp
 
 
+api.include_router(build_beta(db, current_user))
 public_api.include_router(auth_router)
 app.include_router(public_api)
 app.include_router(api)

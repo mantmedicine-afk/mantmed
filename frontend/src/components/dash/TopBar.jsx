@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { LogOut, ShieldCheck } from "lucide-react";
+import { LogOut, ShieldCheck, MessageSquarePlus } from "lucide-react";
 import { Logo } from "./Logo";
 import { useAuth } from "@/lib/auth";
 
@@ -8,7 +8,7 @@ const initials = (n) => n.replace(/^(Dott\.ssa|Dott\.|Dr\.)\s*/i, "").split(" ")
 const fmtDate = (d) => d.toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" });
 const fmtTime = (d) => d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
 
-export const TopBar = ({ onCompliance }) => {
+export const TopBar = ({ onCompliance, onFeedback }) => {
   const { user, logout } = useAuth();
   const name = user?.name || "Medico";
   const [now, setNow] = useState(new Date());
@@ -30,6 +30,9 @@ export const TopBar = ({ onCompliance }) => {
             <span className="grid h-8 w-8 place-items-center rounded-full bg-night text-xs font-semibold text-white">{initials(name)}</span>
             <span className="hidden text-sm font-medium text-night sm:inline">{name}</span>
           </div>
+          <button onClick={onFeedback} className="flex h-10 items-center gap-2 rounded-full border border-slate-200 px-3 text-sm font-medium text-slate-600 transition-colors hover:border-night hover:text-night" data-testid="feedback-beta-button" aria-label="Invia feedback beta" title="Invia feedback beta">
+            <MessageSquarePlus size={16} /><span className="hidden lg:inline">Feedback Beta</span>
+          </button>
           <button onClick={onCompliance} className="grid h-10 w-10 place-items-center rounded-full border border-slate-200 text-slate-600 transition-colors hover:border-night hover:text-night" data-testid="compliance-button" aria-label="Sicurezza e GDPR" title="Sicurezza e GDPR">
             <ShieldCheck size={16} />
           </button>
