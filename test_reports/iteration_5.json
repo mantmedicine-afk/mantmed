@@ -1,0 +1,39 @@
+{
+  "summary": "Iteration 5 covered the new self-registration feature (doctor + parent), admin approval, data isolation and portal RBAC. Backend: 16 passed / 1 skipped (publish+pdf requires an LLM-generated consultation on TEST_ Bimbo; none seeded yet, so it is skipped by design). Covered: /api/register/start validation (bad email, bad CF, pw<10, pw no-digits all return 422; missing consents 400; existing email 409); doctor full flow (start → verify with wrong code → 400 'tentativi rimasti' → correct code → user created with status=pending → login returns 403 'in attesa di approvazione' → admin lists doctors with the pending entry → attempt to suspend founder (no profile) returns 400 'studio fondatore' → approve new doctor → new doctor logs in, dashboard patients=[] and clinics=[{name:'Studio principale'}] → tenant isolation verified: GET /patients/{bimbo}/passport on new doctor returns 404 while test_doc1 still sees TEST_ Bimbo → suspend new doctor → login 403); verify edge cases (expired signup → 410; 5 wrong codes → 400,400,400,400,429 then record removed); RBAC (parent 403 on /patients, /admin/doctors, /admin/leads; doctor 403 on /portal/me; anonymous 401 on /patients, /portal/me, /admin/doctors); portal (parent /portal/me returns linked TEST_ Bimbo with children>=1; add-child with wrong CF returns linked=false; pdf for fake cid returns 404). Frontend smoke test: landing-register band renders with register-doctor-btn and register-parent-btn, landing-portal-link; /app login shows login-signup-doctor/parent; /registrati/medico and /registrati/paziente render all expected inputs (first_name, last_name, specialty, order_number, email, phone, studio_address, child_fiscal_code, password, confirm, terms-checkbox, submit-btn, parent-form, doctor-form); unauthenticated /portale redirects to /app login (via wrong-area → login). 390px for both registration pages: NO horizontal overflow.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/register/start", "issue": "Rate limit is counted only on IP header; behind the ingress every request shares the proxy IP so a single tester consumes the 5/hour slot across the whole user base. Consider per-email throttling or trusted-proxy allow-list."},
+      {"endpoint": "/api/register/verify", "issue": "Wrong-code error pluralization bug: when 1 attempt remains it says '1 tentativo rimasto', when 0 attempts remain it already deletes the record and returns 429 — fine, but the detail string uses 'rimast' + 'o/i' based on `left == 1`; when left == 0 it never shows '0 tentativi' (OK). Just double-check copy for left==1 says 'tentativo rimasto' (currently code reads: 'o' if left == 1 else 'i'; letters 'o' and 'o' OK). Low risk."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_registration.py",
+    "/app/test_reports/pytest/registration.xml"
+  ],
+  "action_items": [
+    "Optional: seed one consultation for TEST_ Bimbo (owner=test_doc1) so iteration tests can exercise /consultations/{cid}/portal publish + /portal/reports/{cid}/pdf end-to-end without burning a live LLM call during test runs."
+  ],
+  "critical_code_review_comments": [
+    "registration.py build_registration mounts the admin router on public_api with its own require_role('admin') — good; but the portal router does NOT scope DB calls through TenantDB. It uses raw `db.patients/appointments/consents/consultations` filtered by both patient_id AND owner_id from the child link, which is correct for cross-tenant isolation. Keep this pattern explicit (comment) because a future refactor might drop the owner_id filter.",
+    "registration.py:link_children iterates db.patients.find({cf_hash}) with no limit; if a CF collision ever happened the loop would link all; the check `g == email` is case-insensitive via lower() — OK, but guardian_email is sealed/encrypted so unseal_fields is required per-doc (currently done). This is O(matches) per /me request — low volume, acceptable.",
+    "registration.py:/register/start checks existing user BEFORE rate-limit; this leaks user-existence to anyone without consuming the rate quota (409 vs 429). Minor privacy concern — consider rate-limit first.",
+    "registration.py:/portal/children uses $addToSet on child_cfs even when the CF resolves to nothing; the pending CF stays in the array forever (shows as pending_codes in /me). There is no remove endpoint — add portal-remove-child-{cf} on the frontend + DELETE /portal/children/{cf} to let parents clean up typos.",
+    "auth.py:ensure_active runs on every authenticated request via check_session — once a doctor is approved there is a background email send inside set_doctor_status; the send is awaited inline with the admin HTTP response. Consider firing-and-forgetting (asyncio.create_task) to keep /admin/doctors/{uid}/status snappy."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_registration.py (new)"
+  ],
+  "success_rate": {"backend": "94% (16/17, 1 skipped by design)", "frontend": "100% smoke"},
+  "test_credentials": "Admin mantmedicine@gmail.com / MM-3EjwJpn5w64aCu2ZkOLA (2FA ON, use `cd /app/backend && python tests/totp_code.py`). Doctor Foti medico@mantmed.it / Auscula-Studio-2026 + TOTP. Existing active test doctor test_doc1@example.com / Prova12345x. Parent test_parent1@example.com / Genitore12345.",
+  "seed_data_creation": "Doctor flow test created and deleted one TEST_newdoc_<ts>@example.com (removed from users at end of test). Validation + edge-case tests inserted two throwaway signups directly into db.signups (test_expired_<ts>, test_lock_<ts>) which are consumed by the 410/429 paths. No real registration emails were sent for the lock/expired path. One real admin notification email was sent during the doctor approval test (ADMIN_EMAIL). No modifications to Foti's data. Rate-limit counter consumed: 1 real /register/start call this iteration.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "test_registration.py uses the external REACT_APP_BACKEND_URL and the signup_code.py helper to override the emailed code. The /register/start rate limit is 5/hour/IP — the full doctor flow burns 1 slot per run. Validation tests do NOT consume slots (422/400/409 happen before the counter). To unskip TestPortal.test_publish_then_pdf: as test_doc1 POST /api/patients/{bimbo}/consents with {method:'modulo_cartaceo', privacy_policy:true, health_data:true, signer_name:'Mamma', signer_relation:'genitore', version:'v1.0'} then POST /api/consultations with {patient_id, patient_name:'TEST_ Bimbo', transcript:'Visita di controllo. Il bambino sta bene.'} (burns one LLM call), then the test will run. All frontend testids referenced in the review request are present and verified. Admin.jsx tabs: admin-view-leads / admin-view-doctors (previously verified in iter_4).",
+  "rca of the issue": "N/A — no bug found this iteration. Transient test failures during development were self-inflicted test errors (short first/last_name 'Y' tripped Pydantic min_length=2 and masked the 400/409 path; wrong endpoint shape for /patients/{pid} vs /patients/{pid}/passport). Both fixed in the test file; implementation is correct."
+}

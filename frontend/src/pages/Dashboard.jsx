@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { api } from "@/lib/api";
+import { api, CLINICS } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { TopBar } from "@/components/dash/TopBar";
 import { Marquee } from "@/components/dash/Marquee";

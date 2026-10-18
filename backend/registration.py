@@ -23,7 +23,7 @@ PHONE_RE = re.compile(r"^\+?[0-9 ./-]{6,20}$")
 PORTAL_CONSENT = "Informativa privacy e consenso dati sanitari v1.0"
 CODE_TTL_MIN = 15
 MAX_CODE_ATTEMPTS = 5
-MAX_STARTS_PER_HOUR = 5
+MAX_STARTS_PER_HOUR = 10
 MAX_LINKS_PER_DAY = 10
 _CODE_KEY = hashlib.sha256(("signup:" + os.environ["JWT_SECRET"]).encode()).digest()
 

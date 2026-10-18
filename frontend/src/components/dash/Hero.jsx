@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { CLINICS } from "@/lib/api";
 
 const Line = ({ children, delay }) => (
   <span className="block overflow-hidden pb-1">
@@ -24,7 +25,7 @@ export const Hero = ({ total, waiting, name, income = 0 }) => (
       <h1 className="font-display text-4xl leading-[1.02] tracking-tight text-night sm:text-5xl lg:text-6xl">
         <Line delay={0.1}>{greeting()}, {name}.</Line>
         <Line delay={0.22}>
-          <span className="italic text-slate-500">{total} visite, due studi, </span>
+          <span className="italic text-slate-500">{total} visite, {CLINICS.length > 1 ? "due studi" : "uno studio"}, </span>
           <span className="italic">una giornata.</span>
         </Line>
       </h1>

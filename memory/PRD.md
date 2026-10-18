@@ -95,6 +95,13 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Email di avviso nuove richieste solo a ADMIN_EMAIL
 - Testato: iteration_4 (fix: /api/auth/me spostato su router pubblico autenticato)
 
+## Implemented (2026-10-18, Registrazioni Medici e Pazienti)
+- Landing: fascia "Registrati come Medico" / "Registrati come Paziente / Genitore", link "Area pazienti"; link registrazione anche nel login
+- /registrati/medico (nome, cognome, specializzazione, n. iscrizione Ordine, email, telefono, sede, password) e /registrati/paziente (nome, cognome, CF del bambino, email, cellulare, password, informativa + consenso dati sanitari v1.0); verifica email con codice a 6 cifre (15 min, 5 tentativi)
+- Medici: stato pending → approvazione in /admin "Medici e licenze" (approva/rifiuta/sospendi, email di attivazione); ogni medico ha uno studio separato (multi-tenant owner_id via backend/tenancy.py, migrazione automatica dei dati esistenti alla Dott.ssa Foti); intestazione referto da profilo
+- Portale Paziente /portale (ruolo parent): collegamento automatico figlio solo se CF (indice HMAC cf_hash) + email genitore coincidono; più figli; referti solo se inviati via email o "Pubblica nel portale" (toggle nel passaporto); consensi firmati; appuntamenti; download PDF con audit
+- Testato: iteration_5 + verifica manuale pubblicazione/PDF portale
+
 ## Backlog
 - P1: percentili automatici con curve OMS, storico crescita del paziente, dati demo pediatrici in agenda/sala d'attesa, rinomina brand in "MantMed"
 - P1 (prec.): storico paziente, export PDF dedicato, recupero password
