@@ -5,6 +5,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { Loader2 } from "lucide-react";
 import Dashboard from "@/pages/Dashboard";
 import Login from "@/pages/Login";
+import Landing from "@/pages/Landing";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { IdleWarning } from "@/components/dash/Security";
 
@@ -24,10 +26,14 @@ function App() {
   }, []);
 
   return (
-    <AuthProvider>
-      <Gate />
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/app" element={<AuthProvider><Gate /></AuthProvider>} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
       <Toaster position="top-center" richColors />
-    </AuthProvider>
+    </BrowserRouter>
   );
 }
 

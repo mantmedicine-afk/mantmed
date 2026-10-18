@@ -1,84 +1,106 @@
 {
-  "project_name": "Mediscribe AI - Tablet Specialist Dashboard",
-  "app_type": "dashboard",
-  "target_device": "Tablet landscape (1180px - 1366px primary, responsive down to 390px mobile)",
-  "language": "it",
-  "theme": "Clean Medical Midnight Blue & Pure White",
+  "theme": "dark_luxury",
   "typography": {
-    "heading_font": "Plus Jakarta Sans, sans-serif",
-    "body_font": "Inter, sans-serif",
-    "mono_font": "JetBrains Mono, monospace",
-    "hierarchy": {
-      "h1": "text-3xl lg:text-4xl font-bold tracking-tight",
-      "h2": "text-xl lg:text-2xl font-semibold tracking-tight",
-      "h3": "text-lg font-medium",
-      "body": "text-sm lg:text-base leading-relaxed",
-      "label_overline": "text-xs uppercase tracking-widest font-semibold text-slate-400"
+    "headings": {
+      "font": "font-display",
+      "style": "serif, tracking-tight, elegant",
+      "weights": ["font-light", "font-medium"]
+    },
+    "body": {
+      "font": "font-sans",
+      "style": "clean, readable, geometric",
+      "weights": ["font-normal"]
     }
   },
   "colors": {
-    "primary": "#0A1128",
-    "secondary": "#1E293B",
-    "accent_cyan": "#0EA5E9",
-    "accent_recording_red": "#EF4444",
-    "background_light": "#F8FAFC",
-    "surface_white": "#FFFFFF",
-    "border_subtle": "#E2E8F0",
-    "text_main": "#0F172A",
-    "text_muted": "#64748B",
-    "status_waiting": "#F59E0B",
-    "status_in_progress": "#0EA5E9",
-    "status_completed": "#10B981"
+    "primary": {
+      "name": "Night Blue",
+      "value": "#0A192F"
+    },
+    "secondary": {
+      "name": "Night Variant",
+      "value": "#0B1736"
+    },
+    "accent": {
+      "name": "Platinum",
+      "value": "#C9CCD3"
+    },
+    "background": "#0A192F",
+    "text_primary": "#FFFFFF",
+    "text_secondary": "#C9CCD3"
   },
   "visual_enhancers": {
-    "glassmorphic_headers": "backdrop-blur-md bg-white/80 border-b border-slate-200/80 shadow-sm",
-    "card_styles": "bg-white border border-slate-200/80 rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200",
-    "hero_consultation_button": "h-20 w-full md:w-auto px-8 rounded-2xl bg-gradient-to-r from-sky-600 to-indigo-700 text-white font-bold text-xl shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-4",
-    "pulse_recording_badge": "animate-pulse bg-red-500/10 text-red-600 border border-red-500/30 font-medium px-3 py-1 rounded-full text-xs flex items-center gap-2",
-    "marquee_ticker": "bg-slate-900 text-slate-300 py-2 text-xs font-mono overflow-hidden border-b border-slate-800"
+    "textures": ["Use existing 'grain' utility class for backgrounds to add tactile luxury."],
+    "glassmorphism": ["Use 'backdrop-blur-xl bg-[#0A192F]/80' for sticky headers or floating navs. Never use fully transparent."],
+    "borders": ["Use delicate 1px borders of 'border-[#C9CCD3]/20' for cards and sections to establish clinical precision."]
   },
-  "components": {
-    "HeaderNav": "Includes original SVG logo, product name 'Mediscribe AI', status marquee ticker, doctor profile dropdown, date/time in Italian, and current active clinic switcher.",
-    "AgendaSection": "Tabs or side-by-side columns for 'Studio Centro' and 'Studio Provincia'. Displays timeline appointments with time, patient name, visit type, status badges, and 'Aggiungi Appuntamento' trigger.",
-    "WaitingRoomSection": "List of patients waiting ('Pazienti in Attesa') with status (In attesa, In studio, Completato), wait duration, call-in patient button ('Chiama in Studio'), add/edit/delete patient controls.",
-    "ConsultationRecordingHub": "Huge central recording trigger button ('Avvia Consultazione / Registrazione') with simulated real-time waveform animation, timer counter (00:00), audio pause/stop controls, and audio source selector.",
-    "AITranscriptionPanel": "Live simulated Whisper AI speech-to-text streaming box with speech confidence indicators and manual text correction capabilities.",
-    "StructuredClinicalNote": "Standard medical note template organized into 5 editable sections (Anamnesi, Esame Obiettivo, Diagnosi, Terapia, Follow-up) with copy, save, and print/PDF export actions."
+  "layouts": {
+    "header": {
+      "elements": ["Iconic geometric A-M logo (left)", "Accedi button (right) linking to '/app'"],
+      "style": "Sticky, glassmorphism (bg-[#0A192F]/80 backdrop-blur-md), z-50. Do not use fully transparent background."
+    },
+    "hero_section": {
+      "title": "Il workspace clinico d'élite per il medico specialista: zero burocrazia, massima precisione",
+      "cta": ["Richiedi accesso beta", "Scopri di più"],
+      "style": "Center-aligned text but asymmetrical background/layout. Generous padding (py-32 or py-48), dark background with platinum text."
+    },
+    "features_bento": {
+      "items": [
+        "Trascrizione vocale istantanea",
+        "Calcolo automatico dei percentili pediatrici",
+        "Generazione referti PDF in 30 secondi",
+        "Agenda multi-studio",
+        "Cassa integrata"
+      ],
+      "style": "Bento Grid (grid-cols-1 md:grid-cols-3). Tight gaps, subtle hover lift, platinum borders. Avoid generic symmetric cards."
+    },
+    "security_section": {
+      "content": "Crittografia AES-256, server EU (Frankfurt), 2FA, informed consent, access log.",
+      "style": "Technical, prudent wording (no 'conformità totale'). Grid borders, monospaced accents for security specs."
+    },
+    "contact_form": {
+      "fields": ["Nome", "Email", "Specializzazione", "Città", "Tipo richiesta (info commerciali / accesso beta)", "Messaggio", "Consenso privacy"],
+      "style": "Minimalist inputs, clear labels. Use Shadcn customized for dark luxury."
+    }
+  },
+  "motion": {
+    "scrolling": "Lenis for smooth scrolling (already present).",
+    "entrance": "Framer Motion for staggered fade-in up on scroll.",
+    "interactions": "Subtle button scaling and brightness increase on hover. No 'transition: all'."
+  },
+  "accessibility": {
+    "contrast": "Ensure white/platinum text on #0A192F meets APCA/WCAG standards.",
+    "testing": "All interactive elements MUST have data-testid attributes."
   },
   "image_urls": [
     {
-      "url": "https://images.unsplash.com/photo-1758691463582-11aea602cd4a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTN8MHwxfHNlYXJjaHwzfHxkb2N0b3IlMjBwb3J0cmFpdCUyMG1lZGljYWwlMjBhdmF0YXJ8ZW58MHx8fHwxNzkyMDc0Mzc0fDA&ixlib=rb-4.1.0&q=85",
-      "category": "Doctor Profile Avatar",
-      "description": "Dr. Marco Rossi - Dottore Specialista"
+      "category": "Hero Background Texture",
+      "url": "https://images.unsplash.com/photo-1690983320828-c01b88baacb0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzh8MHwxfHNlYXJjaHwyfHxtaW5pbWFsaXN0JTIwZGFyayUyMHRleHR1cmV8ZW58MHx8fHwxNzkyMzMyMDYwfDA&ixlib=rb-4.1.0&q=85",
+      "description": "Minimalist dark texture for subtle hero background depth"
     },
     {
-      "url": "https://images.unsplash.com/photo-1506863530036-1efeddceb993?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1ODR8MHwxfHNlYXJjaHwxfHxwYXRpZW50JTIwcG9ydHJhaXQlMjBhdmF0YXIlMjBmYWNlfGVufDB8fHx8MTc5MjA3NDM3N3ww&ixlib=rb-4.1.0&q=85",
-      "category": "Patient Avatar",
-      "description": "Paziente Avatar Laura Bianchi"
+      "category": "Medical Professional Reference",
+      "url": "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MTJ8MHwxfHNlYXJjaHwxfHxkb2N0b3IlMjBtb2Rlcm4lMjBjbGluaWN8ZW58MHx8fHwxNzkyMzMyMDU1fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Doctor portrait to use in about or trust sections if needed"
     }
   ],
-  "motion": {
-    "framer_motion_usage": "Staggered fade-in on dashboard load, smooth tab transitions between clinics, dynamic scaling on huge consultation button, fluid expand/collapse for structured clinical notes sections.",
-    "signature_onload_reveal": "Subtle masked reveal SVG animation for the logo icon when the dashboard mounts."
-  },
-  "testing_requirements": {
-    "data_testid_convention": "All interactive elements, buttons, inputs, tabs, modal triggers, note sections, and status badges MUST include explicit data-testid attributes (e.g. data-testid='start-consultation-btn', data-testid='studio-centro-tab', data-testid='patient-waiting-card-1')."
-  },
   "instructions_to_main_agent": [
-    "Build the dashboard using React with Tailwind CSS and Framer Motion micro-interactions.",
-    "Ensure 1180px-1366px landscape tablet experience is primary while preserving full responsiveness down to 390px mobile screens.",
-    "All UI strings must be in Italian ('Avvia Consultazione', 'Studio Centro', 'Pazienti in Attesa', 'Anamnesi', 'Esame Obiettivo', 'Diagnosi', 'Terapia', 'Follow-up').",
-    "State management must allow adding/editing appointments, managing waiting room queue, toggling recording, streaming AI transcript, and editing/exporting clinical notes.",
-    "Use standard lucide-react icons or phosphor-icons.",
-    "Do NOT use transparent backgrounds for dropdowns or modals."
+    "Implement the landing page at '/' and ensure the 'Accedi' button links to '/app'.",
+    "Use pure HTML + Tailwind for structural layouts, heavily customized Shadcn components for interactive logic (Forms, Select, Buttons).",
+    "Maintain the elite 'Boutique Medica' vibe: absolutely no generic SaaS blues or playful colors.",
+    "Do not use complete transparent background in header; use glassmorphism with the night blue color.",
+    "Adhere to the exact Italian copy provided for the hero and GDPR sections.",
+    "Form fields must include informed consent for privacy.",
+    "Do NOT create .tsx files. The instructions apply to .js frontend files."
   ],
-  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
-    "Avoid default centered templates. Use crisp medical grids with midnight navy tones and pure white clinical surfaces.",
-    "Ensure high text contrast complying with APCA / WCAG standards.",
-    "Every button and interactive element MUST have hover/active states and data-testid attributes.",
-    "Do NOT use emojis as UI icons. Use lucide-react icons."
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "Do not use universal transition (e.g., transition: all). Add specific transitions.",
+    "Do not center-align the app container via App class in CSS.",
+    "Use 2-3x more spacing than feels comfortable.",
+    "Ensure layering through z-index and backdrop filters.",
+    "No emojis for icons. Use lucide-react or configured icon library.",
+    "All interactive elements and informational elements MUST include data-testid (e.g., data-testid='login-form-submit-button').",
+    "Use sonner for toasts if needed.",
+    "Prioritize existing components in src/components/ui/."
   ]
-},
-  "path": "/app/design_guidelines.json",
-  "overwrite": true
 }

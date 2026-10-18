@@ -17,6 +17,7 @@ import { CashRegister } from "@/components/dash/CashRegister";
 import { CompliancePanel } from "@/components/dash/CompliancePanel";
 import { FeedbackDialog } from "@/components/dash/FeedbackDialog";
 import { BetaMetrics } from "@/components/dash/BetaMetrics";
+import { LeadsPanel } from "@/components/dash/LeadsPanel";
 
 const isToday = (iso) => new Date(iso).toDateString() === new Date().toDateString();
 
@@ -79,6 +80,7 @@ export default function Dashboard() {
       <RecentNotes items={notes.filter((c) => isToday(c.created_at))} onOpen={(c) => setOverlay({ open: true, patient: null, initial: c })} />
       <CashRegister refreshKey={cashKey} />
       <BetaMetrics refreshKey={cashKey} onFeedback={() => setFeedback(true)} />
+      <LeadsPanel />
       <PassportSection patients={patients} onOpen={setPassportId} onAdd={() => setEditPatient({})} />
       {passportId && <Passport key={`${passportId}-${passportKey}`} patientId={passportId} onClose={() => { setPassportId(null); load(); }} onEdit={setEditPatient} />}
       <PatientDialog value={editPatient} onClose={() => setEditPatient(null)} onSaved={() => { load(); setPassportKey((k) => k + 1); }} />

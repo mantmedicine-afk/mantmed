@@ -14,6 +14,7 @@ import uuid
 import time
 import logging
 from beta import build_beta
+from leads import build_leads
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
 from typing import List, Optional, Annotated, Literal, ClassVar
@@ -1012,6 +1013,9 @@ async def security_headers(request, call_next):
 
 
 api.include_router(build_beta(db, current_user))
+leads_public, leads_private = build_leads(db, current_user)
+api.include_router(leads_private)
+public_api.include_router(leads_public)
 public_api.include_router(auth_router)
 app.include_router(public_api)
 app.include_router(api)
