@@ -75,6 +75,9 @@ export const api = {
   invitePortal: (pid) => http.post(`/patients/${pid}/invite`).then((r) => r.data),
   inviteInfo: (token) => http.get(`/register/invite/${encodeURIComponent(token)}`).then((r) => r.data),
   portalRequest: (b) => http.post("/portal/appointment-requests", b).then((r) => r.data),
+  portalSlots: (params) => http.get("/portal/slots", { params }).then((r) => r.data),
+  getSchedule: () => http.get("/settings/schedule").then((r) => r.data),
+  saveSchedule: (b) => http.put("/settings/schedule", b).then((r) => r.data),
   downloadReport: async (id) => saveBlob(await http.get(`/consultations/${id}/pdf`, { responseType: "blob" }), "Referto.pdf"),
   portalReport: async (id) => saveBlob(await http.get(`/portal/reports/${id}/pdf`, { responseType: "blob" }), "Referto.pdf"),
 };

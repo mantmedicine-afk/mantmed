@@ -13,6 +13,7 @@ from auth import require_role
 from crypto import seal_fields, unseal_fields
 from mailer import send_email
 from registration import mail_shell
+from scheduling import free_slots, schedule_of
 
 logger = logging.getLogger(__name__)
 SERVICES = ["Prima visita", "Bilancio di salute", "Visita di controllo", "Visita urgente"]
@@ -105,8 +106,9 @@ def build_portal_flow(db, tdb, current_user, Appointment, tenant_clinics):
         if clinic not in tenant_clinics():
             raise HTTPException(400, "Studio non valido")
         note = unseal_fields(r, ("note",)).get("note") or ""
+        owner = await db.users.find_one({"_id": ObjectId(r["owner_id"])})
         appt = Appointment(clinic=clinic, date=body.date, time=body.time, patient_name=r["patient_name"], patient_id=r["patient_id"],
-                           visit_type=r["service"], notes=f"Richiesta dal portale. {note}".strip())
+                           visit_type=r["service"], duration=schedule_of(owner)["durations"].get(r["service"], 30), notes=f"Richiesta dal portale. {note}".strip())
         res = await tdb.appointments.insert_one(appt.to_mongo())
         await tdb.appt_requests.update_one({"_id": r["_id"]}, {"$set": {"status": "confirmed", "confirmed_date": body.date, "confirmed_time": body.time,
                                                                        "clinic": clinic, "appointment_id": str(res.inserted_id), "decided_at": _now().isoformat()}})
@@ -178,6 +180,8 @@ def build_portal_flow(db, tdb, current_user, Appointment, tenant_clinics):
         doc = await db.users.find_one({"_id": ObjectId(link["owner_id"])})
         if body.clinic not in [c["name"] for c in (doc or {}).get("clinics", [])]:
             raise HTTPException(400, "Studio non valido")
+        if body.time not in await free_slots(db, doc, body.clinic, body.service, body.date):
+            raise HTTPException(409, "L'orario scelto non è più disponibile: ne selezioni un altro")
         if await db.appt_requests.count_documents({"parent_id": user["id"], "status": "pending"}) >= MAX_PENDING:
             raise HTTPException(429, f"Ha già {MAX_PENDING} richieste in attesa di conferma")
         p = await db.patients.find_one({"_id": ObjectId(body.patient_id), "owner_id": link["owner_id"]})

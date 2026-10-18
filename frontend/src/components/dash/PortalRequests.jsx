@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Check, X, Loader2, Inbox, CalendarDays } from "lucide-react";
+import { Check, X, Loader2, Inbox, CalendarDays, Clock } from "lucide-react";
 import { api, errMsg } from "@/lib/api";
+import { ScheduleDialog } from "@/components/dash/ScheduleDialog";
 
 const day = (d) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString("it-IT", { weekday: "short", day: "numeric", month: "short" }) : "Oggi");
 const inp = "h-9 rounded-full border border-slate-200 bg-white px-3 text-sm text-night outline-none focus:border-night";
@@ -39,6 +40,7 @@ const RequestCard = ({ r, onDone }) => {
 export const PortalRequests = ({ onChange }) => {
   const [reqs, setReqs] = useState([]);
   const [next, setNext] = useState([]);
+  const [sched, setSched] = useState(false);
   const load = useCallback(() => {
     api.apptRequests().then(setReqs).catch(() => setReqs([]));
     api.upcoming().then(setNext).catch(() => setNext([]));
@@ -60,7 +62,11 @@ export const PortalRequests = ({ onChange }) => {
           </div>
         </div>
         <div>
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-slate-500"><CalendarDays size={13} /> Agenda</div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-slate-500"><CalendarDays size={13} /> Agenda</div>
+            <button onClick={() => setSched(true)} className="flex h-9 items-center gap-1.5 rounded-full border border-slate-200 px-4 text-xs font-medium text-night hover:border-night" data-testid="schedule-open-btn"><Clock size={13} /> Orari studio</button>
+          </div>
+          <ScheduleDialog open={sched} onClose={() => setSched(false)} />
           <h2 className="mt-1 font-display text-4xl text-night">Prossimi <span className="italic text-slate-500">giorni</span></h2>
           <div className="mt-5 space-y-2" data-testid="upcoming-list">
             {next.length === 0 && <p className="text-sm text-slate-600">Nessun appuntamento nei prossimi giorni.</p>}

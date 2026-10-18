@@ -18,6 +18,7 @@ from leads import build_leads
 from tenancy import TenantDB, set_tenant, tenant_clinics, cf_hash
 from registration import build_registration
 from portal_flow import build_portal_flow
+from scheduling import build_scheduling
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
 from typing import List, Optional, Annotated, Literal, ClassVar
@@ -524,7 +525,10 @@ async def create_appointment(body: AppointmentIn):
 @api.patch("/appointments/{aid}")
 async def update_appointment(aid: str, body: AppointmentPatch):
     upd = body.model_dump(exclude_none=True)
-    doc = await tdb.appointments.find_one_and_update({"_id": oid(aid)}, {"$set": Appointment.sealed_set(upd)}, return_document=True)
+    sets = Appointment.sealed_set(upd)
+    if "date" in upd or "time" in upd:
+        sets["reminder_sent_at"] = None
+    doc = await tdb.appointments.find_one_and_update({"_id": oid(aid)}, {"$set": sets}, return_document=True)
     if not doc:
         raise HTTPException(404, "Appuntamento non trovato")
     return Appointment.from_mongo(doc).out()
@@ -1091,6 +1095,10 @@ flow_doctor, flow_parent, flow_public = build_portal_flow(db, tdb, current_user,
 api.include_router(flow_doctor)
 public_api.include_router(flow_parent)
 public_api.include_router(flow_public)
+sched_doctor, sched_portal, sched_cron, send_reminders = build_scheduling(db, tdb, current_user)
+api.include_router(sched_doctor)
+public_api.include_router(sched_portal)
+public_api.include_router(sched_cron)
 public_api.include_router(admin_doctors)
 public_api.include_router(portal_router)
 leads_public, leads_private = build_leads(db, require_role(current_user, "admin"))

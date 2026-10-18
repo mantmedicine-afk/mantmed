@@ -1,0 +1,8 @@
+crons:
+  - name: visit-reminders
+    description: "Sends parents an email reminder 24 hours before each confirmed visit"
+    cron: "*/15 * * * *"
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    endpoint: "{{BASE_URL}}/api/cron/visit-reminders"
+    method: POST
+    enabled: true
