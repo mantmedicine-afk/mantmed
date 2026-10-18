@@ -1,0 +1,25 @@
+{
+  "summary": "Task 4.2 (landing page + leads) tested end-to-end. Backend: 8/8 pytest passing against public preview URL (public lead validation, honeypot drop, auth-gated listing/patching, full create→GET→patch lifecycle with encrypted-at-rest fields decrypted on read). Frontend: 29/29 landing checks (header/nav scroll, hero CTAs, 5 feature tiles, 6 security specs, disclaimer, no 'conformità totale', unknown-route redirect, 390px no horizontal overflow, consent-less submit blocked with toast). Dashboard: 7/7 checks after full 2FA login (leads-panel renders both TEST_ leads with decrypted email/city/message, leads-new-count updates when status buttons clicked, feedback-beta-button/beta-metrics/logout still intact).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_landing_leads.py",
+    "/app/test_reports/pytest/landing_leads.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "leads.py rate-limit query uses a lexicographic ISO-string compare on created_at - works today but inconsistent with the datetime typing elsewhere; consider storing created_at as a BSON Date or adding a TTL/compound index on (ip, created_at).",
+    "The lead IP uses only the first entry of X-Forwarded-For without any trusted-proxy allow-list; behind a shared ingress a malicious client could spoof the header to bypass the 5/hour cap.",
+    "Public /api/public/leads has no CAPTCHA beyond the hidden honeypot; the honeypot is good but combining with a server-side timing/token check would harden against bots.",
+    "Dashboard LeadsPanel useEffect loads once with no refresh/pagination; for a long-running session the medico could miss new leads. Consider periodic poll or WebSocket.",
+    "LandingContact submit catches errors but keeps form state; after 429 the user has no explicit hint — error message is surfaced via errMsg so OK but no retry affordance."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "medico@mantmed.it / Auscula-Studio-2026 + TOTP from /app/backend/tests/totp_code.py",
+  "seed_data_creation": "Created 1 real lead via public endpoint: TEST_Dr Collaudo / collaudo+mantmed@test.it (1 real email notification sent to STUDIO_EMAIL). A second TEST_ Medico lead was already present from prior session. Both left in DB (one 'nuova', one 'archiviata' after lifecycle test, then re-set to 'nuova' by UI test).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Rate-limit is 5/hour per IP, be careful running the full suite repeatedly from the same egress. TOTP window is 30s — if dashboard login fails, re-run `cd /app/backend && python tests/totp_code.py` and inject the fresh code (6 inputs with inputmode=numeric). Two TEST_ lead cards currently exist in DB; status buttons tested, no deletion endpoint exists (by design).",
+  "rca of the issue": "No issues found."
+}
