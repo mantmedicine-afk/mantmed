@@ -142,7 +142,7 @@ def build_scheduling(db, tdb, current_user):
                 "hours": sch["hours"].get(clinic)}
 
     # ---------- Promemoria 24 ore prima ----------
-    async def send_reminders():
+    async def send_reminders(base: str):
         now = datetime.now(ROME)
         days = [now.date().isoformat(), (now.date() + timedelta(days=1)).isoformat()]
         sent = 0
@@ -162,7 +162,8 @@ def build_scheduling(db, tdb, current_user):
                     f"<p style=\"font-family:Georgia,serif;font-size:22px;margin:14px 0\">{start.strftime('%d/%m/%Y')} alle {a['time']}</p>"
                     f"<p>{hesc(a.get('visit_type') or 'Visita')} · {hesc(owner.get('name', ''))}<br>{hesc(a['clinic'])}{(' · ' + hesc(addr)) if addr else ''}</p>"
                     f"<p><strong>Da portare:</strong> {hesc(BRING.get(a.get('visit_type'), BRING_DEFAULT))}.</p>"
-                    "<p style=\"color:#5B6478;font-size:13px\">Se non può essere presente, avvisi lo studio il prima possibile. Trova l'appuntamento anche nel Portale Paziente.</p>")
+                    f"<p style=\"margin:20px 0\"><a href=\"{hesc(base)}/portale?visita={a['_id']}\" style=\"background:#0A192F;color:#ffffff;padding:12px 20px;border-radius:999px;text-decoration:none\">Gestisci o annulla la visita</a></p>"
+                    "<p style=\"color:#5B6478;font-size:13px\">L'annullamento dal Portale Paziente è possibile fino a 12 ore prima della visita; dopo, avvisi lo studio telefonicamente.</p>")
             try:
                 await send_email(to=email, subject=f"Promemoria · visita di {p['name']} domani alle {a['time']}" if a["date"] != now.date().isoformat()
                                  else f"Promemoria · visita di {p['name']} oggi alle {a['time']}", html=mail_shell("PROMEMORIA VISITA", body))
@@ -189,7 +190,8 @@ def build_scheduling(db, tdb, current_user):
             res = await db.cron_runs.update_one({"_id": run_id}, {"$setOnInsert": {"at": datetime.now(timezone.utc).isoformat()}}, upsert=True)
             if not res.upserted_id:
                 return {"accepted": True, "duplicate": True}
-        asyncio.create_task(send_reminders())
+        host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+        asyncio.create_task(send_reminders(f"https://{host.split(',')[0].strip()}"))
         return {"accepted": True}
 
     return doctor, portal, cron, send_reminders

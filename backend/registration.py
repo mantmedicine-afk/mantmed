@@ -248,7 +248,7 @@ def build_registration(db, current_user, start_session, models, pdf_for):
         pt = Patient.from_mongo(p).out()
         pid, owner = pt["id"], link["owner_id"]
         doc = await db.users.find_one({"_id": ObjectId(owner)})
-        appts = [Appointment.from_mongo(a).out() async for a in db.appointments.find({"patient_id": pid, "owner_id": owner, "status": {"$ne": "completato"},
+        appts = [Appointment.from_mongo(a).out() async for a in db.appointments.find({"patient_id": pid, "owner_id": owner, "status": {"$nin": ["completato", "annullato"]},
                                                                                    "$or": [{"date": None}, {"date": {"$gte": _now().date().isoformat()}}]}).sort([("date", 1), ("time", 1)])]
         from portal_flow import req_out
         requests = [req_out(r) async for r in db.appt_requests.find({"patient_id": pid, "owner_id": owner}).sort("created_at", -1).limit(20)]

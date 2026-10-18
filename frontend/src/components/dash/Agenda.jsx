@@ -9,6 +9,7 @@ const STATUS = {
   in_attesa: { label: "In attesa", dot: "bg-amber-500", text: "text-amber-700" },
   in_corso: { label: "In corso", dot: "bg-[#3B6CF6]", text: "text-[#2747B8]" },
   completato: { label: "Completato", dot: "bg-emerald-500", text: "text-emerald-700" },
+  annullato: { label: "Annullato", dot: "bg-rose-400", text: "text-rose-700" },
 };
 
 const slug = (s) => s.toLowerCase().replace(/\s+/g, "-");

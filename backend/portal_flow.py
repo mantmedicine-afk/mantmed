@@ -1,4 +1,5 @@
 """Portal appointment requests (parent -> doctor) and portal invitations (doctor -> parent)."""
+import os
 import re
 import hashlib
 import secrets
@@ -6,6 +7,7 @@ import logging
 from datetime import datetime, timezone, timedelta, date as Date
 from html import escape as hesc
 from typing import Literal, Optional
+from zoneinfo import ZoneInfo
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
@@ -21,6 +23,8 @@ TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 INVITE_DAYS = 7
 MAX_PENDING = 5
+CANCEL_CUTOFF_H = 12
+ROME = ZoneInfo("Europe/Rome")
 
 
 def _now():
@@ -66,6 +70,10 @@ class ConfirmIn(Slot):
 
 
 class DeclineIn(BaseModel):
+    reason: str = Field(default="", max_length=500)
+
+
+class CancelIn(BaseModel):
     reason: str = Field(default="", max_length=500)
 
 
@@ -130,6 +138,15 @@ def build_portal_flow(db, tdb, current_user, Appointment, tenant_clinics):
                      "<p>Può inviare una nuova richiesta con un'altra data dal Portale Paziente o contattare lo studio.</p>")
         return req_out(await tdb.appt_requests.find_one({"_id": r["_id"]}))
 
+    # ---------- Medico: annullamenti dal portale ----------
+    @doctor.get("/appointments/cancellations")
+    async def cancellations():
+        since = (_now() - timedelta(days=7)).isoformat()
+        docs = await tdb.appointments.find({"status": "annullato", "cancelled_by": "genitore", "cancelled_at": {"$gte": since}}).sort("cancelled_at", -1).to_list(50)
+        return [{"id": str(d["_id"]), "patient_name": d["patient_name"], "date": d.get("date"), "time": d["time"], "clinic": d["clinic"],
+                 "visit_type": d.get("visit_type"), "cancelled_at": d["cancelled_at"],
+                 "reason": unseal_fields(d, ("cancel_reason",)).get("cancel_reason") or ""} for d in docs]
+
     # ---------- Medico: invito al portale ----------
     @doctor.post("/patients/{pid}/invite")
     async def invite(pid: str, request: Request, user: dict = Depends(current_user)):
@@ -169,6 +186,45 @@ def build_portal_flow(db, tdb, current_user, Appointment, tenant_clinics):
         if not inv or datetime.fromisoformat(inv["expires_at"]) < _now():
             raise HTTPException(410, "Invito scaduto o non valido: chieda allo studio un nuovo invito")
         return {"email": inv["email"], "child_fiscal_code": unseal_fields(inv, ("cf",))["cf"], "patient_first": inv["patient_first"], "doctor": inv["doctor"]}
+
+    async def linked_parent(user: dict, patient_id: str, owner_id: str) -> dict:
+        u = await db.users.find_one({"_id": ObjectId(user["id"])})
+        if not any(c["patient_id"] == patient_id and c["owner_id"] == owner_id for c in u.get("children", [])):
+            raise HTTPException(404, "Visita non trovata")
+        return u
+
+    @parent.post("/appointments/{aid}/cancel")
+    async def cancel_appointment(aid: str, body: CancelIn, user: dict = Depends(current_user)):
+        a = await db.appointments.find_one({"_id": ObjectId(aid)}) if ObjectId.is_valid(aid) else None
+        if not a or not a.get("patient_id"):
+            raise HTTPException(404, "Visita non trovata")
+        u = await linked_parent(user, a["patient_id"], a["owner_id"])
+        if a.get("status") in ("completato", "annullato", "in_corso"):
+            raise HTTPException(409, "Questa visita non può più essere annullata")
+        owner = await db.users.find_one({"_id": ObjectId(a["owner_id"])}) or {}
+        phone = (owner.get("profile") or {}).get("phone") or os.environ["STUDIO_PHONE"]
+        day = a.get("date") or datetime.now(ROME).date().isoformat()
+        start = datetime.fromisoformat(f"{day}T{a['time']}").replace(tzinfo=ROME)
+        if start - datetime.now(ROME) < timedelta(hours=CANCEL_CUTOFF_H):
+            raise HTTPException(409, f"Mancano meno di {CANCEL_CUTOFF_H} ore alla visita: per annullare telefoni allo studio al {phone}")
+        now = _now().isoformat()
+        await db.appointments.update_one({"_id": a["_id"]}, {"$set": {"status": "annullato", "cancelled_by": "genitore", "cancelled_at": now,
+                                                                    **seal_fields({"cancel_reason": body.reason.strip()}, ("cancel_reason",))}})
+        await db.appt_requests.update_many({"appointment_id": aid}, {"$set": {"status": "cancelled", "decided_at": now}})
+        await db.audit.insert_one({"action": "visita_annullata_genitore", "subject": seal_fields({"s": a["patient_name"]}, ("s",))["s"], "at": now, "owner_id": a["owner_id"]})
+        await notify({"parent_email": u["email"]}, f"MantMed · visita di {a['patient_name']} annullata",
+                     f"<p>Gentile {hesc(u['name'])},</p><p>confermiamo l'annullamento della visita di <strong>{hesc(a['patient_name'])}</strong> "
+                     f"del {_fmt_day(day)} alle {a['time']} ({hesc(a['clinic'])}). Lo studio è stato avvisato.</p>"
+                     "<p>Può richiedere un nuovo appuntamento in qualsiasi momento dal Portale Paziente.</p>")
+        return {"cancelled": True}
+
+    @parent.post("/appointment-requests/{rid}/cancel")
+    async def cancel_request(rid: str, user: dict = Depends(current_user)):
+        r = await db.appt_requests.find_one({"_id": ObjectId(rid), "parent_id": user["id"], "status": "pending"}) if ObjectId.is_valid(rid) else None
+        if not r:
+            raise HTTPException(404, "Richiesta non trovata o già gestita")
+        await db.appt_requests.update_one({"_id": r["_id"]}, {"$set": {"status": "cancelled", "decided_at": _now().isoformat()}})
+        return {"cancelled": True}
 
     # ---------- Genitore: nuova richiesta ----------
     @parent.post("/appointment-requests")

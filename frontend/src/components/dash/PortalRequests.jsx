@@ -41,7 +41,9 @@ export const PortalRequests = ({ onChange }) => {
   const [reqs, setReqs] = useState([]);
   const [next, setNext] = useState([]);
   const [sched, setSched] = useState(false);
+  const [cancelled, setCancelled] = useState([]);
   const load = useCallback(() => {
+    api.cancellations().then(setCancelled).catch(() => setCancelled([]));
     api.apptRequests().then(setReqs).catch(() => setReqs([]));
     api.upcoming().then(setNext).catch(() => setNext([]));
   }, []);
@@ -60,6 +62,19 @@ export const PortalRequests = ({ onChange }) => {
             {pending.length === 0 && <p className="text-sm text-slate-600" data-testid="appt-requests-empty">Nessuna richiesta in attesa di conferma.</p>}
             {pending.map((r) => <RequestCard key={r.id} r={r} onDone={done} />)}
           </div>
+          {cancelled.length > 0 && (
+            <div className="mt-6" data-testid="cancellations-list">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-700">Annullate dal genitore · ultimi 7 giorni</div>
+              <div className="mt-2 space-y-2">
+                {cancelled.map((c) => (
+                  <div key={c.id} className="rounded-2xl border border-rose-200 bg-rose-50/60 p-3 text-sm" data-testid={`cancellation-${c.id}`}>
+                    <div className="flex flex-wrap justify-between gap-2"><span className="font-medium text-night">{c.patient_name}</span><span className="font-mono text-xs capitalize text-slate-600">{day(c.date)} · {c.time} · {c.clinic}</span></div>
+                    <div className="text-xs text-slate-600">{c.visit_type} · orario tornato libero{c.reason ? ` · Motivo: ${c.reason}` : ""}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         <div>
           <div className="flex items-center justify-between gap-2">

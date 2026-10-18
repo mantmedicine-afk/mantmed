@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { LogOut, CalendarClock, FileSignature, FileDown, Plus, Loader2, Baby, Info, CalendarPlus } from "lucide-react";
 import { RequestDialog } from "@/components/portal/RequestDialog";
+import { CancelVisit } from "@/components/portal/CancelVisit";
+import { useSearchParams } from "react-router-dom";
 import { LogoMark } from "@/components/dash/Logo";
 import { api, errMsg } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -23,15 +25,18 @@ const Reports = ({ items }) => {
   ));
 };
 
-const REQ = { pending: ["In attesa di conferma", "bg-amber-100 text-amber-900"], confirmed: ["Confermata", "bg-emerald-100 text-emerald-900"], declined: ["Non confermata", "bg-slate-200 text-slate-700"] };
+const REQ = { pending: ["In attesa di conferma", "bg-amber-100 text-amber-900"], confirmed: ["Confermata", "bg-emerald-100 text-emerald-900"], declined: ["Non confermata", "bg-slate-200 text-slate-700"], cancelled: ["Annullata da lei", "bg-rose-100 text-rose-800"] };
 const dshort = (d) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString("it-IT", { weekday: "short", day: "numeric", month: "short" }) : "Oggi");
 
-const Appointments = ({ items, requests = [] }) => (
+const Appointments = ({ items, requests = [], focus, onChange }) => (
   <>
     {items.length ? items.map((a) => (
-      <div key={a.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4" data-testid={`portal-appt-${a.id}`}>
-        <div><div className="font-medium text-night">{a.visit_type}</div><div className="text-sm text-slate-600">{a.clinic}</div></div>
-        <div className="text-right"><div className="font-display text-2xl text-night">{a.time}</div><div className="text-xs capitalize text-slate-600">{a.status === "in_attesa" ? "In sala d'attesa" : dshort(a.date)}</div></div>
+      <div key={a.id} className={`rounded-2xl border bg-white p-4 ${focus === a.id ? "border-night ring-2 ring-night/15" : "border-slate-200"}`} data-testid={`portal-appt-${a.id}`}>
+        <div className="flex items-center justify-between gap-3">
+          <div><div className="font-medium text-night">{a.visit_type}</div><div className="text-sm text-slate-600">{a.clinic}</div></div>
+          <div className="text-right"><div className="font-display text-2xl text-night">{a.time}</div><div className="text-xs capitalize text-slate-600">{a.status === "in_attesa" ? "In sala d'attesa" : dshort(a.date)}</div></div>
+        </div>
+        {a.status === "programmato" && <CancelVisit a={a} onDone={onChange} autoOpen={focus === a.id} />}
       </div>
     )) : <Empty text="Nessun appuntamento in programma." />}
     {requests.length > 0 && <div className="pt-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600">Le sue richieste</div>}
@@ -42,6 +47,7 @@ const Appointments = ({ items, requests = [] }) => (
         <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-dashed border-slate-300 bg-white p-4" data-testid={`portal-request-${r.id}`}>
           <div><div className="font-medium text-night">{r.service}</div><div className="text-sm capitalize text-slate-600">{d} · {r.clinic}</div>{r.reason && <div className="text-xs text-slate-600">Nota dello studio: {r.reason}</div>}</div>
           <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${cls}`} data-testid={`portal-request-status-${r.id}`}>{label}</span>
+          {r.status === "pending" && <button onClick={() => api.cancelRequest(r.id).then(() => { toast.success("Richiesta ritirata"); onChange(); }).catch((e) => toast.error(errMsg(e)))} className="w-full text-left text-xs font-medium text-rose-700 hover:underline" data-testid={`portal-request-cancel-${r.id}`}>Ritira richiesta</button>}
         </div>
       );
     })}
@@ -56,8 +62,8 @@ const Consents = ({ items }) => (items.length ? items.map((c) => (
   </div>
 )) : <Empty text="Nessun consenso registrato dallo studio." />);
 
-const Child = ({ c, onRequest }) => {
-  const [tab, setTab] = useState("reports");
+const Child = ({ c, onRequest, focus, onChange }) => {
+  const [tab, setTab] = useState(focus && c.appointments.some((a) => a.id === focus) ? "appointments" : "reports");
   const p = c.patient;
   return (
     <section className="rounded-[28px] border border-slate-200 bg-[#F4F5F7] p-5 sm:p-7" data-testid={`portal-child-${p.id}`}>
@@ -74,7 +80,7 @@ const Child = ({ c, onRequest }) => {
       </div>
       <div className="mt-5 space-y-2">
         {tab === "reports" && <Reports items={c.reports} />}
-        {tab === "appointments" && <Appointments items={c.appointments} requests={c.requests ?? []} />}
+        {tab === "appointments" && <Appointments items={c.appointments} requests={c.requests ?? []} focus={focus} onChange={onChange} />}
         {tab === "consents" && <Consents items={c.consents} />}
       </div>
     </section>
@@ -107,6 +113,8 @@ export default function Portal() {
   const { user, logout } = useAuth();
   const [data, setData] = useState(null);
   const [req, setReq] = useState(null);
+  const [params] = useSearchParams();
+  const focus = params.get("visita");
   const load = useCallback(() => api.portalMe().then(setData).catch((e) => toast.error(errMsg(e))), []);
   useEffect(() => {
     load();
@@ -128,7 +136,7 @@ export default function Portal() {
           <div className="flex gap-3 rounded-[28px] bg-[#0A192F] p-6 text-white" data-testid="portal-no-children"><Baby className="shrink-0 text-[#C9CCD3]" />
             <p className="text-sm leading-relaxed text-slate-200">Non abbiamo ancora trovato una cartella collegata. Il collegamento avviene in automatico quando lo studio registra il codice fiscale del bambino e la sua email ({user?.email}). Se ha già fatto una visita, chieda allo studio di verificare questi due dati.</p></div>
         )}
-        {children.map((c) => <Child key={c.patient.id} c={c} onRequest={setReq} />)}
+        {children.map((c) => <Child key={c.patient.id} c={c} onRequest={setReq} focus={focus} onChange={load} />)}
         <RequestDialog open={!!req} initial={req} kids={children} onClose={() => setReq(null)} onSent={load} />
         {data && <AddChild onLinked={load} />}
         {data?.consent && <p className="flex items-center gap-2 text-xs text-slate-600" data-testid="portal-consent-note"><Info size={13} /> Consenso accettato il {day(data.consent.at)} · {data.consent.version}</p>}
