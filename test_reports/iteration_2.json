@@ -1,0 +1,29 @@
+{
+  "summary": "Read-only PRODUCTION verification of MantMed on https://med-tablet-agenda.emergent.host after Mongo Atlas EU (Frankfurt) migration. Login medico@mantmed.it + TOTP succeeded. Dashboard, Compliance panel (Sicurezza e GDPR), Passaporto sanitario, Beta metrics, and Logout all verified. No create/edit/delete operations performed. 2FA left ON.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verification_results": {
+    "login_2fa": "PASS - login + 6-digit TOTP (144996 generated via /app/backend/tests/totp_code.py) accepted, dashboard reached",
+    "dashboard": "PASS - data-testid=dashboard present. Shows '10 visite oggi', '03 in attesa', Studio Centro (6) + Studio Provincia (4), agenda entries (Sofia Russo, Leonardo Colombo, Aurora Ricci, Francesco Bruno, Ginevra Marino, Tommaso Greco, ...)",
+    "waiting_list": "PASS - 3 patients in Sala d'attesa (Leonardo Colombo urgente, Aurora Ricci, Pietro Fontana)",
+    "passaporto_sanitario": "PASS - 11 patient cards rendered: AC Alice Conti, AR Aurora Ricci, BL Beatrice Lombardi, EG Edoardo Gallo, FB Francesco Bruno, GM Ginevra Marino, LC Leonardo Colombo, MM Mattia Moretti, PF Pietro Fontana, SR Sofia Russo, TG Tommaso Greco",
+    "compliance_panel": "PASS - data-testid=compliance-button opens 'Conformità dei dati sanitari'. Provider: MongoDB Atlas, Regione: eu-central-1. Encryption AES-256-GCM; Patients 11/11, Consultations 11/11, Measurements 41/41, Appointments 10/10, Waiting 3/3. EU residency badge green (no warning banner). Consents 0/11 (expected, read-only, not failing).",
+    "beta_metrics": "PASS - data-testid=beta-metrics renders with tabs 'I miei dati' and 'Tutti i tester' (default view on 'I miei dati' which shows 0 referti for current doctor; 'Tutti i tester' tab exists but was not clicked to avoid any state change beyond read)",
+    "logout": "PASS - data-testid=logout-button returns user to login screen (password input visible again)"
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100%"},
+  "test_credentials": "medico@mantmed.it / Auscula-Studio-2026 + TOTP from /app/backend/tests/totp_code.py",
+  "seed_data_creation": "None - strictly read-only on production",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Production app is now backed by MongoDB Atlas eu-central-1 (Frankfurt) DB 'mantmed' with 11 patients, 11 consultations, 41 measurements, 10 appointments, 3 waiting entries. 2FA is ACTIVE on medico account — always regenerate TOTP right before entering (6 individual digit inputs auto-submit when all 6 filled). Max 5 failed attempts = 15min lockout. Observed benign 401 console errors before login completion (initial /api/auth/me call before authenticated); not an issue.",
+  "rca of the issue": "N/A - no issues found"
+}
