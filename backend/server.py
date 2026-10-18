@@ -945,6 +945,16 @@ async def checkpoint_bands():
     return BANDS
 
 
+class TourIn(BaseModel):
+    completed: bool
+
+
+@api.post("/onboarding/tour")
+async def onboarding_tour(body: TourIn, user: dict = Depends(current_user)):
+    await db.users.update_one({"_id": ObjectId(user["id"])}, {"$set": {"tour_completed_at": now_iso() if body.completed else None}})
+    return {"tour_done": body.completed}
+
+
 @api.get("/patients/{pid}/checkpoint")
 async def checkpoint_template(pid: str):
     doc = await tdb.patients.find_one({"_id": oid(pid)})

@@ -9,6 +9,7 @@ const todayLocal = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Eur
 
 export const CashRegister = ({ refreshKey }) => {
   const [day, setDay] = useState(todayLocal());
+  const [month, setMonth] = useState(todayLocal().slice(0, 7));
   const [data, setData] = useState({ items: [], summary: null });
   const load = useCallback(() => {
     api.payments({ start: day, end: day }).then(setData).catch(() => setData({ items: [], summary: null }));
@@ -20,6 +21,11 @@ export const CashRegister = ({ refreshKey }) => {
   const s = data.summary;
   const exportCsv = async () => {
     try { await api.exportPayments({ start: day, end: day }); toast.success("Registro esportato in CSV"); } catch (e) { toast.error(errMsg(e)); }
+  };
+  const exportMonth = async () => {
+    const [y, m] = month.split("-").map(Number);
+    const last = new Date(y, m, 0).getDate();
+    try { await api.exportPayments({ start: `${month}-01`, end: `${month}-${String(last).padStart(2, "0")}` }); toast.success("Report mensile esportato: pagamenti online e in studio"); } catch (e) { toast.error(errMsg(e)); }
   };
 
   return (
@@ -34,6 +40,13 @@ export const CashRegister = ({ refreshKey }) => {
             <input type="date" value={day} max={todayLocal()} onChange={(e) => setDay(e.target.value || todayLocal())} className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm text-night outline-none focus:border-night" data-testid="cash-day-input" />
             <button onClick={() => { document.body.classList.add("print-cash"); window.print(); document.body.classList.remove("print-cash"); }} className="flex h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-night hover:border-night" data-testid="cash-print-btn"><Printer size={15} /> Stampa</button>
             <button onClick={exportCsv} className="flex h-11 items-center gap-2 rounded-full bg-night px-5 text-sm font-medium text-white transition-transform hover:-translate-y-0.5" data-testid="cash-export-btn"><Download size={15} /> Esporta per il commercialista</button>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between" data-testid="cash-monthly">
+          <div><div className="text-sm font-medium text-night">Report mensile per il commercialista</div><div className="text-xs text-slate-600">CSV di tutto il mese: incassi in studio (contanti, POS, bonifico), pagamenti online e rimborsi, con riepilogo per metodo.</div></div>
+          <div className="flex flex-wrap gap-2">
+            <input type="month" value={month} max={todayLocal().slice(0, 7)} onChange={(e) => setMonth(e.target.value || todayLocal().slice(0, 7))} className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm text-night outline-none focus:border-night" data-testid="cash-month-input" />
+            <button onClick={exportMonth} className="flex h-11 items-center gap-2 rounded-full bg-night px-5 text-sm font-medium text-white transition-transform hover:-translate-y-0.5" data-testid="cash-export-month-btn"><Download size={15} /> Esporta mese</button>
           </div>
         </div>
 

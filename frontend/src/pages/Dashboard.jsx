@@ -18,13 +18,14 @@ import { PortalRequests } from "@/components/dash/PortalRequests";
 import { CompliancePanel } from "@/components/dash/CompliancePanel";
 import { FeedbackDialog } from "@/components/dash/FeedbackDialog";
 import { BetaMetrics } from "@/components/dash/BetaMetrics";
+import { OnboardingTour } from "@/components/dash/OnboardingTour";
 
 const isToday = (iso) => new Date(iso).toDateString() === new Date().toDateString();
 
 const col = (d) => ({ initial: { opacity: 0, y: 24 }, animate: { opacity: 1, y: 0 }, transition: { delay: d, duration: 0.7, ease: [0.22, 1, 0.36, 1] } });
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const shortName = (user?.name || "Dottore").replace(/^(Dott\.ssa|Dott\.)\s*(\S+)\s+/, "$1 ");
   const [appointments, setAppointments] = useState([]);
   const [waiting, setWaiting] = useState([]);
@@ -38,6 +39,15 @@ export default function Dashboard() {
   const [cashKey, setCashKey] = useState(0);
   const [compliance, setCompliance] = useState(false);
   const [feedback, setFeedback] = useState(false);
+  const [tour, setTour] = useState(false);
+  useEffect(() => {
+    if (user && user.tour_done === false) { const t = setTimeout(() => setTour(true), 900); return () => clearTimeout(t); }
+    return undefined;
+  }, [user?.tour_done]); // eslint-disable-line react-hooks/exhaustive-deps
+  const endTour = useCallback(() => {
+    setTour(false);
+    if (user?.tour_done === false) { setUser((u) => (u ? { ...u, tour_done: true } : u)); api.saveTour(true).catch(() => {}); }
+  }, [user?.tour_done, setUser]);
 
   const load = useCallback(() => {
     api.payments().then((r) => setIncome(r.summary?.total ?? 0)).catch(() => {});
@@ -66,7 +76,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen overflow-x-clip bg-paper" data-testid="dashboard">
-      <TopBar onCompliance={() => setCompliance(true)} onFeedback={() => setFeedback(true)} />
+      <TopBar onCompliance={() => setCompliance(true)} onFeedback={() => setFeedback(true)} onTour={() => setTour(true)} />
       <Marquee items={ticker} />
       <Hero total={appointments.length} waiting={waiting.length} name={shortName} income={income} />
       <main className="mx-auto grid max-w-[1440px] grid-cols-1 gap-5 px-5 pb-10 lg:grid-cols-12 lg:px-8">
@@ -83,6 +93,7 @@ export default function Dashboard() {
       <PatientDialog value={editPatient} onClose={() => setEditPatient(null)} onSaved={() => { load(); setPassportKey((k) => k + 1); }} />
       {compliance && <CompliancePanel onClose={() => setCompliance(false)} />}
       <FeedbackDialog open={feedback} onClose={() => setFeedback(false)} onSent={() => setCashKey((k) => k + 1)} />
+      <OnboardingTour open={tour} name={shortName} onDone={endTour} />
       <ConsultationOverlay
         patients={patients}
         onPatientsChange={load}

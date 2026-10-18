@@ -82,6 +82,7 @@ export const api = {
   abandonCheckout: (rid) => http.post(`/portal/checkout/abandon/${encodeURIComponent(rid)}`).then((r) => r.data),
   portalReceipt: async (id) => saveBlob(await http.get(`/portal/receipts/${id}/pdf`, { responseType: "blob" }), "Ricevuta.pdf"),
   doctorReceipt: async (id) => saveBlob(await http.get(`/payments/${id}/receipt`, { responseType: "blob" }), "Ricevuta.pdf"),
+  saveTour: (completed) => http.post("/onboarding/tour", { completed }).then((r) => r.data),
   cancelRequest: (id) => http.post(`/portal/appointment-requests/${id}/cancel`).then((r) => r.data),
   cancellations: () => http.get("/appointments/cancellations").then(list),
   getSchedule: () => http.get("/settings/schedule").then((r) => r.data),
