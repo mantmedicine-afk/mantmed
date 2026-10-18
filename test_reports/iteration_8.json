@@ -1,0 +1,50 @@
+{
+  "summary": "Iteration 8: parent-driven cancellation flow (Portale Paziente). 11/12 backend tests pass; 1 fails exposing a critical regression (GET /api/appointments returns 500 when any today-visit has status='annullato'). GET /api/appointments/upcoming also 500s whenever a future cancelled visit exists. GET /api/appointments/cancellations returns raw encrypted ciphertext for visit_type ('enc:v1:...'). Portal UI flow (parent demo + Aurora Ricci) works end-to-end on 390x844: Appuntamenti tab shows portal-cancel-btn-<aid>; clicking opens portal-cancel-box-<aid> with portal-cancel-reason-<aid> and portal-cancel-confirm-<aid>; after confirm, toast 'Visita annullata: lo studio è stato avvisato' and the visit disappears from the list. Deep-link /portale?visita=<aid> auto-opens the cancel box after login. Pending request shows 'Ritira richiesta' which flips status to 'Annullata da lei'. Doctor dashboard /app renders cancellations-list under portal-requests with cancellation-<aid>.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/appointments", "issue": "Returns 500 when ANY today appointment has status='annullato'. Pydantic Literal in Appointment.status (server.py:121) is ['programmato','in_attesa','in_corso','completato'] — missing 'annullato'. Appointment.from_mongo raises ValidationError on model_validate. This breaks the doctor Agenda whenever a parent cancellation lands on today's agenda.", "priority": "CRITICAL"},
+      {"endpoint": "GET /api/appointments/upcoming", "issue": "Same root cause as above: when a parent cancels an appointment >=12h in the future, upcoming_appointments() returns 500 — doctor dashboard right column 'Prossimi giorni' crashes.", "priority": "CRITICAL"},
+      {"endpoint": "PATCH /api/appointments/{aid}", "issue": "AppointmentPatch.status Literal is also missing 'annullato' (server.py:146). Any status transition path that goes through this endpoint cannot set/keep 'annullato'; also, in principle an admin UI could want to patch a cancelled appointment and would get a 422.", "priority": "HIGH"},
+      {"endpoint": "GET /api/appointments/cancellations", "issue": "Returns visit_type as raw ciphertext (e.g. 'enc:v1:trAt9zi05O+...'). portal_flow.cancellations() only unseals cancel_reason; it must also unseal 'visit_type' (which is in Appointment.__encrypted__). Doctor UI 'Annullate dal genitore' line will render the raw enc string.", "priority": "HIGH"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Doctor dashboard /app agenda rendering", "issue": "Will not load any day where a cancelled visit lives in /api/appointments or /api/appointments/upcoming responses due to the backend 500 described above. Confirmed by direct API call after a successful parent cancellation.", "affected_selectors": ["agenda", "upcoming-list"]},
+      {"flow": "Doctor dashboard cancellations list", "issue": "visit_type field displays raw ciphertext because backend does not decrypt it.", "affected_selectors": ["cancellation-<id>"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_cancel_visit.py",
+    "/app/test_reports/pytest/cancel_visit.xml"
+  ],
+  "action_items": [
+    "Add 'annullato' to the Literal of Appointment.status AND AppointmentPatch.status in /app/backend/server.py (lines 121 and 146).",
+    "In /app/backend/portal_flow.py cancellations(): add 'visit_type' to unseal_fields when projecting cancellation docs (e.g. unseal_fields(d, ('cancel_reason','visit_type')).get(...)).",
+    "Consider also persisting cancelled_by/cancelled_at/cancel_reason as declared fields on the Appointment Pydantic model so from_mongo() doesn't silently drop them (today they're set via $set and the model will just ignore them on reads which is fine, but explicit is better).",
+    "Re-test iteration_8 after fix: pytest tests/test_cancel_visit.py should go 12/12 (the TestAgendaShowsAnnullato case is the regression gate)."
+  ],
+  "critical_code_review_comments": [
+    "Appointment.status Literal mismatch with the parent-cancel code path is a straightforward schema regression — the field is being written as 'annullato' by portal_flow.cancel_appointment but the read model refuses it. Needs both server.py:121 and server.py:146 updated plus a migration-friendly re-read assertion.",
+    "portal_flow.cancellations() doesn't decrypt visit_type despite reading Appointment docs whose __encrypted__ includes 'visit_type'. Should either go through Appointment.from_mongo (and then project) or extend the unseal_fields tuple.",
+    "portal_flow.cancel_appointment reads a.get('date') and falls back to today ISO — but the Appointment model allows date=None (walk-ins). For walk-in rows the cancellation would then compute start-of-day = today's start and go through 12h check against now; edge case but worth asserting a.get('date') explicitly instead of defaulting.",
+    "portal_flow.cancel_request only matches on parent_id+status=pending. Good — but there's no audit record for the parent withdrawing a pending request (contrast with visita_annullata_genitore audit on appointment cancel). Minor consistency gap."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_cancel_visit.py (new)",
+    "/app/test_reports/pytest/cancel_visit.xml (new)"
+  ],
+  "success_rate": {
+    "backend": "11/12 (91%) — 1 failing test IS the regression gate; the failing case uses motor to simulate the end state so the agenda bug is reliably reproducible from the suite.",
+    "frontend": "100% on parent cancel flow (/portale), deep-link, pending-request withdraw, doctor cancellations-list rendering."
+  },
+  "test_credentials": "Parent demo: genitore.demo@example.com / Portale-Demo-2026 (linked to Aurora Ricci 6ad29ce56e1fdeab58a3f1f8). Doctor Foti: medico@mantmed.it / Auscula-Studio-2026 + TOTP via `cd /app/backend && python tests/totp_code.py`.",
+  "seed_data_creation": "Each test creates a short-lived appointment for Aurora via Foti's POST /api/appointments and deletes it in finally. test_cancel_own_pending_request creates a portal appointment-request, cancels it, and (now) leaves a 'cancelled' request row for Aurora — the test session cleanup helper at the bottom of this report's narrative deleted 2 stale cancelled requests + 1 audit row from the run.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "New suite at /app/backend/tests/test_cancel_visit.py. Run: `cd /app/backend && pytest tests/test_cancel_visit.py -v --junitxml=/app/test_reports/pytest/cancel_visit.xml`. The TestAgendaShowsAnnullato case uses motor to flip a today appointment to status='annullato' because the real path (parent cancel) requires >=12h which cannot run on a same-day appointment late in the day; the Pydantic ValidationError on GET /api/appointments is reproduced regardless of how the status got set. If the main agent patches server.py line 121 (and 146 for symmetry) and portal_flow.cancellations() to also unseal visit_type, this suite should flip to 12/12. UI deep-link verified at /portale?visita=<aid> auto-opens the cancel dialog; the parent demo was used.",
+  "rca of the issue": "Pydantic model Appointment declares status: Literal['programmato','in_attesa','in_corso','completato'] but portal_flow.cancel_appointment writes 'annullato' via raw $set bypassing Pydantic validation. On the read side server endpoints run Appointment.from_mongo -> model_validate which rejects 'annullato' and raises ValidationError, bubbling up as a 500. Reproduction: (1) create appointment for Aurora in Foti studio with date=TODAY (POST /api/appointments); (2) directly set status='annullato' in db.appointments or use the parent-cancel endpoint with date >= today+12h for an upcoming visit (then GET /api/appointments/upcoming); (3) GET /api/appointments or /appointments/upcoming returns 500. Fix: extend the Literal (both Appointment and AppointmentPatch) to include 'annullato'. Secondary fix: portal_flow.cancellations() must call unseal_fields with 'visit_type' included so the doctor UI doesn't render ciphertext."
+}

@@ -116,6 +116,13 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Nota: indirizzi @example.com rifiutati dal provider email (undeliverable) → promemoria non marcato; consegna verificata con delivered@resend.dev
 - Testato iteration_7 100%
 
+## Implemented (2026-10-18, Annulla visita)
+- Portale: "Annulla visita" su visite programmate fino a 12 ore prima (motivo facoltativo; dopo: messaggio con telefono dello studio, 409 lato server); "Ritira richiesta" sulle richieste in attesa
+- Stato appuntamento "annullato" (cancelled_by genitore, cancel_reason cifrato), slot liberato, email di conferma al genitore, audit; dashboard medico: "Annullate dal genitore · ultimi 7 giorni" (GET /api/appointments/cancellations), agenda con stato Annullato, "Prossimi giorni" esclude annullate
+- Promemoria 24h con link "Gestisci o annulla la visita" → /portale?visita=<id> (apre la visita con il box di annullamento)
+- Fix: decifratura visit_type nel promemoria e negli annullamenti; Literal status include "annullato"
+- Testato iteration_8 + regressione tests/test_cancel_visit.py 12/12
+
 ## Backlog
 - P1: percentili automatici con curve OMS, storico crescita del paziente, dati demo pediatrici in agenda/sala d'attesa, rinomina brand in "MantMed"
 - P1 (prec.): storico paziente, export PDF dedicato, recupero password

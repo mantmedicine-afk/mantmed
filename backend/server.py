@@ -118,7 +118,7 @@ class Appointment(BaseDocument):
     patient_id: Optional[str] = None
     visit_type: str
     duration: int = 30
-    status: Literal["programmato", "in_attesa", "in_corso", "completato"] = "programmato"
+    status: Literal["programmato", "in_attesa", "in_corso", "completato", "annullato"] = "programmato"
     notes: str = ""
     __encrypted__: ClassVar[tuple] = ("visit_type", "notes")
 
@@ -131,7 +131,7 @@ class AppointmentIn(BaseModel):
     patient_id: Optional[str] = None
     visit_type: str
     duration: int = 30
-    status: Literal["programmato", "in_attesa", "in_corso", "completato"] = "programmato"
+    status: Literal["programmato", "in_attesa", "in_corso", "completato", "annullato"] = "programmato"
     notes: str = ""
 
 
@@ -143,7 +143,7 @@ class AppointmentPatch(BaseModel):
     patient_id: Optional[str] = None
     visit_type: Optional[str] = None
     duration: Optional[int] = None
-    status: Optional[Literal["programmato", "in_attesa", "in_corso", "completato"]] = None
+    status: Optional[Literal["programmato", "in_attesa", "in_corso", "completato", "annullato"]] = None
     notes: Optional[str] = None
 
 
@@ -510,7 +510,7 @@ async def list_appointments():
 
 @api.get("/appointments/upcoming")
 async def upcoming_appointments():
-    docs = await tdb.appointments.find({"date": {"$gt": today_rome()}}).sort([("date", 1), ("time", 1)]).to_list(200)
+    docs = await tdb.appointments.find({"date": {"$gt": today_rome()}, "status": {"$ne": "annullato"}}).sort([("date", 1), ("time", 1)]).to_list(200)
     return [Appointment.from_mongo(d).out() for d in docs]
 
 

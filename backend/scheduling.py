@@ -148,6 +148,7 @@ def build_scheduling(db, tdb, current_user):
         sent = 0
         async for a in db.appointments.find({"date": {"$in": days}, "reminder_sent_at": None, "patient_id": {"$ne": None},
                                              "status": {"$nin": ["completato", "annullato"]}}):
+            a = unseal_fields(a, ("visit_type", "notes"))
             start = datetime.fromisoformat(f"{a['date']}T{a['time']}").replace(tzinfo=ROME)
             if not (now < start <= now + timedelta(hours=24)):
                 continue

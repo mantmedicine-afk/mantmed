@@ -144,7 +144,7 @@ def build_portal_flow(db, tdb, current_user, Appointment, tenant_clinics):
         since = (_now() - timedelta(days=7)).isoformat()
         docs = await tdb.appointments.find({"status": "annullato", "cancelled_by": "genitore", "cancelled_at": {"$gte": since}}).sort("cancelled_at", -1).to_list(50)
         return [{"id": str(d["_id"]), "patient_name": d["patient_name"], "date": d.get("date"), "time": d["time"], "clinic": d["clinic"],
-                 "visit_type": d.get("visit_type"), "cancelled_at": d["cancelled_at"],
+                 "visit_type": unseal_fields(d, Appointment.__encrypted__).get("visit_type"), "cancelled_at": d["cancelled_at"],
                  "reason": unseal_fields(d, ("cancel_reason",)).get("cancel_reason") or ""} for d in docs]
 
     # ---------- Medico: invito al portale ----------
