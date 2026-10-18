@@ -1,0 +1,38 @@
+{
+  "summary": "Iteration 9: full backend + frontend verification of Online Payment (Stripe) feature end-to-end. 15/15 backend tests pass. Portal mobile 390px Richiesta dialog shows correct Pagamento section (portal-pay-online '92,00 € (incl. bollo 2,00 €)' + portal-pay-studio). Doctor Schedule dialog exposes schedule-price-* and schedule-billing-{holder,tax_code,vat_number,address,note} + schedule-save-btn and persists on GET/PUT /api/settings/schedule. Doctor Cash Register shows a paid online entry (92,00 €) with cash-receipt-{id} that downloads 'Ricevuta_1-2026_Aurora_Ricci.pdf', and the refund row (-92,00 €) 'Rimborso · Prima visita'. Cancellations list displays 'Pagamento online di 92,00 € rimborsato in automatico'. Stripe webhook invalid signature → 400. DELETE /api/payments/{id} on online entry → 409. POST /api/payments with method=online rejected 422 (CashPanel Literal restriction). Online quote correctly disables online when price=0.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Portal RequestDialog (parent) and ScheduleDialog date field", "issues": ["<input type='date'> uses browser default picker instead of shadcn Calendar component (per project guideline)."]},
+      {"screen": "Doctor ScheduleDialog billing", "issues": ["Default seed address value is the literal string '[Indirizzo fiscale]' which, since it is not empty, bypasses the receipt's '[da completare nelle impostazioni]' placeholder and will print the raw bracketed text on the PDF receipt. Suggest storing empty string so the receipt fallback triggers, or seeding a real address."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_online_payment.py",
+    "/app/test_reports/pytest/online_payment.xml"
+  ],
+  "action_items": [
+    "(minor) Consider replacing <input type='date'> in portal RequestDialog and ScheduleDialog with a shadcn Calendar for consistency.",
+    "(minor) Seed billing.address with an empty string (not '[Indirizzo fiscale]') so build_receipt falls back to the '[da completare nelle impostazioni]' placeholder, or supply a real fiscal address."
+  ],
+  "critical_code_review_comments": [
+    "billing.py checkout(): 'request_doc' is only reached after check_request validates the slot — good atomicity. Hold is marked by writing status=awaiting_payment and hold_until; free_slots filters it. The MAX_HOLDS=3 guard uses hold_until>=now which allows DoS if a parent spams checkout (holds eat 3 slots for 35 min). Acceptable, flagged.",
+    "billing.py fulfil() reads the payment_transactions atomically with find_one_and_update filter {payment_status:{$ne:'paid'}}; idempotent across webhook+status call. Good.",
+    "billing.py receipt_filter requires method=='online' AND refund_no!=null AND refund_of==null — this blocks any attempt to retrieve the negative refund row's PDF, correct.",
+    "scheduling.online_quote marks online=True only if a tax_code OR vat_number is set; with the seed billing both are present, so the online option appears for every service with price>0.",
+    "portal_flow.cancel_appointment calls refund_online BEFORE flipping status to annullato — so if the Stripe Refund.create raises, status is NOT changed and the visit stays bookable. Correct ordering, but note the refund_online writes a 'refunded_at' on the payment doc _before_ raising nothing (there is no partial state since Stripe failure raises before the update). OK.",
+    "Payment model has stamp:float default 0 (not Optional) and server.PaymentIn's Literal rejects 'online' at API level — so cashier can never create a fake 'online' row. Good defense in depth with the delete 409 guard."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_online_payment.py (new, 15 tests)"
+  ],
+  "success_rate": {"backend": "15/15 (100%)", "frontend": "All targeted selectors (portal-pay-*, schedule-price-*, schedule-billing-*, cash-method-total-online, cash-receipt-*, cancellation-refund-*) present and functional"},
+  "test_credentials": "Doctor: medico@mantmed.it / Auscula-Studio-2026 + TOTP via `cd /app/backend && python tests/totp_code.py` (mfa-digit-0..5 inputs). Parent: genitore.demo@example.com / Portale-Demo-2026 (Aurora Ricci linked).",
+  "seed_data_creation": "Each checkout test deletes its own appt_requests + payment_transactions row to avoid leaking Stripe sessions. Studio-flow test cancels its own pending request. No excessive Stripe sessions left behind (one short-lived test session per run, immediately abandoned/expired).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Suite: /app/backend/tests/test_online_payment.py. Run: `cd /app/backend && pytest tests/test_online_payment.py -v --junitxml=/app/test_reports/pytest/online_payment.xml`. 2FA for the doctor uses discrete inputs with data-testid 'mfa-digit-0'..'mfa-digit-5' (NOT 'input[maxlength=1]' — that selector returns 0 because maxLength is 6 on each box). Use `page.focus('[data-testid=mfa-digit-0]'); page.keyboard.type(code)` which auto-advances. Doctor seed billing: Prima 90, Bilancio 70, Controllo 60, Urgente 80; holder 'Dott.ssa Tiziana Foti', tax_code 'FTOGLI80A41H501X', vat_number '01234567890', address '[Indirizzo fiscale]' (placeholder leaks into PDFs — see design_issues). The 'Visita di controllo' test temporarily sets its price to 0 then restores it.",
+  "rca of the issue": "N/A — no regressions found this iteration. Only two minor design nits reported (browser-native date picker; literal placeholder address in seed)."
+}

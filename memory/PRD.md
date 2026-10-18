@@ -123,7 +123,18 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Fix: decifratura visit_type nel promemoria e negli annullamenti; Literal status include "annullato"
 - Testato iteration_8 + regressione tests/test_cancel_visit.py 12/12
 
+## Implemented (2026-10-18, Pagamento Online)
+- Stripe Checkout (sandbox reclamabile, test mode; modalità imposte: "Stripe calcola soltanto", codice medico esente → 0 €; EUR forzato) · billing.py, receipt.py
+- Portale: scelta "Paga Online ora" (carta/Apple Pay/Google Pay, prezzo + bollo 2 € sopra 77,47 €) o "Paga in Studio" (flusso richiesta esistente). Online: slot bloccato 35 min, al pagamento appuntamento creato subito "Confermato & Pagato" senza approvazione; annullo checkout libera lo slot
+- Fulfil idempotente (webhook /api/stripe/webhook + polling /api/portal/checkout/{sid}): appuntamento paid_online, incasso automatico nel Registro Cassa metodo "Pagamento Digitale / Online", ricevuta numerata per medico/anno (n/AAAA), email al genitore
+- Ricevuta sanitaria PDF (dati fiscali medico, CF paziente, esenzione IVA art.10 n.18, bollo) da Portale (tab Ricevute) e dal Registro Cassa
+- Annullamento genitore ≥12h di visita pagata → rimborso Stripe completo automatico, riga negativa "Rimborso" in cassa, ricevuta segnata come stornata; incassi online non eliminabili a mano (409)
+- Medico: "Orari e tariffe" con listino per prestazione e dati fiscali (intestatario, CF, P.IVA, domicilio, nota). Online attivo solo con tariffa > 0 e CF o P.IVA
+- Testato iteration_9 (15/15 backend, frontend OK) · tests/test_online_payment.py
+
+
 ## Backlog
 - P1: percentili automatici con curve OMS, storico crescita del paziente, dati demo pediatrici in agenda/sala d'attesa, rinomina brand in "MantMed"
 - P1 (prec.): storico paziente, export PDF dedicato, recupero password
 - P2: agenda multi-giorno, trascrizione in streaming durante la registrazione
+- P2 (pagamenti): rimborso/storno manuale dal medico, export ricevute per Sistema Tessera Sanitaria, selettore data shadcn nel portale
