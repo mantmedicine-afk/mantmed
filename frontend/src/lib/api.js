@@ -61,7 +61,15 @@ export const api = {
   sendLead: (b) => http.post("/public/leads", b).then((r) => r.data),
   leads: () => http.get("/admin/leads").then(list),
   updateLead: (id, b) => http.patch(`/admin/leads/${id}`, b).then((r) => r.data),
+  adminDoctors: () => http.get("/admin/doctors").then(list),
+  setDoctorStatus: (id, status) => http.post(`/admin/doctors/${id}/status`, { status }).then((r) => r.data),
+  registerStart: (b) => http.post("/register/start", b).then((r) => r.data),
+  registerVerify: (b) => http.post("/register/verify", b).then((r) => r.data),
+  portalMe: () => http.get("/portal/me").then((r) => r.data),
+  portalAddChild: (fiscal_code) => http.post("/portal/children", { fiscal_code }).then((r) => r.data),
+  publishToPortal: (id, published) => http.post(`/consultations/${id}/portal`, { published }).then((r) => r.data),
   downloadReport: async (id) => saveBlob(await http.get(`/consultations/${id}/pdf`, { responseType: "blob" }), "Referto.pdf"),
+  portalReport: async (id) => saveBlob(await http.get(`/portal/reports/${id}/pdf`, { responseType: "blob" }), "Referto.pdf"),
 };
 
 const saveBlob = (r, fallback) => {
@@ -77,6 +85,13 @@ const saveBlob = (r, fallback) => {
 export const eur = (v) => (Number(v) || 0).toLocaleString("it-IT", { style: "currency", currency: "EUR" });
 
 export const CLINICS = ["Studio Centro", "Studio Provincia"];
+export const CLINIC_ADDR = {};
+export const setClinics = (list) => {
+  const items = Array.isArray(list) && list.length ? list : [{ name: "Studio principale", address: "" }];
+  CLINICS.splice(0, CLINICS.length, ...items.map((c) => c.name));
+  Object.keys(CLINIC_ADDR).forEach((k) => delete CLINIC_ADDR[k]);
+  items.forEach((c) => { CLINIC_ADDR[c.name] = c.address ?? ""; });
+};
 
 export const minutesSince = (iso) => Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
 

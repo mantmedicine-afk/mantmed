@@ -7,14 +7,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { api, CLINICS, errMsg } from "@/lib/api";
 import { PatientSelect } from "./PatientSelect";
 
-const EMPTY = { clinic: CLINICS[0], time: "09:00", patient_name: "", patient_id: null, visit_type: "Visita pediatrica", duration: 30, status: "programmato" };
+const empty = () => ({ clinic: CLINICS[0], time: "09:00", patient_name: "", patient_id: null, visit_type: "Visita pediatrica", duration: 30, status: "programmato" });
 const STATUSES = [["programmato", "Programmato"], ["in_attesa", "In attesa"], ["in_corso", "In corso"], ["completato", "Completato"]];
 
 export const AppointmentDialog = ({ value, onClose, onSaved, patients = [] }) => {
-  const [f, setF] = useState(EMPTY);
+  const [f, setF] = useState(empty);
   const isEdit = Boolean(value?.id);
   useEffect(() => {
-    if (value) setF({ ...EMPTY, ...value });
+    if (value) setF({ ...empty(), ...value });
   }, [value]);
   const set = (k) => (v) => setF((p) => ({ ...p, [k]: v?.target ? v.target.value : v }));
 

@@ -131,14 +131,14 @@ def grid(header, rows, widths, right=()):
     return t
 
 
-def build_report(c: dict, doctor: str, patient: dict | None = None) -> bytes:
+def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dict | None = None) -> bytes:
     note = c.get("note") or {}
     g = note.get("crescita") or {}
     created = datetime.fromisoformat(c["created_at"])
     date_s = created.strftime("%d/%m/%Y")
     ref_no = f"MM-{created.strftime('%Y%m%d')}-{c['id'][-5:].upper()}"
     clinic = c.get("clinic") or "Studio"
-    info = studio_info(clinic)
+    info = profile or studio_info(clinic)
     parts = (c["patient_name"] or "").split()
     first, last = (parts[0], " ".join(parts[1:])) if len(parts) > 1 else (c["patient_name"], "")
     blank = "_______________"
@@ -163,7 +163,7 @@ def build_report(c: dict, doctor: str, patient: dict | None = None) -> bytes:
         cv.drawString(MX + 23 * mm, H - 20 * mm, BRAND)
         cv.setFont("Sans", 7)
         cv.setFillColor(PLATINUM)
-        cv.drawString(MX + 23 * mm, H - 25.5 * mm, "STUDIO MEDICO SPECIALISTICO · PEDIATRIA")
+        cv.drawString(MX + 23 * mm, H - 25.5 * mm, "STUDIO MEDICO SPECIALISTICO · " + ((profile or {}).get("specialty") or "PEDIATRIA").upper()[:60])
         col_w = 86 * mm
         y = H - 9 * mm
         blocks = [(doctor, "hdName", 1.5), (info["specialty"], "hdSpec", 1.2), (info["titles"], "hdText", 1.6),

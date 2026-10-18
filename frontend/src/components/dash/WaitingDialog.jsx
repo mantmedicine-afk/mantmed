@@ -7,13 +7,13 @@ import { api, CLINICS, errMsg } from "@/lib/api";
 import { Field } from "./AppointmentDialog";
 import { PatientSelect } from "./PatientSelect";
 
-const EMPTY = { name: "", patient_id: null, clinic: CLINICS[0], reason: "", priority: "normale" };
+const empty = () => ({ name: "", patient_id: null, clinic: CLINICS[0], reason: "", priority: "normale" });
 
 export const WaitingDialog = ({ value, onClose, onSaved, patients = [] }) => {
-  const [f, setF] = useState(EMPTY);
+  const [f, setF] = useState(empty);
   const isEdit = Boolean(value?.id);
   useEffect(() => {
-    if (value) setF({ ...EMPTY, ...value });
+    if (value) setF({ ...empty(), ...value });
   }, [value]);
   const set = (k) => (v) => setF((p) => ({ ...p, [k]: v?.target ? v.target.value : v }));
 

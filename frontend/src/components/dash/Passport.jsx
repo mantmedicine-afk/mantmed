@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { X, RefreshCw, Cloud, FileDown, Sparkles, AlertCircle, Pencil, ShieldCheck, ShieldAlert } from "lucide-react";
+import { X, RefreshCw, Cloud, FileDown, Sparkles, AlertCircle, Pencil, ShieldCheck, ShieldAlert, Globe } from "lucide-react";
 import { ConsentDialog } from "./ConsentDialog";
 import { http } from "@/lib/api";
 import { api, CLINICS, errMsg, eur } from "@/lib/api";
@@ -96,6 +96,20 @@ const SyncPanel = ({ data, syncing, onSync }) => (
   </div>
 );
 
+const PortalToggle = ({ c }) => {
+  const [on, setOn] = useState(Boolean(c.portal_published || c.report_sent_at));
+  const sent = Boolean(c.report_sent_at);
+  const toggle = async () => {
+    try { await api.publishToPortal(c.id, !on); setOn(!on); toast.success(!on ? "Referto visibile nel Portale Paziente" : "Referto ritirato dal portale"); }
+    catch (e) { toast.error(errMsg(e)); }
+  };
+  return (
+    <button onClick={toggle} disabled={sent} title={sent ? "Già inviato al genitore: visibile nel portale" : ""} className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors disabled:cursor-default ${on ? "bg-night text-white" : "border border-slate-200 text-night hover:border-night"}`} data-testid={`passport-visit-portal-${c.id}`}>
+      <Globe size={15} /> {on ? "Nel portale" : "Pubblica nel portale"}
+    </button>
+  );
+};
+
 const Visits = ({ items, payments = [] }) => {
   const pdf = async (id) => {
     try { await api.downloadReport(id); toast.success("Referto PDF scaricato"); } catch (e) { toast.error(errMsg(e)); }
@@ -115,7 +129,10 @@ const Visits = ({ items, payments = [] }) => {
                 <span key={x.id} className="mt-2 mr-2 inline-flex items-center gap-1.5 rounded-full bg-[#ECEDEF] px-3 py-1 text-xs font-medium text-night" data-testid={`passport-payment-${x.id}`}>{eur(x.amount)} · {methodLabel(x.method)}</span>
               ))}
             </div>
-            <button onClick={() => pdf(c.id)} className="flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-night hover:border-night" data-testid={`passport-visit-pdf-${c.id}`}><FileDown size={15} /> Referto PDF</button>
+            <div className="flex flex-wrap gap-2">
+              <PortalToggle c={c} />
+              <button onClick={() => pdf(c.id)} className="flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-night hover:border-night" data-testid={`passport-visit-pdf-${c.id}`}><FileDown size={15} /> Referto PDF</button>
+            </div>
           </div>
         </li>
       ))}

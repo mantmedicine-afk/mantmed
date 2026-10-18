@@ -7,6 +7,9 @@ import Dashboard from "@/pages/Dashboard";
 import Login from "@/pages/Login";
 import Landing from "@/pages/Landing";
 import Admin from "@/pages/Admin";
+import Register from "@/pages/Register";
+import Portal from "@/pages/Portal";
+import { setClinics } from "@/lib/api";
 import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { IdleWarning } from "@/components/dash/Security";
@@ -33,13 +36,23 @@ const Gate = () => {
   const { user } = useAuth();
   if (user === null) return <Loading />;
   if (!user) return <Login />;
-  return user.role === "admin" ? <WrongArea to="/admin" label="Vai al Pannello Founder" /> : <><Dashboard /><IdleWarning /></>;
+  if (user.role === "admin") return <WrongArea to="/admin" label="Vai al Pannello Founder" />;
+  if (user.role === "parent") return <WrongArea to="/portale" label="Vai al Portale Paziente" />;
+  setClinics(user.clinics);
+  return <><Dashboard /><IdleWarning /></>;
+};
+
+const PortalGate = () => {
+  const { user } = useAuth();
+  if (user === null) return <Loading />;
+  if (!user) return <Login subtitle="Portale Paziente · genitori e tutori" note="Referti, consensi e appuntamenti di suo figlio" />;
+  return user.role === "parent" ? <><Portal /><IdleWarning /></> : <WrongArea to={user.role === "admin" ? "/admin" : "/app"} label="Vai alla sua area" />;
 };
 
 const AdminGate = () => {
   const { user } = useAuth();
   if (user === null) return <Loading />;
-  if (!user) return <Login subtitle="Pannello Founder · accesso amministratore" />;
+  if (!user) return <Login subtitle="Pannello Founder · accesso amministratore" note="Accesso riservato all'amministratore MantMed" signup={false} />;
   return user.role === "admin" ? <><Admin /><IdleWarning /></> : <WrongArea to="/app" label="Vai alla dashboard" />;
 };
 
@@ -58,6 +71,9 @@ function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/app" element={<AuthProvider><Gate /></AuthProvider>} />
         <Route path="/admin" element={<AuthProvider><AdminGate /></AuthProvider>} />
+        <Route path="/portale" element={<AuthProvider><PortalGate /></AuthProvider>} />
+        <Route path="/registrati/medico" element={<Register key="doctor" role="doctor" />} />
+        <Route path="/registrati/paziente" element={<Register key="parent" role="parent" />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Toaster position="top-center" richColors />

@@ -15,6 +15,8 @@ import time
 import logging
 from beta import build_beta
 from leads import build_leads
+from tenancy import TenantDB, set_tenant, tenant_clinics, cf_hash
+from registration import build_registration
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
 from typing import List, Optional, Annotated, Literal, ClassVar
@@ -36,12 +38,20 @@ from urllib.parse import quote
 
 client = AsyncIOMotorClient(os.environ['MONGO_URL'])
 db = client[os.environ['DB_NAME']]
+tdb = TenantDB(db)
 LLM_KEY = os.environ['EMERGENT_LLM_KEY']
 
 app = FastAPI()
-auth_router, current_user = build_auth(db)
+auth_router, current_user, start_session = build_auth(db)
 public_api = APIRouter(prefix="/api")
-api = APIRouter(prefix="/api", dependencies=[Depends(require_role(current_user, "doctor"))])
+
+
+async def doctor_ctx(user: dict = Depends(require_role(current_user, "doctor"))) -> dict:
+    set_tenant(user["id"], [c["name"] for c in user["clinics"]] or ["Studio principale"])
+    return user
+
+
+api = APIRouter(prefix="/api", dependencies=[Depends(doctor_ctx)])
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
@@ -78,6 +88,21 @@ def oid(value: str) -> ObjectId:
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
+
+
+async def doctor_profile(uid: str) -> Optional[dict]:
+    """Report/email letterhead for self-registered doctors; None = founder studio configured via env."""
+    u = await db.users.find_one({"_id": ObjectId(uid)})
+    p = (u or {}).get("profile")
+    if not p:
+        return None
+    address = p.get("studio_address", "")
+    return {"specialty": p.get("specialty", ""), "titles": "", "order": f"Iscr. N. {p.get('order_number', '')}", "phone": p.get("phone", ""),
+            "email": u["email"], "address": address, "city": address.split(",")[-1].strip() if address else ""}
+
+
+def header_line(profile: Optional[dict]) -> str:
+    return "STUDIO MEDICO SPECIALISTICO · " + ((profile or {}).get("specialty") or "PEDIATRIA").upper()
 
 
 CLINICS = ["Studio Centro", "Studio Provincia"]
@@ -213,6 +238,7 @@ class Consultation(BaseDocument):
     ai_sec: float = 0
     finalized_at: Optional[str] = None
     pdf_exports: int = 0
+    portal_published: bool = False
     created_at: str = Field(default_factory=now_iso)
     __encrypted__: ClassVar[tuple] = ("transcript", "note", "report_sent_to")
 
@@ -326,7 +352,7 @@ def patient_out(doc) -> dict:
 async def get_patient(pid: Optional[str]):
     if not pid or not ObjectId.is_valid(pid):
         return None
-    doc = await db.patients.find_one({"_id": ObjectId(pid)})
+    doc = await tdb.patients.find_one({"_id": ObjectId(pid)})
     return unseal_fields(doc, Patient.__encrypted__) if doc else None
 
 
@@ -349,7 +375,7 @@ async def sync_measurement(c: dict):
         return
     m = Measurement(patient_id=c["patient_id"], date=c["created_at"][:10], clinic=c.get("clinic", ""), weight=g.get("peso_kg"),
                     height=g.get("altezza_cm"), hc=g.get("circonferenza_cranica_cm"), source="visita", consultation_id=c["id"])
-    await db.measurements.update_one({"consultation_id": c["id"]}, {"$set": m.to_mongo()}, upsert=True)
+    await tdb.measurements.update_one({"consultation_id": c["id"]}, {"$set": m.to_mongo()}, upsert=True)
 
 
 # ---------- Seed (pediatric v2) ----------
@@ -396,15 +422,15 @@ async def seed_pediatric():
     meta = await db.meta.find_one({"_id": "seed"})
     if meta and meta.get("v", 0) >= 2:
         return
-    await db.appointments.delete_many({})
-    await db.waiting.delete_many({})
-    await db.patients.delete_many({})
-    await db.measurements.delete_many({})
+    await tdb.appointments.delete_many({})
+    await tdb.waiting.delete_many({})
+    await tdb.patients.delete_many({})
+    await tdb.measurements.delete_many({})
     today = date.today()
     ids = {}
     for i, (name, sex, months, zw, zh, guardian, allergies, notes) in enumerate(SEED_PATIENTS):
         birth = today - timedelta(days=round(months * 30.4375))
-        res = await db.patients.insert_one(Patient(name=name, birth_date=birth.isoformat(), sex=sex, guardian=guardian,
+        res = await tdb.patients.insert_one(Patient(name=name, birth_date=birth.isoformat(), sex=sex, guardian=guardian,
                                                    allergies=allergies, notes=notes).to_mongo())
         pid = str(res.inserted_id)
         ids[name] = pid
@@ -413,7 +439,7 @@ async def seed_pediatric():
             jitter = ((i + j) % 3 - 1) * 0.08
             clinic = CLINICS[(i + j) % 2]
             day = birth + timedelta(days=round(m * 30.4375))
-            await db.measurements.insert_one(Measurement(
+            await tdb.measurements.insert_one(Measurement(
                 patient_id=pid, date=day.isoformat(), clinic=clinic, source="storico",
                 weight=_val("wfa", sex, m, zw + jitter), height=_val("lhfa", sex, m, zh + jitter),
                 hc=_val("hcfa", sex, m, 0.2 + jitter)).to_mongo())
@@ -424,14 +450,14 @@ async def seed_pediatric():
                                 diagnosi="Crescita regolare, sviluppo adeguato all'età.", follow_up="Prossimo bilancio di salute come da calendario.")
             note.crescita = Growth(peso_kg=_val("wfa", sex, m, zw), altezza_cm=_val("lhfa", sex, m, zh), circonferenza_cranica_cm=_val("hcfa", sex, m, 0.2))
             enrich_growth(note, {"sex": sex, "birth_date": birth.isoformat()}, day)
-            await db.consultations.insert_one(Consultation(
+            await tdb.consultations.insert_one(Consultation(
                 patient_name=name, patient_id=pid, clinic=CLINICS[(i + len(past) - 1) % 2], transcript="Visita registrata nello storico.",
                 note=note, created_at=datetime.combine(day, datetime.min.time(), timezone.utc).replace(hour=10).isoformat()).to_mongo())
-    await db.appointments.insert_many([
+    await tdb.appointments.insert_many([
         Appointment(clinic=c, time=t, patient_name=p, patient_id=ids[p], visit_type=v, status=s).to_mongo()
         for c, t, p, v, s in SEED_APPTS])
     base = datetime.now(timezone.utc).timestamp()
-    await db.waiting.insert_many([
+    await tdb.waiting.insert_many([
         WaitingPatient(name=n, patient_id=ids[n], clinic=c, reason=r, priority=p,
                        arrived_at=datetime.fromtimestamp(base - mins * 60, timezone.utc).isoformat()).to_mongo()
         for n, c, r, p, mins in SEED_WAITING])
@@ -440,10 +466,18 @@ async def seed_pediatric():
 
 @app.on_event("startup")
 async def seed():
-    await seed_doctor(db)
+    foti = await seed_doctor(db)
     await seed_admin(db)
+    set_tenant(foti, CLINICS)
+    for name in (*ENCRYPTED_COLLECTIONS, "audit"):
+        await db[name].update_many({"owner_id": {"$exists": False}}, {"$set": {"owner_id": foti}})
+        await db[name].create_index("owner_id")
     await seed_pediatric()
     await encrypt_existing()
+    async for p in db.patients.find({"cf_hash": {"$exists": False}}):
+        cf = unseal_fields(p, ("fiscal_code",)).get("fiscal_code") or ""
+        await db.patients.update_one({"_id": p["_id"]}, {"$set": {"cf_hash": cf_hash(cf) if cf.strip() else None}})
+    await db.patients.create_index("cf_hash")
 
 
 # ---------- Routes ----------
@@ -459,19 +493,19 @@ async def me(user: dict = Depends(current_user)):
 
 @api.get("/clinics")
 async def clinics():
-    return CLINICS
+    return tenant_clinics()
 
 
 @api.get("/appointments")
 async def list_appointments():
-    docs = await db.appointments.find().sort("time", 1).to_list(500)
+    docs = await tdb.appointments.find().sort("time", 1).to_list(500)
     return [Appointment.from_mongo(d).out() for d in docs]
 
 
 @api.post("/appointments")
 async def create_appointment(body: AppointmentIn):
     appt = Appointment(**body.model_dump())
-    res = await db.appointments.insert_one(appt.to_mongo())
+    res = await tdb.appointments.insert_one(appt.to_mongo())
     appt.id = str(res.inserted_id)
     return appt.out()
 
@@ -479,7 +513,7 @@ async def create_appointment(body: AppointmentIn):
 @api.patch("/appointments/{aid}")
 async def update_appointment(aid: str, body: AppointmentPatch):
     upd = body.model_dump(exclude_none=True)
-    doc = await db.appointments.find_one_and_update({"_id": oid(aid)}, {"$set": Appointment.sealed_set(upd)}, return_document=True)
+    doc = await tdb.appointments.find_one_and_update({"_id": oid(aid)}, {"$set": Appointment.sealed_set(upd)}, return_document=True)
     if not doc:
         raise HTTPException(404, "Appuntamento non trovato")
     return Appointment.from_mongo(doc).out()
@@ -487,7 +521,7 @@ async def update_appointment(aid: str, body: AppointmentPatch):
 
 @api.delete("/appointments/{aid}")
 async def delete_appointment(aid: str):
-    res = await db.appointments.delete_one({"_id": oid(aid)})
+    res = await tdb.appointments.delete_one({"_id": oid(aid)})
     if not res.deleted_count:
         raise HTTPException(404, "Appuntamento non trovato")
     return {"deleted": aid}
@@ -495,7 +529,7 @@ async def delete_appointment(aid: str):
 
 @api.get("/waiting")
 async def list_waiting():
-    docs = await db.waiting.find().sort("arrived_at", 1).to_list(500)
+    docs = await tdb.waiting.find().sort("arrived_at", 1).to_list(500)
     items = [WaitingPatient.from_mongo(d).out() for d in docs]
     return sorted(items, key=lambda w: (w["priority"] != "urgente", w["arrived_at"]))
 
@@ -503,14 +537,14 @@ async def list_waiting():
 @api.post("/waiting")
 async def create_waiting(body: WaitingIn):
     w = WaitingPatient(**body.model_dump())
-    res = await db.waiting.insert_one(w.to_mongo())
+    res = await tdb.waiting.insert_one(w.to_mongo())
     w.id = str(res.inserted_id)
     return w.out()
 
 
 @api.patch("/waiting/{wid}")
 async def update_waiting(wid: str, body: WaitingPatch):
-    doc = await db.waiting.find_one_and_update({"_id": oid(wid)}, {"$set": WaitingPatient.sealed_set(body.model_dump(exclude_none=True))}, return_document=True)
+    doc = await tdb.waiting.find_one_and_update({"_id": oid(wid)}, {"$set": WaitingPatient.sealed_set(body.model_dump(exclude_none=True))}, return_document=True)
     if not doc:
         raise HTTPException(404, "Paziente non trovato")
     return WaitingPatient.from_mongo(doc).out()
@@ -518,7 +552,7 @@ async def update_waiting(wid: str, body: WaitingPatch):
 
 @api.delete("/waiting/{wid}")
 async def delete_waiting(wid: str):
-    res = await db.waiting.delete_one({"_id": oid(wid)})
+    res = await tdb.waiting.delete_one({"_id": oid(wid)})
     if not res.deleted_count:
         raise HTTPException(404, "Paziente non trovato")
     return {"deleted": wid}
@@ -587,29 +621,29 @@ async def create_consultation(body: ConsultationIn, user: dict = Depends(current
         raise HTTPException(502, f"Generazione nota fallita: {e}")
     enrich_growth(note, patient, date.today())
     c = Consultation(**body.model_dump(), note=note, doctor_id=user["id"], ai_sec=round(time.monotonic() - t0, 1))
-    res = await db.consultations.insert_one(c.to_mongo())
+    res = await tdb.consultations.insert_one(c.to_mongo())
     c.id = str(res.inserted_id)
     await sync_measurement(c.out())
     if body.waiting_id and ObjectId.is_valid(body.waiting_id):
-        await db.waiting.delete_one({"_id": ObjectId(body.waiting_id)})
-        await db.appointments.update_many({"patient_name": body.patient_name}, {"$set": {"status": "completato"}})
+        await tdb.waiting.delete_one({"_id": ObjectId(body.waiting_id)})
+        await tdb.appointments.update_many({"patient_name": body.patient_name}, {"$set": {"status": "completato"}})
     return c.out()
 
 
 @api.get("/consultations")
 async def list_consultations():
-    docs = await db.consultations.find().sort("created_at", -1).to_list(20)
+    docs = await tdb.consultations.find().sort("created_at", -1).to_list(20)
     return [Consultation.from_mongo(d).out() for d in docs]
 
 
 @api.get("/consultations/{cid}/pdf")
 async def consultation_pdf(cid: str, user: dict = Depends(current_user)):
-    doc = await db.consultations.find_one({"_id": oid(cid)})
+    doc = await tdb.consultations.find_one({"_id": oid(cid)})
     if not doc:
         raise HTTPException(404, "Consultazione non trovata")
     c = Consultation.from_mongo(doc).out()
-    pdf = build_report(c, user["name"], await get_patient(c.get("patient_id")))
-    await db.consultations.update_one({"_id": oid(cid)}, {"$set": {"finalized_at": now_iso()}, "$inc": {"pdf_exports": 1}})
+    pdf = build_report(c, user["name"], await get_patient(c.get("patient_id")), await doctor_profile(user["id"]))
+    await tdb.consultations.update_one({"_id": oid(cid)}, {"$set": {"finalized_at": now_iso()}, "$inc": {"pdf_exports": 1}})
     await audit("referto_pdf", c["patient_name"])
     name = f"Referto_{re.sub(r'[^A-Za-z0-9]+', '_', c['patient_name']).strip('_')}_{c['created_at'][:10]}.pdf"
     return Response(pdf, media_type="application/pdf",
@@ -618,7 +652,7 @@ async def consultation_pdf(cid: str, user: dict = Depends(current_user)):
 
 @api.post("/consultations/{cid}/send-report")
 async def send_report(cid: str, user: dict = Depends(current_user)):
-    doc = await db.consultations.find_one({"_id": oid(cid)})
+    doc = await tdb.consultations.find_one({"_id": oid(cid)})
     if not doc:
         raise HTTPException(404, "Consultazione non trovata")
     c = Consultation.from_mongo(doc).out()
@@ -628,7 +662,8 @@ async def send_report(cid: str, user: dict = Depends(current_user)):
         raise HTTPException(400, "Email del genitore mancante o non valida nel passaporto del paziente")
     if not patient.get("consent_email"):
         raise HTTPException(412, "Il genitore non ha acconsentito all'invio dei referti via email")
-    pdf = build_report(c, user["name"], patient)
+    profile = await doctor_profile(user["id"])
+    pdf = build_report(c, user["name"], patient, profile)
     day = datetime.fromisoformat(c["created_at"]).strftime("%d/%m/%Y")
     fname = f"Referto_{re.sub(r'[^A-Za-z0-9]+', '_', c['patient_name']).strip('_')}_{c['created_at'][:10]}.pdf"
     subject = f"Referto della visita pediatrica di {c['patient_name']} – {day}"
@@ -636,20 +671,20 @@ async def send_report(cid: str, user: dict = Depends(current_user)):
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F5F7;padding:24px 0"><tr><td align="center">'
         '<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;font-family:Arial,sans-serif;color:#0A192F">'
         '<tr><td style="background:#0A192F;padding:22px 28px;color:#ffffff;font-family:Georgia,serif;font-size:24px">MantMed'
-        '<div style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:2px;color:#C9CCD3;margin-top:4px">STUDIO MEDICO SPECIALISTICO · PEDIATRIA</div></td></tr>'
+        f'<div style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:2px;color:#C9CCD3;margin-top:4px">{hesc(header_line(profile))}</div></td></tr>'
         f'<tr><td style="padding:28px;font-size:15px;line-height:1.6"><p>Gentile {hesc(patient.get("guardian") or "famiglia")},</p>'
         f'<p>in allegato trova il referto della visita di <strong>{hesc(c["patient_name"])}</strong> del {day}'
         f'{" presso lo " + hesc(c["clinic"]) if c.get("clinic") else ""}.</p>'
         '<p>Per qualsiasi chiarimento può rispondere a questa email o contattare lo studio.</p>'
         f'<p style="margin-top:24px">Cordiali saluti,<br><strong>{hesc(user["name"])}</strong><br>'
-        f'<span style="color:#5B6478;font-size:13px">{hesc(os.environ["DOCTOR_SPECIALTY"])}<br>Tel. {hesc(os.environ["STUDIO_PHONE"])}</span></p></td></tr>'
+        f'<span style="color:#5B6478;font-size:13px">{hesc(profile["specialty"] if profile else os.environ["DOCTOR_SPECIALTY"])}<br>Tel. {hesc(profile["phone"] if profile else os.environ["STUDIO_PHONE"])}</span></p></td></tr>'
         '<tr><td style="padding:16px 28px;border-top:1px solid #DADDE3;font-size:11px;color:#5B6478;line-height:1.5">'
         'Comunicazione riservata contenente dati sanitari (art. 9 Reg. UE 2016/679 – GDPR), destinata esclusivamente al genitore o tutore del paziente. '
         'Se l\'ha ricevuta per errore, la elimini e avvisi lo studio. Inviata da MantMed.</td></tr></table></td></tr></table>')
     email_id = await send_email(to=to, subject=subject, html=html,
                                 attachments=[{"filename": fname, "content": base64.b64encode(pdf).decode()}])
     sent_at = now_iso()
-    await db.consultations.update_one({"_id": oid(cid)}, {"$set": {**Consultation.sealed_set({"report_sent_at": sent_at, "report_sent_to": to}), "finalized_at": sent_at}, "$inc": {"pdf_exports": 1}})
+    await tdb.consultations.update_one({"_id": oid(cid)}, {"$set": {**Consultation.sealed_set({"report_sent_at": sent_at, "report_sent_to": to}), "finalized_at": sent_at}, "$inc": {"pdf_exports": 1}})
     await audit("referto_email", c["patient_name"])
     return {"sent": True, "to": to, "sent_at": sent_at, "email_id": email_id}
 
@@ -657,13 +692,26 @@ async def send_report(cid: str, user: dict = Depends(current_user)):
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
+class PortalPublishIn(BaseModel):
+    published: bool
+
+
+@api.post("/consultations/{cid}/portal")
+async def publish_to_portal(cid: str, body: PortalPublishIn):
+    doc = await tdb.consultations.find_one_and_update({"_id": oid(cid)}, {"$set": {"portal_published": body.published}}, return_document=True)
+    if not doc:
+        raise HTTPException(404, "Consultazione non trovata")
+    await audit("referto_portale" if body.published else "referto_portale_ritirato", doc["patient_name"])
+    return Consultation.from_mongo(doc).out()
+
+
 @api.patch("/consultations/{cid}")
 async def update_consultation(cid: str, body: ConsultationPatch):
-    existing = await db.consultations.find_one({"_id": oid(cid)})
+    existing = await tdb.consultations.find_one({"_id": oid(cid)})
     if not existing:
         raise HTTPException(404, "Consultazione non trovata")
     enrich_growth(body.note, await get_patient(existing.get("patient_id")), date.fromisoformat(existing["created_at"][:10]))
-    doc = await db.consultations.find_one_and_update({"_id": oid(cid)}, {"$set": {**Consultation.sealed_set({"note": body.note.model_dump()}), "finalized_at": now_iso()}}, return_document=True)
+    doc = await tdb.consultations.find_one_and_update({"_id": oid(cid)}, {"$set": {**Consultation.sealed_set({"note": body.note.model_dump()}), "finalized_at": now_iso()}}, return_document=True)
     out = Consultation.from_mongo(doc).out()
     await sync_measurement(out)
     return out
@@ -672,8 +720,8 @@ async def update_consultation(cid: str, body: ConsultationPatch):
 # ---------- Passaporto sanitario ----------
 @api.get("/patients")
 async def list_patients():
-    docs = await db.patients.find().sort("name", 1).to_list(1000)
-    last = {d["_id"]: d for d in await db.consultations.aggregate([
+    docs = await tdb.patients.find().sort("name", 1).to_list(1000)
+    last = {d["_id"]: d for d in await tdb.consultations.aggregate([
         {"$match": {"patient_id": {"$ne": None}}}, {"$sort": {"created_at": -1}},
         {"$group": {"_id": "$patient_id", "last": {"$first": "$created_at"}, "clinics": {"$addToSet": "$clinic"}, "n": {"$sum": 1}}}]).to_list(1000)}
     out = []
@@ -689,15 +737,18 @@ async def create_patient(body: PatientIn):
     date.fromisoformat(body.birth_date)
     if body.guardian_email and not EMAIL_RE.match(body.guardian_email.strip()):
         raise HTTPException(400, "Email del genitore non valida")
-    res = await db.patients.insert_one(Patient(**body.model_dump()).to_mongo())
-    return patient_out(await db.patients.find_one({"_id": res.inserted_id}))
+    res = await tdb.patients.insert_one({**Patient(**body.model_dump()).to_mongo(), "cf_hash": cf_hash(body.fiscal_code) if body.fiscal_code.strip() else None})
+    return patient_out(await tdb.patients.find_one({"_id": res.inserted_id}))
 
 
 @api.patch("/patients/{pid}")
 async def update_patient(pid: str, body: PatientPatch):
     if body.guardian_email and not EMAIL_RE.match(body.guardian_email.strip()):
         raise HTTPException(400, "Email del genitore non valida")
-    doc = await db.patients.find_one_and_update({"_id": oid(pid)}, {"$set": Patient.sealed_set(body.model_dump(exclude_none=True))}, return_document=True)
+    upd = Patient.sealed_set(body.model_dump(exclude_none=True))
+    if body.fiscal_code is not None:
+        upd["cf_hash"] = cf_hash(body.fiscal_code) if body.fiscal_code.strip() else None
+    doc = await tdb.patients.find_one_and_update({"_id": oid(pid)}, {"$set": upd}, return_document=True)
     if not doc:
         raise HTTPException(404, "Paziente non trovato")
     return patient_out(doc)
@@ -712,17 +763,17 @@ def measurement_out(m: dict, patient: dict) -> dict:
 
 @api.get("/patients/{pid}/passport")
 async def passport(pid: str):
-    doc = await db.patients.find_one({"_id": oid(pid)})
+    doc = await tdb.patients.find_one({"_id": oid(pid)})
     if not doc:
         raise HTTPException(404, "Paziente non trovato")
     patient = patient_out(doc)
     await audit("accesso_passaporto", patient["name"])
-    consents = [Consent.from_mongo(x).out() for x in await db.consents.find({"patient_id": pid}).sort("signed_at", -1).to_list(50)]
-    cons = [Consultation.from_mongo(c).out() for c in await db.consultations.find({"patient_id": pid}).sort("created_at", -1).to_list(200)]
-    meas = [measurement_out(m, patient) for m in await db.measurements.find({"patient_id": pid}).sort("date", 1).to_list(500)]
-    cps = [CheckpointDoc.from_mongo(c).out() for c in await db.checkpoints.find({"patient_id": pid}).sort("created_at", -1).to_list(100)]
-    pays = [Payment.from_mongo(x).out() for x in await db.payments.find({"patient_id": pid}).sort("created_at", -1).to_list(500)]
-    clinics = {c: {"clinic": c, "visits": 0, "measurements": 0, "checkpoints": 0} for c in CLINICS}
+    consents = [Consent.from_mongo(x).out() for x in await tdb.consents.find({"patient_id": pid}).sort("signed_at", -1).to_list(50)]
+    cons = [Consultation.from_mongo(c).out() for c in await tdb.consultations.find({"patient_id": pid}).sort("created_at", -1).to_list(200)]
+    meas = [measurement_out(m, patient) for m in await tdb.measurements.find({"patient_id": pid}).sort("date", 1).to_list(500)]
+    cps = [CheckpointDoc.from_mongo(c).out() for c in await tdb.checkpoints.find({"patient_id": pid}).sort("created_at", -1).to_list(100)]
+    pays = [Payment.from_mongo(x).out() for x in await tdb.payments.find({"patient_id": pid}).sort("created_at", -1).to_list(500)]
+    clinics = {c: {"clinic": c, "visits": 0, "measurements": 0, "checkpoints": 0} for c in tenant_clinics()}
     for c in cons:
         clinics.setdefault(c["clinic"] or "Altro", {"clinic": c["clinic"] or "Altro", "visits": 0, "measurements": 0, "checkpoints": 0})["visits"] += 1
     for m in meas:
@@ -737,13 +788,13 @@ async def passport(pid: str):
 
 @api.post("/patients/{pid}/measurements")
 async def add_measurement(pid: str, body: MeasurementIn):
-    doc = await db.patients.find_one({"_id": oid(pid)})
+    doc = await tdb.patients.find_one({"_id": oid(pid)})
     if not doc:
         raise HTTPException(404, "Paziente non trovato")
     date.fromisoformat(body.date)
     m = Measurement(patient_id=pid, **body.model_dump())
-    res = await db.measurements.insert_one(m.to_mongo())
-    return measurement_out(await db.measurements.find_one({"_id": res.inserted_id}), patient_out(doc))
+    res = await tdb.measurements.insert_one(m.to_mongo())
+    return measurement_out(await tdb.measurements.find_one({"_id": res.inserted_id}), patient_out(doc))
 
 
 @api.get("/growth/percentiles")
@@ -791,7 +842,7 @@ class PaymentIn(BaseModel):
 
 def summarize(items: list) -> dict:
     by_method = {m: {"method": m, "label": l, "total": 0.0, "count": 0} for m, l in METHODS.items()}
-    by_clinic = {c: {"clinic": c, "total": 0.0, "count": 0} for c in CLINICS}
+    by_clinic = {c: {"clinic": c, "total": 0.0, "count": 0} for c in tenant_clinics()}
     for p in items:
         by_method[p["method"]]["total"] += p["amount"]
         by_method[p["method"]]["count"] += 1
@@ -806,7 +857,7 @@ def summarize(items: list) -> dict:
 async def payments_between(start: str, end: str) -> list:
     date.fromisoformat(start)
     date.fromisoformat(end)
-    docs = await db.payments.find({"date": {"$gte": start, "$lte": end}}).sort("created_at", 1).to_list(5000)
+    docs = await tdb.payments.find({"date": {"$gte": start, "$lte": end}}).sort("created_at", 1).to_list(5000)
     return [Payment.from_mongo(d).out() for d in docs]
 
 
@@ -815,7 +866,7 @@ async def create_payment(body: PaymentIn):
     if not body.patient_name.strip():
         raise HTTPException(400, "Paziente obbligatorio")
     p = Payment(**{**body.model_dump(), "amount": round(body.amount, 2)})
-    res = await db.payments.insert_one(p.to_mongo())
+    res = await tdb.payments.insert_one(p.to_mongo())
     p.id = str(res.inserted_id)
     return p.out()
 
@@ -823,7 +874,7 @@ async def create_payment(body: PaymentIn):
 @api.get("/payments")
 async def list_payments(start: Optional[str] = None, end: Optional[str] = None, consultation_id: Optional[str] = None):
     if consultation_id:
-        docs = await db.payments.find({"consultation_id": consultation_id}).sort("created_at", 1).to_list(50)
+        docs = await tdb.payments.find({"consultation_id": consultation_id}).sort("created_at", 1).to_list(50)
         items = [Payment.from_mongo(d).out() for d in docs]
     else:
         s = start or today_rome()
@@ -833,7 +884,7 @@ async def list_payments(start: Optional[str] = None, end: Optional[str] = None, 
 
 @api.delete("/payments/{pid}")
 async def delete_payment(pid: str):
-    res = await db.payments.delete_one({"_id": oid(pid)})
+    res = await tdb.payments.delete_one({"_id": oid(pid)})
     if not res.deleted_count:
         raise HTTPException(404, "Incasso non trovato")
     return {"deleted": pid}
@@ -868,7 +919,7 @@ async def checkpoint_bands():
 
 @api.get("/patients/{pid}/checkpoint")
 async def checkpoint_template(pid: str):
-    doc = await db.patients.find_one({"_id": oid(pid)})
+    doc = await tdb.patients.find_one({"_id": oid(pid)})
     if not doc:
         raise HTTPException(404, "Paziente non trovato")
     return band_for(age_months(doc["birth_date"]))
@@ -876,7 +927,7 @@ async def checkpoint_template(pid: str):
 
 @api.post("/patients/{pid}/checkpoints")
 async def submit_checkpoint(pid: str, body: CheckpointIn):
-    doc = await db.patients.find_one({"_id": oid(pid)})
+    doc = await tdb.patients.find_one({"_id": oid(pid)})
     if not doc:
         raise HTTPException(404, "Paziente non trovato")
     months = age_months(doc["birth_date"])
@@ -884,7 +935,7 @@ async def submit_checkpoint(pid: str, body: CheckpointIn):
     result = {**evaluate(band, body.answers), "next": band["next"]}
     cp = CheckpointDoc(patient_id=pid, band_id=band["id"], band_label=band["label"], age_months=round(months, 1),
                        clinic=body.clinic, answers=body.answers, result=result)
-    res = await db.checkpoints.insert_one(cp.to_mongo())
+    res = await tdb.checkpoints.insert_one(cp.to_mongo())
     cp.id = str(res.inserted_id)
     return cp.out()
 
@@ -919,20 +970,20 @@ class ConsentIn(BaseModel):
 
 
 async def audit(action: str, subject: str = ""):
-    await db.audit.insert_one({"action": action, "subject": seal_fields({"s": subject}, ("s",))["s"], "at": now_iso()})
+    await tdb.audit.insert_one({"action": action, "subject": seal_fields({"s": subject}, ("s",))["s"], "at": now_iso()})
 
 
 async def refresh_patient_consent(pid: str):
-    active = await db.consents.find({"patient_id": pid, "revoked_at": None}).sort("signed_at", -1).to_list(1)
+    active = await tdb.consents.find({"patient_id": pid, "revoked_at": None}).sort("signed_at", -1).to_list(1)
     c = active[0] if active else None
-    await db.patients.update_one({"_id": oid(pid)}, {"$set": {
+    await tdb.patients.update_one({"_id": oid(pid)}, {"$set": {
         "consent_at": c["signed_at"] if c and c["privacy_policy"] and c["health_data"] else None,
         "consent_version": c["version"] if c else None, "consent_email": bool(c and c.get("email_reports"))}})
 
 
 @api.post("/patients/{pid}/consents")
 async def record_consent(pid: str, body: ConsentIn):
-    doc = await db.patients.find_one({"_id": oid(pid)})
+    doc = await tdb.patients.find_one({"_id": oid(pid)})
     if not doc:
         raise HTTPException(404, "Paziente non trovato")
     if not (body.privacy_policy and body.health_data):
@@ -941,9 +992,9 @@ async def record_consent(pid: str, body: ConsentIn):
         raise HTTPException(400, "Nome del firmatario obbligatorio")
     if body.method == "firma_tablet" and not (body.signature or "").startswith("data:image/png;base64,"):
         raise HTTPException(400, "Firma mancante")
-    await db.consents.update_many({"patient_id": pid, "revoked_at": None}, {"$set": {"revoked_at": now_iso()}})
+    await tdb.consents.update_many({"patient_id": pid, "revoked_at": None}, {"$set": {"revoked_at": now_iso()}})
     c = Consent(patient_id=pid, **body.model_dump())
-    res = await db.consents.insert_one(c.to_mongo())
+    res = await tdb.consents.insert_one(c.to_mongo())
     c.id = str(res.inserted_id)
     await refresh_patient_consent(pid)
     await audit("consenso_registrato", doc["name"])
@@ -952,7 +1003,7 @@ async def record_consent(pid: str, body: ConsentIn):
 
 @api.post("/consents/{cid}/revoke")
 async def revoke_consent(cid: str):
-    doc = await db.consents.find_one_and_update({"_id": oid(cid), "revoked_at": None}, {"$set": {"revoked_at": now_iso()}}, return_document=True)
+    doc = await tdb.consents.find_one_and_update({"_id": oid(cid), "revoked_at": None}, {"$set": {"revoked_at": now_iso()}}, return_document=True)
     if not doc:
         raise HTTPException(404, "Consenso non trovato o già revocato")
     await refresh_patient_consent(doc["patient_id"])
@@ -977,9 +1028,9 @@ async def encrypt_existing():
 async def compliance_status():
     stats = []
     for name, model in ENCRYPTED_COLLECTIONS.items():
-        total = await db[name].count_documents({})
+        total = await tdb[name].count_documents({})
         plain = 0
-        async for d in db[name].find({}, {k: 1 for k in model.__encrypted__}):
+        async for d in tdb[name].find({}, {k: 1 for k in model.__encrypted__}):
             if any(d.get(k) is not None and not is_sealed(d.get(k)) for k in model.__encrypted__):
                 plain += 1
         stats.append({"collection": name, "documents": total, "encrypted": total - plain, "fields": list(model.__encrypted__)})
@@ -988,9 +1039,9 @@ async def compliance_status():
     atlas = "mongodb.net" in host
     region = os.environ.get("DATA_REGION", "")
     eu = atlas and bool(region)
-    patients = await db.patients.count_documents({})
-    with_consent = await db.patients.count_documents({"consent_at": {"$ne": None}})
-    logs = await db.audit.find().sort("at", -1).to_list(15)
+    patients = await tdb.patients.count_documents({})
+    with_consent = await tdb.patients.count_documents({"consent_at": {"$ne": None}})
+    logs = await tdb.audit.find().sort("at", -1).to_list(15)
     return {
         "encryption": {"algorithm": "AES-256-GCM", "key_fingerprint": KEY_FINGERPRINT, "key_storage": "Variabile d'ambiente del server, separata dal database", "collections": stats},
         "transit": {"https": True, "hsts": True, "cookies": "httpOnly · Secure · SameSite=Lax", "session": "Token di accesso 15 min · rinnovo 7 giorni"},
@@ -1013,7 +1064,20 @@ async def security_headers(request, call_next):
     return resp
 
 
+async def portal_pdf_for(c: dict):
+    out = Consultation.from_mongo(c).out()
+    p = await db.patients.find_one({"_id": ObjectId(out["patient_id"])}) if out.get("patient_id") else None
+    owner = await db.users.find_one({"_id": ObjectId(c["owner_id"])})
+    pdf = build_report(out, (owner or {}).get("name", ""), unseal_fields(p, Patient.__encrypted__) if p else None, await doctor_profile(c["owner_id"]))
+    return pdf, f"Referto_{re.sub(r'[^A-Za-z0-9]+', '_', out['patient_name']).strip('_')}_{out['created_at'][:10]}.pdf"
+
+
 api.include_router(build_beta(db, current_user))
+reg_router, admin_doctors, portal_router = build_registration(
+    db, current_user, start_session, {"patient": Patient, "consultation": Consultation, "consent": Consent, "appointment": Appointment}, portal_pdf_for)
+public_api.include_router(reg_router)
+public_api.include_router(admin_doctors)
+public_api.include_router(portal_router)
 leads_public, leads_private = build_leads(db, require_role(current_user, "admin"))
 public_api.include_router(leads_public)
 public_api.include_router(leads_private)

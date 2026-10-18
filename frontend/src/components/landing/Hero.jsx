@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowRight, ArrowDown, Mic, FileText, Check } from "lucide-react";
+import { ArrowRight, ArrowDown, Mic, FileText, Check, Stethoscope, Baby } from "lucide-react";
 import { LogoMark } from "@/components/dash/Logo";
 
 export const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -20,6 +20,7 @@ export const LandingHeader = () => (
         <button onClick={() => scrollTo("vantaggi")} className="hidden h-10 px-4 text-sm text-[#C9CCD3] transition-colors hover:text-white md:block" data-testid="nav-features">Vantaggi</button>
         <button onClick={() => scrollTo("sicurezza")} className="hidden h-10 px-4 text-sm text-[#C9CCD3] transition-colors hover:text-white md:block" data-testid="nav-security">Sicurezza</button>
         <button onClick={() => scrollTo("contatti")} className="hidden h-10 px-4 text-sm text-[#C9CCD3] transition-colors hover:text-white md:block" data-testid="nav-contact">Contatti</button>
+        <Link to="/portale" className="hidden h-10 items-center px-3 text-sm text-[#C9CCD3] transition-colors hover:text-white sm:flex" data-testid="landing-portal-link">Area pazienti</Link>
         <Link to="/app" className="flex h-10 items-center gap-2 rounded-full border border-[#C9CCD3]/40 px-5 text-sm font-medium text-white transition-colors hover:border-white hover:bg-white hover:text-[#0A192F]" data-testid="landing-login-btn">Accedi <ArrowRight size={15} /></Link>
       </nav>
     </div>
@@ -54,6 +55,28 @@ const HeroMock = () => (
       </div>
     </div>
   </motion.div>
+);
+
+const ROLES = [
+  { to: "/registrati/medico", icon: Stethoscope, kicker: "Professionisti sanitari", title: "Registrati come Medico", text: "Il suo studio digitale: agenda, cartelle, referti e cassa. Attivazione dopo verifica dell'iscrizione all'Ordine.", testid: "register-doctor-btn" },
+  { to: "/registrati/paziente", icon: Baby, kicker: "Genitori e tutori", title: "Registrati come Paziente / Genitore", text: "Referti scaricabili, consensi firmati e appuntamenti di suo figlio in un'area personale protetta.", testid: "register-parent-btn" },
+];
+
+export const RegisterBand = () => (
+  <section className="relative border-t border-[#C9CCD3]/15" data-testid="landing-register">
+    <div className="mx-auto grid max-w-[1280px] grid-cols-1 gap-4 px-5 py-14 md:grid-cols-2 lg:px-10">
+      {ROLES.map(({ to, icon: Icon, kicker, title, text, testid }) => (
+        <Link key={to} to={to} className="group flex items-start gap-5 rounded-[28px] border border-[#C9CCD3]/20 bg-white/[0.03] p-6 transition-colors hover:border-white hover:bg-white/[0.07]" data-testid={testid}>
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white text-[#0A192F]"><Icon size={20} /></span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[11px] uppercase tracking-[0.2em] text-[#C9CCD3]">{kicker}</span>
+            <span className="mt-1 flex items-center gap-2 font-display text-2xl text-white sm:text-3xl">{title} <ArrowRight size={18} className="shrink-0 transition-transform group-hover:translate-x-1" /></span>
+            <span className="mt-2 block text-sm leading-relaxed text-[#C9CCD3]">{text}</span>
+          </span>
+        </Link>
+      ))}
+    </div>
+  </section>
 );
 
 export const LandingHero = ({ onBeta }) => (

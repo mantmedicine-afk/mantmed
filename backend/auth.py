@@ -51,7 +51,18 @@ def decode(token: str, kind: str) -> dict:
 
 def public(user: dict) -> dict:
     return {"id": str(user["_id"]), "email": user["email"], "name": user.get("name", ""), "role": user.get("role", "doctor"),
+            "status": user.get("status", "active"), "clinics": user.get("clinics") or [],
             "totp_enabled": bool(user.get("totp_enabled")), "idle_minutes": IDLE_MIN}
+
+
+STATUS_MSG = {"pending": "Account in attesa di approvazione da parte di MantMed: riceverà un'email all'attivazione",
+              "suspended": "Account sospeso: contatti MantMed"}
+
+
+def ensure_active(user: dict):
+    msg = STATUS_MSG.get(user.get("status", "active"))
+    if msg:
+        raise HTTPException(403, msg)
 
 
 class LoginIn(BaseModel):
@@ -89,6 +100,7 @@ def build_auth(db):
         user = await db.users.find_one({"_id": ObjectId(payload["sub"])}) if ObjectId.is_valid(payload["sub"]) else None
         if not user:
             raise HTTPException(401, "Utente non trovato")
+        ensure_active(user)
         return user
 
     async def current_user(request: Request) -> dict:
@@ -137,6 +149,7 @@ def build_auth(db):
         if not user or not verify_password(body.password, user["password_hash"]):
             await fail(ident, att, "Email o password non corretti")
         await db.login_attempts.delete_many({"identifier": ident})
+        ensure_active(user)
         if user.get("totp_enabled"):
             return {"mfa_required": True, "mfa_token": make_token(str(user["_id"]), "mfa", timedelta(minutes=5))}
         return await start_session(response, user)
@@ -208,7 +221,7 @@ def build_auth(db):
         set_cookies(response, str(user["_id"]), payload["sid"])
         return public(user)
 
-    return router, current_user
+    return router, current_user, start_session
 
 
 async def seed_doctor(db):
@@ -220,7 +233,7 @@ async def seed_doctor(db):
     name = os.environ["DOCTOR_NAME"]
     existing = await db.users.find_one({"email": email})
     if existing is None:
-        prev = await db.users.find_one({"role": "doctor"})
+        prev = await db.users.find_one({"role": "doctor", "profile": {"$exists": False}})
         if prev:
             await db.users.update_one({"_id": prev["_id"]}, {"$set": {"email": email}})
             existing = await db.users.find_one({"email": email})
@@ -229,6 +242,10 @@ async def seed_doctor(db):
                                    "created_at": datetime.now(timezone.utc).isoformat()})
     elif not verify_password(pwd, existing["password_hash"]) or existing.get("name") != name:
         await db.users.update_one({"email": email}, {"$set": {"password_hash": hash_password(pwd), "name": name}})
+    clinics = [{"name": "Studio Centro", "address": os.environ["STUDIO_CENTRO_ADDRESS"]},
+               {"name": "Studio Provincia", "address": os.environ["STUDIO_PROVINCIA_ADDRESS"]}]
+    await db.users.update_one({"email": email}, {"$set": {"status": "active", "clinics": clinics}})
+    return str((await db.users.find_one({"email": email}))["_id"])
 
 
 async def seed_admin(db):

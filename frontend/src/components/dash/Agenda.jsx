@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Plus, MapPin, BookUser } from "lucide-react";
-import { CLINICS } from "@/lib/api";
+import { CLINICS, CLINIC_ADDR } from "@/lib/api";
 import { AppointmentDialog } from "./AppointmentDialog";
 
 const STATUS = {
@@ -35,7 +35,7 @@ export const Agenda = ({ appointments, onChange, patients = [], onPassport }) =>
         </button>
       </div>
 
-      <div className="relative mt-5 grid grid-cols-2 rounded-full bg-slate-100 p-1" data-testid="clinic-tabs">
+      <div className={`relative mt-5 grid rounded-full bg-slate-100 p-1 ${CLINICS.length > 1 ? "grid-cols-2" : "grid-cols-1"}`} data-testid="clinic-tabs">
         {CLINICS.map((c) => {
           const n = appointments.filter((a) => a.clinic === c).length;
           return (
@@ -53,7 +53,7 @@ export const Agenda = ({ appointments, onChange, patients = [], onPassport }) =>
       </div>
 
       <div className="mt-2 flex items-center gap-1.5 px-1 text-xs text-slate-500">
-        <MapPin size={12} /> {clinic === "Studio Centro" ? "Via Roma 12, Reggio Calabria · mattina" : "Via Pozzicello 59, Gallico · pomeriggio"}
+        <MapPin size={12} /> {CLINIC_ADDR[clinic] || "Indirizzo non indicato"}
       </div>
 
       <ol className="relative mt-4 flex-1 space-y-1" data-testid="agenda-list">

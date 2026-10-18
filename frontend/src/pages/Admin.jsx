@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { LogoMark } from "@/components/dash/Logo";
 import { TwoFactorCard } from "@/components/dash/Security";
 import { LeadRow, STATUSES } from "@/components/admin/LeadRow";
+import { DoctorsPanel } from "@/components/admin/Doctors";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
@@ -30,6 +31,7 @@ export default function Admin() {
   const [kind, setKind] = useState("tutti");
   const [q, setQ] = useState("");
   const [sec, setSec] = useState(false);
+  const [view, setView] = useState("leads");
   const load = () => api.leads().then(setLeads).catch(() => setLeads([]));
   useEffect(() => {
     load();
@@ -54,6 +56,12 @@ export default function Admin() {
         </div>
       </header>
       <main className="mx-auto max-w-[1280px] px-5 py-10 lg:px-8">
+        <div className="mb-8 inline-flex rounded-full bg-white p-1 ring-1 ring-slate-200" role="tablist">
+          {[["leads", "Richieste dalla landing"], ["doctors", "Medici e licenze"]].map(([id, label]) => (
+            <button key={id} role="tab" aria-selected={view === id} onClick={() => setView(id)} className={`h-10 rounded-full px-5 text-sm font-medium transition-colors ${view === id ? "bg-night text-white" : "text-slate-600 hover:text-night"}`} data-testid={`admin-view-${id}`}>{label}</button>
+          ))}
+        </div>
+        {view === "doctors" ? <DoctorsPanel /> : <>
         <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-slate-500"><Inbox size={13} /> Lead box · landing page pubblica</div>
         <h1 className="mt-1 font-display text-4xl text-night sm:text-5xl">Medici <span className="italic text-slate-500">interessati a MantMed</span></h1>
         <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-5">
@@ -82,6 +90,7 @@ export default function Admin() {
           {shown.length === 0 && <p className="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-600" data-testid="admin-leads-empty">Nessuna richiesta per questo filtro.</p>}
           {shown.map((l) => <LeadRow key={l.id} lead={l} onChange={update} />)}
         </div>
+        </>}
       </main>
       <Dialog open={sec} onOpenChange={setSec}>
         <DialogContent className="max-h-[90vh] overflow-y-auto rounded-3xl bg-white sm:max-w-lg" data-testid="admin-security-dialog">

@@ -5,8 +5,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { http, errMsg } from "@/lib/api";
 import { Field } from "./AppointmentDialog";
+import { useAuth } from "@/lib/auth";
 
-const INFORMATIVA = "Ai sensi degli artt. 13 e 9 del Reg. UE 2016/679, il titolare del trattamento (Dott.ssa Tiziana Foti) tratta i dati personali e sanitari del minore esclusivamente per finalità di diagnosi, cura e gestione amministrativa della visita. I dati sono conservati con crittografia AES-256, accessibili solo al medico e non diffusi. Il genitore può esercitare in ogni momento i diritti di accesso, rettifica, cancellazione e revoca del consenso contattando lo studio. [Testo da validare con il proprio consulente privacy/DPO]";
+const informativa = (doctor) => `Ai sensi degli artt. 13 e 9 del Reg. UE 2016/679, il titolare del trattamento (${doctor}) tratta i dati personali e sanitari del minore esclusivamente per finalità di diagnosi, cura e gestione amministrativa della visita. I dati sono conservati con crittografia AES-256, accessibili solo al medico e non diffusi. Il genitore può esercitare in ogni momento i diritti di accesso, rettifica, cancellazione e revoca del consenso contattando lo studio. [Testo da validare con il proprio consulente privacy/DPO]`;
 
 const SignaturePad = ({ onChange }) => {
   const ref = useRef(null);
@@ -37,6 +38,7 @@ const SignaturePad = ({ onChange }) => {
 };
 
 export const ConsentDialog = ({ patient, open, onClose, onSaved }) => {
+  const { user } = useAuth();
   const [f, setF] = useState({ signer_name: "", signer_relation: "Madre", privacy_policy: false, health_data: false, email_reports: false, method: "firma_tablet" });
   const [signature, setSignature] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -68,7 +70,7 @@ export const ConsentDialog = ({ patient, open, onClose, onSaved }) => {
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl bg-white sm:max-w-lg" data-testid="consent-dialog" data-lenis-prevent>
         <DialogHeader><DialogTitle className="flex items-center gap-2 font-display text-3xl font-normal text-night"><ShieldCheck className="text-night" /> Consenso informato</DialogTitle></DialogHeader>
-        <p className="max-h-32 overflow-y-auto rounded-2xl bg-[#F4F5F7] p-4 text-xs leading-relaxed text-slate-700" data-testid="consent-informativa">{INFORMATIVA}</p>
+        <p className="max-h-32 overflow-y-auto rounded-2xl bg-[#F4F5F7] p-4 text-xs leading-relaxed text-slate-700" data-testid="consent-informativa">{informativa(user?.name || "il medico")}</p>
         <div className="grid gap-2">
           <Check k="privacy_policy" label="Dichiaro di aver letto l'informativa privacy" required />
           <Check k="health_data" label="Acconsento al trattamento dei dati sanitari del minore (art. 9 GDPR)" required />

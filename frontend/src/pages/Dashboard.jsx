@@ -51,11 +51,8 @@ export default function Dashboard() {
   }, [load]);
 
   const next = waiting.find((w) => w.status === "in_studio") ?? waiting[0] ?? null;
-  const centro = appointments.filter((a) => a.clinic === "Studio Centro").length;
-  const provincia = appointments.length - centro;
   const ticker = [
-    `Studio Centro · ${centro} visite`,
-    `Studio Provincia · ${provincia} visite`,
+    ...CLINICS.map((c) => `${c} · ${appointments.filter((a) => a.clinic === c).length} visite`),
     `${waiting.length} pazienti in sala d'attesa`,
     next ? `Prossimo: ${next.name}` : "Sala d'attesa libera",
     `${patients.length} passaporti sanitari sincronizzati`,

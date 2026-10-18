@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Search, Plus, Cloud, ArrowUpRight } from "lucide-react";
+import { CLINICS } from "@/lib/api";
 
 export const PassportSection = ({ patients, onOpen, onAdd }) => {
   const [q, setQ] = useState("");
@@ -10,7 +11,7 @@ export const PassportSection = ({ patients, onOpen, onAdd }) => {
       <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.1 }} transition={{ duration: 0.6 }}>
         <div className="flex flex-col gap-4 border-t border-slate-200 pt-8 md:flex-row md:items-end md:justify-between">
           <div>
-            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-slate-500"><Cloud size={13} /> Sincronizzato tra Studio Centro e Studio Provincia</div>
+            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-slate-500"><Cloud size={13} /> {CLINICS.length > 1 ? `Sincronizzato tra ${CLINICS.join(" e ")}` : `Archivio di ${CLINICS[0]}`}</div>
             <h2 className="mt-1 font-display text-4xl text-night">Passaporto sanitario <span className="italic text-slate-500">dinamico</span></h2>
           </div>
           <div className="flex gap-2">

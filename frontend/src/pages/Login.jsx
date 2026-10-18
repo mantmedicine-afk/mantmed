@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Lock, ArrowRight, Loader2, Eye, EyeOff, ShieldCheck, Check, AlertTriangle, ArrowLeft } from "lucide-react";
 import { LogoMark } from "@/components/dash/Logo";
@@ -19,7 +20,7 @@ const Hint = ({ ok, show, children, id }) => show ? (
 
 const inputCls = "mt-1.5 w-full rounded-2xl border bg-white/5 px-4 py-3.5 text-white outline-none transition-colors placeholder:text-slate-400 focus:bg-white/10";
 
-export default function Login({ subtitle = "Studio medico specialistico · Pediatria" }) {
+export default function Login({ subtitle = "Studio medico specialistico · Pediatria", note = "Accesso protetto per i medici MantMed", signup = true }) {
   const { login, verify2fa, reason } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -56,7 +57,7 @@ export default function Login({ subtitle = "Studio medico specialistico · Pedia
           {mfa ? <MfaStep token={mfa} onBack={() => { setMfa(null); setPassword(""); }} verify2fa={verify2fa} /> : (
             <form onSubmit={submit} noValidate data-testid="login-form">
               <h1 className="font-display text-4xl leading-tight"><Line delay={0.3}>Area riservata</Line></h1>
-              <p className="mt-1 text-sm text-slate-300">Accesso protetto per la Dott.ssa Tiziana Foti</p>
+              <p className="mt-1 text-sm text-slate-300" data-testid="login-note">{note}</p>
               {reason && <p className="mt-4 rounded-xl border border-[#C9CCD3]/30 bg-white/5 px-4 py-3 text-sm text-slate-200" data-testid="login-reason">{reason}</p>}
               <label className="mt-6 block text-xs uppercase tracking-[0.16em] text-[#C9CCD3]">Email</label>
               <input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={() => setTouched((t) => ({ ...t, email: true }))} placeholder="nome@mantmed.it" className={`${inputCls} ${touched.email && !emailOk ? "border-amber-300/60" : "border-white/15 focus:border-[#C9CCD3]"}`} data-testid="login-email-input" />
@@ -75,6 +76,14 @@ export default function Login({ subtitle = "Studio medico specialistico · Pedia
             </form>
           )}
         </motion.div>
+        {signup && (
+          <div className="mt-5 flex flex-wrap justify-center gap-2 text-sm" data-testid="login-signup-links">
+            <span className="text-slate-300">Nuovo su MantMed?</span>
+            <Link to="/registrati/medico" className="font-medium text-white underline underline-offset-4" data-testid="login-signup-doctor">Registrati come Medico</Link>
+            <span className="text-slate-400">·</span>
+            <Link to="/registrati/paziente" className="font-medium text-white underline underline-offset-4" data-testid="login-signup-parent">Registrati come Paziente / Genitore</Link>
+          </div>
+        )}
         <p className="mt-6 flex items-center justify-center gap-2 text-center text-xs text-slate-300"><ShieldCheck size={14} /> Connessione cifrata · blocco dopo 5 tentativi · chiusura automatica per inattività</p>
       </div>
     </div>
