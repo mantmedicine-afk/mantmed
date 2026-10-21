@@ -17,10 +17,13 @@ import { ConsentBanner } from "@/components/portal/ConsentSign";
 import { SignedDocsList } from "@/components/signature/SignedDocs";
 import { ProfileMenu, Caret } from "@/components/auth/ProfileMenu";
 import { useSearchParams, useParams, useNavigate, Navigate } from "react-router-dom";
-import { LayoutGrid, MessagesSquare, Settings, Stethoscope, FolderOpen } from "lucide-react";
+import { LayoutGrid, MessagesSquare, Settings, Stethoscope, FolderOpen, Compass } from "lucide-react";
 import { AppShell, MenuButton } from "@/components/nav/AppShell";
 import { FeedbackDialog } from "@/components/dash/FeedbackDialog";
 import Account from "@/pages/Account";
+import { GuidedTour } from "@/components/tour/GuidedTour";
+import { PATIENT_STEPS } from "@/components/tour/steps";
+import { useTour } from "@/components/tour/useTour";
 
 const SECTIONS = { panoramica: null, documenti: null, "trova-specialista": null, appuntamenti: "appointments", messaggi: null, impostazioni: null };
 const LEGACY = { referti: "visite", ricevute: "ricevute" };
@@ -237,6 +240,7 @@ export default function Portal() {
   const [openThread, setOpenThread] = useState(null);
   const [jump, setJump] = useState(null);
   const [feedback, setFeedback] = useState(false);
+  const tour = useTour();
   const { sezione = "panoramica" } = useParams();
   const nav = useNavigate();
   useEffect(() => {
@@ -270,11 +274,13 @@ export default function Portal() {
             <span className="hidden text-[11px] uppercase tracking-[0.22em] text-[#C9CCD3] lg:block" data-testid="portal-section-label">{items.find((i) => i.id === sezione)?.label}</span></div>
           <div className="flex items-center gap-3">
             <ProfileMenu trigger={<button className="flex h-10 items-center gap-2 rounded-full border border-[#C9CCD3]/30 px-2 text-sm text-[#C9CCD3] transition-colors hover:border-white hover:text-white sm:px-3" data-testid="portal-profile-btn" aria-label="Il mio profilo"><UserRound size={16} /><span className="hidden sm:inline" data-testid="portal-user-name">{user?.name}</span><Caret /></button>} />
+            <button onClick={tour.start} className="grid h-10 w-10 place-items-center rounded-full border border-[#C9CCD3]/30 text-[#C9CCD3] transition-colors hover:border-white hover:text-white" aria-label="Rivedi tour" title="Rivedi tour" data-testid="portal-tour-open-btn"><Compass size={16} /></button>
             <NotificationBell state={notif} reload={reloadNotif} onPick={pickNotif} />
             <button onClick={() => logout()} className="grid h-10 w-10 place-items-center rounded-full border border-[#C9CCD3]/30 text-white hover:border-white" aria-label="Esci" data-testid="portal-logout-btn"><LogOut size={16} /></button></div>
         </div>
       </header>
-      {sezione === "impostazioni" ? <Account role="parent" embedded extras={<button onClick={() => setFeedback(true)} className="flex h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-night hover:border-night" data-testid="portal-feedback-btn"><MessagesSquare size={15} /> Feedback e assistenza</button>} /> : (
+      {sezione === "impostazioni" ? <Account role="parent" embedded extras={<div className="flex flex-wrap gap-2"><button onClick={() => setFeedback(true)} className="flex h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-night hover:border-night" data-testid="portal-feedback-btn"><MessagesSquare size={15} /> Feedback e assistenza</button>
+        <button onClick={tour.start} className="flex h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-night hover:border-night" data-testid="portal-settings-tour-btn"><Compass size={15} /> Rivedi tour</button></div>} /> : (
       <main className="mx-auto max-w-[1100px] space-y-5 px-5 py-10">
         {sezione === "panoramica" && children.length > 0 ? <PortalOverview user={user} kids={children} onWrite={() => nav("/portale/messaggi")} onBook={(k) => { setReqDoctor(k.doctor.id); setReq(k.patient.id); }} />
           : <div><div className="text-[11px] uppercase tracking-[0.22em] text-slate-600">Area personale protetta</div><h1 className="mt-1 font-display text-4xl text-night sm:text-5xl">{TITLES[sezione] ?? <>Buongiorno, <span className="italic text-slate-500">{user?.name?.split(" ")[0]}</span></>}</h1></div>}
@@ -297,6 +303,7 @@ export default function Portal() {
         {data?.consent && sezione === "panoramica" && <p className="flex items-center gap-2 text-xs text-slate-600" data-testid="portal-consent-note"><Info size={13} /> Consenso accettato il {day(data.consent.at)} · {data.consent.version} · {count("reports")} referti · {count("appointments")} appuntamenti</p>}
       </main>)}
       <FeedbackDialog parent open={feedback} onClose={() => setFeedback(false)} />
+      <GuidedTour open={tour.open} steps={PATIENT_STEPS} name={user?.name?.split(" ")[0]} where="Impostazioni o dall'icona in alto" onDone={tour.end} />
     </div>
     </AppShell>
   );
