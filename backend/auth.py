@@ -16,6 +16,7 @@ ALG = "HS256"
 MAX_ATTEMPTS = 5
 LOCK_MIN = 15
 IDLE_MIN = int(os.environ["SESSION_IDLE_MINUTES"])
+TOUR_VERSION = 2
 
 
 def hash_password(p: str) -> str:
@@ -52,7 +53,7 @@ def decode(token: str, kind: str) -> dict:
 def public(user: dict) -> dict:
     return {"id": str(user["_id"]), "email": user["email"], "name": user.get("name", ""), "role": user.get("role", "doctor"),
             "status": user.get("status", "active"), "clinics": user.get("clinics") or [],
-            "totp_enabled": bool(user.get("totp_enabled")), "idle_minutes": IDLE_MIN, "tour_done": bool(user.get("tour_completed_at"))}
+            "totp_enabled": bool(user.get("totp_enabled")), "idle_minutes": IDLE_MIN, "tour_done": bool(user.get("tour_completed_at")) and user.get("tour_version", 1) >= TOUR_VERSION}
 
 
 STATUS_MSG = {"pending": "Account in attesa di approvazione da parte di MantMed: riceverà un'email all'attivazione",

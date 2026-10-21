@@ -40,7 +40,7 @@ import unicodedata
 from tenancy import OWNER
 from emergentintegrations.llm.openai import OpenAISpeechToText
 from emergentintegrations.llm.chat import LlmChat, UserMessage
-from auth import build_auth, seed_doctor, seed_admin, require_role
+from auth import build_auth, seed_doctor, seed_admin, require_role, TOUR_VERSION
 from cleanup import build_cleanup
 from visit_templates import build_visit_templates, fields_prompt, map_fields, parse_json
 from report import build_report
@@ -1515,7 +1515,7 @@ class TourIn(BaseModel):
 
 @public_api.post("/onboarding/tour")
 async def onboarding_tour(body: TourIn, user: dict = Depends(current_user)):
-    await db.users.update_one({"_id": ObjectId(user["id"])}, {"$set": {"tour_completed_at": now_iso() if body.completed else None}})
+    await db.users.update_one({"_id": ObjectId(user["id"])}, {"$set": {"tour_completed_at": now_iso() if body.completed else None, "tour_version": TOUR_VERSION}})
     return {"tour_done": body.completed}
 
 

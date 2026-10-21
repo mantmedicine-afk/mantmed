@@ -1,4 +1,4 @@
-import { AudioLines, CalendarDays, FolderOpen, PersonStanding, Sparkles, Stethoscope, Store, Users } from "lucide-react";
+import { AudioLines, CalendarDays, FolderOpen, MessagesSquare, PersonStanding, ShieldCheck, Sparkles, Stethoscope, Store, Users } from "lucide-react";
 
 export const DOCTOR_STEPS = [
   {
@@ -14,7 +14,12 @@ export const DOCTOR_STEPS = [
   {
     to: "/app/visite", targets: ["visits-page"], icon: PersonStanding, kicker: "Bodychart Interattivo", title: "Annotazioni anatomiche in pochi tocchi",
     text: "Apra una visita e scelga \"Bodychart\" per segnare lesioni, dolori o reperti direttamente sulla figura anatomica.",
-    points: ["Zoom sulle regioni del corpo e marcatori colorati per categoria", "Foto allegate al singolo punto per documentare l'evoluzione", "Storico per confrontare le visite nel tempo"],
+    points: ["Zoom sulle regioni del corpo e pin colorati per categoria (lesione, dolore, cicatrice…)", "Su tablet scatti una foto e la alleghi al singolo pin per documentare l'evoluzione", "Storico per confrontare le visite nel tempo"],
+  },
+  {
+    to: "/app/pazienti", targets: ["team-network-search"], icon: ShieldCheck, kicker: "Medicina di Squadra", title: "Cartelle collegate, con il consenso del genitore",
+    text: "Cerchi un paziente seguito da un collega con il codice fiscale: con la delega firmata dal genitore vede referti, visite e bilanci della squadra.",
+    points: ["Badge verde \"Consenso Privacy Attivo\" quando la delega è valida", "Senza delega invii una \"Richiesta di autorizzazione\" al Portale Paziente", "Note di squadra condivise e ogni accesso registrato nel log GDPR"],
   },
   {
     to: "/app/impostazioni?sezione=vetrina", targets: ["account-section-vetrina"], icon: Store, kicker: "Vetrina e fatturazione", title: "Si faccia trovare, incassi senza pensieri",
@@ -33,7 +38,7 @@ export const PATIENT_STEPS = [
   {
     to: "/portale/documenti", targets: ["documents-area"], icon: FolderOpen, kicker: "Visite e documenti", title: "Referti e ricevute sempre a portata di mano",
     text: "Nell'Area Riservata consulta lo storico delle visite e scarica i documenti in PDF.",
-    points: ["Referti, bilanci di salute e terapie scaricabili con un tocco", "Ricevute sanitarie dei pagamenti online pronte per la detrazione", "Consensi firmati e documenti condivisi dallo studio"],
+    points: ["Referti, bilanci di salute, prescrizioni e terapie scaricabili in PDF", "Ricevute sanitarie dei pagamenti online pronte per la detrazione", "Consensi firmati e documenti condivisi dallo studio"],
   },
   {
     to: "/portale", targets: ["portal-simple-box"], icon: Sparkles, kicker: "In parole semplici", title: "La diagnosi, spiegata con chiarezza",
@@ -42,8 +47,13 @@ export const PATIENT_STEPS = [
   },
   {
     to: "/portale/trova-specialista", targets: ["specialists-directory"], icon: Stethoscope, kicker: "Trova Specialista", title: "La rete MantMed, a portata di prenotazione",
-    text: "Cerchi uno specialista per nome o disciplina, apra la sua vetrina e scelga uno slot libero per richiedere l'appuntamento.",
-    points: ["Disponibilità visibili fino a 8 settimane", "Per domande usi la chat in \"Messaggi con lo Studio\""],
-    extra: { to: "/portale/messaggi", label: "Apri i Messaggi" },
+    text: "Cerchi uno specialista per nome o disciplina, apra la sua vetrina con la copertina dello studio e scelga uno slot libero per richiedere l'appuntamento.",
+    points: ["Copertina, presentazione e servizi di ogni studio", "Calendario delle disponibilità fino a 8 settimane"],
+  },
+  {
+    to: "/portale/messaggi", targets: ["portal-messages", "messages-page"], icon: MessagesSquare, kicker: "Messaggi e supporto", title: "Lo studio, a un messaggio di distanza",
+    text: "Scriva allo studio dalla chat \"Messaggi con lo Studio\": riceverà una notifica quando il medico risponde.",
+    points: ["Allegati e storico delle conversazioni sempre disponibili", "Per problemi con l'app usi \"Feedback e assistenza\" in Impostazioni"],
+    extra: { to: "/portale/impostazioni", label: "Apri Feedback e assistenza" },
   },
 ];
