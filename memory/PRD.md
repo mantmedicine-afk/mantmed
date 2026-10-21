@@ -296,3 +296,13 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Foto sui pin: POST /api/consultations/{cid}/bodychart/photos, GET /api/bodychart-photos/{fid} (solo medico, object storage); PUT filtra id foto non validi e marca orfane is_deleted
 - Storico: timeline, confronto affiancato 2 visite, galleria foto cronologica; "Riporta marcatori visita precedente" come Controllo
 - Test: iteration_31 OK + fix (validazione foto, carry-over una volta e solo da visite precedenti, etichette cavo orale, X lightbox, scroll editor su mobile)
+
+## 2026-06 · Refactor avvio / registrazione / autenticazione (iteration_32 PASS)
+- Avvio: verifica sessione con timeout 12s, splash MantMed (auth-loading, messaggio "connessione lenta" dopo 4s), schermata BootError con "Riprova" su rete/5xx; nessun flash del login per utenti loggati
+- Registrazione medico/paziente: validazione live per campo (nome, email, telefono, CF con carattere di controllo, password con barra di forza, conferma), errori inline, errori server mappati sul campo, consensi con errore inline, focus sul primo campo errato
+- Nuovo GET /api/register/email-available (30 richieste/10 min per IP): "Email già registrata" all'uscita dal campo
+- Regole password uniformi: 10 caratteri + lettera + numero + carattere speciale (backend _strong)
+- Codice di verifica: errore inline, reinvio con countdown 60s
+- Post-login: toast "Bentornato", reindirizzamento automatico all'area del ruolo (/app, /portale, /admin); utenti loggati in area sbagliata reindirizzati automaticamente (WrongArea rimossa)
+- Parent signup: schermata "Account attivo" + toast + redirect a /portale senza refresh
+- Backlog: CORS_ORIGINS='*' con credenziali (preesistente) da restringere ai domini reali in produzione

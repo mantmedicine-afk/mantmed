@@ -158,7 +158,7 @@ def build_registration(db, current_user, start_session, models, pdf_for):
         return len(children)
 
     def client_ip(request: Request) -> str:
-        return (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "")).split(",")[0].strip()
+        return (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "")).split(",")[-1].strip()
 
     # ---------- Registrazione pubblica con codice email ----------
     @reg.get("/email-available")

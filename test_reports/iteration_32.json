@@ -1,0 +1,37 @@
+{
+  "summary": "Tested the auth/registration refactor end to end. Backend: 15/15 pytest pass (email-available, strong password, CF checksum, 409 duplicate email, login cookies). Frontend: every requested flow works. Logged-out /app, /portale and /admin show the auth-loading splash and then the right login page. A logged-in reload goes straight to the dashboard with no login flash. Doctor login shows 'Accesso in corso…', the 'Bentornato' toast, and the dashboard without a refresh. Wrong role is redirected both ways (parent logging in on /app goes to /portale; doctor logging in on /portale goes to /app). Wrong password shows login-error. Every inline field error and ok-state was checked. Empty submit shows all errors, the consents error and a toast, and focuses the first bad field. Full parent signup E2E: code step, resend countdown 60s, wrong code shows an inline error, the valid code leads to register-redirecting, a toast, and /portale loading. Doctor signup reaches register-pending, and a pending doctor's login shows an inline message. Boot error appears on abort and on 503, and retry recovers. Regression passed for forgot password, the reset page (weak password blocked, reset works) and logout.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/register/email-available, /api/register/start (client_ip)", "issue": "Rate-limit IP is taken from the first X-Forwarded-For value, which the client controls. Sending 'X-Forwarded-For: 9.9.9.9' got stored as ip=9.9.9.9, so the per-IP rate limits (30/10min email check, 10/h signup) can be bypassed and the email-availability check can be used to enumerate accounts. Use the last trusted hop (the rightmost value added by the ingress) or request.client."},
+      {"endpoint": "CORS (server.py CORS_ORIGINS='*')", "issue": "Pre-existing. A preflight from Origin https://evil.com gets that origin reflected back with allow-credentials true. Restrict to explicit origins (playbook requirement)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Register forms", "issues": ["Placeholders look like real values ('Giulia', 'Russo', a valid CF RSSSFO24E41H224Y, '333 1234567'). After an empty submit, an error such as 'Inserisca il codice fiscale' appears under what looks like a filled field. Consider generic or lighter placeholders (e.g. 'es. RSSMRA...')."]},
+      {"screen": "Doctor logged in visiting /portale (or parent visiting /app)", "issues": ["Shows the WrongArea screen with a 'Vai alla sua area' button instead of redirecting automatically. Acceptable, but the cross-portal login form does redirect automatically, so the behaviour is inconsistent."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_auth_refactor.py", "/app/test_reports/pytest/pytest_auth_refactor.xml"],
+  "action_items": [
+    "Harden client_ip() in registration.py so the client cannot spoof it via X-Forwarded-For (rate-limit bypass and email enumeration).",
+    "Optional: restrict CORS_ORIGINS to explicit origins.",
+    "Optional: tone down placeholders in the register forms."
+  ],
+  "critical_code_review_comments": [
+    "auth.js boot(): timeouts come from api.me/refresh (12s), so a hung backend shows the 'slow' hint after 4s and boot-error after about 12-24s. OK.",
+    "AuthProvider is mounted once per route (/app, /portale, /admin). Every cross-portal navigation triggers a new /auth/me boot, causing a short splash. Works, but one app-level provider would avoid the duplicate boot.",
+    "Login.jsx client-side pwOk checks only length >= 8. That is fine for login (legacy passwords), but the hint 'Almeno 8 caratteri' differs from the new 10-character policy and may confuse users.",
+    "useEmailCheck swallows errors, including 429, and silently goes back to idle. Submitting still gets a 409 inline from the server, so there is no silent block."
+  ],
+  "updated_files": ["/app/backend/tests/test_auth_refactor.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Used /app/memory/test_credentials.md (doctor, parent). Bcrypt hash starts with $2b$; httpOnly access_token cookie confirmed.",
+  "seed_data_creation": "Created test_e2e_*@example.com (parent) and test_doc_*@example.com (pending doctor). Both were deleted afterwards, along with signups, login_attempts and email_checks.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use /app/backend/tests/signup_code.py <email> to get a valid signup code (it prints the code; subprocess works from playwright). Use reset_token.py for reset links. Clean db.users test_* emails, db.signups, db.login_attempts and db.email_checks after runs."
+}

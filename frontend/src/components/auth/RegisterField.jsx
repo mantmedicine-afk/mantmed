@@ -1,6 +1,6 @@
 import { AlertCircle, Check, Loader2 } from "lucide-react";
 
-const base = "h-12 w-full rounded-xl border bg-white/5 px-4 text-sm text-white outline-none transition-colors placeholder:text-slate-400 focus:bg-white/10";
+const base = "h-12 w-full rounded-xl border bg-white/5 px-4 text-sm text-white outline-none transition-colors placeholder:text-slate-500 focus:bg-white/10";
 
 export const FieldMsg = ({ id, error, ok, busy }) => {
   if (busy) return <p className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-300" data-testid={`${id}-checking`}><Loader2 size={12} className="animate-spin" /> {busy}</p>;

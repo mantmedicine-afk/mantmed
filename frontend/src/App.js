@@ -14,33 +14,17 @@ import ResetPassword from "@/pages/ResetPassword";
 import Portal from "@/pages/Portal";
 import Verify from "@/pages/Verify";
 import { setClinics } from "@/lib/api";
-import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { IdleWarning } from "@/components/dash/Security";
 
-
-const WrongArea = ({ to, label }) => {
-  const { logout } = useAuth();
-  return (
-    <div className="grid min-h-screen place-items-center bg-[#0A192F] px-5 text-center text-white" data-testid="wrong-area">
-      <div className="max-w-sm">
-        <h1 className="font-display text-4xl">Area non disponibile</h1>
-        <p className="mt-3 text-sm text-[#C9CCD3]">Questo account non ha accesso a quest'area.</p>
-        <div className="mt-6 flex justify-center gap-2">
-          <Link to={to} className="h-11 rounded-full bg-white px-5 py-3 text-sm font-semibold text-[#0A192F]" data-testid="wrong-area-go">{label}</Link>
-          <button onClick={() => logout()} className="h-11 rounded-full border border-[#C9CCD3]/40 px-5 text-sm" data-testid="wrong-area-logout">Esci</button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 const Gate = () => {
   const { user } = useAuth();
   if (user === null) return <Loading />;
   if (!user) return <Login />;
-  if (user.role === "admin") return <WrongArea to="/admin" label="Vai al Pannello Founder" />;
-  if (user.role === "parent") return <WrongArea to="/portale" label="Vai al Portale Paziente" />;
+  if (user.role === "admin") return <Navigate to="/admin" replace />;
+  if (user.role === "parent") return <Navigate to="/portale" replace />;
   setClinics(user.clinics);
   return <><Dashboard /><IdleWarning /></>;
 };
@@ -49,21 +33,21 @@ const PortalGate = () => {
   const { user } = useAuth();
   if (user === null) return <Loading />;
   if (!user) return <Login parent subtitle="Portale Paziente · genitori e tutori" note="Referti, consensi e appuntamenti di suo figlio" />;
-  return user.role === "parent" ? <><Portal /><IdleWarning /></> : <WrongArea to={user.role === "admin" ? "/admin" : "/app"} label="Vai alla sua area" />;
+  return user.role === "parent" ? <><Portal /><IdleWarning /></> : <Navigate to={user.role === "admin" ? "/admin" : "/app"} replace />;
 };
 
 const AdminGate = () => {
   const { user } = useAuth();
   if (user === null) return <Loading />;
   if (!user) return <Login subtitle="Pannello Founder · accesso amministratore" note="Accesso riservato all'amministratore MantMed" signup={false} />;
-  return user.role === "admin" ? <><Admin /><IdleWarning /></> : <WrongArea to="/app" label="Vai alla dashboard" />;
+  return user.role === "admin" ? <><Admin /><IdleWarning /></> : <Navigate to={user.role === "parent" ? "/portale" : "/app"} replace />;
 };
 
 const AccountGate = () => {
   const { user } = useAuth();
   if (user === null) return <Loading />;
   if (!user) return <Login subtitle="Area riservata · gestione account" note="Acceda per gestire profilo, sicurezza e notifiche" />;
-  if (user.role === "admin") return <WrongArea to="/admin" label="Vai al Pannello Founder" />;
+  if (user.role === "admin") return <Navigate to="/admin" replace />;
   if (user.role === "doctor") return <Navigate to={`/app/impostazioni${window.location.search}`} replace />;
   return <Navigate to={`/portale/impostazioni${window.location.search}`} replace />;
 };

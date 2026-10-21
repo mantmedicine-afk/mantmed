@@ -13,13 +13,13 @@ import { Strength } from "@/components/auth/PasswordRules";
 const CONSENT_TEXT = "Informativa privacy e consenso al trattamento dei dati sanitari v1.0";
 
 const DOCTOR_FIELDS = [
-  ["first_name", "Nome", "Mario"], ["last_name", "Cognome", "Rossi"], ["specialty", "Specializzazione", "Pediatria"],
-  ["order_number", "Numero iscrizione Ordine", "RC 1234"], ["email", "Email professionale", "nome@studio.it", "email"],
-  ["phone", "Telefono", "+39 333 1234567", "tel"], ["studio_address", "Sede dello studio", "Via Roma 1, Reggio Calabria", "text", true],
+  ["first_name", "Nome", "es. Mario"], ["last_name", "Cognome", "es. Rossi"], ["specialty", "Specializzazione", "es. Pediatria"],
+  ["order_number", "Numero iscrizione Ordine", "es. RC 1234"], ["email", "Email professionale", "es. nome@studio.it", "email"],
+  ["phone", "Telefono", "es. +39 333 1234567", "tel"], ["studio_address", "Sede dello studio", "es. Via Roma 1, Reggio Calabria", "text", true],
 ];
 const PARENT_FIELDS = [
-  ["first_name", "Nome", "Giulia"], ["last_name", "Cognome", "Russo"], ["child_fiscal_code", "Codice fiscale del bambino", "RSSSFO24E41H224Y", "text", true],
-  ["email", "Email (la stessa comunicata allo studio)", "nome@email.it", "email"], ["phone", "Cellulare", "333 1234567", "tel"],
+  ["first_name", "Nome", "es. Giulia"], ["last_name", "Cognome", "es. Russo"], ["child_fiscal_code", "Codice fiscale del bambino", "16 caratteri, es. RSSMRA…", "text", true],
+  ["email", "Email (la stessa comunicata allo studio)", "es. nome@email.it", "email"], ["phone", "Cellulare", "es. 333 1234567", "tel"],
 ];
 
 const Shell = ({ icon: Icon, kicker, title, children }) => (
