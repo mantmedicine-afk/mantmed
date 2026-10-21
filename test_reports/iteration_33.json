@@ -1,0 +1,39 @@
+{
+  "summary": "Frontend-only test of the 'Avvia Consultazione / Inizia registrazione' flow (user bug: clicking does nothing). Could NOT reproduce any 'click does nothing' state. All 8 requested scenarios pass. getUserMedia was mocked via add_init_script (fake oscillator stream for success; DOMException rejections for errors; never-resolving promise for the timeout) because the browser tool can't take chromium fake-media flags.",
+  "results": {
+    "circle_button_clicks": "PASS - 6 click points (centre, 0.9r left/right/top/bottom, diagonal) each opened consultation-overlay; elementFromPoint at every point is start-consultation-btn (the rings no longer intercept clicks). Opening and closing it 6 times in a row works.",
+    "no_patient_validation": "PASS - inline consult-start-error 'Seleziona un paziente in attesa o scrivi nome e cognome' plus a toast; the error goes away when a name is typed",
+    "free_name_without_paper_consent": "PASS - inline error 'Spunta la conferma del consenso privacy cartaceo...'; after ticking consent-paper-checkbox, recording starts and the timer goes 00:00 -> 00:04",
+    "mic_errors": "PASS - each case shows its own inline message and the button comes back enabled with 'Inizia registrazione': NotAllowedError (permission denied), NotFoundError (no mic), NotReadableError (mic busy), AbortError (generic message)",
+    "mic_hang_timeout": "PASS - at 1s the button shows 'In attesa del microfono…' with a spinner and is disabled; at about 21s the inline TimeoutError message appears and the button is enabled again",
+    "manual_mode": "PASS - text shorter than 20 characters gives an inline error; a valid text reaches the note stage (note-summary-card shown), followed by the 'Referto pronto' toast",
+    "waiting_list_start": "PASS - patient added to the waiting list (Alice Conti); waiting-start-{id} opens the overlay with that patient preselected and consent-gate-ok shown; Inizia registrazione starts recording; the circle button also preselects the next waiting patient. Test waiting entry removed afterwards.",
+    "full_audio_flow": "PASS - recorded 4s, then 'Termina e trascrivi': the note editor opens straight away showing the 'L'IA sta compilando la cartella' state and an 'Elaborazione referto in corso' toast"
+  },
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ConsultationOverlay paper consent", "issue": "The 'paper' state is not reset when the overlay reopens (the useEffect resets sel, freeName, manual, text and hint, but not paper). The consent tick from the previous free visit stays checked for the next free patient, so a new free visit can start without the doctor confirming consent again. This is a privacy/compliance gap.", "selector": "[data-testid='consent-paper-checkbox']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "critical_code_review_comments": [
+    "ConsultationOverlay useEffect([open, patient, initial]): add setPaper(false) so consent is confirmed again for every visit.",
+    "useRecorder.start: when the 20s timeout wins the race, a getUserMedia call that resolves later leaves an orphan MediaStream, so the mic stays on (red dot) and nothing stops it. Fix: on late resolve after timeout, stop its tracks (e.g. attach .then(s => timedOut && s.getTracks().forEach(t => t.stop()))).",
+    "Closing the overlay while 'starting' (mic request pending): close() only stops rec if state !== 'idle'. If getUserMedia resolves later, rec.start sets state 'recording' on a hidden overlay, so audio is captured silently and the mic stays on. Track this with a cancelled ref and stop the stream in that case.",
+    "Possible real-world cause of the user's report (not reproducible headless): the native Chrome permission prompt on desktop can sit unanswered or out of sight; the new 20s timeout plus the inline message now covers this. Inside the Emergent preview iframe, a missing allow='microphone' gives NotAllowedError, which is now explained inline."
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "Reset paper consent (setPaper(false)) whenever the consultation overlay opens",
+    "Stop orphan mic streams after the timeout and when the overlay is closed during 'In attesa del microfono…'"
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend only)", "frontend": "100% (8/8 scenarios)"},
+  "test_credentials": "medico@mantmed.it / Auscula-Studio-2026 (no failed logins)",
+  "seed_data_creation": "Created consultations 'TEST Manuale Bianchi' (manual) and 'TEST Audio Verdi' (audio, 4s oscillator tone), plus an abandoned recording for Alice Conti. Waiting entry for Alice Conti was created and then removed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Mock getUserMedia via page.add_init_script: an AudioContext oscillator into createMediaStreamDestination().stream works with MediaRecorder. Use window.__gumMode to switch the error type. Wait for login-email-input before filling; the page is not ready right after navigation."
+}

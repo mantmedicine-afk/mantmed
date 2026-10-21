@@ -306,3 +306,8 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Post-login: toast "Bentornato", reindirizzamento automatico all'area del ruolo (/app, /portale, /admin); utenti loggati in area sbagliata reindirizzati automaticamente (WrongArea rimossa)
 - Parent signup: schermata "Account attivo" + toast + redirect a /portale senza refresh
 - Backlog: CORS_ORIGINS='*' con credenziali (preesistente) da restringere ai domini reali in produzione
+
+## 2026-06 · Fix "Avvia Consultazione / Inizia registrazione" (iteration_33 PASS)
+- Errori inline accanto al pulsante (consult-start-error) oltre al toast; stato "In attesa del microfono…" con timeout 20s
+- Messaggi specifici: permesso negato, anteprima in iframe che blocca il microfono, nessun microfono, microfono occupato, contesto non sicuro
+- Anelli animati non intercettano più i clic; consenso cartaceo azzerato a ogni nuova consultazione

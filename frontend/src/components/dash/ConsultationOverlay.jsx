@@ -38,6 +38,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
     setManual(false);
     setText("");
     setHint("");
+    setPaper(false);
     if (!initial) api.visitTemplates().then((xs) => { setTemplates(xs); setTplId((cur) => (xs.some((t) => t.id === cur) ? cur : xs[0]?.id ?? "")); }).catch(() => setTemplates([]));
   }, [open, patient, initial]);
 
