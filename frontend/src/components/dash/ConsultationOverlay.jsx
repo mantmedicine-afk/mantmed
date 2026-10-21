@@ -19,6 +19,8 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [sendStep, setSendStep] = useState("");
+  const [starting, setStarting] = useState(false);
+  const [hint, setHint] = useState("");
   const uploaded = useRef([]);
   const [result, setResult] = useState(null);
   const lastBlob = useRef(null);
@@ -35,6 +37,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
     setFreeName("");
     setManual(false);
     setText("");
+    setHint("");
     if (!initial) api.visitTemplates().then((xs) => { setTemplates(xs); setTplId((cur) => (xs.some((t) => t.id === cur) ? cur : xs[0]?.id ?? "")); }).catch(() => setTemplates([]));
   }, [open, patient, initial]);
 
@@ -50,6 +53,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
   const pickTpl = (id) => { autoPicked.current = false; setTplId(id); };
 
   const name = sel?.name || freeName.trim();
+  useEffect(() => { setHint(""); }, [name, paper, manual]);
 
   // Invia audio/trascrizione e apre subito la cartella: Whisper + IA lavorano in background sul server
   const process = async (transcript, duration) => {
@@ -91,17 +95,21 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
     setSending(false);
   };
 
+  const fail = (msg) => { setHint(msg); toast.error(msg); };
   const start = async () => {
-    if (!name) return toast.error("Seleziona o inserisci il paziente");
+    setHint("");
+    if (!name) return fail("Seleziona un paziente in attesa o scrivi nome e cognome");
     const linked = patients.find((p) => p.id === sel?.patient_id);
-    if (linked && !linked.consent_at) return toast.error("Registra prima il consenso privacy del paziente");
-    if (!sel?.patient_id && !paper) return toast.error("Conferma l'acquisizione del consenso privacy");
+    if (linked && !linked.consent_at) return fail("Registra prima il consenso privacy del paziente");
+    if (!sel?.patient_id && !paper) return fail("Spunta la conferma del consenso privacy cartaceo per avviare la visita libera");
     if (manual) {
-      if (text.trim().length < 20) return toast.error("Trascrizione troppo breve");
+      if (text.trim().length < 20) return fail("Trascrizione troppo breve (almeno 20 caratteri)");
       return process(text, 0);
     }
+    setStarting(true);
     try { await rec.start(); setStage("recording"); }
-    catch { toast.error("Microfono non disponibile: consenti l'accesso o usa la trascrizione manuale"); }
+    catch (e) { fail(micError(e)); }
+    setStarting(false);
   };
 
   const close = async () => {
@@ -126,7 +134,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
         </div>
         <div className="flex flex-1 flex-col justify-center py-8">
           {stage === "setup" && (
-            <Setup {...{ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, sending }} picker={<TemplatePicker templates={templates} value={tplId} onChange={pickTpl} suggested={suggested} ageM={ageM} />} gate={<ConsentGate patient={patients.find((p) => p.id === sel?.patient_id)} free={!sel?.patient_id && Boolean(freeName.trim())} paper={paper} setPaper={setPaper} onSaved={onPatientsChange} />} />
+            <Setup {...{ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, hint, sending: sending || starting, starting }} picker={<TemplatePicker templates={templates} value={tplId} onChange={pickTpl} suggested={suggested} ageM={ageM} />} gate={<ConsentGate patient={patients.find((p) => p.id === sel?.patient_id)} free={!sel?.patient_id && Boolean(freeName.trim())} paper={paper} setPaper={setPaper} onSaved={onPatientsChange} />} />
           )}
           {(stage === "recording") && (
             <Recording name={name} rec={rec} sending={sending} sendStep={sendStep} onStop={() => process(null, rec.seconds)} />
@@ -145,6 +153,17 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
       </div>
     </motion.div>
   );
+};
+
+const micError = (e) => {
+  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) return "Il browser non consente il microfono su questa pagina: apra MantMed in una scheda sicura (https) o usi la trascrizione manuale";
+  if (e?.name === "TimeoutError") return "Nessuna risposta alla richiesta del microfono: consenta l'accesso dall'icona nella barra degli indirizzi e riprovi";
+  if (e?.name === "NotAllowedError" || e?.name === "SecurityError") return window.self !== window.top
+    ? "Accesso al microfono bloccato in questa anteprima: apra MantMed in una nuova scheda del browser e riprovi"
+    : "Accesso al microfono negato: lo consenta dall'icona del lucchetto nella barra degli indirizzi e riprovi";
+  if (e?.name === "NotFoundError" || e?.name === "OverconstrainedError") return "Nessun microfono trovato: colleghi un microfono o usi la trascrizione manuale";
+  if (e?.name === "NotReadableError") return "Il microfono è usato da un'altra applicazione: la chiuda e riprovi";
+  return "Microfono non disponibile: consenta l'accesso o usi la trascrizione manuale";
 };
 
 const stageLabel = { setup: "preparazione", recording: "registrazione", retry: "invio audio", note: "cartella della visita" };
@@ -180,7 +199,7 @@ const TemplatePicker = ({ templates, value, onChange, suggested, ageM }) => (tem
   </div>
 ) : null);
 
-const Setup = ({ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, gate, sending, picker }) => (
+const Setup = ({ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, gate, sending, starting, hint, picker }) => (
   <div className="grid gap-10 lg:grid-cols-[1.1fr_1fr]" data-testid="consultation-setup">
     <div>
       <h2 className="font-display text-5xl leading-[1.02] lg:text-6xl">Chi stai<br /><span className="italic text-[#A9C2FF]">visitando?</span></h2>
@@ -198,8 +217,9 @@ const Setup = ({ waiting, sel, setSel, freeName, setFreeName, manual, setManual,
       {picker}
       <button onClick={() => setManual(!manual)} className="flex items-center gap-2 text-sm text-slate-300 hover:text-white" data-testid="consult-manual-toggle"><Keyboard size={15} /> {manual ? "Torna alla registrazione vocale" : "Senza microfono? Incolla una trascrizione"}</button>
       {manual && <textarea value={text} onChange={(e) => setText(e.target.value)} rows={5} placeholder="Medico: Buongiorno, cosa la porta qui oggi? Paziente: …" className="w-full rounded-2xl border border-white/15 bg-white/5 px-5 py-4 text-white placeholder:text-slate-400 outline-none focus:border-white/50" data-testid="consult-manual-textarea" />}
+      {hint && <p role="alert" className="rounded-2xl border border-rose-300/40 bg-rose-500/10 px-5 py-3 text-sm text-rose-200" data-testid="consult-start-error">{hint}</p>}
       <button onClick={start} disabled={sending} className="mt-2 flex w-full items-center justify-center gap-3 rounded-full bg-white py-5 text-lg font-semibold text-night transition-transform hover:-translate-y-0.5 active:scale-[0.98]" data-testid="consult-begin-btn">
-        {sending ? <Loader2 size={20} className="animate-spin" /> : manual ? <Keyboard size={20} /> : <Mic size={20} />} {manual ? "Genera nota clinica" : "Inizia registrazione"}
+        {sending ? <Loader2 size={20} className="animate-spin" /> : manual ? <Keyboard size={20} /> : <Mic size={20} />} {starting ? "In attesa del microfono…" : manual ? "Genera nota clinica" : "Inizia registrazione"}
       </button>
     </div>
   </div>

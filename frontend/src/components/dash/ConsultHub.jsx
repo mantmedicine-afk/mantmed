@@ -27,7 +27,7 @@ export const ConsultHub = ({ next, onStart }) => {
       </div>
 
       <motion.div style={{ rotateX: rx, rotateY: ry }} className="relative z-10 grid place-items-center [transform-style:preserve-3d]">
-        {[0, 1, 2].map((i) => <span key={i} className="ring-pulse absolute rounded-full border border-[#7FA6FF]/40" style={{ animationDelay: `${i * 1.2}s` }} />)}
+        {[0, 1, 2].map((i) => <span key={i} className="ring-pulse pointer-events-none absolute rounded-full border border-[#7FA6FF]/40" style={{ animationDelay: `${i * 1.2}s` }} />)}
         <motion.button
           onClick={() => onStart(next)}
           whileHover={{ scale: 1.03 }}

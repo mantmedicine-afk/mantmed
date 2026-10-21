@@ -55,7 +55,12 @@ export const useRecorder = () => {
   }, [state, makeRecorder]);
 
   const start = async () => {
-    const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+    if (!navigator.mediaDevices?.getUserMedia) throw Object.assign(new Error("unsupported"), { name: "NotSupportedError" });
+    let timer;
+    const s = await Promise.race([
+      navigator.mediaDevices.getUserMedia({ audio: true }),
+      new Promise((_, rej) => { timer = setTimeout(() => rej(Object.assign(new Error("timeout"), { name: "TimeoutError" })), 20000); }),
+    ]).finally(() => clearTimeout(timer));
     stream.current = s;
     const AC = window.AudioContext || window.webkitAudioContext;
     ctx.current = new AC();
