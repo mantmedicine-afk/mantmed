@@ -4,7 +4,7 @@ import { AudioLines, LineChart, FileCheck2, CalendarRange, Wallet, ShieldCheck, 
 const reveal = (d = 0) => ({ initial: { y: 24 }, whileInView: { y: 0 }, viewport: { once: true, amount: 0.15 }, transition: { delay: d, duration: 0.7, ease: [0.22, 1, 0.36, 1] } });
 
 const FEATURES = [
-  { id: "trascrizione", icon: AudioLines, title: "Trascrizione vocale istantanea", text: "Registra la visita con un tocco: la conversazione diventa anamnesi, esame obiettivo, diagnosi e terapia nella cartella pediatrica standard.", span: "md:col-span-2", big: "Parli. Il resto è scritto." },
+  { id: "trascrizione", icon: AudioLines, title: "MantAi: trascrizione vocale istantanea", text: "Registra la visita con un tocco: la conversazione diventa anamnesi, esame obiettivo, diagnosi e terapia nella cartella pediatrica standard.", span: "md:col-span-2", big: "Parli. Il resto è scritto." },
   { id: "percentili", icon: LineChart, title: "Percentili pediatrici automatici", text: "Peso, altezza e circonferenza cranica confrontati con le curve OMS, con z-score e grafico di crescita aggiornati a ogni visita." },
   { id: "pdf", icon: FileCheck2, title: "Referti PDF in 30 secondi", text: "Referto impaginato con intestazione dello studio, pronto da stampare o da inviare ai genitori via email.", big: "30″" },
   { id: "agenda", icon: CalendarRange, title: "Agenda multi-studio", text: "Studio Centro e Studio Provincia in un'unica vista: appuntamenti, sala d'attesa e prossimo paziente sempre in primo piano." },
