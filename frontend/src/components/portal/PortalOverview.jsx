@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { CalendarClock, MessagesSquare, CalendarPlus, Sparkles, ListChecks, CalendarHeart, BookOpen, MapPin } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { MantAIButton } from "@/components/mantai/MantAI";
 import { api } from "@/lib/api";
 import { Avatar } from "@/components/showcase/ShowcaseView";
 
@@ -86,7 +87,7 @@ export const PortalOverview = ({ user, kids, onWrite, onBook }) => {
     <div className="space-y-5" data-testid="portal-overview">
       <PortalCover user={user} kids={kids} />
       {uniq.length > 1 && <div className="flex flex-wrap gap-2" data-testid="portal-overview-kids">{uniq.map((c) => <button key={c.patient.id} onClick={() => setPid(c.patient.id)} className={`rounded-full px-4 py-2 text-sm transition-colors ${c.patient.id === kid?.patient.id ? "bg-night text-white" : "bg-white text-night ring-1 ring-[#0A192F]/10 hover:ring-night"}`} data-testid={`portal-overview-kid-${c.patient.id}`}>{c.patient.name.split(" ")[0]} · {c.doctor.specialty}</button>)}</div>}
-      {kid && <div className="grid grid-cols-1 gap-5 lg:grid-cols-12"><div className="lg:col-span-8"><SimpleBox kid={kid} /></div><div className="lg:col-span-4"><DoctorCard kid={kid} onWrite={() => onWrite(kid)} onBook={() => onBook(kid)} /></div></div>}
+      {kid && <div className="grid grid-cols-1 gap-5 lg:grid-cols-12"><div className="space-y-3 lg:col-span-8"><SimpleBox kid={kid} /><MantAIButton variant="banner" view="patient" /></div><div className="lg:col-span-4"><DoctorCard kid={kid} onWrite={() => onWrite(kid)} onBook={() => onBook(kid)} /></div></div>}
     </div>
   );
 };

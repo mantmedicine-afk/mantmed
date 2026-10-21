@@ -11,6 +11,7 @@ import { ConsentGate } from "./ConsentGate";
 import { useProcessing } from "@/lib/processing";
 import { micError } from "@/lib/mic";
 import { MicCheck } from "./MicCheck";
+import { MantAIButton } from "@/components/mantai/MantAI";
 
 export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, onDone, patients = [], onPatientsChange, onEditPatient }) => {
   const [paper, setPaper] = useState(false);
@@ -196,6 +197,7 @@ const Setup = ({ waiting, sel, setSel, freeName, setFreeName, manual, setManual,
     <div>
       <h2 className="font-display text-5xl leading-[1.02] lg:text-6xl">Chi stai<br /><span className="italic text-[#A9C2FF]">visitando?</span></h2>
       <p className="mt-4 max-w-md text-slate-300">La visita viene registrata, trascritta e trasformata nella cartella clinica secondo il modello scelto: anamnesi, motivo e sintomi, parametri, esame obiettivo, diagnosi e terapia su misura.</p>
+      <div className="mt-5"><MantAIButton variant="icon" view="doctor" /></div>
     </div>
     <div className="space-y-3">
       {waiting.map((w) => (

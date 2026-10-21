@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { Menu, X, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { LogoMark } from "@/components/dash/Logo";
+import { MantAIButton } from "@/components/mantai/MantAI";
 import { useAuth } from "@/lib/auth";
 
 const ShellCtx = createContext({ open: () => {} });
@@ -42,6 +43,7 @@ const Panel = ({ items, area, onNav, onClose, mini, onToggle }) => {
       <nav className={`mt-8 flex-1 space-y-1.5 overflow-y-auto pl-3`} aria-label="Navigazione principale" data-testid="sidebar-nav">
         {items.map((it) => <Item key={it.id} it={it} onNav={onNav} mini={mini} />)}
       </nav>
+      <MantAIButton variant="sidebar" view={user?.role === "parent" ? "patient" : "doctor"} mini={mini} />
       {onToggle && (
         <button onClick={onToggle} className={`mb-3 flex h-11 items-center gap-2 rounded-2xl text-sm text-[#C9CCD3] transition-colors hover:bg-white/10 hover:text-white ${mini ? "justify-center" : "px-3.5"}`}
           aria-label={mini ? "Espandi la barra laterale" : "Riduci la barra alle icone"} title={mini ? "Espandi" : "Riduci alle icone"} aria-expanded={!mini} data-testid="sidebar-collapse-btn">
