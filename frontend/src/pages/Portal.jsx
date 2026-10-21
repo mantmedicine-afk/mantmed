@@ -264,7 +264,7 @@ export default function Portal() {
             <button onClick={() => logout()} className="grid h-10 w-10 place-items-center rounded-full border border-[#C9CCD3]/30 text-white hover:border-white" aria-label="Esci" data-testid="portal-logout-btn"><LogOut size={16} /></button></div>
         </div>
       </header>
-      {sezione === "impostazioni" ? <Account role="parent" embedded extras={<button onClick={() => setFeedback(true)} className="flex h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-night hover:border-night" data-testid="portal-feedback-btn"><MessagesSquare size={15} /> Invia un feedback</button>} /> : (
+      {sezione === "impostazioni" ? <Account role="parent" embedded extras={<button onClick={() => setFeedback(true)} className="flex h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-night hover:border-night" data-testid="portal-feedback-btn"><MessagesSquare size={15} /> Feedback e assistenza</button>} /> : (
       <main className="mx-auto max-w-[1100px] space-y-5 px-5 py-10">
         <div><div className="text-[11px] uppercase tracking-[0.22em] text-slate-600">Area personale protetta</div><h1 className="mt-1 font-display text-4xl text-night sm:text-5xl">{TITLES[sezione] ?? <>Buongiorno, <span className="italic text-slate-500">{user?.name?.split(" ")[0]}</span></>}</h1></div>
         <PayBanner state={payState} />

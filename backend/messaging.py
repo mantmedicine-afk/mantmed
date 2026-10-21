@@ -13,7 +13,7 @@ from crypto import seal_fields, unseal_fields
 from mailer import send_email
 from registration import mail_shell
 from account import prefs_of, notify_doctor, NOTIF_CAT
-from beta import FeedbackIn
+from beta import FeedbackIn, submit_feedback
 
 ROME = ZoneInfo("Europe/Rome")
 KINDS = Literal["info", "clinico", "ricetta", "certificato_sportivo", "altro"]
@@ -218,10 +218,7 @@ def build_messaging(db, current_user):
 
     @parent.post("/feedback")
     async def p_feedback(body: FeedbackIn, user: dict = Depends(current_user)):
-        doc = {"doctor_id": None, "parent_id": user["id"], "role": "parent", "doctor_name": user["name"], "rating": body.rating, "area": body.area,
-               "text": body.text.strip(), "created_at": _now().isoformat()}
-        res = await db.feedback.insert_one(seal_fields(dict(doc), ("text",)))
-        return {"id": str(res.inserted_id)}
+        return await submit_feedback(db, body, user, {"doctor_id": None, "parent_id": user["id"], "role": "parent", "doctor_name": user["name"]})
 
     # ---------- Medico ----------
     @doctor.get("/summary")

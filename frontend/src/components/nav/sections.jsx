@@ -71,7 +71,7 @@ export const TsCard = () => (
 
 export const SettingsExtras = ({ onCompliance, onFeedback, onTour }) => (
   <div className="flex flex-wrap gap-2" data-testid="settings-extras">
-    {[[onCompliance, ShieldCheck, "Sicurezza e GDPR", "settings-compliance-btn"], [onFeedback, MessageSquarePlus, "Feedback Beta", "settings-feedback-btn"], [onTour, Compass, "Rivedi Tour", "settings-tour-btn"]].filter(([f]) => f).map(([f, I, l, id]) => (
+    {[[onCompliance, ShieldCheck, "Sicurezza e GDPR", "settings-compliance-btn"], [onFeedback, MessageSquarePlus, "Feedback e assistenza", "settings-feedback-btn"], [onTour, Compass, "Rivedi Tour", "settings-tour-btn"]].filter(([f]) => f).map(([f, I, l, id]) => (
       <button key={id} onClick={f} className="flex h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-night transition-colors hover:border-night" data-testid={id}><I size={15} /> {l}</button>
     ))}
   </div>

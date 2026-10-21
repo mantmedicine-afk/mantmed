@@ -1,8 +1,17 @@
+import logging
+import os
 from datetime import datetime, timezone, timedelta
+from html import escape as hesc
 from typing import Literal, Optional
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field
+from zoneinfo import ZoneInfo
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field, model_validator
 from crypto import seal_fields, unseal_fields
+from mailer import send_email
+
+logger = logging.getLogger(__name__)
+KINDS = {"feedback": "Feedback", "supporto": "Richiesta di supporto tecnico", "segnalazione": "Segnalazione problema"}
+ROLES = {"doctor": "Medico", "parent": "Paziente / Genitore", "admin": "Amministratore"}
 
 MANUAL_REPORT_MIN = 12
 REVIEW_CAP_SEC = 20 * 60
@@ -16,10 +25,78 @@ AREAS = {
 Area = Literal["trascrizione", "pdf", "agenda", "cassa", "altro"]
 
 
+class TechInfo(BaseModel):
+    page: str = Field(default="", max_length=300)
+    user_agent: str = Field(default="", max_length=400)
+    screen: str = Field(default="", max_length=40)
+    language: str = Field(default="", max_length=20)
+
+
 class FeedbackIn(BaseModel):
-    rating: int = Field(ge=1, le=5)
+    kind: Literal["feedback", "supporto", "segnalazione"] = "feedback"
+    rating: Optional[int] = Field(default=None, ge=1, le=5)
     area: Area
     text: str = Field(default="", max_length=4000)
+    client_id: str = Field(default="", max_length=64)
+    tech: Optional[TechInfo] = None
+
+    @model_validator(mode="after")
+    def _check(self):
+        if self.kind == "feedback" and not self.rating:
+            raise ValueError("Assegni un punteggio di usabilità")
+        if self.kind != "feedback":
+            self.rating = None
+            if len(self.text.strip()) < 5:
+                raise ValueError("Descriva la richiesta in almeno qualche parola")
+        if self.kind != "segnalazione":
+            self.tech = None
+        return self
+
+
+def team_email_html(doc: dict, user: dict, sent_at: datetime) -> str:
+    first, _, last = (user.get("name") or "").strip().partition(" ")
+    rows = [("Tipo", KINDS[doc["kind"]]), ("Nome", first), ("Cognome", last), ("Ruolo", ROLES.get(user.get("role"), user.get("role"))),
+            ("Email di contatto", user.get("email")), ("Area", AREAS[doc["area"]]),
+            ("Data e ora", sent_at.astimezone(ZoneInfo("Europe/Rome")).strftime("%d/%m/%Y %H:%M:%S") + " (ora italiana)")]
+    if doc.get("rating"):
+        rows.append(("Valutazione", f"{doc['rating']} / 5"))
+    tech = doc.get("tech") or {}
+    rows += [(k, tech.get(f)) for k, f in (("Pagina", "page"), ("Browser / dispositivo", "user_agent"), ("Schermo", "screen"), ("Lingua", "language")) if tech.get(f)]
+    cells = "".join(f'<tr><td style="padding:6px 0;color:#5B6478;width:170px;vertical-align:top">{k}</td><td style="padding:6px 0">{hesc(str(v or "—"))}</td></tr>' for k, v in rows)
+    return ('<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F5F7;padding:24px 0"><tr><td align="center">'
+            '<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;font-family:Arial,sans-serif;color:#0A192F">'
+            '<tr><td style="background:#0A192F;padding:22px 28px;color:#ffffff;font-family:Georgia,serif;font-size:24px">MantMed'
+            f'<div style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:2px;color:#C9CCD3;margin-top:4px">{hesc(KINDS[doc["kind"]].upper())} DAL PORTALE</div></td></tr>'
+            f'<tr><td style="padding:24px 28px;font-size:14px"><table width="100%">{cells}</table>'
+            '<div style="margin-top:18px;font-size:11px;letter-spacing:2px;color:#5B6478">MESSAGGIO</div>'
+            f'<p style="margin-top:6px;white-space:pre-wrap;line-height:1.6;border-left:3px solid #0A192F;padding-left:12px">{hesc(doc["text"] or "(nessun testo)")}</p>'
+            '<p style="margin-top:16px;color:#5B6478;font-size:12px">Risponda a questa email per scrivere direttamente all\'utente.</p></td></tr></table></td></tr></table>')
+
+
+async def submit_feedback(db, body: FeedbackIn, user: dict, extra: dict) -> dict:
+    """Salva il messaggio (idempotente su client_id) e lo inoltra via email al team MantMed."""
+    sent_at = _now()
+    doc = {**extra, "kind": body.kind, "rating": body.rating, "area": body.area, "text": body.text.strip(),
+           "tech": body.tech.model_dump() if body.tech else None, "email": user.get("email"), "created_at": sent_at.isoformat()}
+    key = {"client_id": body.client_id} if body.client_id else None
+    prev = await db.feedback.find_one({**key, "user_id": user["id"]}) if key else None
+    if prev and prev.get("email_sent"):
+        return {"id": str(prev["_id"]), "email_sent": True}
+    if prev:
+        fid = prev["_id"]
+        await db.feedback.update_one({"_id": fid}, {"$set": seal_fields(dict(doc), ("text",))})
+    else:
+        fid = (await db.feedback.insert_one(seal_fields({**doc, "user_id": user["id"], "client_id": body.client_id or None, "email_sent": False}, ("text",)))).inserted_id
+    who = user.get("name") or user.get("email")
+    label = {"feedback": "Nuovo Feedback", "supporto": "Richiesta di Supporto", "segnalazione": "Nuova Segnalazione"}[body.kind]
+    try:
+        await send_email(to=os.environ["ADMIN_EMAIL"], subject=f"{label} da {who} · {ROLES.get(user.get('role'), '')} - MantMed",
+                         html=team_email_html(doc, user, sent_at), reply_to=user.get("email"))
+    except Exception:
+        logger.exception("Email feedback %s non inviata", fid)
+        raise HTTPException(502, "Invio non riuscito: il messaggio è stato salvato, riprovi tra qualche istante")
+    await db.feedback.update_one({"_id": fid}, {"$set": {"email_sent": True, "email_sent_at": _now().isoformat()}})
+    return {"id": str(fid), "email_sent": True}
 
 
 def _now():
@@ -57,15 +134,12 @@ def build_beta(db, current_user):
 
     @router.post("/feedback")
     async def send_feedback(body: FeedbackIn, user: dict = Depends(current_user)):
-        doc = {"doctor_id": user["id"], "doctor_name": user["name"], "rating": body.rating, "area": body.area,
-               "text": body.text.strip(), "created_at": _now().isoformat()}
-        res = await db.feedback.insert_one(seal_fields(dict(doc), ("text",)))
-        return {"id": str(res.inserted_id), **doc}
+        return await submit_feedback(db, body, user, {"doctor_id": user["id"], "role": "doctor", "doctor_name": user["name"]})
 
     @router.get("/metrics")
     async def metrics(user: dict = Depends(current_user)):
         cons = await db.consultations.find({}, {"doctor_id": 1, "ai_sec": 1, "created_at": 1, "finalized_at": 1, "pdf_exports": 1}).to_list(10000)
-        fbs = [unseal_fields(f, ("text",)) for f in await db.feedback.find().sort("created_at", -1).to_list(5000)]
+        fbs = [unseal_fields(f, ("text",)) for f in await db.feedback.find({"kind": {"$in": [None, "feedback"]}, "rating": {"$ne": None}}).sort("created_at", -1).to_list(5000)]
         mine_c = [c for c in cons if c.get("doctor_id") == user["id"]]
         mine_f = [f for f in fbs if f["doctor_id"] == user["id"]]
         today = _now().date()

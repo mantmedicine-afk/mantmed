@@ -39,8 +39,8 @@ export const TopBar = ({ onCompliance, onFeedback, onTour, unread = 0, search })
           <button onClick={onTour} className="hidden sm:flex h-10 items-center gap-2 rounded-full border border-slate-200 px-3 text-sm font-medium text-slate-600 transition-colors hover:border-night hover:text-night" data-testid="tour-open-button" aria-label="Rivedi Tour / Guida" title="Rivedi Tour / Guida">
             <Compass size={16} /><span className="hidden whitespace-nowrap 2xl:inline">Rivedi Tour</span>
           </button>
-          <button onClick={onFeedback} className="hidden sm:flex h-10 items-center gap-2 rounded-full border border-slate-200 px-3 text-sm font-medium text-slate-600 transition-colors hover:border-night hover:text-night" data-testid="feedback-beta-button" aria-label="Invia feedback beta" title="Invia feedback beta">
-            <MessageSquarePlus size={16} /><span className="hidden whitespace-nowrap 2xl:inline">Feedback Beta</span>
+          <button onClick={onFeedback} className="hidden sm:flex h-10 items-center gap-2 rounded-full border border-slate-200 px-3 text-sm font-medium text-slate-600 transition-colors hover:border-night hover:text-night" data-testid="feedback-beta-button" aria-label="Feedback e assistenza" title="Feedback e assistenza">
+            <MessageSquarePlus size={16} /><span className="hidden whitespace-nowrap 2xl:inline">Feedback e assistenza</span>
           </button>
           <button onClick={() => nav("/app/messaggi")} className="relative grid h-10 w-10 place-items-center rounded-full border border-slate-200 text-slate-600 transition-colors hover:border-night hover:text-night" data-testid="topbar-messages-btn" aria-label={`Messaggi dalle famiglie${unread ? `: ${unread} non letti` : ""}`} title="Messaggi dalle famiglie">
             <MessagesSquare size={16} />
