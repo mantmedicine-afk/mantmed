@@ -273,6 +273,7 @@ class ConsultationIn(BaseModel):
 
 class ConsultationPatch(BaseModel):
     note: ClinicalNote
+    growth_only: bool = False  # salvataggi fatti mentre l'IA lavora: solo crescita e farmaci
 
 
 # ---------- Pediatric models ----------
@@ -490,11 +491,24 @@ async def resume_consult_jobs():
             spawn_consult_job(str(d["_id"]), d["owner_id"])
         else:
             await db.consultations.update_one({"_id": d["_id"]}, {"$set": {"status": "failed", "ai_error": "Elaborazione interrotta: incolli la trascrizione o compili la cartella a mano"}})
-    # audio cifrati rimasti senza job (job scaduti dopo JOB_TTL_DAYS)
-    old = datetime.now(timezone.utc) - timedelta(days=JOB_TTL_DAYS + 1)
+    asyncio.ensure_future(sweep_audio_loop())
+
+
+async def sweep_audio():
+    """Elimina gli audio cifrati rimasti senza job (job scaduti dopo JOB_TTL_DAYS)."""
+    old = datetime.now(timezone.utc) - timedelta(days=JOB_TTL_DAYS)
     async for f in db["consult_audio.files"].find({"uploadDate": {"$lt": old}}, {"_id": 1}):
         if not await db.consult_jobs.find_one({"audio_file": f["_id"]}):
             await audio_fs.delete(f["_id"])
+
+
+async def sweep_audio_loop():
+    while True:
+        try:
+            await sweep_audio()
+        except Exception:
+            logger.exception("Pulizia audio non riuscita")
+        await asyncio.sleep(6 * 3600)
 
 
 @app.on_event("startup")
@@ -864,6 +878,8 @@ async def retry_consultation(cid: str, body: Optional[RetryIn] = None, user: dic
         raise HTTPException(404, "Consultazione non trovata")
     if doc.get("status", "ready") == "ready":
         return Consultation.from_mongo(doc).out()
+    if doc.get("status") == "processing" or cid in _RUNNING:
+        raise HTTPException(409, "Elaborazione già in corso: attenda il risultato")
     pasted = (body.transcript if body else "").strip()
     if pasted:
         if len(pasted) < 20:
@@ -978,7 +994,12 @@ async def update_consultation(cid: str, body: ConsultationPatch):
     existing = await tdb.consultations.find_one({"_id": oid(cid)})
     if not existing:
         raise HTTPException(404, "Consultazione non trovata")
-    if existing.get("status") == "processing":
+    if body.growth_only and existing.get("status") != "processing":
+        # salvataggio partito durante l'elaborazione ma arrivato dopo: non si toccano i testi dell'IA
+        ai = ClinicalNote.model_validate(unseal_fields(existing, ("note",)).get("note") or {})
+        _apply_doctor(ai, body.note.model_dump())
+        body.note = ai
+    elif existing.get("status") == "processing":
         # durante l'elaborazione si salvano solo crescita e farmaci del medico; il job li unirà alla nota IA
         for _ in range(5):
             cur = ClinicalNote.model_validate(unseal_fields(existing, ("note",)).get("note") or {})
@@ -998,8 +1019,10 @@ async def update_consultation(cid: str, body: ConsultationPatch):
         _apply_doctor(ai, body.note.model_dump())
         body.note = ai
     sets = {**Consultation.sealed_set({"note": body.note.model_dump()}), "finalized_at": now_iso()}
-    if existing.get("status") == "failed":  # cartella compilata a mano dal medico
-        sets.update({"status": "ready", "ai_error": ""})
+    text_keys = [k for k, fl in ClinicalNote.model_fields.items() if fl.annotation is str]
+    if existing.get("status") == "failed" and not body.growth_only and any(
+            (getattr(body.note, k) or "").strip() not in ("", "Non riportato") for k in text_keys):
+        sets.update({"status": "ready", "ai_error": ""})  # cartella compilata a mano dal medico
         await _drop_job(cid)
     enrich_growth(body.note, await get_patient(existing.get("patient_id")), date.fromisoformat(existing["created_at"][:10]))
     sets.update(Consultation.sealed_set({"note": body.note.model_dump()}))

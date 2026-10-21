@@ -1,0 +1,43 @@
+{
+  "summary": "Retest of the async Whisper+LLM consult pipeline after the iteration_20 fixes. Backend: the regression suites test_async_consult.py and test_async_consult_extra.py pass 16/16. The new suite tests/test_async_consult_retest.py has 6 of 7 passing, 1 failing and 1 documenting xfail. Verified: a 13MB random-bytes upload returns 200 in 0.7s; the audio is stored AES-GCM sealed in the GridFS bucket consult_audio (length is plaintext+28 bytes and the stored bytes are not plaintext); the job has expires_at and the TTL index exists; the visit then goes to failed with a friendly Italian ai_error (no litellm text); no orphan is created. A 26MB upload returns 413 and creates no visit or job. A silent WAV goes to failed with 'Nessun parlato rilevato…'. Retry with a transcript under 20 chars returns 400. Retry with a pasted transcript returns processing with the transcript replaced, then ready with the note filled, and the job and GridFS file are deleted. Retry without a transcript and without a job returns 410. PATCH with a note on a failed visit returns ready with ai_error '' and the PDF returns 200. PATCH during processing increments rev, sets no finalized_at and keeps growth. Frontend (1920 + 390), all PASS: a growth edit during processing autosaves (exactly 1 PATCH after about 0.9s); closing the overlay and then going ready keeps weight 13.3 and the AI text intact. With the editor open and growth edited, exactly 1 PATCH is sent on ready, the weight is kept, the textareas get the ai-filled class, PDF is enabled, and the 'Referto pronto' toast shows bottom-right without Apri. With the editor closed the toast shows Apri. PatientDialog (z 60) appears above the pill (z 50). The failed banner works: Riprova without a job shows the 410 toast; the paste toggle and textarea work and 'Compila con l’IA' rejects short text, then processing, then fields populated; a manual edit plus Salva removes the banner and enables PDF. Regression: consult-begin-btn opens the note editor in 0.3s with shimmer, banner and pill (names hidden on mobile), and the visit is ready in about 6s with toast. Found 1 real bug: an autosave or Salva PATCH sent by a client that still thinks the visit is 'processing' but arriving after the job became ready goes through the normal save path and wipes the AI text fields.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "PATCH /api/consultations/{id}", "issue": "Late processing-era PATCH wipes AI text. The server only protects AI text if status is 'processing' when it reads the visit. The NoteEditor autosave (0.9s debounce) or Salva can arrive after the job finished but before the 2s poll notices; it then takes the normal 'ready' branch and overwrites every AI text field with the client's empty strings. Reproduced: test_late_autosave_after_ready_keeps_ai_text gives diagnosi ''. In test_patch_race_with_job, GET showed processing, then a PATCH 100ms later saw ready and the diagnosis became 'HACK2'.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "PATCH /api/consultations/{id} (failed)", "issue": "Any PATCH on a failed visit, even with an empty note, flips it to ready, drops the job and enables the PDF. There is no check that the doctor filled anything."},
+      {"endpoint": "POST /api/consultations/{id}/retry", "issue": "Retry with a pasted transcript while the status is 'processing' (job running) drops and recreates the job, but spawn returns early because of _RUNNING. The running job finishes with the old audio and the new job is left as an orphan until TTL."},
+      {"endpoint": "consult_audio GridFS", "issue": "Jobs expire via the TTL index after 7 days, but their GridFS audio is only removed in resume_consult_jobs at startup. On a long-running server the sealed audio stays until the next restart. Consider a periodic sweep."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Growth edit near job completion", "issue": "queueAutosave and Salva send the full local note (AI text empty) without telling the server the edit was made during processing, so they wipe the AI text if they land after ready (see backend critical). The subscribe handler only clears the timer once the poll fires.", "affected_selectors": ["growth-peso_kg", "note-save-btn"]}
+    ],
+    "design_issues": [
+      {"screen": "Mobile 390 processing pill", "issues": ["The pill is still about 246px wide and covers the transcript card text under the header. Consider an icon-only version or moving it below the header."]},
+      {"screen": "PatientDialog", "issues": ["Birth date uses the browser's native date input (mm/dd/yyyy shown) instead of a shadcn date picker with Italian format."]},
+      {"screen": "NoteEditor", "issues": ["The 'Cartella pediatrica salvata' and short-paste error toasts still show top-center and cover the note header/Salva row. Only the ready and failure toasts were moved to bottom-right."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_async_consult_retest.py", "/app/backend/tests/test_async_consult.py", "/app/backend/tests/test_async_consult_extra.py", "/app/test_reports/pytest/pytest_iter21.xml"],
+  "action_items": [
+    "HIGH: Make processing-era client saves safe after the job completes. For example, the frontend sends a flag or base_rev (e.g. {note, during_processing: true}) on autosave and on Salva while status is processing. When the server sees that flag (or a stale rev) and status != processing, it applies only crescita/farmaci via _apply_doctor, as the existing race branch does. Then re-run tests/test_async_consult_retest.py: test_patch_race_with_job and the xfail test_late_autosave_after_ready_keeps_ai_text should pass.",
+    "Optional: require at least one non-empty clinical field before a failed visit becomes ready on PATCH.",
+    "Optional: block a pasted-transcript retry while the status is processing (409), or cancel the running job.",
+    "Optional: periodic GridFS sweep for audio whose job expired; compact the mobile pill; use a shadcn date picker in PatientDialog."
+  ],
+  "critical_code_review_comments": [
+    "update_consultation: the race branch logic is correct, but it only covers the read/write window inside the server, not client staleness (see HIGH).",
+    "start_consultation reads the whole upload into memory before the 25MB check. This is acceptable, but a streaming size check would avoid 25MB+ allocations per request.",
+    "retry_consultation with transcript on a 'processing' visit can leave an orphan job (see minor)."
+  ],
+  "updated_files": ["/app/backend/tests/test_async_consult_retest.py"],
+  "success_rate": {"backend": "95% (23/24 incl. regression; 1 real bug + 1 xfail documenting it)", "frontend": "100% of requested flows"},
+  "seed_data_creation": "TEST_Retest Big/Huge/Silent/Manual/Race/Late and TEST_UI Mobile consultations were created. Alice Conti visit 6ad886d160904b54d69f870c had its status flipped and its weight edited to 13.9. TEST_Retest Late has blank AI text because of the bug reproduction.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run with -n0. The AI is fast (about 6s). To hold processing or failed in the UI, use /tmp/toggle.py <cid> processing|failed|ready. From inside the browser_automation script you can call it with subprocess.run(['python','/tmp/toggle.py',cid,'ready']), which works for driving state transitions mid-test. On mobile, use locator.check()/click() without force for consent-paper-checkbox and consult-manual-toggle (force clicks were ignored). About 15 AI calls were used this iteration.",
+  "rca of the issue": "Wipe of AI text: NoteEditor.queueAutosave sends noteRef.current, which has empty AI fields while processing. The server's PATCH decides the branch from the current DB status. If the job set status 'ready' before the PATCH is read, the full client note is $set, overwriting the AI text. Repro: legacy-create a visit, flip it to processing, then to ready, then PATCH {note:{crescita:{peso_kg:16.1}}}; diagnosi becomes ''. Mitigation: a client-side intent flag or base rev, with a server-side growth/drugs-only merge when the visit is no longer processing."
+}

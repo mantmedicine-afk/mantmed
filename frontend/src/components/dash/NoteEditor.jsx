@@ -11,6 +11,7 @@ import { SendToParents } from "./SendToParents";
 import { CashPanel } from "./CashPanel";
 import { BodychartEditor } from "@/components/bodychart/BodychartEditor";
 
+const BR = { position: "bottom-right" };
 const GROWTH_KEYS = ["peso_kg", "altezza_cm", "circonferenza_cranica_cm", "eta_mesi"];
 
 export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient }) => {
@@ -46,7 +47,7 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient }) =
   const autosave = useRef(null);
   const queueAutosave = () => {
     clearTimeout(autosave.current);
-    autosave.current = setTimeout(() => { api.updateConsultation(consultation.id, noteRef.current).catch(() => {}); }, 900);
+    autosave.current = setTimeout(() => { api.updateConsultation(consultation.id, noteRef.current, true).catch(() => {}); }, 900);
   };
   useEffect(() => () => clearTimeout(autosave.current), []);
 
@@ -80,13 +81,13 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient }) =
   const save = async () => {
     setSaving(true);
     try {
-      const r = await api.updateConsultation(consultation.id, note);
+      const r = await api.updateConsultation(consultation.id, note, processing);
       if (r?.note && r.status !== "processing") setNote(r.note);
       if (r?.status) setC(r);
-      toast.success(r?.status === "processing" ? "Crescita e terapia salvate: il resto lo compila l'IA" : "Cartella pediatrica salvata");
+      toast.success(r?.status === "processing" ? "Crescita e terapia salvate: il resto lo compila l'IA" : "Cartella pediatrica salvata", BR);
       onSaved?.();
     }
-    catch (e) { toast.error(errMsg(e)); }
+    catch (e) { toast.error(errMsg(e), BR); }
     setSaving(false);
   };
   const generatePdf = async () => {
@@ -94,14 +95,14 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient }) =
     try {
       await api.updateConsultation(consultation.id, note);
       await api.downloadReport(consultation.id);
-      toast.success("Referto PDF scaricato");
+      toast.success("Referto PDF scaricato", BR);
       onSaved?.();
-    } catch (e) { toast.error(errMsg(e)); }
+    } catch (e) { toast.error(errMsg(e), BR); }
     setPdfBusy(false);
   };
   const copy = async () => {
-    try { await navigator.clipboard.writeText(noteToText(consultation, note)); toast.success("Nota copiata negli appunti"); }
-    catch { toast.error("Copia non consentita dal browser"); }
+    try { await navigator.clipboard.writeText(noteToText(consultation, note)); toast.success("Nota copiata negli appunti", BR); }
+    catch { toast.error("Copia non consentita dal browser", BR); }
   };
 
   return (
@@ -151,7 +152,7 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient }) =
             {paste !== null && (
               <div className="w-full space-y-2">
                 <textarea value={paste} onChange={(e) => setPaste(e.target.value)} rows={4} placeholder="Medico: Buongiorno… Genitore: …" className="w-full rounded-xl border border-rose-200 bg-white px-3 py-2 text-sm text-night outline-none focus:border-night" data-testid="note-paste-textarea" />
-                <button onClick={async () => { if (paste.trim().length < 20) return toast.error("Trascrizione troppo breve"); const r = await retry(consultation.id, paste); if (r) setPaste(null); }} className="flex h-9 items-center gap-1.5 rounded-full bg-night px-4 text-sm font-semibold text-white" data-testid="note-paste-submit"><Sparkles size={14} /> Compila con l’IA</button>
+                <button onClick={async () => { if (paste.trim().length < 20) return toast.error("Trascrizione troppo breve", BR); const r = await retry(consultation.id, paste); if (r) setPaste(null); }} className="flex h-9 items-center gap-1.5 rounded-full bg-night px-4 text-sm font-semibold text-white" data-testid="note-paste-submit"><Sparkles size={14} /> Compila con l’IA</button>
               </div>
             )}
           </div>
@@ -219,7 +220,7 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient }) =
 const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 const printNote = (c, note) => {
   const w = window.open("", "_blank");
-  if (!w) return toast.error("Consenti i popup per stampare");
+  if (!w) return toast.error("Consenti i popup per stampare", BR);
   w.document.write(`<html><head><title>${esc(c.patient_name)}</title></head><body style="font:14px/1.6 Georgia,serif;color:#0B1736;padding:40px;white-space:pre-wrap">${esc(noteToText(c, note))}</body></html>`);
   w.document.close();
   w.print();

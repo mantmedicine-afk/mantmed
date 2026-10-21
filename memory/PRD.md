@@ -212,6 +212,13 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Portale: banner "Consenso informato da firmare" + "Firma ora" (PortalConsentDialog) per ogni cartella senza consenso; tab Consensi con documenti firmati scaricabili
 - Testato iteration_19 (backend 15/15 tests/test_signed_docs.py, frontend 100%); fix: IP non falsificabile, revoca senza immagine firma, generazione atomica, rate limit su Mongo, canvas robusto, conferma rimozione firma medico
 
+## Implemented (2026-10-21, Trascrizione asincrona Whisper + IA)
+- POST /api/consultations/start (multipart: metadati + audio o trascrizione): crea subito la visita status "processing" e avvia il job in background (asyncio task con riferimento forte); audio cifrato AES-GCM in GridFS "consult_audio", job in consult_jobs (TTL 7 giorni, pulizia audio ogni 6h); ripresa automatica dei job dopo riavvio
+- run_consult_job: Whisper (filtro allucinazioni/silenzio) → LLM → unione con crescita/farmaci del medico (concorrenza ottimistica campo rev) → status "ready" | "failed" con messaggio in italiano
+- GET /api/consultations/{id}, POST /api/consultations/{id}/retry (anche con {transcript} incollata), PATCH con growth_only durante l'elaborazione; PDF / invio genitori / pubblicazione portale → 409 finché non è pronta; in "failed" il medico può compilare a mano e salvare
+- Frontend: lib/processing.jsx (ProcessingProvider, polling 2s, pill "Elaborazione referto in corso…" in alto a destra, toast "Referto pronto" con Apri / errore con Riprova, in basso a destra); "Termina e trascrivi" apre subito la cartella della visita: campi IA con shimmer, poi riempiti con animazione; Bodychart, Cassa, Crescita (autosalvataggio), "Dati anagrafici" (PatientDialog) usabili subito; banner errore con Incolla trascrizione / Riprova
+- Testato iteration_20-21 (backend 24/24 test async, frontend 100%)
+
 ## Backlog
 - P1: percentili automatici con curve OMS, storico crescita del paziente, dati demo pediatrici in agenda/sala d'attesa, rinomina brand in "MantMed"
 - P1 (prec.): storico paziente, export PDF dedicato

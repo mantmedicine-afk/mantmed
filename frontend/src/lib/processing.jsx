@@ -95,13 +95,13 @@ const ProcessingIndicator = ({ jobs }) => {
           aria-live="polite"
           data-testid="processing-indicator"
         >
-          <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white/95 py-2 pl-2 pr-4 text-night shadow-[0_10px_30px_-12px_rgba(10,25,47,0.35)] backdrop-blur">
+          <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white/95 p-1.5 text-night sm:py-2 sm:pl-2 sm:pr-4 shadow-[0_10px_30px_-12px_rgba(10,25,47,0.35)] backdrop-blur">
             <span className="relative grid h-8 w-8 place-items-center rounded-full bg-night text-white">
               <Loader2 size={15} className="animate-spin" />
               <Sparkles size={9} className="absolute -right-0.5 -top-0.5 text-[#A9C2FF]" />
             </span>
-            <span className="leading-tight">
-              <span className="block text-xs font-semibold sm:text-sm">Elaborazione referto in corso…</span>
+            <span className="sr-only sm:not-sr-only sm:leading-tight">
+              <span className="block text-sm font-semibold">Elaborazione referto in corso…</span>
               <span className="hidden max-w-[220px] truncate text-[11px] text-slate-500 sm:block" data-testid="processing-indicator-names">
                 {list.length === 1 ? list[0].patient_name : `${list.length} referti · ${list.map((j) => j.patient_name).join(", ")}`}
               </span>
