@@ -13,7 +13,7 @@ export const PageTitle = ({ kicker, title, it }) => (
 
 const VisitRow = ({ c, onOpen }) => (
   <button onClick={() => onOpen(c)} className="group flex w-full flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:border-night" data-testid={`visit-row-${c.id}`}>
-    <span className="min-w-0"><span className="block font-medium text-night">{c.patient_name}</span><span className="block truncate text-sm text-slate-600">{(c.note?.motivo_visita && c.note.motivo_visita !== "Non riportato") ? c.note.motivo_visita : "Visita"} · {c.clinic || "Studio"}</span></span>
+    <span className="min-w-0"><span className="block font-medium text-night">{c.patient_name}</span><span className="block truncate text-sm text-slate-600">{c.status === "processing" ? "Elaborazione referto in corso…" : (c.note?.motivo_visita && c.note.motivo_visita !== "Non riportato") ? c.note.motivo_visita : "Visita"} · {c.clinic || "Studio"}</span></span>
     <span className="flex items-center gap-2 text-xs text-slate-600">{dt(c.created_at)} <PersonStanding size={15} className="text-night transition-transform group-hover:scale-110" /></span>
   </button>
 );

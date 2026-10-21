@@ -19,7 +19,13 @@ export const RecentNotes = ({ items, onOpen }) => (
                 <span>{c.clinic || "Consultazione libera"}</span>
               </div>
               <div className="mt-3 font-display text-2xl text-night">{c.patient_name}</div>
-              <p className="mt-2 line-clamp-2 text-sm text-slate-600"><span className="font-semibold text-night">Diagnosi: </span>{c.note?.diagnosi || "—"}</p>
+              {c.status === "processing" ? (
+                <p className="mt-2 flex items-center gap-2 text-sm text-[#3B6CF6]" data-testid={`recent-note-processing-${c.id}`}><span className="h-2 w-2 animate-pulse rounded-full bg-[#3B6CF6]" /> Elaborazione referto in corso…</p>
+              ) : c.status === "failed" ? (
+                <p className="mt-2 text-sm text-rose-700">Elaborazione non riuscita · apra per riprovare</p>
+              ) : (
+                <p className="mt-2 line-clamp-2 text-sm text-slate-600"><span className="font-semibold text-night">Diagnosi: </span>{c.note?.diagnosi || "—"}</p>
+              )}
             </button>
           ))}
         </div>

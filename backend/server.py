@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 load_dotenv(Path(__file__).parent / '.env')
 
-from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Depends, Request
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Form, Depends, Request
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
@@ -29,7 +29,9 @@ from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
 from typing import List, Optional, Annotated, Literal, ClassVar
 from datetime import datetime, timezone
-from crypto import seal_fields, unseal_fields, is_sealed, KEY_FINGERPRINT
+from crypto import seal_fields, unseal_fields, is_sealed, KEY_FINGERPRINT, seal, unseal
+import asyncio
+from tenancy import OWNER
 from emergentintegrations.llm.openai import OpenAISpeechToText
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 from auth import build_auth, seed_doctor, seed_admin, require_role
@@ -242,8 +244,10 @@ class Consultation(BaseDocument):
     patient_id: Optional[str] = None
     clinic: str = ""
     waiting_id: Optional[str] = None
-    transcript: str
+    transcript: str = ""
     note: ClinicalNote
+    status: Literal["processing", "ready", "failed"] = "ready"
+    ai_error: str = ""
     duration_sec: int = 0
     report_sent_at: Optional[str] = None
     report_sent_to: Optional[str] = None
@@ -479,8 +483,18 @@ async def seed_pediatric():
     await db.meta.update_one({"_id": "seed"}, {"$set": {"v": 2}}, upsert=True)
 
 
+async def resume_consult_jobs():
+    """Dopo un riavvio del server riprende le elaborazioni rimaste a metà."""
+    async for d in db.consultations.find({"status": "processing"}, {"owner_id": 1}):
+        if await db.consult_jobs.find_one({"consultation_id": str(d["_id"])}):
+            spawn_consult_job(str(d["_id"]), d["owner_id"])
+        else:
+            await db.consultations.update_one({"_id": d["_id"]}, {"$set": {"status": "failed", "ai_error": "Elaborazione interrotta: ripeta la visita"}})
+
+
 @app.on_event("startup")
 async def seed():
+    asyncio.get_event_loop().call_later(3, lambda: asyncio.ensure_future(resume_consult_jobs()))
     foti = await seed_doctor(db)
     await seed_admin(db)
     await db.password_resets.create_index("expires_at", expireAfterSeconds=0)
@@ -660,6 +674,142 @@ async def create_consultation(body: ConsultationIn, user: dict = Depends(current
     return c.out()
 
 
+# ---------- Elaborazione asincrona (Whisper + LLM in background) ----------
+WHISPER_PROMPT = "Visita pediatrica specialistica: pediatra, genitori e bambino. Termini: allattamento, svezzamento, otoscopia, percentile, mg/kg."
+_RUNNING: set = set()
+
+
+async def _whisper(data: bytes, filename: str) -> str:
+    buf = io.BytesIO(data)
+    buf.name = filename or "consultazione.webm"
+    stt = OpenAISpeechToText(api_key=LLM_KEY)
+    res = await stt.transcribe(file=buf, model="whisper-1", response_format="json", language="it", prompt=WHISPER_PROMPT)
+    return (res.text or "").strip()
+
+
+def _merge_growth(ai: ClinicalNote, current: dict):
+    """I parametri di crescita inseriti dal medico durante l'elaborazione hanno la precedenza su quelli dell'IA."""
+    mine = (current or {}).get("crescita") or {}
+    for k in ("peso_kg", "altezza_cm", "circonferenza_cranica_cm", "eta_mesi"):
+        if mine.get(k) not in (None, "", 0):
+            setattr(ai.crescita, k, mine[k])
+    keep = [d for d in (current or {}).get("farmaci") or [] if d.get("nome")]
+    if keep and not ai.farmaci:
+        ai.farmaci = [Drug.model_validate(d) for d in keep]
+
+
+async def run_consult_job(cid: str, owner: str):
+    """Esegue trascrizione + compilazione della cartella per una visita in stato 'processing'."""
+    if cid in _RUNNING:
+        return
+    _RUNNING.add(cid)
+    OWNER.set(owner)
+    t0 = time.monotonic()
+    try:
+        job = await db.consult_jobs.find_one({"consultation_id": cid, "owner_id": owner})
+        if not job:
+            raise RuntimeError("Dati della registrazione non più disponibili: ripeta la visita o incolli la trascrizione")
+        transcript = unseal(job.get("transcript")) or ""
+        if not transcript and job.get("audio"):
+            transcript = await _whisper(base64.b64decode(unseal(job["audio"])), job.get("filename", ""))
+            if not transcript:
+                raise RuntimeError("Nessun parlato rilevato nella registrazione")
+            await db.consult_jobs.update_one({"_id": job["_id"]}, {"$set": {"transcript": seal(transcript)}, "$unset": {"audio": ""}})
+        note = await structure_note(transcript, f"consult-{cid}")
+        doc = await db.consultations.find_one({"_id": ObjectId(cid), "owner_id": owner})
+        if not doc:
+            return
+        current = unseal_fields(doc, ("note",)).get("note") or {}
+        _merge_growth(note, current)
+        patient = await get_patient(doc.get("patient_id"))
+        enrich_growth(note, patient, date.fromisoformat(doc["created_at"][:10]))
+        upd = await db.consultations.find_one_and_update(
+            {"_id": ObjectId(cid), "owner_id": owner},
+            {"$set": {**Consultation.sealed_set({"note": note.model_dump(), "transcript": transcript}), "status": "ready", "ai_error": "",
+                      "ai_sec": round(time.monotonic() - t0, 1)}}, return_document=True)
+        await sync_measurement(Consultation.from_mongo(upd).out())
+        await db.consult_jobs.delete_one({"consultation_id": cid})
+        logger.info("Referto %s pronto in %.1fs", cid, time.monotonic() - t0)
+    except Exception as e:
+        logger.exception("Elaborazione referto %s fallita", cid)
+        msg = str(e) if isinstance(e, RuntimeError) else f"Elaborazione IA non riuscita: {str(e)[:180]}"
+        await db.consultations.update_one({"_id": ObjectId(cid), "owner_id": owner}, {"$set": {"status": "failed", "ai_error": msg}})
+    finally:
+        _RUNNING.discard(cid)
+
+
+def spawn_consult_job(cid: str, owner: str):
+    task = asyncio.create_task(run_consult_job(cid, owner))
+    task.add_done_callback(lambda t: t.exception() if not t.cancelled() else None)
+
+
+@api.post("/consultations/start")
+async def start_consultation(
+    user: dict = Depends(current_user),
+    patient_name: str = Form(...), patient_id: Optional[str] = Form(None), clinic: str = Form(""), waiting_id: Optional[str] = Form(None),
+    duration_sec: int = Form(0), paper_consent: bool = Form(False), transcript: str = Form(""), audio: Optional[UploadFile] = File(None),
+):
+    """Crea subito la visita 'in elaborazione' e avvia Whisper + IA in background. Risponde in pochi millisecondi."""
+    patient_id = patient_id or None
+    waiting_id = waiting_id or None
+    if not patient_name.strip():
+        raise HTTPException(400, "Paziente mancante")
+    patient = await get_patient(patient_id)
+    if patient and not patient.get("consent_at"):
+        raise HTTPException(412, "Consenso privacy non registrato: registralo nel passaporto prima di avviare la visita")
+    if not patient and not paper_consent:
+        raise HTTPException(412, "Conferma l'acquisizione del consenso privacy per la visita libera")
+    data = await audio.read() if audio else b""
+    if not data and len(transcript.strip()) < 20:
+        raise HTTPException(400, "Registrazione vuota o trascrizione troppo breve")
+    if len(data) > 25 * 1024 * 1024:
+        raise HTTPException(413, "Audio oltre 25 MB")
+    note = ClinicalNote()
+    enrich_growth(note, patient, date.today())
+    c = Consultation(patient_name=patient_name.strip(), patient_id=patient_id, clinic=clinic, waiting_id=waiting_id,
+                     transcript="" if data else transcript.strip(),
+                     note=note, status="processing", duration_sec=duration_sec, paper_consent=paper_consent, doctor_id=user["id"])
+    res = await tdb.consultations.insert_one(c.to_mongo())
+    c.id = str(res.inserted_id)
+    await db.consult_jobs.insert_one({"consultation_id": c.id, "owner_id": user["id"], "created_at": now_iso(),
+                                      "filename": (audio.filename if audio else "") or "consultazione.webm",
+                                      "audio": seal(base64.b64encode(data).decode()) if data else None,
+                                      "transcript": seal(transcript.strip()) if not data else None})
+    if waiting_id and ObjectId.is_valid(waiting_id):
+        await tdb.waiting.delete_one({"_id": ObjectId(waiting_id)})
+        await tdb.appointments.update_many({"patient_name": patient_name.strip()}, {"$set": {"status": "completato"}})
+    spawn_consult_job(c.id, user["id"])
+    return c.out()
+
+
+@api.get("/consultations/{cid}")
+async def get_consultation(cid: str):
+    doc = await tdb.consultations.find_one({"_id": oid(cid)})
+    if not doc:
+        raise HTTPException(404, "Consultazione non trovata")
+    return Consultation.from_mongo(doc).out()
+
+
+@api.post("/consultations/{cid}/retry")
+async def retry_consultation(cid: str, user: dict = Depends(current_user)):
+    doc = await tdb.consultations.find_one({"_id": oid(cid)})
+    if not doc:
+        raise HTTPException(404, "Consultazione non trovata")
+    if doc.get("status") == "ready":
+        return Consultation.from_mongo(doc).out()
+    if not await db.consult_jobs.find_one({"consultation_id": cid, "owner_id": user["id"]}):
+        raise HTTPException(410, "Registrazione non più disponibile: ripeta la visita o incolli la trascrizione")
+    doc = await tdb.consultations.find_one_and_update({"_id": oid(cid)}, {"$set": {"status": "processing", "ai_error": ""}}, return_document=True)
+    spawn_consult_job(cid, user["id"])
+    return Consultation.from_mongo(doc).out()
+
+
+async def require_ready(cid: str):
+    doc = await tdb.consultations.find_one({"_id": oid(cid)}, {"status": 1})
+    if doc and doc.get("status", "ready") != "ready":
+        raise HTTPException(409, "Referto ancora in elaborazione: attenda il completamento dell'IA")
+
+
 @api.get("/consultations")
 async def list_consultations():
     docs = await tdb.consultations.find().sort("created_at", -1).to_list(20)
@@ -668,6 +818,7 @@ async def list_consultations():
 
 @api.get("/consultations/{cid}/pdf")
 async def consultation_pdf(cid: str, user: dict = Depends(current_user)):
+    await require_ready(cid)
     doc = await tdb.consultations.find_one({"_id": oid(cid)})
     if not doc:
         raise HTTPException(404, "Consultazione non trovata")
@@ -683,6 +834,7 @@ async def consultation_pdf(cid: str, user: dict = Depends(current_user)):
 
 @api.post("/consultations/{cid}/send-report")
 async def send_report(cid: str, user: dict = Depends(current_user)):
+    await require_ready(cid)
     doc = await tdb.consultations.find_one({"_id": oid(cid)})
     if not doc:
         raise HTTPException(404, "Consultazione non trovata")
@@ -731,6 +883,8 @@ class PortalPublishIn(BaseModel):
 
 @api.post("/consultations/{cid}/portal")
 async def publish_to_portal(cid: str, body: PortalPublishIn):
+    if body.published:
+        await require_ready(cid)
     doc = await tdb.consultations.find_one_and_update({"_id": oid(cid)}, {"$set": {"portal_published": body.published}}, return_document=True)
     if not doc:
         raise HTTPException(404, "Consultazione non trovata")
@@ -746,6 +900,10 @@ async def update_consultation(cid: str, body: ConsultationPatch):
     existing = await tdb.consultations.find_one({"_id": oid(cid)})
     if not existing:
         raise HTTPException(404, "Consultazione non trovata")
+    if existing.get("status", "ready") != "ready":  # durante l'elaborazione si salvano solo crescita e farmaci del medico
+        cur = ClinicalNote.model_validate(unseal_fields(existing, ("note",)).get("note") or {})
+        cur.crescita, cur.farmaci = body.note.crescita, body.note.farmaci
+        body.note = cur
     enrich_growth(body.note, await get_patient(existing.get("patient_id")), date.fromisoformat(existing["created_at"][:10]))
     doc = await tdb.consultations.find_one_and_update({"_id": oid(cid)}, {"$set": {**Consultation.sealed_set({"note": body.note.model_dump()}), "finalized_at": now_iso()}}, return_document=True)
     out = Consultation.from_mongo(doc).out()

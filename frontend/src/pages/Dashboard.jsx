@@ -27,6 +27,7 @@ import { LayoutDashboard, Users, MessagesSquare, PersonStanding, ReceiptText, Se
 import { AppShell } from "@/components/nav/AppShell";
 import { PageTitle, VisitsList, PatientFolder, TsCard, SettingsExtras } from "@/components/nav/sections";
 import Account from "@/pages/Account";
+import { ProcessingProvider, useProcessing } from "@/lib/processing";
 
 const SECTIONS = ["agenda", "pazienti", "messaggi", "visite", "cassa", "impostazioni"];
 
@@ -100,6 +101,8 @@ export default function Dashboard() {
   if (!SECTIONS.includes(sezione)) return <Navigate to="/app" replace />;
 
   return (
+    <ProcessingProvider onSettled={load} onOpen={openVisit}>
+    <TrackPending notes={notes} />
     <AppShell items={items} area="Studio medico">
     <div className="min-h-screen overflow-x-clip bg-paper" data-testid="dashboard" data-section={sezione}>
       <TopBar onCompliance={() => setCompliance(true)} onFeedback={() => setFeedback(true)} onTour={() => setTour(true)} unread={unread} />
@@ -141,8 +144,17 @@ export default function Dashboard() {
         waiting={waiting}
         onClose={() => setOverlay({ open: false, patient: null, initial: null })}
         onDone={load}
+        onEditPatient={(pid) => setEditPatient(patients.find((p) => p.id === pid) ?? null)}
       />
     </div>
     </AppShell>
+    </ProcessingProvider>
   );
 }
+
+// Riprende il monitoraggio delle elaborazioni IA ancora in corso (es. dopo un ricaricamento della pagina)
+const TrackPending = ({ notes }) => {
+  const { track } = useProcessing();
+  useEffect(() => { notes.filter((c) => c.status === "processing").forEach(track); }, [notes, track]);
+  return null;
+};

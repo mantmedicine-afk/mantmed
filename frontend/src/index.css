@@ -110,3 +110,19 @@ code {
         border-bottom-color: inherit;
     }
 }
+
+/* Skeleton luminoso per i campi compilati dall'IA in background */
+@keyframes ai-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.ai-shimmer {
+  background: linear-gradient(100deg, #EEF1F6 20%, #F8FAFD 40%, #E4E9F2 60%, #EEF1F6 80%);
+  background-size: 200% 100%;
+  animation: ai-shimmer 1.6s linear infinite;
+}
+.ai-shimmer-dark {
+  background: linear-gradient(100deg, rgba(255,255,255,0.06) 20%, rgba(255,255,255,0.16) 40%, rgba(255,255,255,0.06) 60%);
+  background-size: 200% 100%;
+  animation: ai-shimmer 1.6s linear infinite;
+}
+@keyframes ai-filled { 0% { box-shadow: 0 0 0 0 rgba(59,108,246,0.45); background-color: #EAF0FF; } 100% { box-shadow: 0 0 0 10px rgba(59,108,246,0); } }
+.ai-filled { animation: ai-filled 1.6s ease-out 1; }
+@media (prefers-reduced-motion: reduce) { .ai-shimmer, .ai-shimmer-dark, .ai-filled { animation: none; } }

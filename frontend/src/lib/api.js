@@ -50,6 +50,18 @@ export const api = {
     return http.post("/consultations/transcribe", fd).then((r) => r.data?.transcript ?? "");
   },
   createConsultation: (b) => http.post("/consultations", b).then((r) => r.data),
+  // Elaborazione asincrona: crea la visita "in elaborazione" e avvia Whisper + IA sul server
+  startConsultation: (meta, blob) => {
+    const fd = new FormData();
+    Object.entries(meta).forEach(([k, v]) => { if (v !== null && v !== undefined) fd.append(k, String(v)); });
+    if (blob) {
+      const ext = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "webm";
+      fd.append("audio", blob, `consultazione.${ext}`);
+    }
+    return http.post("/consultations/start", fd).then((r) => r.data);
+  },
+  getConsultation: (id) => http.get(`/consultations/${id}`).then((r) => r.data),
+  retryConsultation: (id) => http.post(`/consultations/${id}/retry`).then((r) => r.data),
   updateConsultation: (id, note) => http.patch(`/consultations/${id}`, { note }).then((r) => r.data),
   sendReport: (id) => http.post(`/consultations/${id}/send-report`).then((r) => r.data),
   payments: (params) => http.get("/payments", { params }).then((r) => ({ items: Array.isArray(r.data?.items) ? r.data.items : [], summary: r.data?.summary ?? null, today: r.data?.today })),

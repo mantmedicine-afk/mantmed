@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { X, Mic, Pause, Play, Square, Keyboard, Loader2 } from "lucide-react";
@@ -7,16 +7,19 @@ import { useRecorder, fmtClock } from "@/hooks/useRecorder";
 import { Waveform } from "./Waveform";
 import { NoteEditor } from "./NoteEditor";
 import { ConsentGate } from "./ConsentGate";
+import { useProcessing } from "@/lib/processing";
 
-export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, onDone, patients = [], onPatientsChange }) => {
+export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, onDone, patients = [], onPatientsChange, onEditPatient }) => {
   const [paper, setPaper] = useState(false);
   const [stage, setStage] = useState("setup");
   const [sel, setSel] = useState(null);
   const [freeName, setFreeName] = useState("");
   const [manual, setManual] = useState(false);
   const [text, setText] = useState("");
-  const [step, setStep] = useState("");
+  const [sending, setSending] = useState(false);
   const [result, setResult] = useState(null);
+  const lastBlob = useRef(null);
+  const { track } = useProcessing();
   const rec = useRecorder();
 
   useEffect(() => {
@@ -31,25 +34,36 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
 
   const name = sel?.name || freeName.trim();
 
+  // Invia audio/trascrizione e apre subito la cartella: Whisper + IA lavorano in background sul server
   const process = async (transcript, duration) => {
-    setStage("processing");
+    setSending(true);
     try {
-      let t = transcript;
-      if (t === null) {
-        setStep("Trascrizione dell'audio con Whisper…");
-        const blob = await rec.stop();
-        t = await api.transcribe(blob);
-        if (!t) throw new Error("Nessun parlato rilevato nella registrazione");
+      let blob = null;
+      if (transcript === null) {
+        blob = rec.state !== "idle" ? await rec.stop() : lastBlob.current;
+        lastBlob.current = blob;
+        if (!blob || !blob.size) throw new Error("Registrazione vuota");
       }
-      setStep("Compilazione del modello standard di nota clinica…");
-      const c = await api.createConsultation({ patient_name: name, patient_id: sel?.patient_id ?? null, clinic: sel?.clinic ?? "", waiting_id: sel?.id ?? null, transcript: t, duration_sec: duration, paper_consent: paper });
+      const c = await api.startConsultation({
+        patient_name: name, patient_id: sel?.patient_id ?? "", clinic: sel?.clinic ?? "", waiting_id: sel?.id ?? "",
+        duration_sec: duration, paper_consent: paper, transcript: transcript ?? "",
+      }, blob);
+      lastBlob.current = null;
+      track(c);
       setResult(c);
       setStage("note");
       onDone();
     } catch (e) {
-      toast.error(e?.response ? errMsg(e) : e.message);
-      setStage("setup");
+      const msg = e?.response ? errMsg(e) : e.message;
+      if (transcript === null && lastBlob.current) {
+        toast.error(msg, { action: { label: "Riprova invio", onClick: () => process(null, duration) }, duration: 15000 });
+        setStage("retry");
+      } else {
+        toast.error(msg);
+        setStage("setup");
+      }
     }
+    setSending(false);
   };
 
   const start = async () => {
@@ -87,28 +101,30 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
         </div>
         <div className="flex flex-1 flex-col justify-center py-8">
           {stage === "setup" && (
-            <Setup {...{ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start }} gate={<ConsentGate patient={patients.find((p) => p.id === sel?.patient_id)} free={!sel?.patient_id && Boolean(freeName.trim())} paper={paper} setPaper={setPaper} onSaved={onPatientsChange} />} />
+            <Setup {...{ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, sending }} gate={<ConsentGate patient={patients.find((p) => p.id === sel?.patient_id)} free={!sel?.patient_id && Boolean(freeName.trim())} paper={paper} setPaper={setPaper} onSaved={onPatientsChange} />} />
           )}
           {(stage === "recording") && (
-            <Recording name={name} rec={rec} onStop={() => process(null, rec.seconds)} />
+            <Recording name={name} rec={rec} sending={sending} onStop={() => process(null, rec.seconds)} />
           )}
-          {stage === "processing" && (
-            <div className="flex flex-col items-center gap-5 text-center" data-testid="consultation-processing">
-              <Loader2 className="animate-spin text-[#7FA6FF]" size={40} />
-              <div className="font-display text-4xl">{step}</div>
-              <div className="text-sm text-slate-300">L'AI sta lavorando su {name}. Non chiudere la schermata.</div>
+          {stage === "retry" && (
+            <div className="flex flex-col items-center gap-5 text-center" data-testid="consultation-retry">
+              <div className="font-display text-4xl">Invio della registrazione non riuscito</div>
+              <div className="text-sm text-slate-300">L'audio di {name} è ancora qui: verifichi la connessione e riprovi.</div>
+              <button onClick={() => process(null, rec.seconds)} disabled={sending} className="flex h-14 items-center gap-2 rounded-full bg-white px-7 font-semibold text-night disabled:opacity-60" data-testid="consultation-retry-btn">
+                {sending ? <Loader2 size={18} className="animate-spin" /> : <Square size={16} fill="currentColor" />} Riprova invio
+              </button>
             </div>
           )}
-          {stage === "note" && result && <NoteEditor consultation={result} onSaved={onDone} />}
+          {stage === "note" && result && <NoteEditor consultation={result} onSaved={onDone} onEditPatient={onEditPatient} />}
         </div>
       </div>
     </motion.div>
   );
 };
 
-const stageLabel = { setup: "preparazione", recording: "registrazione", processing: "elaborazione AI", note: "nota clinica" };
+const stageLabel = { setup: "preparazione", recording: "registrazione", retry: "invio audio", note: "cartella della visita" };
 
-const Setup = ({ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, gate }) => (
+const Setup = ({ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, gate, sending }) => (
   <div className="grid gap-10 lg:grid-cols-[1.1fr_1fr]" data-testid="consultation-setup">
     <div>
       <h2 className="font-display text-5xl leading-[1.02] lg:text-6xl">Chi stai<br /><span className="italic text-[#A9C2FF]">visitando?</span></h2>
@@ -125,14 +141,14 @@ const Setup = ({ waiting, sel, setSel, freeName, setFreeName, manual, setManual,
       {gate}
       <button onClick={() => setManual(!manual)} className="flex items-center gap-2 text-sm text-slate-300 hover:text-white" data-testid="consult-manual-toggle"><Keyboard size={15} /> {manual ? "Torna alla registrazione vocale" : "Senza microfono? Incolla una trascrizione"}</button>
       {manual && <textarea value={text} onChange={(e) => setText(e.target.value)} rows={5} placeholder="Medico: Buongiorno, cosa la porta qui oggi? Paziente: …" className="w-full rounded-2xl border border-white/15 bg-white/5 px-5 py-4 text-white placeholder:text-slate-400 outline-none focus:border-white/50" data-testid="consult-manual-textarea" />}
-      <button onClick={start} className="mt-2 flex w-full items-center justify-center gap-3 rounded-full bg-white py-5 text-lg font-semibold text-night transition-transform hover:-translate-y-0.5 active:scale-[0.98]" data-testid="consult-begin-btn">
-        {manual ? <Keyboard size={20} /> : <Mic size={20} />} {manual ? "Genera nota clinica" : "Inizia registrazione"}
+      <button onClick={start} disabled={sending} className="mt-2 flex w-full items-center justify-center gap-3 rounded-full bg-white py-5 text-lg font-semibold text-night transition-transform hover:-translate-y-0.5 active:scale-[0.98]" data-testid="consult-begin-btn">
+        {sending ? <Loader2 size={20} className="animate-spin" /> : manual ? <Keyboard size={20} /> : <Mic size={20} />} {manual ? "Genera nota clinica" : "Inizia registrazione"}
       </button>
     </div>
   </div>
 );
 
-const Recording = ({ name, rec, onStop }) => {
+const Recording = ({ name, rec, onStop, sending }) => {
   const live = rec.state === "recording";
   return (
     <div className="flex flex-col items-center text-center" data-testid="consultation-recording">
@@ -144,7 +160,9 @@ const Recording = ({ name, rec, onStop }) => {
       <div className="mt-8 w-full max-w-3xl"><Waveform analyser={rec.analyser} active={live} /></div>
       <div className="mt-10 flex items-center gap-4">
         <button onClick={live ? rec.pause : rec.resume} className="grid h-16 w-16 place-items-center rounded-full border border-white/25 transition-colors hover:bg-white/10" data-testid="recording-pause-btn" aria-label="Pausa">{live ? <Pause /> : <Play />}</button>
-        <button onClick={onStop} className="flex h-16 items-center gap-3 rounded-full bg-white px-8 text-lg font-semibold text-night transition-transform hover:-translate-y-0.5" data-testid="recording-stop-btn"><Square size={18} fill="currentColor" /> Termina e trascrivi</button>
+        <button onClick={onStop} disabled={sending} className="flex h-16 items-center gap-3 rounded-full bg-white px-8 text-lg font-semibold text-night transition-transform hover:-translate-y-0.5 disabled:opacity-80" data-testid="recording-stop-btn">
+          {sending ? <Loader2 size={18} className="animate-spin" /> : <Square size={18} fill="currentColor" />} {sending ? "Apertura cartella…" : "Termina e trascrivi"}
+        </button>
       </div>
     </div>
   );
