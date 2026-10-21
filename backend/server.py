@@ -31,6 +31,7 @@ from typing import List, Optional, Annotated, Literal, ClassVar
 from datetime import datetime, timezone
 from crypto import seal_fields, unseal_fields, is_sealed, KEY_FINGERPRINT, seal, unseal, seal_bytes, unseal_bytes
 import asyncio
+import unicodedata
 from tenancy import OWNER
 from emergentintegrations.llm.openai import OpenAISpeechToText
 from emergentintegrations.llm.chat import LlmChat, UserMessage
@@ -247,6 +248,7 @@ class ClinicalNote(BaseModel):
     terapia: str = ""
     farmaci: List[Drug] = Field(default_factory=list)
     follow_up: str = ""
+    riepilogo: str = ""  # riassunto in parole semplici per paziente / genitori
 
 
 class Consultation(BaseDocument):
@@ -706,6 +708,30 @@ def note_system(spec: str) -> str:
         "crescita: {peso_kg (numero|null), altezza_cm (numero|null)} solo se riportati;\n" + drugs + rules)
 
 
+async def patient_summary(spec: str, transcript: str = "", note: Optional[dict] = None, session: str = "") -> str:
+    """Riepilogo della visita in parole semplici per i genitori (pediatria) o per il paziente."""
+    ped = is_pediatric(spec)
+    who = "i genitori del bambino (dia del Lei ai genitori e parli del bambino in terza persona)" if ped else "il paziente (gli dia del Lei)"
+    system = (f"Sei un medico specializzato in {spec} che scrive a {who} un riepilogo della visita in italiano semplice e rassicurante. "
+              "Massimo 130 parole, 3-5 frasi brevi o un breve elenco. Spiega con parole comuni cosa è stato riscontrato, cosa fare "
+              "(farmaci e dosi riportati nella stessa forma detta dal medico, es. '50 mg per chilo al giorno in due dosi': non calcolare, convertire o arrotondare dosi e non aggiungere farmaci), quando tornare a controllo e, se il medico li ha indicati, "
+              "i segnali per cui ricontattare lo studio. Nessun termine tecnico senza spiegazione, nessuna informazione non presente. "
+              "Non inserire saluti, firme o intestazioni. Rispondi solo con il testo del riepilogo.")
+    src = (f"Cartella clinica validata dal medico (JSON):\n{json.dumps({k: v for k, v in (note or {}).items() if k not in ('sezioni',) and v}, ensure_ascii=False)[:6000]}\n\n" if note else "") \
+        + (f"Trascrizione della visita:\n{transcript[:12000]}" if transcript else "")
+    chat = LlmChat(api_key=LLM_KEY, session_id=session or f"sum-{uuid.uuid4()}", system_message=system).with_model("openai", "gpt-5.6-terra")
+    out = (await chat.send_message(UserMessage(text=src))).strip()
+    return re.sub(r"^\s*(riepilogo|gentil[ei][^\n]*)[:,]?\s*\n", "", out, flags=re.I).strip()[:1500]
+
+
+async def _safe_summary(spec: str, transcript: str, session: str) -> str:
+    try:
+        return await patient_summary(spec, transcript=transcript, session=session)
+    except Exception:
+        logger.exception("Riepilogo per il paziente non generato")
+        return ""
+
+
 async def structure_note(transcript: str, session: str, specialty: str = "Pediatria") -> ClinicalNote:
     spec = clean_specialty(specialty)
     chat = LlmChat(api_key=LLM_KEY, session_id=session, system_message=note_system(spec)).with_model("openai", "gpt-5.6-terra")
@@ -804,6 +830,8 @@ def _apply_doctor(ai: ClinicalNote, mine: dict):
     keep = [d for d in (mine or {}).get("farmaci") or [] if d.get("nome")]
     if keep:
         ai.farmaci = [Drug.model_validate(d) for d in keep]
+    if ((mine or {}).get("riepilogo") or "").strip():
+        ai.riepilogo = mine["riepilogo"]
 
 
 async def _drop_job(cid: str):
@@ -852,7 +880,9 @@ async def run_consult_job(cid: str, owner: str):
             await db.consult_jobs.update_one({"_id": job["_id"]}, {"$set": {"transcript": seal(transcript)}})
             await db.consultations.update_one({"_id": ObjectId(cid), "owner_id": owner, "status": "processing"},
                                               {"$set": Consultation.sealed_set({"transcript": transcript})})
-        ai = await structure_note(transcript, f"consult-{cid}", await doctor_specialty(owner))
+        spec = await doctor_specialty(owner)
+        ai, summary = await asyncio.gather(structure_note(transcript, f"consult-{cid}", spec), _safe_summary(spec, transcript, f"sum-{cid}"))
+        ai.riepilogo = summary
         for _ in range(5):  # concorrenza ottimistica con i salvataggi del medico (campo rev)
             doc = await db.consultations.find_one({"_id": ObjectId(cid), "owner_id": owner})
             if not doc or doc.get("status") != "processing":
@@ -1010,6 +1040,79 @@ async def retry_consultation(cid: str, body: Optional[RetryIn] = None, user: dic
     return Consultation.from_mongo(await tdb.consultations.find_one({"_id": oid(cid)})).out()
 
 
+@api.post("/consultations/{cid}/summary")
+async def regenerate_summary(cid: str, user: dict = Depends(current_user)):
+    """Rigenera il riepilogo per paziente/genitori dalla cartella validata (e dalla trascrizione)."""
+    await require_ready(cid)
+    doc = await tdb.consultations.find_one({"_id": oid(cid)})
+    if not doc:
+        raise HTTPException(404, "Consultazione non trovata")
+    c = Consultation.from_mongo(doc).out()
+    spec = c["note"].get("specialita") or await doctor_specialty(user["id"])
+    try:
+        text = await patient_summary(spec, transcript=c.get("transcript", ""), note=c["note"], session=f"sum-{cid}-{uuid.uuid4().hex[:6]}")
+    except Exception:
+        logger.exception("Riepilogo non generato")
+        raise HTTPException(502, "Il servizio IA non ha risposto: riprovi tra qualche istante")
+    if not text:
+        raise HTTPException(502, "Riepilogo vuoto: riprovi")
+    return {"riepilogo": text}
+
+
+def _fold(t: str) -> str:
+    return unicodedata.normalize("NFKD", t or "").encode("ascii", "ignore").decode().lower()
+
+
+def _snippet(text: str, q: str, width: int = 90) -> str:
+    i = _fold(text).find(q)
+    if i < 0:
+        return text[:width]
+    a = max(0, i - 30)
+    return ("…" if a else "") + text[a:a + width].strip() + ("…" if a + width < len(text) else "")
+
+
+@api.get("/search")
+async def global_search(q: str = "", user: dict = Depends(current_user)):
+    """Ricerca rapida (Cmd+K): pazienti, referti passati (testo delle diagnosi), appuntamenti futuri.
+    I testi clinici sono cifrati: il filtro sui referti avviene dopo la decifratura, sugli ultimi 600 referti del medico."""
+    qf = _fold(q.strip())
+    if len(qf) < 2:
+        return {"patients": [], "reports": [], "appointments": []}
+    rx = {"$regex": re.escape(q.strip()), "$options": "i"}
+    pats = []
+    query = {"$or": [{"name": rx}] + ([{"cf_hash": cf_hash(q.strip().upper())}] if len(q.strip()) == 16 else [])}
+    async for p in tdb.patients.find(query).limit(8):
+        pats.append({"id": str(p["_id"]), "name": p["name"], "birth_date": p.get("birth_date"), "sex": p.get("sex"), "consent": bool(p.get("consent_at"))})
+    words = qf.split()
+    reports = []
+    async for d in tdb.consultations.find({"status": {"$ne": "processing"}}).sort("created_at", -1).limit(600):
+        c = Consultation.from_mongo(d).out()
+        n = c["note"]
+        hay = {"diagnosi": n.get("diagnosi") or "", "motivo": n.get("motivo_visita") or "", "nome": c["patient_name"]}
+        full = _fold(" ".join(hay.values()))
+        if all(w in full for w in words):
+            field = next((k for k in ("diagnosi", "motivo", "nome") if words[0] in _fold(hay[k])), "diagnosi")
+            reports.append({"id": c["id"], "patient_name": c["patient_name"], "patient_id": c.get("patient_id"), "created_at": c["created_at"],
+                            "diagnosi": _snippet(hay["diagnosi"], words[0]) if field == "diagnosi" else (hay["diagnosi"] or "")[:90],
+                            "motivo": (hay["motivo"] or "")[:70], "match": field})
+            if len(reports) >= 8:
+                break
+    today = today_rome()
+    now_t = datetime.now(ZoneInfo("Europe/Rome")).strftime("%H:%M")
+    appts = []
+    async for a in tdb.appointments.find({"date": {"$gte": today}, "status": {"$nin": ["annullato", "completato"]}}).sort([("date", 1), ("time", 1)]).limit(400):
+        o = Appointment.from_mongo(a).out()
+        if o["date"] == today and o["time"] < now_t:
+            continue
+        if all(w in _fold(f"{o['patient_name']} {o.get('visit_type') or ''} {o.get('clinic') or ''}") for w in words):
+            pid = next((p["id"] for p in pats if p["name"].lower() == o["patient_name"].lower()), None)
+            appts.append({"id": o["id"], "patient_name": o["patient_name"], "date": o["date"], "time": o["time"], "visit_type": o.get("visit_type") or "",
+                          "clinic": o.get("clinic") or "", "patient_id": pid})
+            if len(appts) >= 8:
+                break
+    return {"patients": pats, "reports": reports, "appointments": appts}
+
+
 async def require_ready(cid: str):
     doc = await tdb.consultations.find_one({"_id": oid(cid)}, {"status": 1})
     if doc and doc.get("status", "ready") != "ready":
@@ -1055,20 +1158,25 @@ async def send_report(cid: str, user: dict = Depends(current_user)):
     pdf = build_report(c, user["name"], patient, profile, await chart_for(cid), signature=await doctor_signature(db, user["id"]))
     day = datetime.fromisoformat(c["created_at"]).strftime("%d/%m/%Y")
     fname = f"Referto_{re.sub(r'[^A-Za-z0-9]+', '_', c['patient_name']).strip('_')}_{c['created_at'][:10]}.pdf"
-    subject = f"Referto della visita pediatrica di {c['patient_name']} – {day}"
+    ped_mail = is_pediatric(c["note"].get("specialita") or "")
+    subject = f"Referto della visita {'pediatrica ' if ped_mail else ''}di {c['patient_name']} – {day}"
+    summary_html = (f'<div style="margin:18px 0;padding:16px 18px;background:#F3F6FF;border-left:3px solid #0A192F;font-size:14px;line-height:1.6">'
+                    f'<div style="font-size:11px;letter-spacing:2px;color:#5B6478;margin-bottom:6px">IN PAROLE SEMPLICI</div>{hesc(c["note"]["riepilogo"]).replace(chr(10), "<br>")}</div>'
+                    if (c["note"].get("riepilogo") or "").strip() else "")
     html = (
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F5F7;padding:24px 0"><tr><td align="center">'
         '<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;font-family:Arial,sans-serif;color:#0A192F">'
         '<tr><td style="background:#0A192F;padding:22px 28px;color:#ffffff;font-family:Georgia,serif;font-size:24px">MantMed'
         f'<div style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:2px;color:#C9CCD3;margin-top:4px">{hesc(header_line(profile))}</div></td></tr>'
-        f'<tr><td style="padding:28px;font-size:15px;line-height:1.6"><p>Gentile {hesc(patient.get("guardian") or "famiglia")},</p>'
+        f'<tr><td style="padding:28px;font-size:15px;line-height:1.6"><p>Gentile {hesc(patient.get("guardian") or ("famiglia" if ped_mail else c["patient_name"]))},</p>'
         f'<p>in allegato trova il referto della visita di <strong>{hesc(c["patient_name"])}</strong> del {day}'
-        f'{" presso lo " + hesc(c["clinic"]) if c.get("clinic") else ""}.</p>'
+        f'{" presso lo " + hesc(c["clinic"]) if c.get("clinic") else ""}.</p>' + summary_html +
         '<p>Per qualsiasi chiarimento può rispondere a questa email o contattare lo studio.</p>'
         f'<p style="margin-top:24px">Cordiali saluti,<br><strong>{hesc(user["name"])}</strong><br>'
         f'<span style="color:#5B6478;font-size:13px">{hesc(profile["specialty"] if profile else os.environ["DOCTOR_SPECIALTY"])}<br>Tel. {hesc(profile["phone"] if profile else os.environ["STUDIO_PHONE"])}</span></p></td></tr>'
         '<tr><td style="padding:16px 28px;border-top:1px solid #DADDE3;font-size:11px;color:#5B6478;line-height:1.5">'
-        'Comunicazione riservata contenente dati sanitari (art. 9 Reg. UE 2016/679 – GDPR), destinata esclusivamente al genitore o tutore del paziente. '
+        'Comunicazione riservata contenente dati sanitari (art. 9 Reg. UE 2016/679 – GDPR), destinata esclusivamente '
+        + ('al genitore o tutore del paziente. ' if ped_mail else 'al paziente o al suo delegato. ') +
         'Se l\'ha ricevuta per errore, la elimini e avvisi lo studio. Inviata da MantMed.</td></tr></table></td></tr></table>')
     email_id = await send_email(to=to, subject=subject, html=html,
                                 attachments=[{"filename": fname, "content": base64.b64encode(pdf).decode()}])
@@ -1115,7 +1223,7 @@ async def update_consultation(cid: str, body: ConsultationPatch):
         # durante l'elaborazione si salvano solo crescita e farmaci del medico; il job li unirà alla nota IA
         for _ in range(5):
             cur = ClinicalNote.model_validate(unseal_fields(existing, ("note",)).get("note") or {})
-            cur.crescita, cur.farmaci = body.note.crescita, body.note.farmaci
+            cur.crescita, cur.farmaci, cur.riepilogo = body.note.crescita, body.note.farmaci, body.note.riepilogo or cur.riepilogo
             doc = await tdb.consultations.find_one_and_update(
                 {"_id": oid(cid), "status": "processing", "rev": existing.get("rev", 0)},
                 {"$set": Consultation.sealed_set({"note": cur.model_dump()}), "$inc": {"rev": 1}}, return_document=True)

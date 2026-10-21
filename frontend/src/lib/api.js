@@ -66,6 +66,8 @@ export const api = {
     fd.append("audio", blob, `parte-${i + 1}.${ext}`);
     return http.post("/consultations/audio-parts", fd).then((r) => r.data.part_id);
   },
+  regenerateSummary: (id) => http.post(`/consultations/${id}/summary`).then((r) => r.data.riepilogo),
+  search: (q, signal) => http.get("/search", { params: { q }, signal }).then((r) => r.data),
   getConsultation: (id) => http.get(`/consultations/${id}`).then((r) => r.data),
   retryConsultation: (id, transcript = "") => http.post(`/consultations/${id}/retry`, { transcript }).then((r) => r.data),
   updateConsultation: (id, note, growthOnly = false) => http.patch(`/consultations/${id}`, { note, growth_only: growthOnly }).then((r) => r.data),

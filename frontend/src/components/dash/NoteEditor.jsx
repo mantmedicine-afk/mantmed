@@ -20,6 +20,42 @@ const visitLabel = (n) => {
   return `Visita specialistica di ${n.specialita}${m ? ` · ${m}` : ""}`;
 };
 // Parametri per le specializzazioni dell'adulto: solo peso, altezza e BMI (niente percentili OMS)
+// Riepilogo in parole semplici per genitori / paziente (generato dall'IA insieme alla cartella, modificabile)
+const SummaryCard = ({ note, setNote, consultation, processing, glow, flash }) => {
+  const [busy, setBusy] = useState(false);
+  const ped = isPediatric(note);
+  const regen = async () => {
+    setBusy(true);
+    try { const t = await api.regenerateSummary(consultation.id); setNote((n) => ({ ...n, riepilogo: t })); toast.success("Riepilogo rigenerato: controlli e salvi", BR); } catch (e) { toast.error(errMsg(e), BR); }
+    setBusy(false);
+  };
+  return (
+    <div className="mt-6 rounded-3xl border border-[#C9D6FF] bg-[#F7F9FF] p-5" data-testid="note-summary-card">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="text-[11px] uppercase tracking-[0.22em] text-[#3B6CF6]">In parole semplici</div>
+          <div className="font-display text-2xl text-night">{ped ? "Riepilogo per i genitori" : "Riepilogo per il paziente"}</div>
+        </div>
+        {!processing && (
+          <div className="flex gap-2">
+            <button onClick={() => { navigator.clipboard.writeText(note.riepilogo || ""); toast.success("Riepilogo copiato", BR); }} disabled={!note.riepilogo} className="flex h-9 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-sm text-night hover:border-night disabled:opacity-40" data-testid="note-summary-copy"><Copy size={14} /> Copia</button>
+            <button onClick={regen} disabled={busy || consultation.status !== "ready"} className="flex h-9 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-sm text-night hover:border-night disabled:opacity-40" data-testid="note-summary-regen">{busy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} {note.riepilogo ? "Rigenera" : "Genera"}</button>
+          </div>
+        )}
+      </div>
+      {processing ? (
+        <div className="mt-3 space-y-2" data-testid="note-summary-loading">{[95, 88, 70].map((w) => <div key={w} className="ai-shimmer h-3 rounded-full" style={{ width: `${w}%` }} />)}</div>
+      ) : (
+        <motion.textarea key={`sum-${flash}`} initial={glow ? { opacity: 0, y: 6 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
+          value={note.riepilogo ?? ""} onChange={(e) => setNote((n) => ({ ...n, riepilogo: e.target.value }))} rows={5}
+          placeholder={`Spiegazione della visita per ${ped ? "i genitori" : "il paziente"}: viene allegata all'email del referto e mostrata nel Portale.`}
+          className={`mt-3 w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[15px] leading-relaxed outline-none focus:border-night ${glow ? "ai-filled" : ""}`} data-testid="note-summary-text" />
+      )}
+      <p className="mt-2 text-xs text-slate-500">Viene inserito nell’email del referto e mostrato nel Portale. Lo verifichi prima dell’invio.</p>
+    </div>
+  );
+};
+
 const AdultParams = ({ g, set }) => {
   const num = (v) => (v === "" ? null : Number(v));
   const bmiV = g.peso_kg && g.altezza_cm ? g.peso_kg / (g.altezza_cm / 100) ** 2 : null;
@@ -262,6 +298,7 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
             </div>
           )}
         </div>
+        <SummaryCard note={note} setNote={setNote} consultation={consultation} processing={processing} glow={glow} flash={flash} />
       </div>
       {chart && <BodychartEditor consultation={consultation} defaultKind={(g.eta_mesi ?? 0) >= 168 ? "adult" : "child"} onClose={() => setChart(false)} onSaved={(n) => { setPins(n); setChart(false); onSaved?.(); }} />}
     </div>

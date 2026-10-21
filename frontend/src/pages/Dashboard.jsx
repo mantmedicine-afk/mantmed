@@ -1,6 +1,7 @@
+import { toast } from "sonner";
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { api, CLINICS } from "@/lib/api";
+import { api, CLINICS, errMsg } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { TopBar } from "@/components/dash/TopBar";
 import { Marquee } from "@/components/dash/Marquee";
@@ -23,7 +24,7 @@ import { DoctorMessages } from "@/components/dash/DoctorMessages";
 import { AbsenceBanner } from "@/components/dash/AbsenceBanner";
 import { SignatureReminder } from "@/components/signature/SignatureReminder";
 import { usePoll } from "@/hooks/usePoll";
-import { useParams, Navigate } from "react-router-dom";
+import { useNavigate, useParams, Navigate } from "react-router-dom";
 import { LayoutDashboard, Users, MessagesSquare, PersonStanding, ReceiptText, Settings } from "lucide-react";
 import { AppShell } from "@/components/nav/AppShell";
 import { PageTitle, VisitsList, PatientFolder, TsCard, SettingsExtras } from "@/components/nav/sections";
@@ -91,6 +92,18 @@ export default function Dashboard() {
   const { sezione = "agenda" } = useParams();
   const [folder, setFolder] = useState(null);
   const openVisit = (c) => setOverlay({ open: true, patient: null, initial: c });
+  const navTo = useNavigate();
+  const search = {
+    onPatient: (id) => { navTo("/app/pazienti"); setFolder(id); window.scrollTo({ top: 0, behavior: "smooth" }); },
+    onReport: async (id) => {
+      try { openVisit(notes.find((c) => c.id === id) ?? await api.getConsultation(id)); } catch (e) { toast.error(errMsg(e)); }
+    },
+    onAppointment: (a) => {
+      const when = `${new Date(`${a.date}T12:00:00`).toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" })} alle ${a.time}`;
+      if (a.patient_id) { search.onPatient(a.patient_id); toast(`Appuntamento di ${a.patient_name}`, { description: `${when}${a.clinic ? ` · ${a.clinic}` : ""}` }); }
+      else { navTo("/app/agenda"); toast(`Appuntamento di ${a.patient_name}`, { description: `${when}${a.clinic ? ` · ${a.clinic}` : ""}` }); }
+    },
+  };
   const items = [
     { id: "agenda", to: "/app", end: true, label: "Dashboard / Agenda", icon: LayoutDashboard },
     { id: "pazienti", to: "/app/pazienti", label: "Pazienti & Cartelle", icon: Users },
@@ -106,7 +119,7 @@ export default function Dashboard() {
     <TrackPending notes={notes} />
     <AppShell items={items} area="Studio medico">
     <div className="min-h-screen overflow-x-clip bg-paper" data-testid="dashboard" data-section={sezione}>
-      <TopBar onCompliance={() => setCompliance(true)} onFeedback={() => setFeedback(true)} onTour={() => setTour(true)} unread={unread} />
+      <TopBar onCompliance={() => setCompliance(true)} onFeedback={() => setFeedback(true)} onTour={() => setTour(true)} unread={unread} search={search} />
       {sezione === "agenda" && <>
       <Marquee items={ticker} />
       <Hero total={appointments.length} waiting={waiting.length} name={shortName} income={income} />

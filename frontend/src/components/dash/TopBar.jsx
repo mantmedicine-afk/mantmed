@@ -5,13 +5,14 @@ import { useAuth } from "@/lib/auth";
 import { useNavigate } from "react-router-dom";
 import { MenuButton } from "@/components/nav/AppShell";
 import { ProfileMenu, Caret } from "@/components/auth/ProfileMenu";
+import { GlobalSearch } from "@/components/search/GlobalSearch";
 
 const initials = (n) => n.replace(/^(Dott\.ssa|Dott\.|Dr\.)\s*/i, "").split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
 
 const fmtDate = (d) => d.toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" });
 const fmtTime = (d) => d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
 
-export const TopBar = ({ onCompliance, onFeedback, onTour, unread = 0 }) => {
+export const TopBar = ({ onCompliance, onFeedback, onTour, unread = 0, search }) => {
   const { user, logout } = useAuth();
   const name = user?.name || "Medico";
   const nav = useNavigate();
@@ -23,8 +24,8 @@ export const TopBar = ({ onCompliance, onFeedback, onTour, unread = 0 }) => {
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/85 backdrop-blur-xl">
       <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-5 py-3 lg:px-8">
-        <div className="flex items-center gap-3"><MenuButton /><span className="lg:hidden"><Logo /></span></div>
-        <div className="hidden text-center md:block">
+        <div className="flex items-center gap-3"><MenuButton /><span className="hidden sm:inline lg:hidden"><Logo /></span>{search && <GlobalSearch {...search} />}</div>
+        <div className="hidden text-center xl:block">
           <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Oggi</div>
           <div className="text-sm font-medium capitalize text-night" data-testid="topbar-date">{fmtDate(now)}</div>
         </div>
