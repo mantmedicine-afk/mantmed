@@ -5,7 +5,7 @@ import os
 import re
 import unicodedata
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 import requests
@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 
 from beta import TITLES
 from registration import in_network
-from scheduling import schedule_of
+from scheduling import ROME, free_slots, schedule_of
 
 logger = logging.getLogger(__name__)
 STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
@@ -203,5 +203,29 @@ def build_showcase(db, current_user, doctor_user):
         if not u or not visible(u):
             raise HTTPException(404, "Vetrina non trovata")
         return full(u)
+
+    @public.get("/doctors/{slug}/availability")
+    async def availability(slug: str, service: str = "", clinic: str = "", limit: int = 6):
+        """Prossimi orari liberi (14 giorni) per prestazione e studio: solo orari, nessun dato personale."""
+        u = await db.users.find_one({"showcase.slug": slug})
+        if not u or not visible(u) or not in_network(u):
+            raise HTTPException(404, "Vetrina non trovata")
+        sch = schedule_of(u)
+        services = [s["name"] for s in sch["services"]]
+        svc = service if service in services else (services[0] if services else "")
+        clinics = [c["name"] for c in sch["clinics"] if not clinic or c["name"] == clinic]
+        today, out = datetime.now(ROME).date(), []
+        for i in range(15):
+            day = (today + timedelta(days=i)).isoformat()
+            for c in clinics:
+                try:
+                    times = await free_slots(db, u, c, svc, day)
+                except HTTPException:
+                    continue
+                out += [{"date": day, "time": t, "clinic": c, "service": svc} for t in times[:3]]
+            if len(out) >= limit:
+                break
+        out.sort(key=lambda x: (x["date"], x["time"]))
+        return {"service": svc, "services": services, "clinics": [c["name"] for c in sch["clinics"]], "slots": out[:max(1, min(limit, 12))]}
 
     return doctor, public, ensure_all_slugs

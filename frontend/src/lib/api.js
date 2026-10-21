@@ -84,6 +84,7 @@ export const api = {
   uploadShowcaseImage: (kind, file) => { const fd = new FormData(); fd.append("file", file); return http.post(`/showcase/image/${kind}`, fd).then((r) => r.data); },
   deleteShowcaseImage: (kind) => http.delete(`/showcase/image/${kind}`).then((r) => r.data),
   publicDoctors: () => http.get("/public/doctors").then(list),
+  publicAvailability: (slug, p = {}) => http.get(`/public/doctors/${slug}/availability`, { params: p }).then((r) => r.data),
   publicDoctor: (slug) => http.get(`/public/doctors/${slug}`).then((r) => r.data),
   portalTherapy: (pid) => http.get(`/portal/children/${pid}/therapy`).then(list),
   portalTherapyPdf: async (pid) => saveBlob(await http.get(`/portal/children/${pid}/therapy/pdf`, { responseType: "blob" }), "Promemoria_terapia.pdf"),

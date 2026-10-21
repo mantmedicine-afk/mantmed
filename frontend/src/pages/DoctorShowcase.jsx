@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { LogoMark } from "@/components/dash/Logo";
 import { ShowcaseView } from "@/components/showcase/ShowcaseView";
+import { Availability } from "@/components/showcase/Availability";
 
 /** Pagina pubblica condivisibile della Vetrina: /medico/:slug (nessun accesso richiesto). */
 export default function DoctorShowcase() {
@@ -19,7 +20,8 @@ export default function DoctorShowcase() {
       <main className="mx-auto max-w-5xl px-3 pb-16 sm:px-5">
         {d === undefined && <Loader2 className="mx-auto mt-20 animate-spin text-night" />}
         {d === null && <p className="mt-20 text-center text-[#0A192F]/70" data-testid="public-showcase-missing">Vetrina non disponibile.</p>}
-        {d && <ShowcaseView d={d} onBook={() => { window.location.href = `/portale/trova-specialista?medico=${d.slug}`; }} bookLabel="Prenota dal Portale" />}
+        {d && <ShowcaseView d={d} onBook={() => { window.location.href = `/portale/trova-specialista?medico=${d.slug}`; }} bookLabel="Prenota dal Portale"
+          extra={<Availability slug={d.slug} onPick={() => { window.location.href = `/portale/trova-specialista?medico=${d.slug}`; }} />} />}
         {d && <p className="mt-6 text-center text-xs text-[#0A192F]/50">La prenotazione avviene nel Portale Paziente MantMed: se non ha un account può registrarsi in un minuto.</p>}
       </main>
     </div>

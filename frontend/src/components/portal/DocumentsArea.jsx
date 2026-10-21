@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
-import { FileDown, Loader2, Pill, ReceiptText, Stethoscope, ShieldCheck, FileSignature, ClipboardList } from "lucide-react";
+import { FileDown, Loader2, Pill, ReceiptText, Stethoscope, ShieldCheck, FileSignature, HeartPulse, Users } from "lucide-react";
+import { BilanciTab, FamilyTab } from "@/components/portal/AreaTabs";
 import { api, errMsg, eur } from "@/lib/api";
 import { PortalBodychart } from "@/components/portal/PortalBodychart";
 import { SignedDocsList } from "@/components/signature/SignedDocs";
@@ -11,7 +12,7 @@ const year = (iso) => new Date(iso.length === 10 ? `${iso}T12:00:00` : iso).getF
 const byYear = (items, key) => Object.entries(items.reduce((m, x) => ({ ...m, [year(x[key])]: [...(m[year(x[key])] ?? []), x] }), {})).sort(([a], [b]) => b - a);
 const Empty = ({ text, testid }) => <p className="rounded-2xl border border-dashed border-[#0A192F]/20 bg-white/60 p-8 text-center text-sm text-[#0A192F]/60" data-testid={testid}>{text}</p>;
 const Year = ({ y, right }) => <div className="flex items-baseline justify-between pt-4"><span className="font-display text-3xl text-night">{y}</span>{right}</div>;
-const TABS = [["visite", "Visite Passate & Referti", Stethoscope], ["prescrizioni", "Prescrizioni & Ricette", Pill], ["ricevute", "Ricevute e Fatture", ReceiptText]];
+const TABS = [["visite", "Visite & Referti", Stethoscope], ["bilanci", "Bilanci di salute", HeartPulse], ["prescrizioni", "Prescrizioni & Ricette", Pill], ["ricevute", "Ricevute e Fatture", ReceiptText], ["famiglia", "Famiglia e Consensi", Users]];
 
 const DlBtn = ({ onClick, label, testid, dark = true }) => {
   const [busy, setBusy] = useState(false);
@@ -33,12 +34,10 @@ const Visit = ({ r }) => (
   </div>
 );
 
-const Visits = ({ reports, checkpoints, docs }) => (
+const Visits = ({ reports, docs }) => (
   <div className="space-y-3" data-testid="docs-visits">
     {!reports.length && <Empty text="Nessun referto ancora: compare qui quando il medico lo invia o lo pubblica nel Portale." testid="docs-visits-empty" />}
     {byYear(reports, "created_at").map(([y, xs]) => <div key={y} className="space-y-3"><Year y={y} right={<span className="text-sm text-[#0A192F]/60">{xs.length} {xs.length === 1 ? "visita" : "visite"}</span>} />{xs.map((r) => <Visit key={r.id} r={r} />)}</div>)}
-    {checkpoints.length > 0 && <div className="pt-6"><div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#0A192F]/60"><ClipboardList size={14} /> Bilanci e questionari</div>
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">{checkpoints.map((k) => <div key={k.id} className="rounded-2xl bg-white p-4 text-sm ring-1 ring-[#0A192F]/10" data-testid={`docs-checkpoint-${k.id}`}><div className="text-xs text-[#0A192F]/60">{day(k.created_at)}</div><div className="font-medium text-night">{k.source === "portale" ? `Questionario pre-visita ${k.band_label}` : `Bilancio ${k.band_label}`}</div>{k.next && <div className="text-[#0A192F]/60">Prossimo: {k.next}</div>}</div>)}</div></div>}
     <div className="pt-6"><div className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#0A192F]/60"><FileSignature size={14} /> Documenti firmati</div>
       <SignedDocsList docs={docs} download={api.portalDocumentPdf} testId="docs-signed" empty="Nessun documento firmato: consensi e moduli firmati compaiono qui in PDF." /></div>
   </div>
@@ -88,24 +87,26 @@ const Receipts = ({ items }) => (
 );
 
 /** Portale: "I miei Documenti e Visite" — visite e referti, prescrizioni, ricevute, per ogni figlio. */
-export const DocumentsArea = ({ kids }) => {
+export const DocumentsArea = ({ kids, onChange, addChild }) => {
   const [params, setParams] = useSearchParams();
   const tab = TABS.some(([id]) => id === params.get("tab")) ? params.get("tab") : "visite";
   const groups = useMemo(() => Object.values(kids.reduce((m, c) => ({ ...m, [c.group]: [...(m[c.group] ?? []), c] }), {})), [kids]);
   const [gid, setGid] = useState(null);
   const g = groups.find((x) => x[0].group === gid) ?? groups[0];
-  if (!g) return <Empty text="Nessuna cartella collegata al suo account." testid="docs-no-kids" />;
+  if (!g) return <div className="space-y-4"><Empty text="Nessuna cartella collegata al suo account." testid="docs-no-kids" />{addChild}</div>;
   const reports = g.flatMap((c) => c.reports.map((r) => ({ ...r, doctor: c.doctor.name }))).sort((a, b) => b.created_at.localeCompare(a.created_at));
   const receipts = g.flatMap((c) => c.receipts).sort((a, b) => b.date.localeCompare(a.date));
   const set = (k, v) => setParams((p) => { const n = new URLSearchParams(p); n.set(k, v); return n; });
   return (
     <section className="space-y-5" data-testid="documents-area">
       <div className="flex items-center gap-2 text-sm text-[#0A192F]/60"><ShieldCheck size={15} strokeWidth={1.5} className="text-emerald-700" /> Documenti cifrati e visibili solo a lei e ai medici di {g[0].patient.name.split(" ")[0]}.</div>
-      {groups.length > 1 && <div className="flex flex-wrap gap-2" data-testid="docs-kids">{groups.map((x) => <button key={x[0].group} onClick={() => setGid(x[0].group)} className={`rounded-full px-4 py-2 text-sm transition-colors ${x === g ? "bg-night text-white" : "bg-white text-night ring-1 ring-[#0A192F]/10 hover:ring-night"}`} data-testid={`docs-kid-${x[0].patient.id}`}>{x[0].patient.name}</button>)}</div>}
+      {groups.length > 1 && tab !== "famiglia" && <div className="flex flex-wrap gap-2" data-testid="docs-kids">{groups.map((x) => <button key={x[0].group} onClick={() => setGid(x[0].group)} className={`rounded-full px-4 py-2 text-sm transition-colors ${x === g ? "bg-night text-white" : "bg-white text-night ring-1 ring-[#0A192F]/10 hover:ring-night"}`} data-testid={`docs-kid-${x[0].patient.id}`}>{x[0].patient.name}</button>)}</div>}
       <div className="-mx-1 flex snap-x gap-1 overflow-x-auto rounded-full bg-white p-1 ring-1 ring-[#0A192F]/10 [mask-image:linear-gradient(to_right,black_85%,transparent)] sm:mx-0 sm:inline-flex sm:[mask-image:none]" role="tablist">
         {TABS.map(([id, label, I]) => <button key={id} role="tab" aria-selected={tab === id} onClick={() => set("tab", id)} className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition-colors ${tab === id ? "bg-night text-white" : "text-night hover:bg-[#F6F1E9]"}`} data-testid={`docs-tab-${id}`}><I size={15} strokeWidth={1.5} /> {label}</button>)}
       </div>
-      {tab === "visite" && <Visits reports={reports} checkpoints={g.flatMap((c) => c.checkpoints ?? [])} docs={g.flatMap((c) => c.documents ?? [])} />}
+      {tab === "visite" && <Visits reports={reports} docs={g.flatMap((c) => c.documents ?? [])} />}
+      {tab === "bilanci" && <BilanciTab g={g} reports={reports} onChange={onChange} />}
+      {tab === "famiglia" && <FamilyTab groups={groups} onChange={onChange} addChild={addChild} />}
       {tab === "prescrizioni" && <Prescriptions pid={g[0].patient.id} />}
       {tab === "ricevute" && <Receipts items={receipts} />}
     </section>

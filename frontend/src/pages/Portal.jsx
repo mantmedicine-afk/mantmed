@@ -228,6 +228,7 @@ export default function Portal() {
   const [data, setData] = useState(null);
   const [req, setReq] = useState(null);
   const [reqDoctor, setReqDoctor] = useState("");
+  const [reqPreset, setReqPreset] = useState(null);
   const [params, setParams] = useSearchParams();
   const focus = params.get("visita");
   const load = useCallback(() => api.portalMe().then(setData).catch((e) => toast.error(errMsg(e))), []);
@@ -252,14 +253,14 @@ export default function Portal() {
     { id: "panoramica", to: "/portale", end: true, label: "Panoramica / Famiglia", icon: LayoutGrid },
     { id: "trova-specialista", to: "/portale/trova-specialista", label: "Trova Specialista", icon: Stethoscope },
     { id: "appuntamenti", to: "/portale/appuntamenti", label: "Appuntamenti", icon: CalendarClock },
-    { id: "documenti", to: "/portale/documenti", label: "I miei Documenti e Visite", icon: FolderOpen },
+    { id: "documenti", to: "/portale/documenti", label: "Area Riservata", icon: FolderOpen },
     { id: "messaggi", to: "/portale/messaggi", label: "Messaggi con lo Studio", icon: MessagesSquare, badge: notif.messages_unread },
     { id: "impostazioni", to: "/portale/impostazioni", label: "Impostazioni / Feedback", icon: Settings },
   ];
   if (LEGACY[sezione]) return <Navigate to={`/portale/documenti?tab=${LEGACY[sezione]}`} replace />;
   if (!(sezione in SECTIONS)) return <Navigate to="/portale" replace />;
   const only = SECTIONS[sezione];
-  const TITLES = { documenti: "I miei Documenti e Visite", "trova-specialista": "Trova Specialista", appuntamenti: "Appuntamenti", referti: "Referti e bilanci di salute", ricevute: "Ricevute e pagamenti", messaggi: "Messaggi con lo studio" };
+  const TITLES = { documenti: "Area Riservata", "trova-specialista": "Trova Specialista", appuntamenti: "Appuntamenti", referti: "Referti e bilanci di salute", ricevute: "Ricevute e pagamenti", messaggi: "Messaggi con lo studio" };
   return (
     <AppShell items={items} area="Portale Paziente">
     <div className="min-h-screen bg-[#FBF8F3]" data-testid="portal-page" data-section={sezione}>
@@ -285,13 +286,13 @@ export default function Portal() {
           <div className="flex gap-3 rounded-[28px] bg-[#0A192F] p-6 text-white" data-testid="portal-no-children"><Baby className="shrink-0 text-[#C9CCD3]" />
             <p className="text-sm leading-relaxed text-slate-200">Non abbiamo ancora trovato una cartella collegata. Il collegamento avviene in automatico quando lo studio registra il codice fiscale del bambino e la sua email ({user?.email}). Se ha già fatto una visita, chieda allo studio di verificare questi due dati.</p></div>
         )}
-        {sezione === "trova-specialista" && <SpecialistsDirectory onBook={(id) => { setReqDoctor(id); setReq(children[0]?.patient.id ?? null); if (!children.length) toast.message("Colleghi prima la cartella di suo figlio per prenotare"); }} />}
+        {sezione === "trova-specialista" && <SpecialistsDirectory onBook={(id, slot) => { setReqDoctor(id); setReqPreset(slot ?? null); setReq(children[0]?.patient.id ?? null); if (!children.length) toast.message("Colleghi prima la cartella di suo figlio per prenotare"); }} />}
         {sezione === "panoramica" && children.length > 0 && <div className="pt-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">La famiglia</div>}
-        {sezione === "documenti" && data && <DocumentsArea kids={children} />}
+        {sezione === "documenti" && data && <DocumentsArea kids={children} onChange={load} addChild={<AddChild onLinked={load} />} />}
         {!["messaggi", "trova-specialista", "documenti"].includes(sezione) && children.map((c) => <Child key={c.patient.id} c={c} onRequest={setReq} focus={focus} onChange={load} jump={jump} only={only} />)}
         {sezione === "messaggi" && children.length > 0 && <Messages kids={children} openId={openThread} onOpened={() => setOpenThread(null)} onRead={reloadNotif} />}
         {sezione === "panoramica" && [...new Set(children.map((c) => c.group))].map((g) => <NetworkSharing key={g} entries={children.filter((c) => c.group === g)} />)}
-        <RequestDialog key={`${req}-${reqDoctor}`} open={!!req} initial={req} doctorId={reqDoctor} kids={children} onClose={() => { setReq(null); setReqDoctor(""); }} onSent={load} />
+        <RequestDialog key={`${req}-${reqDoctor}-${reqPreset?.date}${reqPreset?.time}`} open={!!req} initial={req} doctorId={reqDoctor} preset={reqPreset} kids={children} onClose={() => { setReq(null); setReqDoctor(""); setReqPreset(null); }} onSent={load} />
         {data && sezione === "panoramica" && <AddChild onLinked={load} />}
         {data?.consent && sezione === "panoramica" && <p className="flex items-center gap-2 text-xs text-slate-600" data-testid="portal-consent-note"><Info size={13} /> Consenso accettato il {day(data.consent.at)} · {data.consent.version} · {count("reports")} referti · {count("appointments")} appuntamenti</p>}
       </main>)}

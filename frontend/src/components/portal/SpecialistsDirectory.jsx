@@ -4,6 +4,7 @@ import { MapPin, Search, ArrowUpRight } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
 import { Avatar, ShowcaseView, imgSrc } from "@/components/showcase/ShowcaseView";
+import { Availability } from "@/components/showcase/Availability";
 
 const DoctorTile = ({ d, onOpen, onBook }) => (
   <article className="group flex flex-col overflow-hidden rounded-3xl bg-white ring-1 ring-[#0A192F]/10 transition-[transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-lg" data-testid={`specialist-card-${d.slug}`}>
@@ -47,7 +48,7 @@ export const SpecialistsDirectory = ({ onBook }) => {
       <Dialog open={!!open} onOpenChange={(o) => !o && show(null)}>
         <DialogContent className="max-h-[92vh] w-[calc(100%-1.5rem)] overflow-y-auto rounded-3xl border-0 bg-transparent p-0 shadow-none sm:max-w-3xl [&>button]:z-10 [&>button]:rounded-full [&>button]:bg-white [&>button]:p-1.5" data-testid="specialist-dialog">
           <DialogTitle className="sr-only">Vetrina del medico</DialogTitle>
-          {open && <ShowcaseView d={open} onBook={() => { show(null); onBook(open.id); }} />}
+          {open && <ShowcaseView d={open} onBook={() => { show(null); onBook(open.id); }} extra={<Availability slug={open.slug} onPick={(s) => { show(null); onBook(open.id, s); }} />} />}
         </DialogContent>
       </Dialog>
     </section>

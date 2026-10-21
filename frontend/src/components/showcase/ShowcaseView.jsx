@@ -21,7 +21,7 @@ const ServiceCard = ({ s, i }) => (
 );
 
 /** Vetrina del medico: usata nella pagina pubblica, nel Portale e come anteprima dal vivo nell'editor. */
-export const ShowcaseView = ({ d, onBook, bookLabel = "Prenota una visita", compact = false }) => (
+export const ShowcaseView = ({ d, onBook, bookLabel = "Prenota una visita", compact = false, extra = null }) => (
   <article className="overflow-hidden rounded-3xl bg-[#FDFBF7] ring-1 ring-[#0A192F]/10" data-testid="showcase-view">
     <div className={`relative ${compact ? "h-36" : "h-48 sm:h-64 lg:h-72"} bg-[#0A192F]`}>
       {d.cover_url ? <img src={imgSrc(d.cover_url)} alt="Lo studio" className="h-full w-full object-cover" data-testid="showcase-cover" />
@@ -40,6 +40,7 @@ export const ShowcaseView = ({ d, onBook, bookLabel = "Prenota una visita", comp
         </div>
         {onBook && <button onClick={onBook} className="flex h-12 items-center justify-center gap-2 rounded-full bg-night px-6 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5" data-testid="showcase-book-btn"><CalendarPlus size={16} strokeWidth={1.5} /> {bookLabel}</button>}
       </div>
+      {extra && <div className="mt-8">{extra}</div>}
       {d.tagline && <p className={`mt-6 font-display italic text-[#0A192F]/80 ${compact ? "text-lg" : "text-2xl"}`} data-testid="showcase-tagline">«{d.tagline}»</p>}
       <div className={`mt-8 grid gap-8 ${compact ? "" : "lg:grid-cols-[1.4fr_1fr]"}`}>
         <section>

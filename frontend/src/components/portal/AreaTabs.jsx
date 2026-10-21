@@ -1,0 +1,82 @@
+import { HeartPulse, Users, ShieldCheck, Stethoscope, FileSignature, CalendarHeart, ClipboardList } from "lucide-react";
+import { api } from "@/lib/api";
+import { PrevisitCard } from "@/components/portal/PrevisitCard";
+import { ConsentBanner } from "@/components/portal/ConsentSign";
+import { NetworkSharing } from "@/components/portal/NetworkSharing";
+import { SignedDocsList } from "@/components/signature/SignedDocs";
+
+const day = (iso) => new Date(iso.length === 10 ? `${iso}T12:00:00` : iso).toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" });
+const Label = ({ icon: I, children }) => <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#0A192F]/60"><I size={14} strokeWidth={1.5} /> {children}</div>;
+const card = "rounded-3xl bg-white p-5 ring-1 ring-[#0A192F]/10";
+const CP = { ottimo: "bg-emerald-100 text-emerald-900", buono: "bg-sky-100 text-sky-900" };
+
+/** Scheda "Bilanci di salute": bilanci in studio, questionari dei genitori, prossimo bilancio e questionario pre-visita. */
+export const BilanciTab = ({ g, reports, onChange }) => {
+  const cps = g.flatMap((c) => c.checkpoints ?? []).sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const visits = reports.filter((r) => /bilancio/i.test(`${r.template_name} ${r.motivo}`));
+  const next = cps.find((k) => k.next)?.next;
+  const ped = g.find((c) => /pediatr|neonatolog/i.test(c.doctor.specialty));
+  return (
+    <div className="space-y-5" data-testid="docs-bilanci">
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="rounded-3xl border border-[#FFE5B4] bg-[#FFF9E6] p-5" data-testid="docs-bilanci-next"><Label icon={CalendarHeart}>Prossimo bilancio</Label><div className="mt-2 font-display text-2xl text-night">{next || "Lo indicherà la pediatra al prossimo controllo"}</div></div>
+        {ped ? <PrevisitCard child={ped} onDone={onChange} /> : <div className={card}><p className="text-sm text-[#0A192F]/60">I bilanci di salute sono seguiti dal pediatra.</p></div>}
+      </div>
+      <Label icon={HeartPulse}>Bilanci svolti in studio</Label>
+      {visits.length ? visits.map((r) => (
+        <div key={r.id} className={`${card} flex flex-wrap items-center justify-between gap-3`} data-testid={`docs-bilancio-visit-${r.id}`}>
+          <div><div className="text-xs text-[#0A192F]/60">{day(r.created_at)} · {r.doctor}</div><div className="font-display text-xl text-night">{r.template_name || r.motivo}</div>{r.follow_up && <div className="text-sm text-[#0A192F]/70">{r.follow_up}</div>}</div>
+          <button onClick={() => api.portalReport(r.id)} className="h-10 rounded-full bg-night px-4 text-sm font-medium text-white" data-testid={`docs-bilancio-pdf-${r.id}`}>Referto PDF</button>
+        </div>
+      )) : <p className="text-sm text-[#0A192F]/60" data-testid="docs-bilanci-empty">Nessun bilancio di salute pubblicato.</p>}
+      <Label icon={ClipboardList}>Questionari e check-point</Label>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {cps.map((k) => (
+          <div key={k.id} className={card} data-testid={`docs-checkpoint-${k.id}`}>
+            <div className="flex items-start justify-between gap-2"><div className="text-xs text-[#0A192F]/60">{day(k.created_at)}{k.source === "portale" ? " · compilato da voi" : " · in studio"}</div>{k.status && <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize ${CP[k.status] ?? "bg-amber-100 text-amber-900"}`}>{k.status}</span>}</div>
+            <div className="mt-1 font-medium text-night">{k.source === "portale" ? "Questionario pre-visita" : "Bilancio"} {k.band_label}</div>
+          </div>
+        ))}
+        {!cps.length && <p className="text-sm text-[#0A192F]/60">Nessun questionario compilato.</p>}
+      </div>
+    </div>
+  );
+};
+
+const ConsentRow = ({ c }) => (
+  <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-[#FBF8F3] px-4 py-3 text-sm" data-testid={`docs-consent-${c.id}`}>
+    <div><div className="font-medium text-night">{c.version}</div><div className="text-[#0A192F]/60">Firmato il {day(c.signed_at)} da {c.signer_name}{c.email_reports ? " · referti via email" : ""}</div></div>
+    <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${c.revoked_at ? "bg-slate-200 text-slate-700" : "bg-emerald-100 text-emerald-900"}`}>{c.revoked_at ? `Revocato il ${day(c.revoked_at)}` : "Attivo"}</span>
+  </div>
+);
+
+const FamilyMember = ({ g, onChange }) => {
+  const p = g[0].patient;
+  return (
+    <article className={`${card} space-y-5 sm:p-7`} data-testid={`docs-family-${p.id}`}>
+      <div className="flex flex-wrap items-center gap-4">
+        <span className="grid h-14 w-14 place-items-center rounded-full bg-[#E9E1D3] font-display text-2xl text-night">{p.name[0]}</span>
+        <div><div className="font-display text-3xl text-night">{p.name}</div><div className="text-sm text-[#0A192F]/60">Nato/a il {day(p.birth_date)}{p.sex ? ` · ${p.sex === "F" ? "femmina" : "maschio"}` : ""}</div></div>
+      </div>
+      <div><Label icon={Stethoscope}>Medici che lo seguono</Label>
+        <div className="mt-2 flex flex-wrap gap-2">{g.map((c) => <span key={c.doctor.id} className="rounded-full bg-[#F6F1E9] px-4 py-2 text-sm text-night" data-testid={`docs-family-doctor-${c.doctor.id}`}>{c.doctor.name} · <span className="text-[#3B6CF6]">{c.doctor.specialty}</span></span>)}</div></div>
+      {g.map((c) => <ConsentBanner key={`b-${c.doctor.id}`} child={c} onSigned={onChange} />)}
+      <div className="space-y-2"><Label icon={ShieldCheck}>Consensi privacy</Label>
+        {g.flatMap((c) => c.consents ?? []).map((c) => <ConsentRow key={c.id} c={c} />)}
+        {!g.some((c) => c.consents?.length) && <p className="text-sm text-[#0A192F]/60">Nessun consenso registrato.</p>}
+        <p className="text-xs text-[#0A192F]/50">Per revocare o modificare un consenso contatti lo studio del medico: la revoca viene registrata in cartella.</p></div>
+      <div className="space-y-2"><Label icon={FileSignature}>Documenti firmati</Label>
+        <SignedDocsList docs={g.flatMap((c) => c.documents ?? [])} download={api.portalDocumentPdf} testId={`docs-family-signed-${p.id}`} empty="Nessun documento firmato." /></div>
+      <NetworkSharing entries={g} />
+    </article>
+  );
+};
+
+/** Scheda "Famiglia e Consensi": figli collegati, medici, consensi, documenti firmati, condivisione e collegamento di un nuovo figlio. */
+export const FamilyTab = ({ groups, onChange, addChild }) => (
+  <div className="space-y-5" data-testid="docs-family">
+    <Label icon={Users}>Familiari collegati al suo profilo</Label>
+    {groups.map((g) => <FamilyMember key={g[0].group} g={g} onChange={onChange} />)}
+    {addChild}
+  </div>
+);
