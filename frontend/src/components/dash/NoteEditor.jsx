@@ -10,6 +10,7 @@ import { GrowthPanel } from "./GrowthPanel";
 import { DoseCalculator } from "./DoseCalculator";
 import { SendToParents } from "./SendToParents";
 import { CashPanel } from "./CashPanel";
+import { PrevisitPanel } from "./PrevisitPanel";
 import { BodychartEditor } from "@/components/bodychart/BodychartEditor";
 
 const BR = { position: "bottom-right" };
@@ -301,6 +302,7 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
             </div>
           )}
         </div>
+        <PrevisitPanel pv={consultation.previsit} />
         <SummaryCard note={note} setNote={setNote} consultation={consultation} processing={processing} glow={glow} flash={flash} />
       </div>
       {chart && <BodychartEditor consultation={consultation} defaultKind={(g.eta_mesi ?? 0) >= 168 ? "adult" : "child"} onClose={() => setChart(false)} onSaved={(n) => { setPins(n); setChart(false); onSaved?.(); }} />}

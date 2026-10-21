@@ -23,7 +23,9 @@ from billing import build_billing
 from network import build_network
 from messaging import build_messaging, notify_parents
 from password_reset import build_password_reset
-from account import build_account
+from account import build_account, notify_doctor
+from previsit import build_previsit, latest_previsit, previsit_prompt
+from support_inbox import build_support_inbox
 from bodychart import build_bodychart, report_payload
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
@@ -275,8 +277,9 @@ class Consultation(BaseDocument):
     template_id: Optional[str] = None
     template_name: str = ""
     template_fields: List[dict] = Field(default_factory=list)
+    previsit: Optional[dict] = None
     created_at: str = Field(default_factory=now_iso)
-    __encrypted__: ClassVar[tuple] = ("transcript", "note", "report_sent_to")
+    __encrypted__: ClassVar[tuple] = ("transcript", "note", "report_sent_to", "previsit")
 
 
 class ConsultationIn(BaseModel):
@@ -744,10 +747,10 @@ async def _safe_summary(spec: str, transcript: str, session: str) -> str:
         return ""
 
 
-async def structure_note(transcript: str, session: str, specialty: str = "Pediatria", fields: Optional[list] = None) -> ClinicalNote:
+async def structure_note(transcript: str, session: str, specialty: str = "Pediatria", fields: Optional[list] = None, context: str = "") -> ClinicalNote:
     spec = clean_specialty(specialty)
     chat = LlmChat(api_key=LLM_KEY, session_id=session, system_message=note_system(spec, fields)).with_model("openai", "gpt-5.6-terra")
-    raw = await chat.send_message(UserMessage(text=f"Trascrizione:\n{transcript}"))
+    raw = await chat.send_message(UserMessage(text=f"Trascrizione:\n{transcript}{context}"))
     match = re.search(r"\{.*\}", raw, re.S)
     data = json.loads(match.group(0)) if match else {}
     text_keys = [k for k, f in ClinicalNote.model_fields.items() if f.annotation is str]
@@ -783,14 +786,16 @@ async def create_consultation(body: ConsultationIn, user: dict = Depends(current
         raise HTTPException(412, "Conferma l'acquisizione del consenso privacy per la visita libera")
     t0 = time.monotonic()
     tpl = await resolve_template(body.template_id)
+    pv = await latest_previsit(db, body.patient_id, user["id"]) if tpl.get("bilancio") else None
     try:
-        note = await structure_note(body.transcript, f"consult-{uuid.uuid4()}", await doctor_specialty(user["id"]), tpl["fields"])
+        note = await structure_note(body.transcript, f"consult-{uuid.uuid4()}", await doctor_specialty(user["id"]), tpl["fields"],
+                                    previsit_prompt(pv) if pv else "")
     except Exception as e:
         logger.exception("Strutturazione fallita")
         raise HTTPException(502, f"Generazione nota fallita: {e}")
     enrich_growth(note, patient, date.today())
     c = Consultation(**body.model_dump(exclude={"template_id"}), note=note, doctor_id=user["id"], ai_sec=round(time.monotonic() - t0, 1),
-                     template_id=tpl["id"], template_name=tpl["name"], template_fields=tpl["fields"])
+                     template_id=tpl["id"], template_name=tpl["name"], template_fields=tpl["fields"], previsit=pv)
     res = await tdb.consultations.insert_one(c.to_mongo())
     c.id = str(res.inserted_id)
     await sync_measurement(c.out())
@@ -908,8 +913,9 @@ async def run_consult_job(cid: str, owner: str):
             await db.consultations.update_one({"_id": ObjectId(cid), "owner_id": owner, "status": "processing"},
                                               {"$set": Consultation.sealed_set({"transcript": transcript})})
         spec = await doctor_specialty(owner)
-        cur = await db.consultations.find_one({"_id": ObjectId(cid)}, {"template_fields": 1})
-        ai, summary = await asyncio.gather(structure_note(transcript, f"consult-{cid}", spec, (cur or {}).get("template_fields") or None),
+        cur = unseal_fields(await db.consultations.find_one({"_id": ObjectId(cid)}, {"template_fields": 1, "previsit": 1}) or {}, ("previsit",))
+        pv = cur.get("previsit")
+        ai, summary = await asyncio.gather(structure_note(transcript, f"consult-{cid}", spec, cur.get("template_fields") or None, previsit_prompt(pv) if pv else ""),
                                            _safe_summary(spec, transcript, f"sum-{cid}"))
         ai.riepilogo = summary
         for _ in range(5):  # concorrenza ottimistica con i salvataggi del medico (campo rev)
@@ -1021,7 +1027,8 @@ async def start_consultation(
     c = Consultation(patient_name=patient_name.strip(), patient_id=patient_id, clinic=clinic, waiting_id=waiting_id,
                      transcript="" if (data or parts) else transcript.strip(),
                      note=note, status="processing", duration_sec=duration_sec, paper_consent=paper_consent, doctor_id=user["id"],
-                     template_id=tpl["id"], template_name=tpl["name"], template_fields=tpl["fields"])
+                     template_id=tpl["id"], template_name=tpl["name"], template_fields=tpl["fields"],
+                     previsit=await latest_previsit(db, patient_id, user["id"]) if tpl.get("bilancio") else None)
     await tdb.consultations.insert_one({**c.to_mongo(), "_id": oid_new, "rev": 0})
     c.id = cid
     if waiting_id and ObjectId.is_valid(waiting_id):
@@ -1694,6 +1701,10 @@ leads_public, leads_private = build_leads(db, require_role(current_user, "admin"
 public_api.include_router(leads_public)
 public_api.include_router(leads_private)
 public_api.include_router(build_cleanup(db, require_role(current_user, "admin")))
+public_api.include_router(build_previsit(db, require_role(current_user, "parent"), notify_doctor))
+inbox_admin, inbox_mine = build_support_inbox(db, require_role(current_user, "admin"), current_user)
+public_api.include_router(inbox_admin)
+public_api.include_router(inbox_mine)
 public_api.include_router(auth_router)
 public_api.include_router(build_password_reset(db, current_user))
 public_api.include_router(build_account(db, current_user))

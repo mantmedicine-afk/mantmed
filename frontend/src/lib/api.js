@@ -44,6 +44,13 @@ export const api = {
   curves: (params) => http.get("/growth/curves", { params }).then(list),
   checkpointTemplate: (id) => http.get(`/patients/${id}/checkpoint`).then((r) => r.data),
   submitCheckpoint: (id, b) => http.post(`/patients/${id}/checkpoints`, b).then((r) => r.data),
+  portalCheckpointTemplate: (pid) => http.get("/portal/checkpoint", { params: { patient_id: pid } }).then((r) => r.data),
+  submitPortalCheckpoint: (b) => http.post("/portal/checkpoints", b).then((r) => r.data),
+  adminFeedback: () => http.get("/admin/feedback").then(list),
+  patchFeedback: (id, b) => http.patch(`/admin/feedback/${id}`, b).then((r) => r.data),
+  replyFeedback: (id, b) => http.post(`/admin/feedback/${id}/reply`, b).then((r) => r.data),
+  supportReplies: () => http.get("/support/replies").then(list),
+  readSupportReply: (id) => http.post(`/support/replies/${id}/read`).then((r) => r.data),
   transcribe: (blob) => {
     const fd = new FormData();
     const ext = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "webm";

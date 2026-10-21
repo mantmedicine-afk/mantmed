@@ -22,6 +22,7 @@ import { BetaMetrics } from "@/components/dash/BetaMetrics";
 import { OnboardingTour } from "@/components/dash/OnboardingTour";
 import { DoctorMessages } from "@/components/dash/DoctorMessages";
 import { AbsenceBanner } from "@/components/dash/AbsenceBanner";
+import { SupportReplies } from "@/components/support/SupportReplies";
 import { SignatureReminder } from "@/components/signature/SignatureReminder";
 import { usePoll } from "@/hooks/usePoll";
 import { useNavigate, useParams, Navigate } from "react-router-dom";
@@ -124,6 +125,7 @@ export default function Dashboard() {
       <Marquee items={ticker} />
       <Hero total={appointments.length} waiting={waiting.length} name={shortName} income={income} />
       <AbsenceBanner />
+      <SupportReplies />
       <SignatureReminder />
       <main className="mx-auto grid max-w-[1440px] grid-cols-1 gap-5 px-5 pb-10 lg:grid-cols-12 lg:px-8">
         <motion.div {...col(0.35)} className="order-2 min-w-0 lg:order-1 lg:col-span-4"><Agenda appointments={appointments} onChange={load} patients={patients} onPassport={setPassportId} /></motion.div>

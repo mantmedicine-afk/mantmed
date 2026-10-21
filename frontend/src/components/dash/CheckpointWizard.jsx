@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Sparkles, Loader2, AlertTriangle } from "lucide-react";
 import { api, errMsg } from "@/lib/api";
 
-export const CheckpointWizard = ({ patient, clinic, onDone, onCancel }) => {
+export const CheckpointWizard = ({ patient, clinic, onDone, onCancel, load, send }) => {
   const [band, setBand] = useState(null);
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
@@ -12,8 +12,8 @@ export const CheckpointWizard = ({ patient, clinic, onDone, onCancel }) => {
   const [result, setResult] = useState(null);
 
   useEffect(() => {
-    api.checkpointTemplate(patient.id).then(setBand).catch((e) => toast.error(errMsg(e)));
-  }, [patient.id]);
+    (load ? load() : api.checkpointTemplate(patient.id)).then(setBand).catch((e) => toast.error(errMsg(e)));
+  }, [patient.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!band) return <div className="grid h-60 place-items-center"><Loader2 className="animate-spin text-night" /></div>;
   if (result) return <CheckpointResult cp={result} onClose={onDone} />;
@@ -25,7 +25,7 @@ export const CheckpointWizard = ({ patient, clinic, onDone, onCancel }) => {
     setAnswers(next);
     if (step < qs.length - 1) return setStep(step + 1);
     setBusy(true);
-    try { setResult(await api.submitCheckpoint(patient.id, { answers: next, clinic })); }
+    try { setResult(await (send ? send({ answers: next }) : api.submitCheckpoint(patient.id, { answers: next, clinic }))); }
     catch (e) { toast.error(errMsg(e)); }
     setBusy(false);
   };

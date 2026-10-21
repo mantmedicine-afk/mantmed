@@ -267,7 +267,7 @@ def build_registration(db, current_user, start_session, models, pdf_for):
         async for k in db.checkpoints.find({"patient_id": pid, "owner_id": owner}).sort("created_at", -1).limit(20):
             res = unseal_fields(k, ("result",)).get("result") or {}
             checkpoints.append({"id": str(k["_id"]), "band_label": k["band_label"], "created_at": k["created_at"], "clinic": k.get("clinic", ""),
-                                "status": res.get("status", ""), "next": res.get("next") or ""})
+                                "status": res.get("status", ""), "next": res.get("next") or "", "source": k.get("source") or "studio"})
         from signed_docs import docs_for_patient
         documents = await docs_for_patient(db, pid)
         return {"patient": {"id": pid, "name": pt["name"], "birth_date": pt["birth_date"], "sex": pt["sex"]},

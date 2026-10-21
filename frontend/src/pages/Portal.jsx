@@ -7,6 +7,8 @@ import { NetworkSharing } from "@/components/portal/NetworkSharing";
 import { Messages } from "@/components/portal/Messages";
 import { NotificationBell, useNotifications } from "@/components/portal/NotificationBell";
 import { ReminderBanner } from "@/components/portal/ReminderBanner";
+import { SupportReplies } from "@/components/support/SupportReplies";
+import { PrevisitCard } from "@/components/portal/PrevisitCard";
 import { PortalBodychart } from "@/components/portal/PortalBodychart";
 import { ConsentBanner } from "@/components/portal/ConsentSign";
 import { SignedDocsList } from "@/components/signature/SignedDocs";
@@ -143,6 +145,7 @@ const Child = ({ c, onRequest, focus, onChange, jump, only }) => {
       </div>
       <div className="mt-5 space-y-2">
         <ConsentBanner child={c} onSigned={onChange} />
+        {tab === "reports" && <PrevisitCard child={c} onDone={onChange} />}
         {tab === "reports" && <Reports items={c.reports} checkpoints={c.checkpoints ?? []} />}
         {tab === "appointments" && <Appointments items={c.appointments} requests={c.requests ?? []} focus={focus} onChange={onChange} />}
         {tab === "receipts" && <Receipts items={c.receipts ?? []} />}
@@ -268,6 +271,7 @@ export default function Portal() {
       <main className="mx-auto max-w-[1100px] space-y-5 px-5 py-10">
         <div><div className="text-[11px] uppercase tracking-[0.22em] text-slate-600">Area personale protetta</div><h1 className="mt-1 font-display text-4xl text-night sm:text-5xl">{TITLES[sezione] ?? <>Buongiorno, <span className="italic text-slate-500">{user?.name?.split(" ")[0]}</span></>}</h1></div>
         <PayBanner state={payState} />
+        {sezione === "panoramica" && <SupportReplies />}
         {sezione === "panoramica" && <ReminderBanner kids={children} onOpen={(pid) => go(pid, "appointments")} />}
         {!data && <Loader2 className="animate-spin text-night" />}
         {data && children.length === 0 && (
