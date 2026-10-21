@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AudioLines, BookOpenText, Eye, FileSignature, KeyRound, Lock, ShieldCheck, Sparkles, Trash2, UserCheck } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
@@ -63,15 +63,16 @@ const Safety = () => (
 
 export const MantAIDialog = ({ open, onOpenChange, view = "doctor" }) => {
   const [role, setRole] = useState(view);
+  useEffect(() => { if (open) setRole(view); }, [open, view]);
   return (
-    <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (o) setRole(view); }}>
-      <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto rounded-[28px] border-slate-200 bg-[#F4F5F7] p-5 sm:p-8" data-testid="mantai-dialog">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent overlayClassName="z-[60]" onEscapeKeyDown={(e) => e.stopPropagation()} className="z-[60] max-h-[92vh] max-w-3xl overflow-y-auto rounded-[28px] border-slate-200 bg-[#F4F5F7] p-5 sm:p-8" data-testid="mantai-dialog">
         <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-[#3B6CF6]"><Sparkles size={14} /> Intelligenza artificiale di MantMed</div>
         <DialogTitle className="font-display text-4xl font-normal leading-tight text-night sm:text-5xl">Cos'è <span className="italic text-slate-500">MantAI</span></DialogTitle>
         <DialogDescription className="max-w-2xl text-base leading-relaxed text-slate-600">
           MantAI è l'assistente vocale e clinico integrato in MantMed: trascrive le visite, organizza i dati clinici e aiuta a spiegare i referti. È il motore di MantMed, basato su modelli di AI avanzati di fornitori selezionati, sempre sotto il controllo del medico.
         </DialogDescription>
-        <div className="mt-6 inline-flex rounded-full border border-slate-200 bg-white p-1" role="tablist">
+        <div className="mt-6 inline-flex w-fit justify-self-start rounded-full border border-slate-200 bg-white p-1" role="tablist">
           {Object.entries(ROLE).map(([k, r]) => (
             <button key={k} role="tab" aria-selected={role === k} onClick={() => setRole(k)} data-testid={`mantai-tab-${k}`}
               className={`flex h-10 items-center gap-2 rounded-full px-4 text-sm transition-colors ${role === k ? "bg-night text-white" : "text-slate-600 hover:text-night"}`}>

@@ -1,0 +1,41 @@
+{
+  "summary": "Frontend-only test of the 'Cos'è MantAI' modal, run with Playwright at 1920, 768 and 390 widths. Every requested access point opens the correct default view: the doctor sidebar (expanded and collapsed), the consultation setup info button, the portal sidebar and the portal banner under portal-simple-box. Tab switching, Esc / X / outside-click closing, content wording, setup state preservation and navigation/logout regression all pass. One HIGH bug: on viewports below lg (390 and 768), opening the dialog from the mobile drawer puts the dialog BEHIND the open drawer. One minor bug: the dialog keeps the last selected tab instead of resetting to its default view.",
+  "results": {
+    "doctor_sidebar_desktop": "PASS - mantai-sidebar-btn 'Cos'è MantAI' opens mantai-dialog with mantai-view-doctor. The tabs switch content (patient view includes 'In parole semplici'). mantai-safety is visible. Esc and X both close.",
+    "doctor_sidebar_collapsed": "PASS - icon only (empty text, title 'Cos'è MantAI'), and it opens the dialog.",
+    "doctor_mobile_drawer_390": "FAIL (visual) - the button is visible in sidebar-drawer and the dialog opens, but the drawer (z-[55]) covers about 77% of the dialog (Radix dialog is z-50). See ui_bugs.",
+    "consultation_info_btn": "PASS - mantai-info-btn is in the setup. The dialog sits on top of the overlay (elementFromPoint check). After closing with Esc, X or outside click, the setup is still shown and the typed free name 'TEST Stato MantAI' is kept.",
+    "portal": "PASS - sidebar button opens mantai-view-patient by default. mantai-banner-btn sits directly under portal-simple-box (box bottom 648px, banner top 660px) and opens the patient view.",
+    "content": "PASS - contains 'fornitori selezionati', 'responsabili del trattamento', GDPR and segreto professionale. No 'proprietaria', 'ISO', 'UE', 'Unione Europea' or 'europ'.",
+    "responsive": "PASS - at 390 the dialog is 390 wide, scrollWidth equals clientWidth (388), scrollHeight 1892 vs 774 so it scrolls. At 768, scrollWidth equals clientWidth (766) and it scrolls. Document has no horizontal overflow.",
+    "regression": "PASS - doctor and portal sidebar navigation work, and portal logout returns to the login form."
+  },
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AppShell mobile drawer + MantAIDialog", "issue": "Below lg (390 and 768 widths), clicking 'Cos'è MantAI' in the drawer opens the dialog underneath the still-open drawer. The drawer wrapper is 'fixed inset-0 z-[55]' and the dialog overlay/content are z-50, so the drawer hides most of the modal. Clicks still reach the dialog only because Radix sets pointer-events:none on body. Fix: close the drawer when the button is clicked (call onNav/onClose from Panel), and/or give the DialogContent and overlay z-[60]. Esc currently closes both the dialog and the drawer.", "selector": "[data-testid='sidebar-drawer'] [data-testid='mantai-sidebar-btn']", "priority": "HIGH"},
+      {"component": "MantAIDialog", "issue": "The role tab does not reset to the 'view' prop when the dialog is reopened. Radix does not call onOpenChange on a programmatic open, so setRole(view) never runs. Repro: doctor sidebar -> switch to 'Per la famiglia' -> close -> reopen, and the patient view is shown instead of the doctor view. Fix: useEffect(() => { if (open) setRole(view) }, [open, view]), or set the role in the trigger's onClick.", "selector": "[data-testid='mantai-dialog']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "MantAI dialog", "issues": ["The tablist pill (inline-flex) stretches to the full dialog width because DialogContent is a CSS grid, leaving a large empty white pill area. Add justify-self-start or w-fit.", "The login success toast overlaps the dialog header ('INTELLIGENZA ARTIF...') right after login (transient)."]}
+    ]
+  },
+  "critical_code_review_comments": [
+    "MantAIButton renders a separate MantAIDialog instance for every trigger: two sidebars (desktop aside plus mobile drawer) and the banner. That is fine, but consider a single context-driven dialog.",
+    "Fix the z-index stacking between the drawer (z-[55]) and the shadcn dialog (z-50). Other dialogs opened from inside the drawer would hit the same problem."
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "HIGH: close the mobile drawer when 'Cos'è MantAI' is clicked, or raise the dialog z-index above z-[55]",
+    "LOW: reset the dialog tab to the default view on every open",
+    "LOW: make the tablist pill w-fit"
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend only)", "frontend": "~90% (1 high visual bug on mobile and tablet drawer, 1 low)"},
+  "test_credentials": "medico@mantmed.it / Auscula-Studio-2026; genitore.demo@example.com / Portale-Demo-2026 (no failed logins)",
+  "seed_data_creation": "None (the consultation setup was opened and filled with the free name 'TEST Stato MantAI', but no recording was started)",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Mobile menu opener is data-testid=sidebar-open-btn. Below lg the drawer is always mounted (translate-x toggles). Note that elementFromPoint reports the dialog as top-most even when it is covered, because of body pointer-events:none, so check visually with a screenshot. The portal login page at /portale may time out on the 'load' event, but the page still works."
+}

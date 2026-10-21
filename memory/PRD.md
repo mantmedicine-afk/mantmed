@@ -314,3 +314,9 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 
 ## 2026-06 · Prova microfono (iteration_34 PASS)
 - Pulsante "Prova microfono e livello audio" nella preparazione consultazione: indicatore livello in tempo reale, giudizio basso/buono/alto, scelta del microfono (salvata in localStorage 'mantmed-mic' e usata per la registrazione)
+
+## 2026-06 · Modale "Cos'è MantAI" (iteration_35 + fix verificati)
+- components/mantai/MantAI.jsx: MantAIDialog (schede Per il medico / Per la famiglia, sezione Sicurezza) + MantAIButton (varianti sidebar, banner, icon)
+- Accessi: voce sidebar (medico e portale), banner sotto "In parole semplici" nel portale, pulsante nella preparazione consultazione
+- Testo: "basato su modelli di AI avanzati di fornitori selezionati, responsabili del trattamento (art. 28 GDPR)"; nessuna dichiarazione su localizzazione UE o certificazioni
+- Fix: dialog z-[60] sopra il drawer mobile, Esc chiude solo il dialog, scheda torna alla vista di default a ogni apertura
