@@ -346,3 +346,8 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - 5 passi per ruolo: medico +Medicina di Squadra (team-network-search), Bodychart con pin/foto tablet; paziente +prescrizioni, copertine, passo 5 Messaggi e supporto (link Feedback)
 - TOUR_VERSION=2 in auth.py: chi aveva visto il tour v1 lo rivede una volta
 - Rifiniture: card compatta su mobile ("Più dettagli"), card a sinistra se il target è a destra, target prefisso (visit-row-*), toast chiusi all'apertura, pulsante tour visibile anche su mobile nell'area medico
+
+## 2026-06 · Video nel tour (iteration_40 + fix verificati)
+- 10 clip reali registrate con Playwright sull'app demo: /app/frontend/public/tour/{doctor,patient}-{1..5}.{webm,mp4,jpg} (~2.9 MB totali, 9-12s, senza audio)
+- Generatore: /app/scripts/record_tour_videos.py (venv /tmp/pwenv con playwright + imageio-ffmpeg; da rilanciare se cambia l'interfaccia)
+- components/tour/TourVideo.jsx: anteprima in loop nella scheda (≥640px), autoplay disattivato con saveData/rete cellulare; su telefono solo poster, il video si carica al tocco; schermo intero con controlli; frecce/Esc non muovono il tour mentre il video è a schermo intero

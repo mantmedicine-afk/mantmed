@@ -84,6 +84,7 @@ export const GuidedTour = ({ open, steps, name, where = "Impostazioni", onDone }
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => {
+      if (document.querySelector('[data-testid="tour-video-fullscreen"]')) return;
       if (e.key === "Escape") onDone();
       if (e.key === "ArrowRight") setI((n) => Math.min(n + 1, steps.length));
       if (e.key === "ArrowLeft") setI((n) => Math.max(n - 1, 0));

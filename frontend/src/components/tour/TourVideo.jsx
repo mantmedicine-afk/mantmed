@@ -3,7 +3,13 @@ import { createPortal } from "react-dom";
 import { Maximize2, Play, X } from "lucide-react";
 
 const src = (id, ext) => `${process.env.PUBLIC_URL || ""}/tour/${id}.${ext}`;
-const Sources = ({ id }) => <><source src={src(id, "mp4")} type="video/mp4" /><source src={src(id, "webm")} type="video/webm" /></>;
+const Sources = ({ id }) => <><source src={src(id, "webm")} type="video/webm" /><source src={src(id, "mp4")} type="video/mp4" /></>;
+const useWide = () => {
+  const q = "(min-width: 640px)";
+  const [wide, setWide] = useState(() => window.matchMedia(q).matches);
+  useEffect(() => { const m = window.matchMedia(q); const f = () => setWide(m.matches); m.addEventListener("change", f); return () => m.removeEventListener("change", f); }, []);
+  return wide;
+};
 const saveData = () => {
   const c = navigator.connection;
   return !!c && (c.saveData || c.type === "cellular" || /(^|-)(2g|3g)$/.test(c.effectiveType || ""));
@@ -31,8 +37,8 @@ const Preview = ({ id, onExpand }) => {
   const [playing, setPlaying] = useState(auto);
   const play = () => { ref.current?.play().catch(() => {}); setPlaying(true); };
   return (
-    <div className="group relative mt-4 hidden overflow-hidden rounded-2xl border border-white/10 bg-black/40 sm:block" data-testid="tour-video-preview">
-      <video key={id} ref={ref} poster={src(id, "jpg")} autoPlay={auto} loop muted playsInline preload={auto ? "auto" : "none"}
+    <div className="group relative mt-4 overflow-hidden rounded-2xl border border-white/10 bg-black/40" data-testid="tour-video-preview">
+      <video ref={ref} poster={src(id, "jpg")} autoPlay={auto} loop muted playsInline preload={auto ? "auto" : "none"}
         className="aspect-[16/10] w-full object-cover" data-testid="tour-video"><Sources id={id} /></video>
       {!playing && <button onClick={play} className="absolute inset-0 grid place-items-center bg-black/30" aria-label="Riproduci video" data-testid="tour-video-play"><span className="grid h-14 w-14 place-items-center rounded-full bg-white/90 text-night"><Play size={22} className="ml-1" /></span></button>}
       <button onClick={onExpand} className="absolute bottom-2 right-2 flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-xs text-white opacity-90 backdrop-blur transition-opacity hover:opacity-100" data-testid="tour-video-expand"><Maximize2 size={12} /> Schermo intero</button>
@@ -41,22 +47,22 @@ const Preview = ({ id, onExpand }) => {
 };
 
 const Thumb = ({ id, onExpand }) => (
-  <button onClick={onExpand} className="relative mt-3 flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-2 text-left sm:hidden" data-testid="tour-video-thumb">
+  <button onClick={onExpand} className="relative mt-3 flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-2 text-left" data-testid="tour-video-thumb">
     <span className="relative h-14 w-24 shrink-0 overflow-hidden rounded-xl bg-black/40">
       <img src={src(id, "jpg")} alt="" className="h-full w-full object-cover" loading="lazy" />
       <span className="absolute inset-0 grid place-items-center bg-black/30"><Play size={18} className="text-white" /></span>
     </span>
-    <span className="text-sm text-slate-200">Guarda la demo<span className="block text-xs text-slate-400">10 secondi · senza audio</span></span>
+    <span className="text-sm text-slate-200">Guarda la demo<span className="block text-xs text-slate-400">Breve clip · senza audio</span></span>
   </button>
 );
 
 export const TourVideo = ({ id, title }) => {
   const [full, setFull] = useState(false);
+  const wide = useWide();
   if (!id) return null;
   return (
     <>
-      <Preview id={id} onExpand={() => setFull(true)} />
-      <Thumb id={id} onExpand={() => setFull(true)} />
+      {wide ? <Preview key={id} id={id} onExpand={() => setFull(true)} /> : <Thumb id={id} onExpand={() => setFull(true)} />}
       {full && <Fullscreen id={id} title={title} onClose={() => setFull(false)} />}
     </>
   );

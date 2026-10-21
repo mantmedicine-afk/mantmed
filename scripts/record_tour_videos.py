@@ -53,10 +53,13 @@ async def wheel(page, dy, steps=6):
 async def doc_agenda(p):
     await p.goto(f"{BASE}/app"); await p.wait_for_selector('[data-testid="agenda-panel"]'); return p
 async def doc_agenda_act(p):
-    await move_click(p, '[data-testid="agenda-panel"]', click=False)
-    await wheel(p, 260); await p.wait_for_timeout(800)
-    await move_click(p, '[data-testid="consult-hub"]', click=False); await p.wait_for_timeout(900)
-    await wheel(p, -260); await p.wait_for_timeout(1200)
+    await move_click(p, '[data-testid="agenda-panel"]', click=False); await p.wait_for_timeout(900)
+    tabs = p.locator('[data-testid="agenda-panel"] [role=tab], [data-testid^="agenda-clinic-"]')
+    if await tabs.count() > 1:
+        await tabs.nth(1).click(); await p.wait_for_timeout(1400); await tabs.nth(0).click(); await p.wait_for_timeout(1200)
+    await wheel(p, 260); await p.wait_for_timeout(1300)
+    await move_click(p, '[data-testid="consult-hub"]', click=False); await p.wait_for_timeout(1500)
+    await wheel(p, -260); await p.wait_for_timeout(1500)
 
 
 async def doc_mantai(p):
@@ -76,7 +79,7 @@ async def doc_bodychart_act(p):
     rows = p.locator('[data-testid^="visit-row-"]').filter(has_not_text="TEST")
     await rows.first.scroll_into_view_if_needed(); b = await rows.first.bounding_box()
     await p.mouse.move(b["x"] + b["width"] / 2, b["y"] + b["height"] / 2, steps=28); await rows.first.click(); await p.wait_for_timeout(1500)
-    await move_click(p, '[data-testid="note-bodychart-btn"]'); await p.wait_for_selector('[data-testid="bodychart-canvas"]'); await p.wait_for_timeout(700)
+    await move_click(p, '[data-testid="note-bodychart-btn"]'); await p.wait_for_selector('[data-testid="bodychart-canvas"]'); await p.wait_for_load_state("networkidle"); await p.wait_for_timeout(1200)
     cv = await p.locator('[data-testid="bodychart-canvas"]').bounding_box()
     for fx, fy in ((0.5, 0.32), (0.38, 0.55)):
         await p.mouse.move(cv["x"] + cv["width"] * fx, cv["y"] + cv["height"] * fy, steps=25)
@@ -88,13 +91,17 @@ async def doc_bodychart_act(p):
 
 
 async def doc_team(p):
-    await p.goto(f"{BASE}/app/pazienti"); await p.wait_for_selector('[data-testid="team-network-search"]'); await p.locator('[data-testid="team-network-search"]').scroll_into_view_if_needed(); return p
+    await p.goto(f"{BASE}/app/pazienti"); await p.wait_for_selector('[data-testid^="patient-card-"]'); return p
 async def doc_team_act(p):
-    await type_slow(p, '[data-testid="team-search-input"]', "RCCRRA22M47H224F")
-    await move_click(p, '[data-testid="team-search-btn"]'); await p.wait_for_timeout(1500)
-    await wheel(p, 250); await p.wait_for_timeout(500)
+    await move_click(p, '[data-testid="team-network-search"]', click=False); await p.wait_for_timeout(1000)
+    card = p.locator('[data-testid^="patient-card-"]').filter(has_text="Aurora").first
+    b = await card.bounding_box(); await p.mouse.move(b["x"] + b["width"] / 2, b["y"] + b["height"] / 2, steps=28); await card.click()
+    await p.wait_for_selector('[data-testid="team-panel"]', timeout=10000); await p.wait_for_timeout(1200)
+    await p.wait_for_timeout(800)
+    await p.locator('[data-testid="team-panel"]').scroll_into_view_if_needed(); await p.wait_for_timeout(800)
+    await move_click(p, '[data-testid="team-panel"]', click=False); await p.wait_for_timeout(1500)
     if await p.locator('[data-testid="team-request-reason"]').count():
-        await type_slow(p, '[data-testid="team-request-reason"]', "Valutazione cardiologica")
+        await move_click(p, '[data-testid="team-request-reason"]'); await p.locator('[data-testid="team-request-reason"]').type("Consulto ortopedico", delay=60)
         await move_click(p, '[data-testid="team-request-btn"]', click=False)
     await p.wait_for_timeout(1500)
 
@@ -110,8 +117,10 @@ async def doc_vetrina_act(p):
 async def par_home(p):
     await p.goto(f"{BASE}/portale"); await p.wait_for_selector('[data-testid="portal-overview"]'); return p
 async def par_home_act(p):
-    await move_click(p, '[data-testid="portal-overview"]', click=False); await p.wait_for_timeout(600)
-    await wheel(p, 350); await p.wait_for_timeout(1000); await wheel(p, 350); await p.wait_for_timeout(1000); await wheel(p, -700); await p.wait_for_timeout(900)
+    await move_click(p, '[data-testid="portal-overview"]', click=False); await p.wait_for_timeout(1200)
+    for dy in (300, 300, 300):
+        await wheel(p, dy); await p.wait_for_timeout(1300)
+    await wheel(p, -900); await p.wait_for_timeout(1500)
 
 
 async def par_docs(p):
@@ -158,7 +167,7 @@ async def par_msg_act(p):
 
 CLIPS = [
     ("doctor-1", DOC, doc_agenda, doc_agenda_act), ("doctor-2", DOC, doc_mantai, doc_mantai_act), ("doctor-3", DOC, doc_bodychart, doc_bodychart_act),
-    ("doctor-4", CARDIO, doc_team, doc_team_act), ("doctor-5", DOC, doc_vetrina, doc_vetrina_act),
+    ("doctor-4", DOC, doc_team, doc_team_act), ("doctor-5", DOC, doc_vetrina, doc_vetrina_act),
     ("patient-1", PAR, par_home, par_home_act), ("patient-2", PAR, par_docs, par_docs_act), ("patient-3", PAR, par_simple, par_simple_act),
     ("patient-4", PAR, par_spec, par_spec_act), ("patient-5", PAR, par_msg, par_msg_act),
 ]
