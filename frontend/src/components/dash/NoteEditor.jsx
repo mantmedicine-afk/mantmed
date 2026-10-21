@@ -145,6 +145,26 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
   const setSection = (i, patch) => setNote((n) => ({ ...n, sezioni: (n.sezioni ?? []).map((x, j) => (j === i ? { ...x, ...patch } : x)) }));
   const addSection = () => setNote((n) => ({ ...n, sezioni: [...(n.sezioni ?? []), { gruppo: current.group || "esame_obiettivo", titolo: "Nuova voce", testo: "" }] }));
   const delSection = (i) => setNote((n) => ({ ...n, sezioni: (n.sezioni ?? []).filter((_, j) => j !== i) }));
+  const sectionList = (
+    <div className="space-y-4" data-testid={`note-sections-${current.id}`}>
+              {sections.map((x) => (
+                <div key={x.i} className="block" data-testid={`note-sezione-${x.i}`}>
+                  <div className="flex items-center gap-2">
+                    <input value={x.titolo} onChange={(e) => setSection(x.i, { titolo: e.target.value })} disabled={processing} className="min-w-0 flex-1 bg-transparent text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 outline-none focus:text-night" aria-label="Titolo della voce" data-testid={`note-sezione-title-${x.i}`} />
+                    {!processing && <button onClick={() => delSection(x.i)} className="grid h-7 w-7 place-items-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-rose-700" aria-label="Rimuovi voce" data-testid={`note-sezione-del-${x.i}`}><X size={14} /></button>}
+                  </div>
+                  {processing ? <div className="mt-1.5 flex h-[64px] flex-col justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4" data-testid={`note-sezione-loading-${x.i}`}><div className="ai-shimmer h-3 w-11/12 rounded-full" /><div className="ai-shimmer h-3 w-2/3 rounded-full" /></div> : <motion.textarea key={`s${x.i}-${flash}`} initial={glow ? { opacity: 0, y: 6 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} value={x.testo} onChange={(e) => setSection(x.i, { testo: e.target.value })} rows={2}
+                    className={`mt-1.5 w-full resize-y rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[15px] leading-relaxed outline-none transition-colors focus:border-night focus:bg-white ${glow ? "ai-filled" : ""}`} data-testid={`note-sezione-text-${x.i}`} />}
+                </div>
+              ))}
+              {!isPediatric(note) && current.id === "esame" && processing && !sections.length && [1, 2, 3].map((k) => (
+                <div key={k} className="space-y-2"><div className="ai-shimmer h-3 w-40 rounded-full" /><div className="ai-shimmer h-14 w-full rounded-2xl" /></div>
+              ))}
+              {!processing && current.group && (
+                <button onClick={addSection} className="flex items-center gap-1.5 rounded-full border border-dashed border-slate-300 px-4 py-2 text-sm text-slate-600 hover:border-night hover:text-night" data-testid="note-sezione-add"><Plus size={14} /> Aggiungi voce</button>
+              )}
+    </div>
+  );
 
   const save = async () => {
     setSaving(true);
@@ -257,10 +277,8 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
         </div>
 
         <div className="mt-5 max-h-[58vh] overflow-auto pr-1" data-lenis-prevent data-testid={`note-panel-${tab}`}>
-          {tab === "crescita" && !isPediatric(note) ? (
-            <AdultParams g={g} set={setGrowth} />
-          ) : tab === "crescita" ? (
-            <GrowthPanel g={g} set={setGrowth} />
+          {tab === "crescita" ? (
+            <div className="space-y-6">{isPediatric(note) ? <GrowthPanel g={g} set={setGrowth} /> : <AdultParams g={g} set={setGrowth} />}{sectionList}</div>
           ) : (
             <div className="space-y-4">
               {current.fields.map(([k, l, hint]) => (
@@ -278,22 +296,7 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
                   )}
                 </label>
               ))}
-              {sections.map((x) => (
-                <div key={x.i} className="block" data-testid={`note-sezione-${x.i}`}>
-                  <div className="flex items-center gap-2">
-                    <input value={x.titolo} onChange={(e) => setSection(x.i, { titolo: e.target.value })} disabled={processing} className="min-w-0 flex-1 bg-transparent text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 outline-none focus:text-night" aria-label="Titolo della voce" data-testid={`note-sezione-title-${x.i}`} />
-                    {!processing && <button onClick={() => delSection(x.i)} className="grid h-7 w-7 place-items-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-rose-700" aria-label="Rimuovi voce" data-testid={`note-sezione-del-${x.i}`}><X size={14} /></button>}
-                  </div>
-                  <motion.textarea key={`s${x.i}-${flash}`} initial={glow ? { opacity: 0, y: 6 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} value={x.testo} onChange={(e) => setSection(x.i, { testo: e.target.value })} rows={2}
-                    className={`mt-1.5 w-full resize-y rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[15px] leading-relaxed outline-none transition-colors focus:border-night focus:bg-white ${glow ? "ai-filled" : ""}`} data-testid={`note-sezione-text-${x.i}`} />
-                </div>
-              ))}
-              {!isPediatric(note) && current.id === "esame" && processing && !sections.length && [1, 2, 3].map((k) => (
-                <div key={k} className="space-y-2"><div className="ai-shimmer h-3 w-40 rounded-full" /><div className="ai-shimmer h-14 w-full rounded-2xl" /></div>
-              ))}
-              {!processing && current.group && (
-                <button onClick={addSection} className="flex items-center gap-1.5 rounded-full border border-dashed border-slate-300 px-4 py-2 text-sm text-slate-600 hover:border-night hover:text-night" data-testid="note-sezione-add"><Plus size={14} /> Aggiungi voce</button>
-              )}
+              {sectionList}
               {tab === "terapia" && <DoseCalculator drugs={note.farmaci ?? []} peso={g.peso_kg} set={setDrugs} />}
             </div>
           )}

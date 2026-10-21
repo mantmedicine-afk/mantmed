@@ -226,6 +226,7 @@ def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dic
     ped = not spec or bool(re.search(r"pediatr|neonatolog", spec, re.I))
     sez = [x for x in note.get("sezioni") or [] if (x.get("titolo") or "").strip()]
     extra = lambda *groups: [(x["titolo"][:40], x.get("testo")) for x in sez if x.get("gruppo") in groups]
+    vitals = extra("parametri_vitali")
     story = [Paragraph("Referto di visita", S["title"]), Paragraph("pediatrica specialistica" if ped else f"specialistica · {spec}", S["titleIt"]),
              Spacer(1, 6 * mm), meta, Spacer(1, 9 * mm)]
 
@@ -258,10 +259,10 @@ def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dic
     growth = grid(["Parametro", "Valore", "Percentile OMS", "z-score"], rows_g, [gw * 0.34, gw * 0.22, gw * 0.24, gw * 0.20], right=(1, 2, 3))
     if ped:
         story += section("04", "Parametri di crescita", [("Età · sesso", f"{fmt(g.get('eta_mesi'), 'mesi')} · {sesso}"),
-                                                         ("Misure e percentili", growth)])
-    elif peso or alt:
-        story += section("04", "Parametri", [("Peso", fmt(peso, "kg") if peso else "—"), ("Altezza", fmt(alt, "cm") if alt else "—"),
-                                             ("BMI", f"{fmt(bmi)} kg/m²" if bmi else "—")])
+                                                         ("Misure e percentili", growth)] + vitals)
+    elif peso or alt or vitals:
+        story += section("04", "Parametri", ([("Peso", fmt(peso, "kg") if peso else "—"), ("Altezza", fmt(alt, "cm") if alt else "—"),
+                                              ("BMI", f"{fmt(bmi)} kg/m²" if bmi else "—")] if peso or alt else []) + vitals)
 
     rows = [("Diagnosi", note.get("diagnosi")), ("Terapia", note.get("terapia"))]
     drugs = [d for d in note.get("farmaci") or [] if d.get("nome")]
@@ -286,7 +287,7 @@ def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dic
             rows.append(("", P(f"Dosi calcolate sul peso di {fmt(peso, 'kg')} rilevato in visita.", "small")))
     rows += [] if ped else extra("altro")
     rows.append(("Follow-up", note.get("follow_up")))
-    story += section("05" if (ped or peso or alt) else "04", "Diagnosi e terapia", rows)
+    story += section("05" if (ped or peso or alt or vitals) else "04", "Diagnosi e terapia", rows)
 
     box = lambda label, content: [P(label, "label"), Spacer(1, 2 * mm), content]
     sign = Table([[box("LUOGO", P(info["city"])), box("DATA", P(date_s)), box("TIMBRO DELLO STUDIO", Spacer(1, 24 * mm)),

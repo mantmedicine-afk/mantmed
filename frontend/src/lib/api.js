@@ -67,6 +67,11 @@ export const api = {
     fd.append("audio", blob, `parte-${i + 1}.${ext}`);
     return http.post("/consultations/audio-parts", fd).then((r) => r.data.part_id);
   },
+  visitTemplates: () => http.get("/visit-templates").then(list),
+  visitTemplateBase: () => http.get("/visit-templates/base").then((r) => r.data),
+  createVisitTemplate: (b) => http.post("/visit-templates", b).then((r) => r.data),
+  saveVisitTemplate: (id, b) => http.put(`/visit-templates/${id}`, b).then((r) => r.data),
+  deleteVisitTemplate: (id) => http.delete(`/visit-templates/${id}`).then((r) => r.data),
   regenerateSummary: (id) => http.post(`/consultations/${id}/summary`).then((r) => r.data.riepilogo),
   search: (q, signal) => http.get("/search", { params: { q }, signal }).then((r) => r.data),
   getConsultation: (id) => http.get(`/consultations/${id}`).then((r) => r.data),

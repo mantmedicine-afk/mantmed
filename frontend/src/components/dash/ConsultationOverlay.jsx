@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { X, Mic, Pause, Play, Square, Keyboard, Loader2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { X, Mic, Pause, Play, Square, Keyboard, Loader2, LayoutTemplate } from "lucide-react";
 import { api, errMsg } from "@/lib/api";
 import { useRecorder, fmtClock } from "@/hooks/useRecorder";
 import { Waveform } from "./Waveform";
@@ -21,6 +22,8 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
   const uploaded = useRef([]);
   const [result, setResult] = useState(null);
   const lastBlob = useRef(null);
+  const [templates, setTemplates] = useState([]);
+  const [tplId, setTplId] = useState("");
   const { track } = useProcessing();
   const rec = useRecorder();
 
@@ -32,6 +35,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
     setFreeName("");
     setManual(false);
     setText("");
+    if (!initial) api.visitTemplates().then((xs) => { setTemplates(xs); setTplId((cur) => (xs.some((t) => t.id === cur) ? cur : xs[0]?.id ?? "")); }).catch(() => setTemplates([]));
   }, [open, patient, initial]);
 
   const name = sel?.name || freeName.trim();
@@ -55,7 +59,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
       setSendStep("Apertura cartella…");
       const c = await api.startConsultation({
         patient_name: name, patient_id: sel?.patient_id ?? "", clinic: sel?.clinic ?? "", waiting_id: sel?.id ?? "",
-        duration_sec: duration, paper_consent: paper, transcript: transcript ?? "", part_ids: partIds.join(","),
+        duration_sec: duration, paper_consent: paper, transcript: transcript ?? "", part_ids: partIds.join(","), template_id: tplId,
       }, null);
       lastBlob.current = null;
       uploaded.current = [];
@@ -111,7 +115,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
         </div>
         <div className="flex flex-1 flex-col justify-center py-8">
           {stage === "setup" && (
-            <Setup {...{ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, sending }} gate={<ConsentGate patient={patients.find((p) => p.id === sel?.patient_id)} free={!sel?.patient_id && Boolean(freeName.trim())} paper={paper} setPaper={setPaper} onSaved={onPatientsChange} />} />
+            <Setup {...{ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, sending }} picker={<TemplatePicker templates={templates} value={tplId} onChange={setTplId} />} gate={<ConsentGate patient={patients.find((p) => p.id === sel?.patient_id)} free={!sel?.patient_id && Boolean(freeName.trim())} paper={paper} setPaper={setPaper} onSaved={onPatientsChange} />} />
           )}
           {(stage === "recording") && (
             <Recording name={name} rec={rec} sending={sending} sendStep={sendStep} onStop={() => process(null, rec.seconds)} />
@@ -134,7 +138,18 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
 
 const stageLabel = { setup: "preparazione", recording: "registrazione", retry: "invio audio", note: "cartella della visita" };
 
-const Setup = ({ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, gate, sending }) => (
+const TemplatePicker = ({ templates, value, onChange }) => (templates.length ? (
+  <div className="rounded-2xl border border-white/15 p-4" data-testid="consult-template-picker">
+    <div className="flex items-center justify-between gap-2 text-[11px] uppercase tracking-[0.2em] text-slate-300"><span className="flex items-center gap-1.5"><LayoutTemplate size={13} /> Modello di visita</span><Link to="/app/impostazioni?sezione=modelli" className="normal-case tracking-normal text-[#A9C2FF] hover:text-white" data-testid="consult-template-manage">Gestisci</Link></div>
+    <div className="mt-3 flex flex-wrap gap-2">
+      {templates.map((t) => (
+        <button key={t.id} type="button" onClick={() => onChange(t.id)} className={`rounded-full px-4 py-2 text-sm transition-colors ${t.id === value ? "bg-white font-semibold text-night" : "border border-white/20 text-slate-200 hover:border-white/50"}`} data-testid={`consult-template-${t.id}`}>{t.name} <span className="opacity-60">· {t.fields.length} campi</span></button>
+      ))}
+    </div>
+  </div>
+) : null);
+
+const Setup = ({ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, gate, sending, picker }) => (
   <div className="grid gap-10 lg:grid-cols-[1.1fr_1fr]" data-testid="consultation-setup">
     <div>
       <h2 className="font-display text-5xl leading-[1.02] lg:text-6xl">Chi stai<br /><span className="italic text-[#A9C2FF]">visitando?</span></h2>
@@ -149,6 +164,7 @@ const Setup = ({ waiting, sel, setSel, freeName, setFreeName, manual, setManual,
       ))}
       <input value={freeName} onChange={(e) => { setFreeName(e.target.value); setSel(null); }} placeholder="Oppure scrivi nome e cognome del paziente" className="w-full rounded-2xl border border-white/15 bg-transparent px-5 py-4 text-white placeholder:text-slate-400 outline-none focus:border-white/50" data-testid="consult-free-name-input" />
       {gate}
+      {picker}
       <button onClick={() => setManual(!manual)} className="flex items-center gap-2 text-sm text-slate-300 hover:text-white" data-testid="consult-manual-toggle"><Keyboard size={15} /> {manual ? "Torna alla registrazione vocale" : "Senza microfono? Incolla una trascrizione"}</button>
       {manual && <textarea value={text} onChange={(e) => setText(e.target.value)} rows={5} placeholder="Medico: Buongiorno, cosa la porta qui oggi? Paziente: …" className="w-full rounded-2xl border border-white/15 bg-white/5 px-5 py-4 text-white placeholder:text-slate-400 outline-none focus:border-white/50" data-testid="consult-manual-textarea" />}
       <button onClick={start} disabled={sending} className="mt-2 flex w-full items-center justify-center gap-3 rounded-full bg-white py-5 text-lg font-semibold text-night transition-transform hover:-translate-y-0.5 active:scale-[0.98]" data-testid="consult-begin-btn">

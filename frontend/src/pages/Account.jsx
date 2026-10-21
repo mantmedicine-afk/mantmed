@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, UserRound, Users, ShieldCheck, BellRing, FileLock2, Stethoscope, CalendarClock, Loader2, PenLine } from "lucide-react";
+import { ArrowLeft, UserRound, Users, ShieldCheck, BellRing, FileLock2, Stethoscope, CalendarClock, Loader2, PenLine, LayoutTemplate } from "lucide-react";
+import { VisitTemplatesSection } from "@/components/account/VisitTemplatesSection";
 import { LogoMark } from "@/components/dash/Logo";
 import { api, errMsg } from "@/lib/api";
 import { ParentProfile, DoctorProfile } from "@/components/account/ProfileForms";
@@ -23,6 +24,7 @@ const SECTIONS = {
   doctor: [
     { id: "profilo", label: "Profilo professionale", icon: Stethoscope, C: DoctorProfile },
     { id: "orari", label: "Orari e disponibilità", icon: CalendarClock, C: AvailabilitySection },
+    { id: "modelli", label: "Modelli Visita", icon: LayoutTemplate, C: VisitTemplatesSection },
     { id: "firma", label: "Firma per i referti", icon: PenLine, C: DoctorSignatureSection },
     { id: "notifiche", label: "Notifiche e avvisi", icon: BellRing, C: NotificationsSection },
     { id: "sicurezza", label: "Sicurezza e accesso", icon: ShieldCheck, C: SecuritySection },

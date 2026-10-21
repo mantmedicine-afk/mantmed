@@ -37,6 +37,7 @@ from emergentintegrations.llm.openai import OpenAISpeechToText
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 from auth import build_auth, seed_doctor, seed_admin, require_role
 from cleanup import build_cleanup
+from visit_templates import build_visit_templates, fields_prompt, map_fields, parse_json
 from report import build_report
 from signed_docs import build_signed_docs, record_privacy_consent, doctor_signature
 from mailer import send_email
@@ -227,7 +228,7 @@ class Drug(BaseModel):
 class NoteSection(BaseModel):
     """Voce specialistica dinamica (es. Cardiologia → 'Pressione arteriosa', Ortopedia → 'Range of motion')."""
     model_config = ConfigDict(extra="ignore")
-    gruppo: Literal["anamnesi", "sintomi", "esame_obiettivo", "altro"] = "esame_obiettivo"
+    gruppo: Literal["anamnesi", "sintomi", "parametri_vitali", "esame_obiettivo", "altro"] = "esame_obiettivo"
     titolo: str = ""
     testo: str = ""
 
@@ -271,6 +272,9 @@ class Consultation(BaseDocument):
     finalized_at: Optional[str] = None
     pdf_exports: int = 0
     portal_published: bool = False
+    template_id: Optional[str] = None
+    template_name: str = ""
+    template_fields: List[dict] = Field(default_factory=list)
     created_at: str = Field(default_factory=now_iso)
     __encrypted__: ClassVar[tuple] = ("transcript", "note", "report_sent_to")
 
@@ -283,6 +287,7 @@ class ConsultationIn(BaseModel):
     transcript: str
     duration_sec: int = 0
     paper_consent: bool = False
+    template_id: Optional[str] = None
 
 
 class ConsultationPatch(BaseModel):
@@ -688,7 +693,7 @@ async def doctor_specialty(uid: Optional[str]) -> str:
     return clean_specialty(((u or {}).get("profile") or {}).get("specialty") or os.environ.get("DOCTOR_SPECIALTY", "Pediatria"))
 
 
-def note_system(spec: str) -> str:
+def note_system(spec: str, fields: Optional[list] = None) -> str:
     head = (f"Sei un assistente medico specializzato in {spec}. Estrai le informazioni dalla seguente trascrizione e compilale "
             "nei campi standard pertinenti per questa specifica branca medica. Rispondi SOLO con un JSON valido.\n")
     rules = ("Regole: usa solo informazioni presenti nella trascrizione. Se un campo testuale manca scrivi 'Non riportato'; se un numero manca usa null. "
@@ -696,7 +701,13 @@ def note_system(spec: str) -> str:
     drugs = ("farmaci: lista di {nome, mg_kg_dose (numero|null), dosi_giorno (intero|null), concentrazione_mg_ml (numero|null), "
              "max_mg_dose (numero|null), giorni (intero|null), note}.\n")
     if is_pediatric(spec):
-        return head + "Chiavi:\n" + NOTE_SYSTEM.split("\n", 1)[1]
+        return head + "Chiavi:\n" + NOTE_SYSTEM.split("\n", 1)[1].replace("\nRegole:", "\n" + fields_prompt(fields) + "Regole:", 1) if fields else head + "Chiavi:\n" + NOTE_SYSTEM.split("\n", 1)[1]
+    if fields:
+        return head + (
+            "Chiavi:\n"
+            "anamnesi_fisiologica (anamnesi generale: patologica remota e prossima, familiarità, farmaci in uso, allergie), motivo_visita, sintomi, "
+            "diagnosi, terapia, follow_up (stringhe in italiano, concise e cliniche);\n" + fields_prompt(fields) +
+            "crescita: {peso_kg (numero|null), altezza_cm (numero|null)} solo se riportati;\n" + drugs + rules)
     return head + (
         "Chiavi:\n"
         "anamnesi_fisiologica (anamnesi generale: patologica remota e prossima, familiarità, farmaci in uso, allergie), motivo_visita, sintomi, "
@@ -733,9 +744,9 @@ async def _safe_summary(spec: str, transcript: str, session: str) -> str:
         return ""
 
 
-async def structure_note(transcript: str, session: str, specialty: str = "Pediatria") -> ClinicalNote:
+async def structure_note(transcript: str, session: str, specialty: str = "Pediatria", fields: Optional[list] = None) -> ClinicalNote:
     spec = clean_specialty(specialty)
-    chat = LlmChat(api_key=LLM_KEY, session_id=session, system_message=note_system(spec)).with_model("openai", "gpt-5.6-terra")
+    chat = LlmChat(api_key=LLM_KEY, session_id=session, system_message=note_system(spec, fields)).with_model("openai", "gpt-5.6-terra")
     raw = await chat.send_message(UserMessage(text=f"Trascrizione:\n{transcript}"))
     match = re.search(r"\{.*\}", raw, re.S)
     data = json.loads(match.group(0)) if match else {}
@@ -749,8 +760,16 @@ async def structure_note(transcript: str, session: str, specialty: str = "Pediat
         if isinstance(d, dict) and str(d.get("titolo") or "").strip():
             g = d.get("gruppo") if d.get("gruppo") in ("anamnesi", "sintomi", "esame_obiettivo", "altro") else "esame_obiettivo"
             sez.append({"gruppo": g, "titolo": str(d["titolo"])[:80], "testo": str(d.get("testo") or "Non riportato")})
-    clean["sezioni"] = sez[:20]
+    clean["sezioni"] = map_fields(fields, data.get("campi_modello")) if fields else sez[:20]
     return ClinicalNote.model_validate(clean)
+
+
+async def llm_json(prompt: str) -> dict:
+    chat = LlmChat(api_key=LLM_KEY, session_id=f"tpl-{uuid.uuid4()}", system_message="Rispondi solo con JSON valido.").with_model("openai", "gpt-5.6-terra")
+    return parse_json(await chat.send_message(UserMessage(text=prompt)))
+
+
+tpl_router, resolve_template = build_visit_templates(db, tdb, doctor_specialty, llm_json)
 
 
 @api.post("/consultations")
@@ -763,13 +782,15 @@ async def create_consultation(body: ConsultationIn, user: dict = Depends(current
     if not patient and not body.paper_consent:
         raise HTTPException(412, "Conferma l'acquisizione del consenso privacy per la visita libera")
     t0 = time.monotonic()
+    tpl = await resolve_template(body.template_id)
     try:
-        note = await structure_note(body.transcript, f"consult-{uuid.uuid4()}", await doctor_specialty(user["id"]))
+        note = await structure_note(body.transcript, f"consult-{uuid.uuid4()}", await doctor_specialty(user["id"]), tpl["fields"])
     except Exception as e:
         logger.exception("Strutturazione fallita")
         raise HTTPException(502, f"Generazione nota fallita: {e}")
     enrich_growth(note, patient, date.today())
-    c = Consultation(**body.model_dump(), note=note, doctor_id=user["id"], ai_sec=round(time.monotonic() - t0, 1))
+    c = Consultation(**body.model_dump(exclude={"template_id"}), note=note, doctor_id=user["id"], ai_sec=round(time.monotonic() - t0, 1),
+                     template_id=tpl["id"], template_name=tpl["name"], template_fields=tpl["fields"])
     res = await tdb.consultations.insert_one(c.to_mongo())
     c.id = str(res.inserted_id)
     await sync_measurement(c.out())
@@ -828,6 +849,11 @@ def _apply_doctor(ai: ClinicalNote, mine: dict):
     for k in ("peso_kg", "altezza_cm", "circonferenza_cranica_cm", "eta_mesi"):
         if g.get(k) not in (None, "", 0):
             setattr(ai.crescita, k, g[k])
+    typed = {(x.get("titolo") or "").strip().lower(): x["testo"] for x in (mine or {}).get("sezioni") or []
+             if (x.get("testo") or "").strip() and x.get("testo") != "Non riportato"}
+    for x in ai.sezioni:
+        if x.titolo.strip().lower() in typed:
+            x.testo = typed[x.titolo.strip().lower()]
     keep = [d for d in (mine or {}).get("farmaci") or [] if d.get("nome")]
     if keep:
         ai.farmaci = [Drug.model_validate(d) for d in keep]
@@ -882,7 +908,9 @@ async def run_consult_job(cid: str, owner: str):
             await db.consultations.update_one({"_id": ObjectId(cid), "owner_id": owner, "status": "processing"},
                                               {"$set": Consultation.sealed_set({"transcript": transcript})})
         spec = await doctor_specialty(owner)
-        ai, summary = await asyncio.gather(structure_note(transcript, f"consult-{cid}", spec), _safe_summary(spec, transcript, f"sum-{cid}"))
+        cur = await db.consultations.find_one({"_id": ObjectId(cid)}, {"template_fields": 1})
+        ai, summary = await asyncio.gather(structure_note(transcript, f"consult-{cid}", spec, (cur or {}).get("template_fields") or None),
+                                           _safe_summary(spec, transcript, f"sum-{cid}"))
         ai.riepilogo = summary
         for _ in range(5):  # concorrenza ottimistica con i salvataggi del medico (campo rev)
             doc = await db.consultations.find_one({"_id": ObjectId(cid), "owner_id": owner})
@@ -945,7 +973,7 @@ async def start_consultation(
     user: dict = Depends(current_user),
     patient_name: str = Form(...), patient_id: Optional[str] = Form(None), clinic: str = Form(""), waiting_id: Optional[str] = Form(None),
     duration_sec: int = Form(0), paper_consent: bool = Form(False), transcript: str = Form(""), audio: Optional[UploadFile] = File(None),
-    part_ids: str = Form(""),
+    part_ids: str = Form(""), template_id: Optional[str] = Form(None),
 ):
     """Crea subito la visita 'in elaborazione' e avvia Whisper + IA in background.
     Visite lunghe: l'audio arriva prima in parti (POST /consultations/audio-parts) e qui si passano i loro id in ordine."""
@@ -971,7 +999,8 @@ async def start_consultation(
         raise HTTPException(400, "Registrazione vuota o trascrizione troppo breve")
     if len(data) > 25 * 1024 * 1024:
         raise HTTPException(413, "Audio oltre 25 MB: per visite molto lunghe divida la registrazione")
-    note = ClinicalNote(specialita=await doctor_specialty(user["id"]))
+    tpl = await resolve_template(template_id or None)
+    note = ClinicalNote(specialita=await doctor_specialty(user["id"]), sezioni=[NoteSection(gruppo=f["gruppo"], titolo=f["titolo"]) for f in tpl["fields"]])
     enrich_growth(note, patient, date.today())
     oid_new = ObjectId()
     cid = str(oid_new)
@@ -991,7 +1020,8 @@ async def start_consultation(
         raise HTTPException(500, "Impossibile salvare la registrazione: riprovi")
     c = Consultation(patient_name=patient_name.strip(), patient_id=patient_id, clinic=clinic, waiting_id=waiting_id,
                      transcript="" if (data or parts) else transcript.strip(),
-                     note=note, status="processing", duration_sec=duration_sec, paper_consent=paper_consent, doctor_id=user["id"])
+                     note=note, status="processing", duration_sec=duration_sec, paper_consent=paper_consent, doctor_id=user["id"],
+                     template_id=tpl["id"], template_name=tpl["name"], template_fields=tpl["fields"])
     await tdb.consultations.insert_one({**c.to_mongo(), "_id": oid_new, "rev": 0})
     c.id = cid
     if waiting_id and ObjectId.is_valid(waiting_id):
@@ -1673,6 +1703,7 @@ api.include_router(sd_doctor)
 public_api.include_router(sd_parent)
 public_api.include_router(sd_public)
 api.include_router(bc_doctor)
+api.include_router(tpl_router)
 public_api.include_router(bc_parent)
 app.include_router(public_api)
 app.include_router(api)

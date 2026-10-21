@@ -13,16 +13,16 @@ const SPECIALIST_TABS = [
   { id: "anamnesi", n: "01", label: "Anamnesi", group: "anamnesi", fields: [["anamnesi_fisiologica", "Anamnesi", "Patologica remota e prossima, familiarità, farmaci in uso, allergie"]] },
   { id: "motivo", n: "02", label: "Motivo e sintomi", group: "sintomi", fields: [["motivo_visita", "Motivo della visita", ""], ["sintomi", "Sintomi", "Esordio, durata, caratteristiche"]] },
   { id: "esame", n: "03", label: "Esame obiettivo", group: "esame_obiettivo", fields: [] },
-  { id: "crescita", n: "04", label: "Parametri", fields: [] },
+  { id: "crescita", n: "04", label: "Parametri", group: "parametri_vitali", fields: [] },
   { id: "terapia", n: "05", label: "Diagnosi e terapia", group: "altro", fields: [["diagnosi", "Diagnosi", ""], ["terapia", "Terapia e indicazioni", ""], ["follow_up", "Follow-up", ""]] },
 ];
-const PED_GROUPS = { anamnesi: "anamnesi", motivo: "sintomi", esame: "esame_obiettivo", terapia: "altro" };
+const PED_GROUPS = { anamnesi: "anamnesi", motivo: "sintomi", esame: "esame_obiettivo", crescita: "parametri_vitali", terapia: "altro" };
 export const tabsFor = (note) => (isPediatric(note) ? TABS.map((t) => ({ ...t, group: PED_GROUPS[t.id] })) : SPECIALIST_TABS);
 
 const filled = (v) => Boolean(v && String(v).trim() && String(v).trim() !== "Non riportato");
 
 export const tabDone = (tab, note) => {
-  if (tab.id === "crescita") return Boolean(note?.crescita?.peso_kg);
+  if (tab.id === "crescita") return Boolean(note?.crescita?.peso_kg) || (note?.sezioni ?? []).some((x) => x.gruppo === tab.group && filled(x.testo));
   return tab.fields.some(([k]) => filled(note?.[k])) || (note?.sezioni ?? []).some((x) => x.gruppo === tab.group && filled(x.testo));
 };
 
@@ -58,15 +58,16 @@ export const noteToText = (c, note) => {
       block("1. Anamnesi", [txt("anamnesi_fisiologica", "Anamnesi"), ...sez("anamnesi")]),
       block("2. Motivo della visita e sintomi", [txt("motivo_visita", "Motivo"), txt("sintomi", "Sintomi"), ...sez("sintomi")]),
       block("3. Esame obiettivo", sez("esame_obiettivo")),
+      ...(sez("parametri_vitali").length ? [block("Parametri vitali", sez("parametri_vitali"))] : []),
       block("4. Diagnosi e terapia", [txt("diagnosi", "Diagnosi"), txt("terapia", "Terapia"), ...drugs, ...sez("altro"), txt("follow_up", "Follow-up")]),
     ].join("\n\n");
   }
   return [
     `${c.patient_name} — ${new Date(c.created_at).toLocaleString("it-IT")}`,
-    block("1. Anamnesi", [txt("anamnesi_fisiologica", "Fisiologica"), txt("allattamento", "Allattamento"), txt("svezzamento", "Svezzamento")]),
-    block("2. Motivo della visita e sintomi", [txt("motivo_visita", "Motivo"), txt("sintomi", "Sintomi")]),
-    block("3. Esame obiettivo", [txt("torl", "TORL"), txt("torace_auscultazione", "Torace/Auscultazione"), txt("addome", "Addome")]),
-    block("4. Parametri di crescita", [`Età: ${g.eta_mesi ?? "—"} mesi · Sesso: ${g.sesso || "—"}`, `Peso: ${g.peso_kg ?? "—"} kg (${g.percentile_peso || "—"}) · Altezza: ${g.altezza_cm ?? "—"} cm (${g.percentile_altezza || "—"})`, `Circ. cranica: ${g.circonferenza_cranica_cm ?? "—"} cm (${g.percentile_cc || "—"}) · BMI: ${r1(bmi(g))}`]),
+    block("1. Anamnesi", [txt("anamnesi_fisiologica", "Fisiologica"), txt("allattamento", "Allattamento"), txt("svezzamento", "Svezzamento"), ...sez("anamnesi")]),
+    block("2. Motivo della visita e sintomi", [txt("motivo_visita", "Motivo"), txt("sintomi", "Sintomi"), ...sez("sintomi")]),
+    block("3. Esame obiettivo", [txt("torl", "TORL"), txt("torace_auscultazione", "Torace/Auscultazione"), txt("addome", "Addome"), ...sez("esame_obiettivo", "altro")]),
+    block("4. Parametri di crescita", [`Età: ${g.eta_mesi ?? "—"} mesi · Sesso: ${g.sesso || "—"}`, `Peso: ${g.peso_kg ?? "—"} kg (${g.percentile_peso || "—"}) · Altezza: ${g.altezza_cm ?? "—"} cm (${g.percentile_altezza || "—"})`, `Circ. cranica: ${g.circonferenza_cranica_cm ?? "—"} cm (${g.percentile_cc || "—"}) · BMI: ${r1(bmi(g))}`, ...sez("parametri_vitali")]),
     block("5. Diagnosi e terapia", [txt("diagnosi", "Diagnosi"), txt("terapia", "Terapia"), ...drugs, txt("follow_up", "Follow-up")]),
   ].join("\n\n");
 };
