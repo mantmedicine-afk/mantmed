@@ -1,106 +1,107 @@
 {
-  "theme": "dark_luxury",
   "typography": {
-    "headings": {
-      "font": "font-display",
-      "style": "serif, tracking-tight, elegant",
-      "weights": ["font-light", "font-medium"]
-    },
-    "body": {
-      "font": "font-sans",
-      "style": "clean, readable, geometric",
-      "weights": ["font-normal"]
-    }
+    "headings": "font-serif text-[#0A192F] tracking-tight",
+    "body": "font-sans text-[#0A192F]/80 leading-relaxed",
+    "accent": "font-medium text-[#3B6CF6]",
+    "fonts_to_use": "Playfair Display or Cormorant Garamond for serif headings; Inter or Manrope for sans body."
   },
   "colors": {
-    "primary": {
-      "name": "Night Blue",
-      "value": "#0A192F"
-    },
-    "secondary": {
-      "name": "Night Variant",
-      "value": "#0B1736"
-    },
-    "accent": {
-      "name": "Platinum",
-      "value": "#C9CCD3"
-    },
-    "background": "#0A192F",
-    "text_primary": "#FFFFFF",
-    "text_secondary": "#C9CCD3"
+    "background": "bg-[#FDFBF7]",
+    "surface": "bg-white",
+    "text_primary": "text-[#0A192F]",
+    "text_secondary": "text-[#0A192F]/70",
+    "accent": "bg-[#3B6CF6] text-white",
+    "accent_soft": "bg-[#3B6CF6]/10 text-[#3B6CF6]",
+    "highlight_warm": "bg-[#FFF9E6] border border-[#FFE5B4]"
   },
   "visual_enhancers": {
-    "textures": ["Use existing 'grain' utility class for backgrounds to add tactile luxury."],
-    "glassmorphism": ["Use 'backdrop-blur-xl bg-[#0A192F]/80' for sticky headers or floating navs. Never use fully transparent."],
-    "borders": ["Use delicate 1px borders of 'border-[#C9CCD3]/20' for cards and sections to establish clinical precision."]
+    "borders": "border border-[#0A192F]/10",
+    "shadows": "shadow-sm hover:shadow-md transition-shadow duration-300",
+    "radii": "rounded-2xl md:rounded-3xl",
+    "micro_interactions": "hover:-translate-y-1 transition-transform duration-300 ease-out"
   },
   "layouts": {
-    "header": {
-      "elements": ["Iconic geometric A-M logo (left)", "Accedi button (right) linking to '/app'"],
-      "style": "Sticky, glassmorphism (bg-[#0A192F]/80 backdrop-blur-md), z-50. Do not use fully transparent background."
+    "panoramica": "grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 p-4 md:p-8 max-w-7xl mx-auto",
+    "trova_specialista": "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-4 md:p-8 max-w-7xl mx-auto",
+    "vetrina_pubblica": "max-w-4xl mx-auto space-y-8 md:space-y-12 pb-12",
+    "vetrina_editor": "grid grid-cols-1 lg:grid-cols-2 gap-8 p-4 md:p-8 max-w-7xl mx-auto items-start"
+  },
+  "components": {
+    "greeting_cover": {
+      "description": "Patient greeting cover, personalized by time of day with next appointment info.",
+      "classes": "relative overflow-hidden rounded-3xl bg-[#0A192F] text-[#FDFBF7] p-8 md:p-12 col-span-full shadow-lg",
+      "structure": "Background image with bg-black/40 overlay to ensure text contrast. H1 serif greeting 'Buongiorno Giulia'. Flex row or elegant badge for 'Prossimo appuntamento'."
     },
-    "hero_section": {
-      "title": "Il workspace clinico d'élite per il medico specialista: zero burocrazia, massima precisione",
-      "cta": ["Richiedi accesso beta", "Scopri di più"],
-      "style": "Center-aligned text but asymmetrical background/layout. Generous padding (py-32 or py-48), dark background with platinum text."
+    "in_parole_semplici_box": {
+      "description": "Highlighted box explaining diagnosis/visit in simple terms.",
+      "classes": "col-span-full lg:col-span-8 bg-[#FFF9E6] border border-[#FFE5B4] rounded-3xl p-6 md:p-8 shadow-sm",
+      "structure": "H2 serif 'In parole semplici'. Clean grid or flex layout for 'Diagnosi', 'Cosa fare', 'Quando tornare'. Use Tooltip from shadcn for AI glossary medical terms (dotted underline on terms)."
     },
-    "features_bento": {
-      "items": [
-        "Trascrizione vocale istantanea",
-        "Calcolo automatico dei percentili pediatrici",
-        "Generazione referti PDF in 30 secondi",
-        "Agenda multi-studio",
-        "Cassa integrata"
-      ],
-      "style": "Bento Grid (grid-cols-1 md:grid-cols-3). Tight gaps, subtle hover lift, platinum borders. Avoid generic symmetric cards."
+    "doctor_card": {
+      "description": "Card showing the treating doctor in the patient dashboard.",
+      "classes": "col-span-full lg:col-span-4 bg-white border border-[#0A192F]/10 rounded-3xl p-6 flex flex-col gap-5 shadow-sm hover:shadow-md transition-all",
+      "structure": "Avatar/Photo (rounded-full w-16 h-16), Name (serif text-xl), Specialty. List of clinics. Action buttons: 'Scrivi' (outline/secondary), 'Prenota' (solid/primary). Subtle text link to Vetrina."
     },
-    "security_section": {
-      "content": "Crittografia AES-256, server EU (Frankfurt), 2FA, informed consent, access log.",
-      "style": "Technical, prudent wording (no 'conformità totale'). Grid borders, monospaced accents for security specs."
+    "vetrina_pubblica": {
+      "description": "Public doctor showcase page (/medico/:slug) accessible without login.",
+      "classes": "bg-[#FDFBF7] min-h-screen",
+      "structure": "Hero section: Clinic cover image (h-64 object-cover). Doctor profile photo overlaps the cover bottom edge. Content: Bio section (serif heading, sans body). Services list in clean cards (service name, duration, optional price)."
     },
-    "contact_form": {
-      "fields": ["Nome", "Email", "Specializzazione", "Città", "Tipo richiesta (info commerciali / accesso beta)", "Messaggio", "Consenso privacy"],
-      "style": "Minimalist inputs, clear labels. Use Shadcn customized for dark luxury."
+    "trova_specialista": {
+      "description": "Directory of network doctors.",
+      "classes": "bg-white rounded-3xl p-6 border border-[#0A192F]/10 hover:shadow-md transition-all flex flex-col gap-4 group",
+      "structure": "Photo, Name (serif), Specialty, City. 'Prenota' button linking to Vetrina. The card itself can be a clickable link to the Vetrina."
+    },
+    "vetrina_editor": {
+      "description": "Doctor Area Riservata section for editing their Vetrina.",
+      "classes": "w-full",
+      "structure": "Left column: Editor form (Image uploads for cover/profile using sleek dropzones, bio textarea, dynamic list inputs for services). Right column: Sticky live preview of the public Vetrina wrapped in a 'mock browser' frame."
     }
   },
-  "motion": {
-    "scrolling": "Lenis for smooth scrolling (already present).",
-    "entrance": "Framer Motion for staggered fade-in up on scroll.",
-    "interactions": "Subtle button scaling and brightness increase on hover. No 'transition: all'."
+  "image_urls": {
+    "doctor_profiles": [
+      {
+        "url": "https://images.pexels.com/photos/28516280/pexels-photo-28516280.jpeg",
+        "description": "Confident male doctor for profile examples"
+      },
+      {
+        "url": "https://images.pexels.com/photos/19963166/pexels-photo-19963166.jpeg",
+        "description": "Smiling female doctor for profile examples"
+      }
+    ],
+    "clinic_covers": [
+      {
+        "url": "https://images.unsplash.com/photo-1787496994323-59ac5cff09f9",
+        "description": "Warm inviting clinic interior with armchairs for Vetrina cover"
+      },
+      {
+        "url": "https://images.pexels.com/photos/14267573/pexels-photo-14267573.jpeg",
+        "description": "Clean medical room for Vetrina cover"
+      }
+    ],
+    "patient_greeting": [
+      {
+        "url": "https://images.unsplash.com/photo-1552873816-636e43209957",
+        "description": "Smiling boy for patient portal greeting cover background"
+      }
+    ]
   },
-  "accessibility": {
-    "contrast": "Ensure white/platinum text on #0A192F meets APCA/WCAG standards.",
-    "testing": "All interactive elements MUST have data-testid attributes."
-  },
-  "image_urls": [
-    {
-      "category": "Hero Background Texture",
-      "url": "https://images.unsplash.com/photo-1690983320828-c01b88baacb0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzh8MHwxfHNlYXJjaHwyfHxtaW5pbWFsaXN0JTIwZGFyayUyMHRleHR1cmV8ZW58MHx8fHwxNzkyMzMyMDYwfDA&ixlib=rb-4.1.0&q=85",
-      "description": "Minimalist dark texture for subtle hero background depth"
-    },
-    {
-      "category": "Medical Professional Reference",
-      "url": "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MTJ8MHwxfHNlYXJjaHwxfHxkb2N0b3IlMjBtb2Rlcm4lMjBjbGluaWN8ZW58MHx8fHwxNzkyMzMyMDU1fDA&ixlib=rb-4.1.0&q=85",
-      "description": "Doctor portrait to use in about or trust sections if needed"
-    }
-  ],
   "instructions_to_main_agent": [
-    "Implement the landing page at '/' and ensure the 'Accedi' button links to '/app'.",
-    "Use pure HTML + Tailwind for structural layouts, heavily customized Shadcn components for interactive logic (Forms, Select, Buttons).",
-    "Maintain the elite 'Boutique Medica' vibe: absolutely no generic SaaS blues or playful colors.",
-    "Do not use complete transparent background in header; use glassmorphism with the night blue color.",
-    "Adhere to the exact Italian copy provided for the hero and GDPR sections.",
-    "Form fields must include informed consent for privacy.",
-    "Do NOT create .tsx files. The instructions apply to .js frontend files."
+    "Implement the UI in Italian as requested.",
+    "Use Playfair Display or Cormorant Garamond for headings (font-serif) and Inter or Manrope for body (font-sans).",
+    "Ensure all interactive elements have data-testid attributes (e.g., data-testid='prenota-button', data-testid='vetrina-preview').",
+    "Avoid cold, clinical UI. Use generous padding (p-6, p-8), rounded-3xl for main cards, and warm paper tones (bg-[#FDFBF7]).",
+    "For the 'In parole semplici' box, use the warm highlight color (bg-[#FFF9E6]) to make it stand out as a friendly, human element.",
+    "Implement the Vetrina editor with a sticky live preview on desktop, stacking on mobile.",
+    "Use Lucide React for icons with a stroke-width of 1.5 for an elegant look."
   ],
-  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
-    "Do not use universal transition (e.g., transition: all). Add specific transitions.",
-    "Do not center-align the app container via App class in CSS.",
-    "Use 2-3x more spacing than feels comfortable.",
-    "Ensure layering through z-index and backdrop filters.",
-    "No emojis for icons. Use lucide-react or configured icon library.",
-    "All interactive elements and informational elements MUST include data-testid (e.g., data-testid='login-form-submit-button').",
-    "Use sonner for toasts if needed.",
-    "Prioritize existing components in src/components/ui/."
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "Do not use generic centered layouts. Use asymmetrical grids where appropriate.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects sparingly; prefer solid warm paper tones for this specific brand to maintain the 'human' feel.",
+    "Every interaction needs micro-animations - hover states, transitions.",
+    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
+    "Never use AI assistant Emoji characters for icons.",
+    "Prioritize using pre-existing components from src/components/ui when applicable."
   ]
 }

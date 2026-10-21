@@ -9,17 +9,19 @@ import { NotificationBell, useNotifications } from "@/components/portal/Notifica
 import { ReminderBanner } from "@/components/portal/ReminderBanner";
 import { SupportReplies } from "@/components/support/SupportReplies";
 import { PrevisitCard } from "@/components/portal/PrevisitCard";
+import { PortalOverview } from "@/components/portal/PortalOverview";
+import { SpecialistsDirectory } from "@/components/portal/SpecialistsDirectory";
 import { PortalBodychart } from "@/components/portal/PortalBodychart";
 import { ConsentBanner } from "@/components/portal/ConsentSign";
 import { SignedDocsList } from "@/components/signature/SignedDocs";
 import { ProfileMenu, Caret } from "@/components/auth/ProfileMenu";
 import { useSearchParams, useParams, useNavigate, Navigate } from "react-router-dom";
-import { LayoutGrid, MessagesSquare, Settings } from "lucide-react";
+import { LayoutGrid, MessagesSquare, Settings, Stethoscope } from "lucide-react";
 import { AppShell, MenuButton } from "@/components/nav/AppShell";
 import { FeedbackDialog } from "@/components/dash/FeedbackDialog";
 import Account from "@/pages/Account";
 
-const SECTIONS = { panoramica: null, appuntamenti: "appointments", referti: "reports", ricevute: "receipts", messaggi: null, impostazioni: null };
+const SECTIONS = { panoramica: null, "trova-specialista": null, appuntamenti: "appointments", referti: "reports", ricevute: "receipts", messaggi: null, impostazioni: null };
 import { LogoMark } from "@/components/dash/Logo";
 import { api, errMsg, eur } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -223,6 +225,7 @@ export default function Portal() {
   const { user, logout } = useAuth();
   const [data, setData] = useState(null);
   const [req, setReq] = useState(null);
+  const [reqDoctor, setReqDoctor] = useState("");
   const [params, setParams] = useSearchParams();
   const focus = params.get("visita");
   const load = useCallback(() => api.portalMe().then(setData).catch((e) => toast.error(errMsg(e))), []);
@@ -245,6 +248,7 @@ export default function Portal() {
   const count = (k) => children.reduce((s, c) => s + (c[k]?.length ?? 0), 0);
   const items = [
     { id: "panoramica", to: "/portale", end: true, label: "Panoramica / Famiglia", icon: LayoutGrid },
+    { id: "trova-specialista", to: "/portale/trova-specialista", label: "Trova Specialista", icon: Stethoscope },
     { id: "appuntamenti", to: "/portale/appuntamenti", label: "Appuntamenti", icon: CalendarClock },
     { id: "referti", to: "/portale/referti", label: "Referti & Bilanci di Salute", icon: FileDown },
     { id: "messaggi", to: "/portale/messaggi", label: "Messaggi con lo Studio", icon: MessagesSquare, badge: notif.messages_unread },
@@ -253,10 +257,10 @@ export default function Portal() {
   ];
   if (!(sezione in SECTIONS)) return <Navigate to="/portale" replace />;
   const only = SECTIONS[sezione];
-  const TITLES = { appuntamenti: "Appuntamenti", referti: "Referti e bilanci di salute", ricevute: "Ricevute e pagamenti", messaggi: "Messaggi con lo studio" };
+  const TITLES = { "trova-specialista": "Trova Specialista", appuntamenti: "Appuntamenti", referti: "Referti e bilanci di salute", ricevute: "Ricevute e pagamenti", messaggi: "Messaggi con lo studio" };
   return (
     <AppShell items={items} area="Portale Paziente">
-    <div className="min-h-screen bg-white" data-testid="portal-page" data-section={sezione}>
+    <div className="min-h-screen bg-[#FBF8F3]" data-testid="portal-page" data-section={sezione}>
       <header className="sticky top-0 z-40 border-b border-[#C9CCD3]/15 bg-[#0A192F]">
         <div className="mx-auto flex max-w-[1100px] items-center justify-between gap-3 px-5 py-3">
           <div className="flex items-center gap-3"><MenuButton dark /><span className="flex items-center gap-3 lg:hidden"><LogoMark size={34} light /><span className="hidden leading-none sm:block"><span className="block font-display text-2xl text-white">MantMed</span><span className="mt-1 block text-[10px] uppercase tracking-[0.22em] text-[#C9CCD3]">Portale Paziente</span></span></span>
@@ -269,7 +273,8 @@ export default function Portal() {
       </header>
       {sezione === "impostazioni" ? <Account role="parent" embedded extras={<button onClick={() => setFeedback(true)} className="flex h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-night hover:border-night" data-testid="portal-feedback-btn"><MessagesSquare size={15} /> Feedback e assistenza</button>} /> : (
       <main className="mx-auto max-w-[1100px] space-y-5 px-5 py-10">
-        <div><div className="text-[11px] uppercase tracking-[0.22em] text-slate-600">Area personale protetta</div><h1 className="mt-1 font-display text-4xl text-night sm:text-5xl">{TITLES[sezione] ?? <>Buongiorno, <span className="italic text-slate-500">{user?.name?.split(" ")[0]}</span></>}</h1></div>
+        {sezione === "panoramica" && children.length > 0 ? <PortalOverview user={user} kids={children} onWrite={() => nav("/portale/messaggi")} onBook={(k) => { setReqDoctor(k.doctor.id); setReq(k.patient.id); }} />
+          : <div><div className="text-[11px] uppercase tracking-[0.22em] text-slate-600">Area personale protetta</div><h1 className="mt-1 font-display text-4xl text-night sm:text-5xl">{TITLES[sezione] ?? <>Buongiorno, <span className="italic text-slate-500">{user?.name?.split(" ")[0]}</span></>}</h1></div>}
         <PayBanner state={payState} />
         {sezione === "panoramica" && <SupportReplies />}
         {sezione === "panoramica" && <ReminderBanner kids={children} onOpen={(pid) => go(pid, "appointments")} />}
@@ -278,10 +283,12 @@ export default function Portal() {
           <div className="flex gap-3 rounded-[28px] bg-[#0A192F] p-6 text-white" data-testid="portal-no-children"><Baby className="shrink-0 text-[#C9CCD3]" />
             <p className="text-sm leading-relaxed text-slate-200">Non abbiamo ancora trovato una cartella collegata. Il collegamento avviene in automatico quando lo studio registra il codice fiscale del bambino e la sua email ({user?.email}). Se ha già fatto una visita, chieda allo studio di verificare questi due dati.</p></div>
         )}
-        {sezione !== "messaggi" && children.map((c) => <Child key={c.patient.id} c={c} onRequest={setReq} focus={focus} onChange={load} jump={jump} only={only} />)}
+        {sezione === "trova-specialista" && <SpecialistsDirectory onBook={(id) => { setReqDoctor(id); setReq(children[0]?.patient.id ?? null); if (!children.length) toast.message("Colleghi prima la cartella di suo figlio per prenotare"); }} />}
+        {sezione === "panoramica" && children.length > 0 && <div className="pt-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">La famiglia</div>}
+        {sezione !== "messaggi" && sezione !== "trova-specialista" && children.map((c) => <Child key={c.patient.id} c={c} onRequest={setReq} focus={focus} onChange={load} jump={jump} only={only} />)}
         {sezione === "messaggi" && children.length > 0 && <Messages kids={children} openId={openThread} onOpened={() => setOpenThread(null)} onRead={reloadNotif} />}
         {sezione === "panoramica" && [...new Set(children.map((c) => c.group))].map((g) => <NetworkSharing key={g} entries={children.filter((c) => c.group === g)} />)}
-        <RequestDialog open={!!req} initial={req} kids={children} onClose={() => setReq(null)} onSent={load} />
+        <RequestDialog key={`${req}-${reqDoctor}`} open={!!req} initial={req} doctorId={reqDoctor} kids={children} onClose={() => { setReq(null); setReqDoctor(""); }} onSent={load} />
         {data && sezione === "panoramica" && <AddChild onLinked={load} />}
         {data?.consent && sezione === "panoramica" && <p className="flex items-center gap-2 text-xs text-slate-600" data-testid="portal-consent-note"><Info size={13} /> Consenso accettato il {day(data.consent.at)} · {data.consent.version} · {count("reports")} referti · {count("appointments")} appuntamenti</p>}
       </main>)}

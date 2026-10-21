@@ -51,9 +51,9 @@ const PayChoice = ({ quote, value, onPick }) => (
   </div>
 );
 
-export const RequestDialog = ({ open, onClose, kids, initial, onSent }) => {
+export const RequestDialog = ({ open, onClose, kids, initial, onSent, doctorId = "" }) => {
   const [f, setF] = useState(null);
-  const cur = f ?? { patient_id: initial, doctor_id: "", clinic: "", service: "", date: tomorrow(), time: "", note: "" };
+  const cur = f ?? { patient_id: initial, doctor_id: doctorId, clinic: "", service: "", date: tomorrow(), time: "", note: "" };
   const kid = kids.find((k) => k.patient.id === cur.patient_id) ?? kids[0];
   const [net, setNet] = useState([]);
   useEffect(() => {

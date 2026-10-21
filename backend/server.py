@@ -26,6 +26,7 @@ from password_reset import build_password_reset
 from account import build_account, notify_doctor
 from previsit import build_previsit, latest_previsit, previsit_prompt
 from support_inbox import build_support_inbox
+from showcase import build_showcase
 from bodychart import build_bodychart, report_payload
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
@@ -1288,7 +1289,7 @@ async def update_consultation(cid: str, body: ConsultationPatch):
         await _drop_job(cid)
     enrich_growth(body.note, await get_patient(existing.get("patient_id")), date.fromisoformat(existing["created_at"][:10]))
     sets.update(Consultation.sealed_set({"note": body.note.model_dump()}))
-    doc = await tdb.consultations.find_one_and_update({"_id": oid(cid)}, {"$set": sets, "$inc": {"rev": 1}}, return_document=True)
+    doc = await tdb.consultations.find_one_and_update({"_id": oid(cid)}, {"$set": sets, "$inc": {"rev": 1}, "$unset": {"simple": ""}}, return_document=True)
     out = Consultation.from_mongo(doc).out()
     await sync_measurement(out)
     return out
@@ -1703,6 +1704,46 @@ public_api.include_router(leads_private)
 public_api.include_router(build_cleanup(db, require_role(current_user, "admin")))
 public_api.include_router(build_previsit(db, require_role(current_user, "parent"), notify_doctor))
 inbox_admin, inbox_mine = build_support_inbox(db, require_role(current_user, "admin"), current_user)
+sc_doctor, sc_public = build_showcase(db, current_user, require_role(current_user, "doctor"))
+public_api.include_router(sc_doctor)
+public_api.include_router(sc_public)
+
+
+@public_api.get("/portal/children/{pid}/simple")
+async def portal_simple(pid: str, user: dict = Depends(require_role(current_user, "parent"))):
+    """'In parole semplici' dell'ultima visita pubblicata: diagnosi, cosa fare, quando tornare + glossario (IA, in cache)."""
+    u = await db.users.find_one({"_id": ObjectId(user["id"])}, {"children": 1})
+    link = next((c for c in (u or {}).get("children") or [] if c["patient_id"] == pid), None)
+    if not link:
+        raise HTTPException(404, "Cartella non collegata al suo account")
+    raw = await db.consultations.find_one({"patient_id": pid, "owner_id": link["owner_id"], "status": {"$ne": "processing"},
+                                           "$or": [{"report_sent_at": {"$ne": None}}, {"portal_published": True}]}, sort=[("created_at", -1)])
+    if not raw:
+        return {"available": False}
+    c = Consultation.from_mongo(raw).out()
+    cached = unseal_fields(raw, ("simple",)).get("simple")
+    base = {"available": True, "consultation_id": c["id"], "created_at": c["created_at"], "clinic": c.get("clinic", ""), "riepilogo": c["note"].get("riepilogo", "")}
+    if cached:
+        return {**base, **cached}
+    n = c["note"]
+    spec = n.get("specialita") or "Pediatria"
+    who = "ai genitori" if is_pediatric(spec) else "al paziente"
+    try:
+        data = await llm_json(
+            f"Sei un medico ({spec}) che spiega {who} l'ultima visita in italiano semplice, caldo e rassicurante, senza inventare nulla. "
+            f"Dati della visita:\nMotivo: {n.get('motivo_visita','')}\nDiagnosi: {n.get('diagnosi','')}\nTerapia: {n.get('terapia','')}\n"
+            f"Controlli: {n.get('follow_up','')}\nRiepilogo: {n.get('riepilogo','')}\n"
+            'Rispondi SOLO con JSON: {"diagnosi": "1-2 frasi semplici", "cosa_fare": ["azione concreta", "..."] (max 4), '
+            '"quando_tornare": "1 frase", "glossario": [{"termine": "parola medica usata nel referto", "spiegazione": "spiegazione semplice in max 20 parole"}] (2-5 termini, solo termini davvero presenti)}')
+        simple = {"diagnosi": str(data.get("diagnosi") or "")[:400], "cosa_fare": [str(x)[:200] for x in (data.get("cosa_fare") or [])][:4],
+                  "quando_tornare": str(data.get("quando_tornare") or "")[:300],
+                  "glossario": [{"termine": str(g.get("termine"))[:60], "spiegazione": str(g.get("spiegazione"))[:200]}
+                                for g in (data.get("glossario") or []) if isinstance(g, dict) and g.get("termine")][:6]}
+    except Exception:
+        logger.exception("Spiegazione semplice non generata")
+        return {**base, "diagnosi": n.get("diagnosi", ""), "cosa_fare": [], "quando_tornare": n.get("follow_up", ""), "glossario": []}
+    await db.consultations.update_one({"_id": raw["_id"]}, {"$set": seal_fields({"simple": simple}, ("simple",))})
+    return {**base, **simple}
 public_api.include_router(inbox_admin)
 public_api.include_router(inbox_mine)
 public_api.include_router(auth_router)

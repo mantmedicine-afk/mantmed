@@ -8,6 +8,7 @@ import Login from "@/pages/Login";
 import Landing from "@/pages/Landing";
 import Admin from "@/pages/Admin";
 import Register from "@/pages/Register";
+import DoctorShowcase from "@/pages/DoctorShowcase";
 import Activate from "@/pages/Activate";
 import ResetPassword from "@/pages/ResetPassword";
 import Portal from "@/pages/Portal";
@@ -87,6 +88,7 @@ function App() {
         <Route path="/registrati/medico" element={<Register key="doctor" role="doctor" />} />
         <Route path="/registrati/paziente" element={<Register key="parent" role="parent" />} />
         <Route path="/attiva" element={<Activate />} />
+        <Route path="/medico/:slug" element={<DoctorShowcase />} />
         <Route path="/reimposta-password" element={<ResetPassword />} />
         <Route path="/verifica" element={<Verify />} />
         <Route path="/area-riservata" element={<AuthProvider><AccountGate /></AuthProvider>} />
