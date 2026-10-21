@@ -80,6 +80,12 @@ def build_previsit(db, parent_user, notify_doctor):
         doc = {"patient_id": body.patient_id, "owner_id": p["owner_id"], "band_id": band["id"], "band_label": band["label"], "age_months": round(months, 1),
                "clinic": "", "answers": answers, "result": result, "source": "portale", "parent_id": user["id"],
                "created_at": datetime.now(timezone.utc).isoformat()}
+        since = (datetime.now(timezone.utc) - timedelta(days=VALID_DAYS)).isoformat()
+        prev = await db.checkpoints.find_one({"patient_id": body.patient_id, "owner_id": p["owner_id"], "source": "portale", "created_at": {"$gte": since}},
+                                             sort=[("created_at", -1)])
+        if prev:  # ricompilazione: aggiorna il questionario recente invece di duplicarlo, senza nuovi avvisi
+            await db.checkpoints.update_one({"_id": prev["_id"]}, {"$set": seal_fields(dict(doc), ("answers", "result"))})
+            return {"id": str(prev["_id"]), "band_label": band["label"], "created_at": doc["created_at"], "result": result}
         res = await db.checkpoints.insert_one(seal_fields(dict(doc), ("answers", "result")))
         await notify_doctor(db, p["owner_id"], "messages", f"MantMed · questionario pre-visita di {p['name']}",
                             f"<p>I genitori di <strong>{p['name']}</strong> hanno compilato il questionario pre-visita ({band['label']}). "

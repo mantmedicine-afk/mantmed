@@ -1,0 +1,47 @@
+{
+  "summary": "Tested the pre-visit questionnaire (Questionario pre-visita) and the Founder Inbox end-to-end. Backend: new tests/test_previsit_inbox.py, 17/17 pass (run with -n 0). Covered: portal checkpoint GET/POST (404 for a child that is not linked or an invalid id, 403 for a doctor, 400 for incomplete answers, source=portale, last returned); /consultations/start with Bilancio 5-6 anni returns previsit (source portale, answers) and the AI note contains '(riferito dai genitori)'; 'Prima visita' gives previsit=null; admin feedback list/patch/reply (403 for doctor, 422 for a bad status or short text, 404 for an unknown id); /support/replies only shows the owner's items, and a non-owner calling mark-read has no effect. Frontend: Portal card, wizard (si/no/a_volte, back), result, Fatto and the status changing to 'Compilato il ...' all work, including the fresh state after backdating old questionnaires. The doctor consultation shows note-previsit-panel with meta 'Compilato dai genitori nel Portale · ... · 1 da approfondire', the flag, the answers and the '(riferito dai genitori)' fields. Admin inbox KPIs, all filters, search, toggle, status buttons (KPIs update), note save, quick reply, reply, history and the status changing to in_lavorazione all work. Doctor dashboard and parent portal notices show and dismiss, and the dismissal persists after reload. MAIN FINDING: replies to the demo accounts (@mantmed.it, @example.com) fail with 502. The email provider rejects them as 'undeliverable_recipient', so the reply is not saved and no in-app notice is created. Cloudflare then replaces the 502 body, so the Founder sees an English Cloudflare error toast, and the typed reply is cleared.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/admin/feedback/{id}/reply", "issue": "send_email is called before the reply is saved. When the email fails (provider 422 'undeliverable_recipient' for medico@mantmed.it and genitore.demo@example.com, or credits exhausted), the endpoint returns 502 and nothing is stored: no reply history, no status change, no in-app notice (unread_reply). The in-app channel should still work. Fix: save the reply and set unread_reply first, then try the email; return 200 with an email_sent=false/warning field instead of failing the whole action.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/admin/feedback/{id}/reply (mailer 502)", "issue": "Through the Kubernetes/Cloudflare ingress, a backend 502 is replaced by the Cloudflare HTML page, so the Italian 'Invio email non riuscito' detail never reaches the UI. Use a non-5xx-gateway code (e.g. 424 or 400) for email delivery failures."},
+      {"endpoint": "GET /api/admin/feedback", "issue": "out() uses KINDS[kind] and f['area'] directly: a legacy or bad document gives a KeyError and the whole list returns 500. Use .get with fallbacks. It also has no pagination (to_list(2000))."},
+      {"endpoint": "POST /api/portal/checkpoints", "issue": "Each parent submission inserts a new checkpoint and calls notify_doctor (email to the doctor) with no throttle. A parent pressing 'Compila di nuovo' repeatedly floods the doctor's notifications and the list."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "SupportRow send()", "issue": "send() is run(...).then(() => setReply('')). run() catches errors, so the reply textarea is cleared even when sending fails. The Founder loses the typed text (seen with the undeliverable reply).", "selector": "[data-testid^=inbox-reply-input-]", "priority": "MEDIUM"},
+      {"component": "SupportRow error toast", "issue": "On the 502 the toast shows Cloudflare's English text 'The origin web server returned an invalid or incomplete response...' instead of an Italian message.", "selector": "[data-sonner-toast]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Portal > Referti / Bilanci di salute", "issues": ["Every parent questionnaire appears in the 'Bilanci di salute' list as 'Bilancio 3 – 6 anni · Ottimo', just like a real bilancio done in studio, with duplicates for each resubmission. Label portal-source entries 'Questionario pre-visita (compilato da voi)' or show only the latest one."]},
+      {"screen": "Dashboard /app support-replies", "issues": ["The notice banners span the full width (from the sidebar edge to the right edge of the viewport) and are not aligned with the centred max-width content (hero/cards) below."]},
+      {"screen": "Admin Inbox rows", "issues": ["Each row is its own grid with fr/auto columns, so the kind/date/text columns do not line up across rows (e.g. the 'Richiesta di supporto tecnico' row starts about 10px left of the others). Use fixed column widths."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_previsit_inbox.py", "/app/test_reports/pytest/pytest_previsit_inbox.xml"],
+  "action_items": [
+    "HIGH: In support_inbox.reply, save the reply, status and unread_reply before or independently of send_email; report email failure as a non-blocking warning (email_sent=false), so the in-app notice works even for undeliverable addresses.",
+    "Do not return 502 for email failures (Cloudflare replaces the body); use 424 or 400 with an Italian detail.",
+    "SupportRow: clear the reply textarea only on success.",
+    "Make out() in support_inbox safe against an unknown kind or missing area.",
+    "Portal: tell parent questionnaires apart from studio bilanci in the 'Bilanci di salute' list; consider throttling notify_doctor on repeated submissions.",
+    "Minor design: align the support-replies banner with the dashboard content width; use fixed column widths for the inbox rows."
+  ],
+  "critical_code_review_comments": [
+    "support_inbox.reply: email first, DB second, so any email failure blocks the whole feature.",
+    "previsit.latest_previsit uses the raw db with an owner_id filter (consistent with the portal insert using owner_id = the patient's owner). It is fine for a single-doctor tenant, but a checkpoint made by the studio via tdb must also carry owner_id; this was verified indirectly only.",
+    "PrevisitCard calls api.portalCheckpointTemplate even for non-pediatric doctors before returning null. This is wasted work but harmless. The hiding for non-pediatric doctors was checked only in code (regex on doctor.specialty); no non-pediatric parent account was available.",
+    "SupportInbox imports useEffect in a separate import line from the same module (cosmetic)."
+  ],
+  "updated_files": ["/app/backend/tests/test_previsit_inbox.py"],
+  "success_rate": {"backend": "100% (17/17); 1 HIGH design defect in reply/email ordering", "frontend": "~90% (all flows work; reply text lost on error, poor error toast)"},
+  "seed_data_creation": "TEST_ feedback items (supporto/segnalazione from medico and genitore). 3 of them had their email changed in the DB to delivered@resend.dev so replies could be tested (ids 6ad8b0517b044c3a9c2b991d, 6ad8b0517b044c3a9c2b991e, 6ad8b0527b044c3a9c2b991f). Older portal checkpoints for Aurora were backdated 40 days to test the empty state; one fresh questionnaire (with an 'A volte' flag on controllo pipì) is current. TEST_ consultations for Aurora Ricci (bilancio 5-6a, Prima visita, and one from the UI). The waiting entry was used by the UI visit. All doctor/parent notices were dismissed.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest with -n 0. Server date is 2026-10-21. The email provider blocks @mantmed.it and @example.com (undeliverable_recipient), so replies to demo users fail with 502 until the fix; delivered@resend.dev is the provider's test inbox. Doctor login: go to /app (not /login, which shows the landing page). Portal: /portale or /portale/referti. Admin: /admin then the admin-view-inbox tab.",
+  "test_credentials": "From /app/memory/test_credentials.md: medico@mantmed.it / Auscula-Studio-2026; genitore.demo@example.com / Portale-Demo-2026; mantmedicine@gmail.com / MM-3EjwJpn5w64aCu2ZkOLA"
+}

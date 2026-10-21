@@ -36,7 +36,7 @@ const Checkpoints = ({ items }) => (items.length > 0 && (
     <div className="pt-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600">Bilanci di salute</div>
     {items.map((k) => (
       <div key={k.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white p-4" data-testid={`portal-checkpoint-${k.id}`}>
-        <div className="min-w-0"><div className="text-xs text-slate-600">{day(k.created_at)}{k.clinic ? ` · ${k.clinic}` : ""}</div><div className="font-medium text-night">Bilancio {k.band_label}</div>{k.next && <div className="text-sm text-slate-600">Prossimo: {k.next}</div>}</div>
+        <div className="min-w-0"><div className="text-xs text-slate-600">{day(k.created_at)}{k.clinic ? ` · ${k.clinic}` : ""}</div><div className="font-medium text-night">{k.source === "portale" ? `Questionario pre-visita ${k.band_label} · compilato da voi` : `Bilancio ${k.band_label}`}</div>{k.next && <div className="text-sm text-slate-600">Prossimo: {k.next}</div>}</div>
         {k.status && <span className={`rounded-full px-3 py-1 text-[11px] font-semibold capitalize ${CP_CLS[k.status] ?? "bg-amber-100 text-amber-900"}`}>{k.status}</span>}
       </div>
     ))}

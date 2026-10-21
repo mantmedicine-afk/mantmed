@@ -261,3 +261,10 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - visit_templates.BILANCI: 10 bilanci (1m,3m,6m,9m,12m,18m,2-3a,5-6a,8-10a,11-14a) 10-13 campi, age_from/age_to in mesi; import automatico una sola volta per pediatri (users.bilanci_seeded_at), eliminabili; GET/POST /api/visit-templates/bilanci per reimportare; indice unico (owner_id,bilancio)
 - Settings: righe Modelli / Bilanci di salute, BilanciDialog con anteprima; Overlay: bilancio consigliato per eta (badge), preselezionato solo se motivo contiene "bilancio"
 - Test: iteration_26 OK, fix post-test applicati (ordinamento, preselezione, grammatica)
+
+## 2026-06 Questionario pre-visita + Inbox Founder
+- backend/previsit.py: GET/POST /api/portal/checkpoint(s) per genitori (source portale, ricompilazione entro 30gg aggiorna senza duplicare, avviso al medico); latest_previsit (30gg) salvato su consultation.previsit (cifrato) quando il modello e un bilancio; previsit_prompt passato all IA ("riferito dai genitori")
+- UI: PrevisitCard nel Portale (wizard CheckpointWizard con load/send), PrevisitPanel nella cartella
+- backend/support_inbox.py: /api/admin/feedback (list, patch status/nota, reply -> salva prima, poi email; reply_email_sent), /api/support/replies + read per avviso in app
+- UI: Admin tab "Feedback e assistenza" (SupportInbox/SupportRow), SupportReplies in Dashboard e Portale
+- Test: iteration_27 + fix post-test (risposta salvata anche se email fallisce, testo non perso, etichette, allineamenti)

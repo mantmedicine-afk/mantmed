@@ -1,4 +1,5 @@
 """Inbox Founder: feedback, supporto e segnalazioni con stato, nota interna e risposta via email + avviso in app."""
+import logging
 from datetime import datetime, timezone
 from html import escape as hesc
 from typing import Literal, Optional
@@ -13,6 +14,7 @@ from mailer import send_email
 from registration import mail_shell
 
 SEALED = ("text", "note", "replies")
+logger = logging.getLogger(__name__)
 
 
 class PatchIn(BaseModel):
@@ -44,12 +46,12 @@ def build_support_inbox(db, admin_user, current_user):
 
     def out(f: dict, users: dict) -> dict:
         u = users.get(uid_of(f)) or {}
-        return {"id": str(f["_id"]), "kind": f.get("kind") or "feedback", "kind_label": KINDS[f.get("kind") or "feedback"],
+        return {"id": str(f["_id"]), "kind": f.get("kind") or "feedback", "kind_label": KINDS.get(f.get("kind") or "feedback", "Feedback"),
                 "role": f.get("role") or u.get("role") or "doctor", "role_label": ROLES.get(f.get("role") or u.get("role") or "doctor"),
                 "name": f.get("doctor_name") or u.get("name", ""), "email": f.get("email") or u.get("email", ""),
-                "area": f["area"], "area_label": ALL_AREAS.get(f["area"], f["area"]), "rating": f.get("rating"), "text": f.get("text") or "",
+                "area": f.get("area", "altro"), "area_label": ALL_AREAS.get(f.get("area"), f.get("area") or "Altro"), "rating": f.get("rating"), "text": f.get("text") or "",
                 "tech": f.get("tech"), "status": f.get("status") or "nuovo", "note": f.get("note") or "", "replies": f.get("replies") or [],
-                "email_sent": f.get("email_sent", True), "created_at": f["created_at"]}
+                "email_sent": f.get("email_sent", True), "created_at": f.get("created_at") or ""}
 
     async def users_for(items):
         ids = [ObjectId(i) for i in {uid_of(f) for f in items} if i and ObjectId.is_valid(i)]
@@ -85,12 +87,17 @@ def build_support_inbox(db, admin_user, current_user):
                           f"<p>Gentile {hesc(o['name'])},</p><p style=\"white-space:pre-wrap\">{hesc(txt)}</p>"
                           f"<p style=\"color:#5B6478;font-size:12px;margin-top:18px\">In risposta alla sua {hesc(o['kind_label'].lower())} del "
                           f"{datetime.fromisoformat(o['created_at']).strftime('%d/%m/%Y')}:<br>«{hesc(o['text'][:400])}»</p>")
-        await send_email(to=o["email"], subject=f"MantMed · risposta alla sua {o['kind_label'].lower()}", html=html)
-        replies = o["replies"] + [{"text": txt, "at": _now(), "read_at": None}]
+        entry = {"text": txt, "at": _now(), "email_sent": False}
         status = "risolto" if body.resolve else ("in_lavorazione" if o["status"] == "nuovo" else o["status"])
-        await db.feedback.update_one({"_id": f["_id"]}, {"$set": {**seal_fields({"replies": replies}, ("replies",)), "status": status, "unread_reply": True}})
+        await db.feedback.update_one({"_id": f["_id"]}, {"$set": {**seal_fields({"replies": o["replies"] + [entry]}, ("replies",)), "status": status, "unread_reply": True}})
+        try:  # l'avviso in app è già salvato: l'email è un canale in più
+            await send_email(to=o["email"], subject=f"MantMed · risposta alla sua {o['kind_label'].lower()}", html=html)
+            entry["email_sent"] = True
+            await db.feedback.update_one({"_id": f["_id"]}, {"$set": seal_fields({"replies": o["replies"] + [entry]}, ("replies",))})
+        except Exception:
+            logger.exception("Email di risposta al feedback %s non inviata", fid)
         f = await get(fid)
-        return out(f, await users_for([f]))
+        return {**out(f, await users_for([f])), "reply_email_sent": entry["email_sent"]}
 
     @mine.get("/replies")
     async def my_replies(user: dict = Depends(current_user)):
@@ -98,7 +105,7 @@ def build_support_inbox(db, admin_user, current_user):
         items = []
         for f in await db.feedback.find(q).sort("created_at", -1).to_list(20):
             f = unseal_fields(f, SEALED)
-            items.append({"id": str(f["_id"]), "kind_label": KINDS[f.get("kind") or "feedback"], "text": (f.get("text") or "")[:200],
+            items.append({"id": str(f["_id"]), "kind_label": KINDS.get(f.get("kind") or "feedback", "Feedback"), "text": (f.get("text") or "")[:200],
                           "reply": (f.get("replies") or [{}])[-1], "status": f.get("status") or "nuovo"})
         return items
 
