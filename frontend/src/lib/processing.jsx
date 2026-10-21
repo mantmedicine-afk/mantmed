@@ -30,9 +30,9 @@ export const ProcessingProvider = ({ children, onSettled, onOpen }) => {
     return () => listeners.current.get(id)?.delete(cb);
   }, []);
 
-  const retry = useCallback(async (id) => {
+  const retry = useCallback(async (id, transcript = "") => {
     try {
-      const c = await api.retryConsultation(id);
+      const c = await api.retryConsultation(id, transcript);
       listeners.current.get(id)?.forEach((cb) => cb(c));
       track(c);
       return c;
@@ -58,12 +58,14 @@ export const ProcessingProvider = ({ children, onSettled, onOpen }) => {
             description: watching ? "La cartella è stata compilata dall'IA: controlli e salvi." : "Cartella clinica compilata dall'IA.",
             action: watching ? undefined : { label: "Apri", onClick: () => openRef.current?.(c) },
             duration: 7000,
+            position: "bottom-right",
           });
         } else {
           toast.error(`Elaborazione non riuscita · ${c.patient_name}`, {
             description: c.ai_error || "Riprovi tra qualche istante.",
-            action: { label: "Riprova", onClick: () => retry(id) },
+            action: { label: watching ? "Riprova" : "Apri", onClick: () => (watching ? retry(id) : openRef.current?.(c)) },
             duration: 12000,
+            position: "bottom-right",
           });
         }
       }
@@ -88,7 +90,7 @@ const ProcessingIndicator = ({ jobs }) => {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -12, scale: 0.96 }}
           transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-          className="pointer-events-none fixed right-3 top-[76px] z-[70] sm:right-5"
+          className="pointer-events-none fixed right-3 top-[76px] z-50 sm:right-5"
           role="status"
           aria-live="polite"
           data-testid="processing-indicator"
@@ -99,8 +101,8 @@ const ProcessingIndicator = ({ jobs }) => {
               <Sparkles size={9} className="absolute -right-0.5 -top-0.5 text-[#A9C2FF]" />
             </span>
             <span className="leading-tight">
-              <span className="block text-sm font-semibold">Elaborazione referto in corso…</span>
-              <span className="block max-w-[220px] truncate text-[11px] text-slate-500" data-testid="processing-indicator-names">
+              <span className="block text-xs font-semibold sm:text-sm">Elaborazione referto in corso…</span>
+              <span className="hidden max-w-[220px] truncate text-[11px] text-slate-500 sm:block" data-testid="processing-indicator-names">
                 {list.length === 1 ? list[0].patient_name : `${list.length} referti · ${list.map((j) => j.patient_name).join(", ")}`}
               </span>
             </span>

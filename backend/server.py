@@ -4,7 +4,7 @@ load_dotenv(Path(__file__).parent / '.env')
 
 from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Form, Depends, Request
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorGridFSBucket
 from bson import ObjectId
 import os
 import io
@@ -29,7 +29,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
 from typing import List, Optional, Annotated, Literal, ClassVar
 from datetime import datetime, timezone
-from crypto import seal_fields, unseal_fields, is_sealed, KEY_FINGERPRINT, seal, unseal
+from crypto import seal_fields, unseal_fields, is_sealed, KEY_FINGERPRINT, seal, unseal, seal_bytes, unseal_bytes
 import asyncio
 from tenancy import OWNER
 from emergentintegrations.llm.openai import OpenAISpeechToText
@@ -489,7 +489,12 @@ async def resume_consult_jobs():
         if await db.consult_jobs.find_one({"consultation_id": str(d["_id"])}):
             spawn_consult_job(str(d["_id"]), d["owner_id"])
         else:
-            await db.consultations.update_one({"_id": d["_id"]}, {"$set": {"status": "failed", "ai_error": "Elaborazione interrotta: ripeta la visita"}})
+            await db.consultations.update_one({"_id": d["_id"]}, {"$set": {"status": "failed", "ai_error": "Elaborazione interrotta: incolli la trascrizione o compili la cartella a mano"}})
+    # audio cifrati rimasti senza job (job scaduti dopo JOB_TTL_DAYS)
+    old = datetime.now(timezone.utc) - timedelta(days=JOB_TTL_DAYS + 1)
+    async for f in db["consult_audio.files"].find({"uploadDate": {"$lt": old}}, {"_id": 1}):
+        if not await db.consult_jobs.find_one({"audio_file": f["_id"]}):
+            await audio_fs.delete(f["_id"])
 
 
 @app.on_event("startup")
@@ -513,6 +518,8 @@ async def seed():
     await db.signed_docs.create_index("patient_ids")
     await db.verify_hits.create_index("at", expireAfterSeconds=3600)
     await db.verify_hits.create_index("ip")
+    await db.consult_jobs.create_index("expires_at", expireAfterSeconds=0)
+    await db.consult_jobs.create_index("consultation_id")
 
 
 # ---------- Routes ----------
@@ -677,6 +684,28 @@ async def create_consultation(body: ConsultationIn, user: dict = Depends(current
 # ---------- Elaborazione asincrona (Whisper + LLM in background) ----------
 WHISPER_PROMPT = "Visita pediatrica specialistica: pediatra, genitori e bambino. Termini: allattamento, svezzamento, otoscopia, percentile, mg/kg."
 _RUNNING: set = set()
+_TASKS: set = set()
+audio_fs = AsyncIOMotorGridFSBucket(db, bucket_name="consult_audio")
+JOB_TTL_DAYS = 7
+# Frasi tipiche che Whisper "inventa" su audio muto o rumore
+HALLUCINATIONS = re.compile(r"amara\.org|sottotitoli (creati|a cura|e revisione)|grazie per la visione|iscriviti al canale|grazie a tutti per l.ascolto|^\W*(grazie|ciao|buongiorno)\W*$", re.I)
+
+
+class AIJobError(RuntimeError):
+    """Errore mostrato al medico così com'è."""
+
+
+def friendly_ai_error(e: Exception) -> str:
+    if isinstance(e, AIJobError):
+        return str(e)
+    t = str(e).lower()
+    if "transcribe" in t or "audio" in t or "whisper" in t:
+        return "Non è stato possibile trascrivere l'audio (formato non valido o registrazione danneggiata). Riprovi o incolli la trascrizione."
+    if "rate" in t or "429" in t or "quota" in t or "budget" in t:
+        return "Il servizio IA è momentaneamente sovraccarico. Riprovi tra qualche minuto."
+    if "timeout" in t or "timed out" in t:
+        return "Il servizio IA non ha risposto in tempo. Riprovi."
+    return "Elaborazione IA non riuscita. Riprovi tra qualche istante."
 
 
 async def _whisper(data: bytes, filename: str) -> str:
@@ -684,22 +713,35 @@ async def _whisper(data: bytes, filename: str) -> str:
     buf.name = filename or "consultazione.webm"
     stt = OpenAISpeechToText(api_key=LLM_KEY)
     res = await stt.transcribe(file=buf, model="whisper-1", response_format="json", language="it", prompt=WHISPER_PROMPT)
-    return (res.text or "").strip()
+    text = (res.text or "").strip()
+    cleaned = HALLUCINATIONS.sub("", text).strip(" .,-")
+    if len(cleaned.split()) < 4:
+        raise AIJobError("Nessun parlato rilevato nella registrazione: verifichi il microfono e riprovi, oppure incolli la trascrizione.")
+    return text
 
 
-def _merge_growth(ai: ClinicalNote, current: dict):
-    """I parametri di crescita inseriti dal medico durante l'elaborazione hanno la precedenza su quelli dell'IA."""
-    mine = (current or {}).get("crescita") or {}
+def _apply_doctor(ai: ClinicalNote, mine: dict):
+    """Crescita e farmaci inseriti dal medico durante l'elaborazione hanno la precedenza sull'IA."""
+    g = (mine or {}).get("crescita") or {}
     for k in ("peso_kg", "altezza_cm", "circonferenza_cranica_cm", "eta_mesi"):
-        if mine.get(k) not in (None, "", 0):
-            setattr(ai.crescita, k, mine[k])
-    keep = [d for d in (current or {}).get("farmaci") or [] if d.get("nome")]
-    if keep and not ai.farmaci:
+        if g.get(k) not in (None, "", 0):
+            setattr(ai.crescita, k, g[k])
+    keep = [d for d in (mine or {}).get("farmaci") or [] if d.get("nome")]
+    if keep:
         ai.farmaci = [Drug.model_validate(d) for d in keep]
 
 
+async def _drop_job(cid: str):
+    job = await db.consult_jobs.find_one_and_delete({"consultation_id": cid})
+    if job and job.get("audio_file"):
+        try:
+            await audio_fs.delete(job["audio_file"])
+        except Exception:
+            logger.warning("Audio %s già rimosso", job["audio_file"])
+
+
 async def run_consult_job(cid: str, owner: str):
-    """Esegue trascrizione + compilazione della cartella per una visita in stato 'processing'."""
+    """Trascrizione + compilazione della cartella per una visita in stato 'processing'."""
     if cid in _RUNNING:
         return
     _RUNNING.add(cid)
@@ -708,39 +750,54 @@ async def run_consult_job(cid: str, owner: str):
     try:
         job = await db.consult_jobs.find_one({"consultation_id": cid, "owner_id": owner})
         if not job:
-            raise RuntimeError("Dati della registrazione non più disponibili: ripeta la visita o incolli la trascrizione")
+            raise AIJobError("Registrazione non più disponibile: incolli la trascrizione o compili la cartella a mano.")
         transcript = unseal(job.get("transcript")) or ""
-        if not transcript and job.get("audio"):
-            transcript = await _whisper(base64.b64decode(unseal(job["audio"])), job.get("filename", ""))
-            if not transcript:
-                raise RuntimeError("Nessun parlato rilevato nella registrazione")
-            await db.consult_jobs.update_one({"_id": job["_id"]}, {"$set": {"transcript": seal(transcript)}, "$unset": {"audio": ""}})
-        note = await structure_note(transcript, f"consult-{cid}")
-        doc = await db.consultations.find_one({"_id": ObjectId(cid), "owner_id": owner})
-        if not doc:
-            return
-        current = unseal_fields(doc, ("note",)).get("note") or {}
-        _merge_growth(note, current)
-        patient = await get_patient(doc.get("patient_id"))
-        enrich_growth(note, patient, date.fromisoformat(doc["created_at"][:10]))
-        upd = await db.consultations.find_one_and_update(
-            {"_id": ObjectId(cid), "owner_id": owner},
-            {"$set": {**Consultation.sealed_set({"note": note.model_dump(), "transcript": transcript}), "status": "ready", "ai_error": "",
-                      "ai_sec": round(time.monotonic() - t0, 1)}}, return_document=True)
-        await sync_measurement(Consultation.from_mongo(upd).out())
-        await db.consult_jobs.delete_one({"consultation_id": cid})
-        logger.info("Referto %s pronto in %.1fs", cid, time.monotonic() - t0)
+        if not transcript and job.get("audio_file"):
+            stream = await audio_fs.open_download_stream(job["audio_file"])
+            transcript = await _whisper(unseal_bytes(await stream.read()), job.get("filename", ""))
+            await db.consult_jobs.update_one({"_id": job["_id"]}, {"$set": {"transcript": seal(transcript)}})
+            await db.consultations.update_one({"_id": ObjectId(cid), "owner_id": owner, "status": "processing"},
+                                              {"$set": Consultation.sealed_set({"transcript": transcript})})
+        ai = await structure_note(transcript, f"consult-{cid}")
+        for _ in range(5):  # concorrenza ottimistica con i salvataggi del medico (campo rev)
+            doc = await db.consultations.find_one({"_id": ObjectId(cid), "owner_id": owner})
+            if not doc or doc.get("status") != "processing":
+                return
+            note = ai.model_copy(deep=True)
+            _apply_doctor(note, unseal_fields(doc, ("note",)).get("note") or {})
+            enrich_growth(note, await get_patient(doc.get("patient_id")), date.fromisoformat(doc["created_at"][:10]))
+            upd = await db.consultations.find_one_and_update(
+                {"_id": ObjectId(cid), "owner_id": owner, "status": "processing", "rev": doc.get("rev", 0)},
+                {"$set": {**Consultation.sealed_set({"note": note.model_dump(), "transcript": transcript}), "status": "ready", "ai_error": "",
+                          "ai_sec": round(time.monotonic() - t0, 1)}, "$inc": {"rev": 1}}, return_document=True)
+            if upd:
+                await sync_measurement(Consultation.from_mongo(upd).out())
+                await _drop_job(cid)
+                logger.info("Referto %s pronto in %.1fs", cid, time.monotonic() - t0)
+                return
+        raise AIJobError("Salvataggi concorrenti: riprovi.")
     except Exception as e:
         logger.exception("Elaborazione referto %s fallita", cid)
-        msg = str(e) if isinstance(e, RuntimeError) else f"Elaborazione IA non riuscita: {str(e)[:180]}"
-        await db.consultations.update_one({"_id": ObjectId(cid), "owner_id": owner}, {"$set": {"status": "failed", "ai_error": msg}})
+        await db.consultations.update_one({"_id": ObjectId(cid), "owner_id": owner, "status": "processing"},
+                                          {"$set": {"status": "failed", "ai_error": friendly_ai_error(e)}})
     finally:
         _RUNNING.discard(cid)
 
 
 def spawn_consult_job(cid: str, owner: str):
     task = asyncio.create_task(run_consult_job(cid, owner))
-    task.add_done_callback(lambda t: t.exception() if not t.cancelled() else None)
+    _TASKS.add(task)  # riferimento forte: evita la garbage collection del task in esecuzione
+    task.add_done_callback(_TASKS.discard)
+
+
+async def create_job(cid: str, owner: str, transcript: str = "", audio: bytes = b"", filename: str = "") -> None:
+    file_id = None
+    if audio:
+        file_id = await audio_fs.upload_from_stream(f"{cid}.bin", seal_bytes(audio), metadata={"consultation_id": cid, "owner_id": owner})
+    await db.consult_jobs.update_one({"consultation_id": cid}, {"$set": {
+        "consultation_id": cid, "owner_id": owner, "created_at": now_iso(), "filename": filename or "consultazione.webm",
+        "audio_file": file_id, "transcript": seal(transcript) if transcript else None,
+        "expires_at": datetime.now(timezone.utc) + timedelta(days=JOB_TTL_DAYS)}}, upsert=True)
 
 
 @api.post("/consultations/start")
@@ -749,7 +806,7 @@ async def start_consultation(
     patient_name: str = Form(...), patient_id: Optional[str] = Form(None), clinic: str = Form(""), waiting_id: Optional[str] = Form(None),
     duration_sec: int = Form(0), paper_consent: bool = Form(False), transcript: str = Form(""), audio: Optional[UploadFile] = File(None),
 ):
-    """Crea subito la visita 'in elaborazione' e avvia Whisper + IA in background. Risponde in pochi millisecondi."""
+    """Crea subito la visita 'in elaborazione' e avvia Whisper + IA in background."""
     patient_id = patient_id or None
     waiting_id = waiting_id or None
     if not patient_name.strip():
@@ -763,22 +820,27 @@ async def start_consultation(
     if not data and len(transcript.strip()) < 20:
         raise HTTPException(400, "Registrazione vuota o trascrizione troppo breve")
     if len(data) > 25 * 1024 * 1024:
-        raise HTTPException(413, "Audio oltre 25 MB")
+        raise HTTPException(413, "Audio oltre 25 MB: per visite molto lunghe divida la registrazione")
     note = ClinicalNote()
     enrich_growth(note, patient, date.today())
+    oid_new = ObjectId()
+    cid = str(oid_new)
+    try:  # prima il job (audio cifrato in GridFS), poi la visita: niente visite orfane
+        await create_job(cid, user["id"], transcript=transcript.strip() if not data else "", audio=data,
+                         filename=(audio.filename if audio else "") or "consultazione.webm")
+    except Exception:
+        logger.exception("Salvataggio audio fallito")
+        await _drop_job(cid)
+        raise HTTPException(500, "Impossibile salvare la registrazione: riprovi")
     c = Consultation(patient_name=patient_name.strip(), patient_id=patient_id, clinic=clinic, waiting_id=waiting_id,
                      transcript="" if data else transcript.strip(),
                      note=note, status="processing", duration_sec=duration_sec, paper_consent=paper_consent, doctor_id=user["id"])
-    res = await tdb.consultations.insert_one(c.to_mongo())
-    c.id = str(res.inserted_id)
-    await db.consult_jobs.insert_one({"consultation_id": c.id, "owner_id": user["id"], "created_at": now_iso(),
-                                      "filename": (audio.filename if audio else "") or "consultazione.webm",
-                                      "audio": seal(base64.b64encode(data).decode()) if data else None,
-                                      "transcript": seal(transcript.strip()) if not data else None})
+    await tdb.consultations.insert_one({**c.to_mongo(), "_id": oid_new, "rev": 0})
+    c.id = cid
     if waiting_id and ObjectId.is_valid(waiting_id):
         await tdb.waiting.delete_one({"_id": ObjectId(waiting_id)})
         await tdb.appointments.update_many({"patient_name": patient_name.strip()}, {"$set": {"status": "completato"}})
-    spawn_consult_job(c.id, user["id"])
+    spawn_consult_job(cid, user["id"])
     return c.out()
 
 
@@ -790,18 +852,34 @@ async def get_consultation(cid: str):
     return Consultation.from_mongo(doc).out()
 
 
+class RetryIn(BaseModel):
+    transcript: str = Field(default="", max_length=60000)
+
+
 @api.post("/consultations/{cid}/retry")
-async def retry_consultation(cid: str, user: dict = Depends(current_user)):
+async def retry_consultation(cid: str, body: Optional[RetryIn] = None, user: dict = Depends(current_user)):
+    """Rilancia l'elaborazione. Con 'transcript' si sostituisce l'audio con una trascrizione incollata."""
     doc = await tdb.consultations.find_one({"_id": oid(cid)})
     if not doc:
         raise HTTPException(404, "Consultazione non trovata")
-    if doc.get("status") == "ready":
+    if doc.get("status", "ready") == "ready":
         return Consultation.from_mongo(doc).out()
-    if not await db.consult_jobs.find_one({"consultation_id": cid, "owner_id": user["id"]}):
-        raise HTTPException(410, "Registrazione non più disponibile: ripeta la visita o incolli la trascrizione")
-    doc = await tdb.consultations.find_one_and_update({"_id": oid(cid)}, {"$set": {"status": "processing", "ai_error": ""}}, return_document=True)
-    spawn_consult_job(cid, user["id"])
-    return Consultation.from_mongo(doc).out()
+    pasted = (body.transcript if body else "").strip()
+    if pasted:
+        if len(pasted) < 20:
+            raise HTTPException(400, "Trascrizione troppo breve")
+        await _drop_job(cid)
+        await create_job(cid, user["id"], transcript=pasted)
+    elif not await db.consult_jobs.find_one({"consultation_id": cid, "owner_id": user["id"]}):
+        raise HTTPException(410, "Registrazione non più disponibile: incolli la trascrizione o compili la cartella a mano")
+    sets = {"status": "processing", "ai_error": ""}
+    if pasted:
+        sets.update(Consultation.sealed_set({"transcript": pasted}))
+    doc = await tdb.consultations.find_one_and_update({"_id": oid(cid), "status": {"$ne": "ready"}}, {"$set": sets, "$inc": {"rev": 1}}, return_document=True)
+    if doc:
+        spawn_consult_job(cid, user["id"])
+        return Consultation.from_mongo(doc).out()
+    return Consultation.from_mongo(await tdb.consultations.find_one({"_id": oid(cid)})).out()
 
 
 async def require_ready(cid: str):
@@ -900,12 +978,32 @@ async def update_consultation(cid: str, body: ConsultationPatch):
     existing = await tdb.consultations.find_one({"_id": oid(cid)})
     if not existing:
         raise HTTPException(404, "Consultazione non trovata")
-    if existing.get("status", "ready") != "ready":  # durante l'elaborazione si salvano solo crescita e farmaci del medico
-        cur = ClinicalNote.model_validate(unseal_fields(existing, ("note",)).get("note") or {})
-        cur.crescita, cur.farmaci = body.note.crescita, body.note.farmaci
-        body.note = cur
+    if existing.get("status") == "processing":
+        # durante l'elaborazione si salvano solo crescita e farmaci del medico; il job li unirà alla nota IA
+        for _ in range(5):
+            cur = ClinicalNote.model_validate(unseal_fields(existing, ("note",)).get("note") or {})
+            cur.crescita, cur.farmaci = body.note.crescita, body.note.farmaci
+            doc = await tdb.consultations.find_one_and_update(
+                {"_id": oid(cid), "status": "processing", "rev": existing.get("rev", 0)},
+                {"$set": Consultation.sealed_set({"note": cur.model_dump()}), "$inc": {"rev": 1}}, return_document=True)
+            if doc:
+                return Consultation.from_mongo(doc).out()
+            existing = await tdb.consultations.find_one({"_id": oid(cid)})
+            if existing.get("status") != "processing":
+                break
+        else:
+            raise HTTPException(409, "Salvataggio concorrente: riprovi")
+        # il job ha appena finito: si applicano solo crescita/farmaci del medico alla nota IA
+        ai = ClinicalNote.model_validate(unseal_fields(existing, ("note",)).get("note") or {})
+        _apply_doctor(ai, body.note.model_dump())
+        body.note = ai
+    sets = {**Consultation.sealed_set({"note": body.note.model_dump()}), "finalized_at": now_iso()}
+    if existing.get("status") == "failed":  # cartella compilata a mano dal medico
+        sets.update({"status": "ready", "ai_error": ""})
+        await _drop_job(cid)
     enrich_growth(body.note, await get_patient(existing.get("patient_id")), date.fromisoformat(existing["created_at"][:10]))
-    doc = await tdb.consultations.find_one_and_update({"_id": oid(cid)}, {"$set": {**Consultation.sealed_set({"note": body.note.model_dump()}), "finalized_at": now_iso()}}, return_document=True)
+    sets.update(Consultation.sealed_set({"note": body.note.model_dump()}))
+    doc = await tdb.consultations.find_one_and_update({"_id": oid(cid)}, {"$set": sets, "$inc": {"rev": 1}}, return_document=True)
     out = Consultation.from_mongo(doc).out()
     await sync_measurement(out)
     return out

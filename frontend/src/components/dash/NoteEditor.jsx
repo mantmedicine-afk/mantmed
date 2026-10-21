@@ -40,28 +40,39 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient }) =
     track(initialC);
   }, [initialC, track]);
 
+  // Durante l'elaborazione crescita e farmaci del medico vengono salvati in automatico (il server li unirà alla nota IA)
+  const noteRef = useRef(note);
+  noteRef.current = note;
+  const autosave = useRef(null);
+  const queueAutosave = () => {
+    clearTimeout(autosave.current);
+    autosave.current = setTimeout(() => { api.updateConsultation(consultation.id, noteRef.current).catch(() => {}); }, 900);
+  };
+  useEffect(() => () => clearTimeout(autosave.current), []);
+
   // Quando l'IA ha finito: i campi si popolano con animazione; crescita/farmaci inseriti dal medico restano
   useEffect(() => subscribe(consultation.id, (upd) => {
     setC(upd);
     if (upd.status !== "ready") return;
-    setNote((local) => {
-      const merged = { ...upd.note };
-      if (edited.current) {
-        const g = { ...(upd.note?.crescita ?? {}) };
-        GROWTH_KEYS.forEach((k) => { const v = local.crescita?.[k]; if (v !== null && v !== undefined && v !== "") g[k] = v; });
-        merged.crescita = g;
-        if ((local.farmaci ?? []).some((d) => d.nome) && !(upd.note?.farmaci ?? []).length) merged.farmaci = local.farmaci;
-        api.updateConsultation(upd.id, merged).catch(() => {});
-      }
-      return merged;
-    });
+    const local = noteRef.current;
+    const merged = { ...upd.note };
+    if (edited.current) {
+      const g = { ...(upd.note?.crescita ?? {}) };
+      GROWTH_KEYS.forEach((k) => { const v = local.crescita?.[k]; if (v !== null && v !== undefined && v !== "") g[k] = v; });
+      merged.crescita = g;
+      if ((local.farmaci ?? []).some((d) => d.nome)) merged.farmaci = local.farmaci;
+      clearTimeout(autosave.current);
+      api.updateConsultation(upd.id, merged).then((r) => { if (r?.note) setNote(r.note); }).catch(() => {});
+    }
+    setNote(merged);
     setFlash((n) => n + 1);
     setGlow(true);
     setTimeout(() => setGlow(false), 2600);
     onSaved?.();
   }), [consultation.id, subscribe]); // eslint-disable-line react-hooks/exhaustive-deps
-  const setGrowth = (v) => { edited.current = true; setNote((n) => ({ ...n, crescita: v })); };
-  const setDrugs = (v) => { edited.current = true; setNote((n) => ({ ...n, farmaci: v })); };
+  const setGrowth = (v) => { edited.current = true; setNote((n) => ({ ...n, crescita: v })); if (processing) queueAutosave(); };
+  const setDrugs = (v) => { edited.current = true; setNote((n) => ({ ...n, farmaci: v })); if (processing) queueAutosave(); };
+  const [paste, setPaste] = useState(null);
 
   const g = note.crescita ?? {};
   const current = TABS.find((t) => t.id === tab);
@@ -70,8 +81,9 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient }) =
     setSaving(true);
     try {
       const r = await api.updateConsultation(consultation.id, note);
-      if (r?.note && ready) setNote(r.note);
-      toast.success(ready ? "Cartella pediatrica salvata" : "Crescita e terapia salvate: il resto lo compila l'IA");
+      if (r?.note && r.status !== "processing") setNote(r.note);
+      if (r?.status) setC(r);
+      toast.success(r?.status === "processing" ? "Crescita e terapia salvate: il resto lo compila l'IA" : "Cartella pediatrica salvata");
       onSaved?.();
     }
     catch (e) { toast.error(errMsg(e)); }
@@ -131,7 +143,17 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient }) =
         {failed && (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900" data-testid="note-failed-banner">
             <span className="flex items-center gap-2"><AlertTriangle size={16} className="shrink-0" /> {consultation.ai_error || "Elaborazione IA non riuscita"}</span>
-            <button onClick={() => retry(consultation.id)} className="flex h-9 items-center gap-1.5 rounded-full bg-rose-700 px-4 text-sm font-semibold text-white" data-testid="note-retry-btn"><RotateCcw size={14} /> Riprova</button>
+            <span className="flex flex-wrap gap-2">
+              <button onClick={() => setPaste(paste === null ? "" : null)} className="flex h-9 items-center gap-1.5 rounded-full border border-rose-300 bg-white px-4 text-sm font-semibold text-rose-800" data-testid="note-paste-toggle">Incolla trascrizione</button>
+              <button onClick={() => retry(consultation.id)} className="flex h-9 items-center gap-1.5 rounded-full bg-rose-700 px-4 text-sm font-semibold text-white" data-testid="note-retry-btn"><RotateCcw size={14} /> Riprova</button>
+            </span>
+            <span className="w-full text-xs text-rose-800/80">In alternativa compili i campi qui sotto e prema Salva: la cartella diventa definitiva.</span>
+            {paste !== null && (
+              <div className="w-full space-y-2">
+                <textarea value={paste} onChange={(e) => setPaste(e.target.value)} rows={4} placeholder="Medico: Buongiorno… Genitore: …" className="w-full rounded-xl border border-rose-200 bg-white px-3 py-2 text-sm text-night outline-none focus:border-night" data-testid="note-paste-textarea" />
+                <button onClick={async () => { if (paste.trim().length < 20) return toast.error("Trascrizione troppo breve"); const r = await retry(consultation.id, paste); if (r) setPaste(null); }} className="flex h-9 items-center gap-1.5 rounded-full bg-night px-4 text-sm font-semibold text-white" data-testid="note-paste-submit"><Sparkles size={14} /> Compila con l’IA</button>
+              </div>
+            )}
           </div>
         )}
         <div className="mt-5 grid grid-cols-1 gap-3 xl:grid-cols-[1.25fr_1fr]">
@@ -173,7 +195,7 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient }) =
                 <label key={k} className="block">
                   <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{l}</span>
                   {hint && <span className="ml-2 text-xs text-slate-500">· {hint}</span>}
-                  {ready ? (
+                  {!processing ? (
                     <motion.textarea key={`${k}-${flash}`} initial={glow ? { opacity: 0, y: 6 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
                       value={note[k] ?? ""} onChange={(e) => setNote((n) => ({ ...n, [k]: e.target.value }))} rows={k === "terapia" || k === "sintomi" || k === "anamnesi_fisiologica" ? 3 : 2}
                       className={`mt-1.5 w-full resize-y rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[15px] leading-relaxed outline-none transition-colors focus:border-night focus:bg-white ${glow ? "ai-filled" : ""}`} data-testid={`note-section-${k}`} />

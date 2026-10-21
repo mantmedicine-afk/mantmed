@@ -37,3 +37,13 @@ def seal_fields(data: dict, fields) -> dict:
 
 def unseal_fields(data: dict, fields) -> dict:
     return {k: (unseal(v) if k in fields else v) for k, v in data.items()}
+
+
+def seal_bytes(data: bytes) -> bytes:
+    """AES-256-GCM per contenuti binari (es. audio delle visite in GridFS)."""
+    nonce = os.urandom(12)
+    return nonce + _AES.encrypt(nonce, data, None)
+
+
+def unseal_bytes(blob: bytes) -> bytes:
+    return _AES.decrypt(blob[:12], blob[12:], None)

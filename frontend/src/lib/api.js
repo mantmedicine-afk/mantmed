@@ -61,7 +61,7 @@ export const api = {
     return http.post("/consultations/start", fd).then((r) => r.data);
   },
   getConsultation: (id) => http.get(`/consultations/${id}`).then((r) => r.data),
-  retryConsultation: (id) => http.post(`/consultations/${id}/retry`).then((r) => r.data),
+  retryConsultation: (id, transcript = "") => http.post(`/consultations/${id}/retry`, { transcript }).then((r) => r.data),
   updateConsultation: (id, note) => http.patch(`/consultations/${id}`, { note }).then((r) => r.data),
   sendReport: (id) => http.post(`/consultations/${id}/send-report`).then((r) => r.data),
   payments: (params) => http.get("/payments", { params }).then((r) => ({ items: Array.isArray(r.data?.items) ? r.data.items : [], summary: r.data?.summary ?? null, today: r.data?.today })),
