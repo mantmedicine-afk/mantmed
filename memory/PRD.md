@@ -240,3 +240,7 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - P2 (pagamenti): rimborso/storno manuale dal medico, export ricevute per Sistema Tessera Sanitaria, selettore data shadcn nel portale
 - P2 (rete): tipi visita della dashboard medico (AppointmentDialog) allineati all'elenco prestazioni del medico; aggiornamento sedi in dashboard senza ricaricare la pagina
 - Test legacy test_portal_flow.py dipendono da account TEST eliminati (429 per blocco tentativi): da rigenerare
+
+## 2026-06 Pulizia Dati Prova (Founder)
+- /admin tab "Dati di prova": GET /api/admin/test-data (anteprima), POST /api/admin/test-data/purge {owner_ids}
+- Elimina visite degli account demo selezionati (DOCTOR_EMAIL + @example.com) e visite/pazienti/appuntamenti con nomi TEST_/Test/Prova + audio, job, body chart, misure, notifiche, consensi. Account demo mantenuti. Solo ruolo admin (403 altrimenti). File: backend/cleanup.py, frontend/src/components/admin/TestDataCleanup.jsx

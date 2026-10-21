@@ -82,6 +82,8 @@ export const api = {
   sendLead: (b) => http.post("/public/leads", b).then((r) => r.data),
   leads: () => http.get("/admin/leads").then(list),
   updateLead: (id, b) => http.patch(`/admin/leads/${id}`, b).then((r) => r.data),
+  testDataPreview: () => http.get("/admin/test-data").then((r) => r.data),
+  purgeTestData: (owner_ids) => http.post("/admin/test-data/purge", { owner_ids }).then((r) => r.data),
   adminDoctors: () => http.get("/admin/doctors").then(list),
   setDoctorStatus: (id, status) => http.post(`/admin/doctors/${id}/status`, { status }).then((r) => r.data),
   registerStart: (b) => http.post("/register/start", b).then((r) => r.data),

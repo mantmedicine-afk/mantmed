@@ -36,6 +36,7 @@ from tenancy import OWNER
 from emergentintegrations.llm.openai import OpenAISpeechToText
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 from auth import build_auth, seed_doctor, seed_admin, require_role
+from cleanup import build_cleanup
 from report import build_report
 from signed_docs import build_signed_docs, record_privacy_consent, doctor_signature
 from mailer import send_email
@@ -1662,6 +1663,7 @@ public_api.include_router(portal_router)
 leads_public, leads_private = build_leads(db, require_role(current_user, "admin"))
 public_api.include_router(leads_public)
 public_api.include_router(leads_private)
+public_api.include_router(build_cleanup(db, require_role(current_user, "admin")))
 public_api.include_router(auth_router)
 public_api.include_router(build_password_reset(db, current_user))
 public_api.include_router(build_account(db, current_user))

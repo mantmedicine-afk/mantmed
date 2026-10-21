@@ -5,6 +5,7 @@ import { LogoMark } from "@/components/dash/Logo";
 import { TwoFactorCard } from "@/components/dash/Security";
 import { LeadRow, STATUSES } from "@/components/admin/LeadRow";
 import { DoctorsPanel } from "@/components/admin/Doctors";
+import { TestDataCleanup } from "@/components/admin/TestDataCleanup";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
@@ -57,11 +58,11 @@ export default function Admin() {
       </header>
       <main className="mx-auto max-w-[1280px] px-5 py-10 lg:px-8">
         <div className="mb-8 inline-flex rounded-full bg-white p-1 ring-1 ring-slate-200" role="tablist">
-          {[["leads", "Richieste dalla landing"], ["doctors", "Medici e licenze"]].map(([id, label]) => (
+          {[["leads", "Richieste dalla landing"], ["doctors", "Medici e licenze"], ["cleanup", "Dati di prova"]].map(([id, label]) => (
             <button key={id} role="tab" aria-selected={view === id} onClick={() => setView(id)} className={`h-10 rounded-full px-5 text-sm font-medium transition-colors ${view === id ? "bg-night text-white" : "text-slate-600 hover:text-night"}`} data-testid={`admin-view-${id}`}>{label}</button>
           ))}
         </div>
-        {view === "doctors" ? <DoctorsPanel /> : <>
+        {view === "doctors" ? <DoctorsPanel /> : view === "cleanup" ? <TestDataCleanup /> : <>
         <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-slate-500"><Inbox size={13} /> Lead box · landing page pubblica</div>
         <h1 className="mt-1 font-display text-4xl text-night sm:text-5xl">Medici <span className="italic text-slate-500">interessati a MantMed</span></h1>
         <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-5">
