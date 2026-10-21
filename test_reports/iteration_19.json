@@ -1,0 +1,45 @@
+{
+  "summary": "Tested electronic signature end-to-end. Backend: new pytest suite tests/test_signed_docs.py, 15/15 passed (run with -n0 because tests share state). It covers the template, doctor signing and superseding a previous consent, PDF SHA-256 matching file_sha256, the PDF's /Encrypt and no-modify permission, and the PDF content (signer, informativa, clauses, image, legal box with FIR- code, IP, device, SHA-256). It also covers the paper form PDF, the modulo_cartaceo method creating no document, validation (400/400/422/404), revoke marking the document revoked, public verify (valid, revoked, random, non-hex, paper form), the doctor signature cycle (GET/PUT/report PDF 'Firmato elettronicamente il'/DELETE, invalid 400, parent 403), portal template/sign/me/pdf, and parent isolation (404/403). Frontend: doctor Passport > Privacy tab works: informativa comes from the backend, paper form downloads Modulo_consenso_Leonardo_Colombo.pdf, tablet signing shows a toast with the PDF code, the list shows 'Valido' and 'PDF firmato' downloads a file whose SHA matches. Area riservata 'Firma per i referti': open, 'Firma del Medico' modal, preview and date, Rifirma and Rimuovi all work, and the report PDF FIRMA box shows the image and date. Portal at 1440: banner, dialog, signature, submit, toast, banner disappears, Consensi tab shows the doc and it downloads. Portal at 390 with real CDP touch events (pointerType touch) completed the same flow with no horizontal overflow. /verifica: signed PDF shows valid with the code, paper form and report show invalid, and a superseded doc shows the revoked notice.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "signed_docs.client_meta (all signing routes + /api/public/verify rate limit)", "issue": "The client IP is read from the FIRST X-Forwarded-For entry, which the client controls. Reproduced: POST /api/signatures with header 'X-Forwarded-For: 6.6.6.6' put 6.6.6.6 into the PDF legal box ('Indirizzo IP'). A forged IP weakens the signature evidence, and the 30/hour verify rate limit can be bypassed by rotating the header. Use the entry added by the trusted ingress (rightmost / last trusted hop) or X-Real-IP set by the ingress.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/consents/{cid}/revoke", "issue": "Response returns the full signature PNG data URL (Consent.out includes 'signature'). This bloats the payload and needlessly exposes biometric-like data. Omit it."},
+      {"endpoint": "record_privacy_consent", "issue": "Not atomic: the previous consents and docs are revoked before the PDF is built and archived. If build_consent_pdf or the insert fails, the patient is left with a new consent but no document. Build the PDF first, then revoke and insert."},
+      {"endpoint": "/api/public/verify", "issue": "Rate-limit state is kept in process memory ('hits' dict). It resets on restart, is not shared across workers and grows without bound per IP key. Consider a Mongo TTL collection."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "SignaturePadModal SignatureCanvas.down()", "issue": "ref.current.setPointerCapture(e.pointerId) is not wrapped in try/catch and is called after active.current is set. If capture throws (InvalidPointerId, seen with synthetic pointer events), no stroke is pushed. Every pointermove then crashes in move() reading s.length of undefined (24 runtime errors, app error overlay). Real touch, mouse and pen work fine. Harden it: wrap in try/catch, push the stroke before capture, and guard 'if (!s) return' in move.", "selector": "[data-testid='signature-canvas']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/verifica header", "issues": ["The LogoMark in the top-left renders as an almost empty white square (monogram barely visible) on the dark background."]},
+      {"screen": "Area riservata > Firma per i referti", "issues": ["'Rimuovi' deletes the doctor signature immediately with no confirmation (minor UX)."]},
+      {"screen": "Report PDF FIRMA box", "issues": ["'Firmato elettronicamente il 21/10/2026 alle 10:20' wraps so the time sits alone on the next line. Consider a shorter label or a wider cell."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_signed_docs.py", "/app/test_reports/pytest/pytest_signed_docs.xml"],
+  "action_items": [
+    "Fix client IP extraction in signed_docs.client_meta: do not trust the client-supplied first X-Forwarded-For entry (affects the legal metadata and the verify rate limit)",
+    "Stop returning the signature data URL from POST /api/consents/{cid}/revoke",
+    "Make record_privacy_consent build the PDF before revoking previous consents",
+    "Harden SignatureCanvas.down: try/catch setPointerCapture plus a guard in move() when no current stroke exists",
+    "Optional: fix the LogoMark contrast on /verifica"
+  ],
+  "critical_code_review_comments": [
+    "signed_docs.client_meta: IP is spoofable via X-Forwarded-For (verified)",
+    "docs_for_patient filters only by patient_ids. Fine for the doctor (patient ownership is checked first) and for parent child_view, but share docs listing several patient_ids from different doctors will appear for each linked patient. This is intended, just confirm.",
+    "parent_doc_pdf allows access if any patient_id intersects the parent's children. OK, but it writes an audit entry for every owner on every download.",
+    "Legacy POST /patients/{pid}/consents passes client_signed_at=None and no fiscal code, so it is fine as a compat path"
+  ],
+  "updated_files": ["/app/backend/tests/test_signed_docs.py"],
+  "success_rate": {"backend": "100% (15/15)", "frontend": "100% of requested flows (1 low-priority robustness bug in canvas)"},
+  "seed_data_creation": "Several TEST consents and documents created for Leonardo Colombo (6ad86e64c06e50ff4cd67d18). Its latest active consent is 'TEST XFF Colombo' (IP 6.6.6.6). Aurora Ricci now has an active portal consent signed via the mobile UI test (MM-DOC-20261021-02C4CC) plus superseded TEST docs. Sofia Russo was untouched (still no consent). Doctor signature DELETED at the end (GET /api/settings/signature -> image null) as requested.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest tests/test_signed_docs.py with -n0 (shared module STATE). Each run signs Leonardo Colombo and Aurora Ricci again and uses 5 public/verify calls (limit 30/h/IP). To show the portal banner again, revoke Aurora's active consent: POST /api/consents/{ref_id of non-revoked doc in /api/patients/<aurora>/documents}/revoke. For mobile signature tests use CDP Input.dispatchTouchEvent with Emulation.setTouchEmulationEnabled. Synthetic JS PointerEvents break setPointerCapture.",
+  "rca of the issue": "IP spoofing: client_meta takes request.headers['x-forwarded-for'].split(',')[0]. The ingress appends the real IP, so a client-supplied value always comes first. Reproduced with requests header X-Forwarded-For: 6.6.6.6, which then appeared in the PDF legal box. Mitigation: take the ingress-appended entry (rightmost minus the number of trusted proxies) or a trusted X-Real-IP."
+}

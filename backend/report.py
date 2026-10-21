@@ -141,9 +141,9 @@ def doctor_sign_cell(doctor: str, signature: dict | None, max_w: float) -> list:
             raw = base64.b64decode(signature["image"].split(",", 1)[1])
             iw, ih = ImageReader(io.BytesIO(raw)).getSize()
             k = min(max_w / iw, 15 * mm / ih)
-            when = datetime.now(ZoneInfo("Europe/Rome")).strftime("%d/%m/%Y alle %H:%M")
+            when = datetime.now(ZoneInfo("Europe/Rome")).strftime("%d/%m/%Y, %H:%M")
             return [RLImage(io.BytesIO(raw), width=iw * k, height=ih * k, hAlign="LEFT"), Spacer(1, 1 * mm),
-                    Paragraph(escape(doctor), S["body"]), Paragraph(f"Firmato elettronicamente il {when}", S["small"])]
+                    Paragraph(escape(doctor), S["body"]), Paragraph(f"Firmato il {when}", S["small"])]
         except Exception:
             pass
     return [Spacer(1, 12 * mm), Paragraph(escape(doctor), S["body"])]

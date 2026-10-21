@@ -9,13 +9,12 @@ import logging
 import os
 import re
 import secrets
-import time
-from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Literal, Optional
 from urllib.parse import quote
 
 from bson import ObjectId
+from netutil import client_ip
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field, field_validator
@@ -50,7 +49,7 @@ def _now() -> str:
 
 
 def client_meta(request: Request) -> dict:
-    ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "")).split(",")[0].strip()
+    ip = client_ip(request)
     return {"ip": ip[:64], "user_agent": (request.headers.get("user-agent") or "")[:300]}
 
 
@@ -143,33 +142,36 @@ async def record_privacy_consent(db, *, owner: str, patient: dict, version: str,
     raw = check_png(signature) if tablet else None
     pid = str(patient["_id"])
     now = _now()
-    await db.consents.update_many({"patient_id": pid, "owner_id": owner, "revoked_at": None}, {"$set": {"revoked_at": now}})
-    await db.signed_docs.update_many({"kind": PRIVACY_DOC, "patient_ids": pid, "owner_ids": owner, "revoked_at": None}, {"$set": {"revoked_at": now, "superseded": True}})
-    consent = {"patient_id": pid, "owner_id": owner, "version": version, "signer_relation": signer.get("relation") or "Madre",
-               "privacy_policy": True, "health_data": True, "email_reports": bool(clauses.get("email_reports")), "method": method,
-               "signed_at": now, "revoked_at": None, "channel": channel, "document_id": None,
-               **seal_fields({"signer_name": name, "signature": signature if tablet else None}, ("signer_name", "signature"))}
-    consent["_id"] = (await db.consents.insert_one(consent)).inserted_id
-    await refresh_consent_flags(db, owner, pid)
-    document = None
-    if tablet:
+    consent_id = ObjectId()
+    relation = signer.get("relation") or "Madre"
+    pdf, meta = None, None
+    if tablet:  # PDF generato prima di toccare i consensi esistenti: se fallisce non cambia nulla
         p = unseal_fields(patient, ("fiscal_code",))
         lh = await letterhead(db, owner)
         meta = {**client_meta(request), "code": new_code(), "version": version, "signed_at": now, "client_signed_at": client_signed_at,
                 "channel": channel, "signer_code": signer_code(signer_ident), "collected_by": collected_by}
         signed = {"document": PRIVACY_DOC, "version": version, "patient_id": pid, "patient_name": p.get("name"), "owner_id": owner,
-                  "signer": {"name": name, "relation": consent["signer_relation"], "fiscal_code": signer.get("fiscal_code") or ""},
+                  "signer": {"name": name, "relation": relation, "fiscal_code": signer.get("fiscal_code") or ""},
                   "clauses": {k: bool(clauses.get(k)) for k, _, _ in CLAUSES}, "signed_at": now, "ip": meta["ip"],
                   "signature_sha256": hashlib.sha256(raw).hexdigest(), "code": meta["code"]}
         meta["payload_sha256"] = payload_hash(signed)
         pdf = build_consent_pdf(doctor=lh["doctor"], info=lh["info"], clinic=lh["clinic"], specialty=lh["specialty"],
                                 patient={"name": p.get("name"), "fiscal_code": p.get("fiscal_code"), "birth_date": p.get("birth_date")},
                                 text=privacy_text(lh["doctor"]), version=version, clauses=[(label, bool(clauses.get(k))) for k, label, _ in CLAUSES],
-                                signer={"name": name, "relation": consent["signer_relation"], "fiscal_code": signer.get("fiscal_code") or ""},
+                                signer={"name": name, "relation": relation, "fiscal_code": signer.get("fiscal_code") or ""},
                                 signature=signature, meta=meta, code=meta["code"])
+    await db.consents.update_many({"patient_id": pid, "owner_id": owner, "revoked_at": None}, {"$set": {"revoked_at": now}})
+    await db.signed_docs.update_many({"kind": PRIVACY_DOC, "patient_ids": pid, "owner_ids": owner, "revoked_at": None}, {"$set": {"revoked_at": now, "superseded": True}})
+    document = None
+    if tablet:
         document = await archive(db, kind=PRIVACY_DOC, title="Consenso informato privacy", version=version, owner_ids=[owner], patient_ids=[pid],
-                                 parent_id=parent_id, ref_id=str(consent["_id"]), pdf=pdf, meta=meta, signer_name=name)
-        await db.consents.update_one({"_id": consent["_id"]}, {"$set": {"document_id": document["id"]}})
+                                 parent_id=parent_id, ref_id=str(consent_id), pdf=pdf, meta=meta, signer_name=name)
+    consent = {"_id": consent_id, "patient_id": pid, "owner_id": owner, "version": version, "signer_relation": relation,
+               "privacy_policy": True, "health_data": True, "email_reports": bool(clauses.get("email_reports")), "method": method,
+               "signed_at": now, "revoked_at": None, "channel": channel, "document_id": document["id"] if document else None,
+               **seal_fields({"signer_name": name, "signature": signature if tablet else None}, ("signer_name", "signature"))}
+    await db.consents.insert_one(consent)
+    await refresh_consent_flags(db, owner, pid)
     await audit(db, "consenso_firmato_portale" if channel == "portale" else "consenso_registrato", patient.get("name", ""), owner)
     return {"id": str(consent["_id"]), "patient_id": pid, "version": version, "signer_name": name, "signer_relation": consent["signer_relation"],
             "email_reports": consent["email_reports"], "method": method, "signed_at": now, "revoked_at": None, "channel": channel,
@@ -256,7 +258,6 @@ def build_signed_docs(db, current_user, consent_version: str):
     doctor = APIRouter()
     parent = APIRouter(prefix="/portal", dependencies=[Depends(require_role(current_user, "parent"))])
     public = APIRouter(prefix="/public")
-    hits: dict = defaultdict(list)
 
     async def own_patient(owner: str, pid: str) -> dict:
         p = await db.patients.find_one({"_id": ObjectId(pid), "owner_id": owner}) if ObjectId.is_valid(pid) else None
@@ -367,12 +368,10 @@ def build_signed_docs(db, current_user, consent_version: str):
     # ---------- Verifica pubblica dell'integrità ----------
     @public.post("/verify")
     async def verify(body: VerifyIn, request: Request):
-        ip = client_meta(request)["ip"]
-        now = time.time()
-        hits[ip] = [t for t in hits[ip] if now - t < 3600]
-        if len(hits[ip]) >= 30:
+        ip_h = hashlib.sha256(("verify:" + client_meta(request)["ip"]).encode()).hexdigest()
+        if await db.verify_hits.count_documents({"ip": ip_h}) >= 30:
             raise HTTPException(429, "Troppe verifiche: riprovi tra un'ora")
-        hits[ip].append(now)
+        await db.verify_hits.insert_one({"ip": ip_h, "at": datetime.now(timezone.utc)})
         h = body.sha256.strip().lower()
         if not _HEX64.match(h):
             raise HTTPException(400, "Impronta non valida")

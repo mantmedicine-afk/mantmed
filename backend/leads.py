@@ -5,6 +5,7 @@ from datetime import datetime, timezone, timedelta
 from html import escape as hesc
 from typing import Literal, Optional
 from bson import ObjectId
+from netutil import client_ip
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 from crypto import seal_fields, unseal_fields
@@ -70,7 +71,7 @@ def build_leads(db, admin_user):
             return {"ok": True}
         if not body.consent:
             raise HTTPException(400, "Il consenso al trattamento dei dati è obbligatorio")
-        ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "")).split(",")[0].strip()
+        ip = client_ip(request)
         since = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
         if await db.leads.count_documents({"ip": ip, "created_at": {"$gte": since}}) >= MAX_PER_HOUR:
             raise HTTPException(429, "Troppe richieste inviate. Riprovi tra un'ora.")

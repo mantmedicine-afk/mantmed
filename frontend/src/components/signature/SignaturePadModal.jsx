@@ -134,12 +134,12 @@ const SignatureCanvas = ({ strokesRef, onInk, apiRef }) => {
   const down = (e) => {
     if (active.current !== null || (e.pointerType === "mouse" && e.button !== 0)) return;
     e.preventDefault();
-    active.current = e.pointerId;
-    ref.current.setPointerCapture(e.pointerId);
     const p = point(e, ref.current.getBoundingClientRect());
     p.w = e.pointerType === "pen" && e.pressure > 0 ? MIN_W + (MAX_W - MIN_W) * e.pressure : (MAX_W + MIN_W) / 2;
     p.type = e.pointerType;
     strokesRef.current.push([p]);
+    active.current = e.pointerId;
+    try { ref.current.setPointerCapture(e.pointerId); } catch { /* capture non disponibile: il tratto continua comunque */ }
     const g = ctx();
     g.fillStyle = INK;
     drawDot(g, p);
@@ -152,6 +152,7 @@ const SignatureCanvas = ({ strokesRef, onInk, apiRef }) => {
     e.preventDefault();
     const rect = ref.current.getBoundingClientRect();
     const s = strokesRef.current[strokesRef.current.length - 1];
+    if (!s) return;
     const events = e.nativeEvent.getCoalescedEvents?.() || [];
     const list = events.length ? events : [e.nativeEvent];
     const g = ctx();

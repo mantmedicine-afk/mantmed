@@ -497,6 +497,8 @@ async def seed():
     await db.patients.create_index("cf_hash")
     await db.signed_docs.create_index("file_sha256")
     await db.signed_docs.create_index("patient_ids")
+    await db.verify_hits.create_index("at", expireAfterSeconds=3600)
+    await db.verify_hits.create_index("ip")
 
 
 # ---------- Routes ----------
@@ -1059,7 +1061,7 @@ async def revoke_consent(cid: str):
     await refresh_patient_consent(doc["patient_id"])
     await db.signed_docs.update_many({"ref_id": cid, "revoked_at": None}, {"$set": {"revoked_at": now_iso()}})
     await audit("consenso_revocato", "")
-    return Consent.from_mongo(doc).out()
+    return {k: v for k, v in Consent.from_mongo(doc).out().items() if k != "signature"}
 
 
 ENCRYPTED_COLLECTIONS = {"patients": Patient, "consultations": Consultation, "measurements": Measurement,

@@ -8,6 +8,7 @@ import secrets
 from datetime import datetime, timezone, timedelta
 from html import escape as hesc
 import jwt
+from netutil import client_ip
 from fastapi import APIRouter, Depends, HTTPException, Request
 from bson import ObjectId
 from pydantic import BaseModel, Field, field_validator
@@ -109,7 +110,7 @@ def build_password_reset(db, current_user):
     @router.post("/forgot")
     async def forgot(body: ForgotIn, request: Request):
         base = base_url(request)
-        ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "")).split(",")[0].strip()
+        ip = client_ip(request)
         since = (_now() - timedelta(hours=1)).isoformat()
         if await db.reset_requests.count_documents({"ip": ip, "at": {"$gte": since}}) >= MAX_PER_IP_HOUR:
             raise HTTPException(429, "Troppe richieste da questa connessione. Riprovi tra un'ora.")
@@ -157,7 +158,7 @@ def build_password_reset(db, current_user):
     # ---------- Cambio password dal profilo (utente autenticato) ----------
     @router.post("/change")
     async def change(body: ChangeIn, request: Request, user: dict = Depends(current_user)):
-        ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "")).split(",")[0].strip()
+        ip = client_ip(request)
         ident = f"{ip}:chpw:{user['id']}"
         att = await db.login_attempts.find_one({"identifier": ident})
         if att and att.get("locked_until") and datetime.fromisoformat(att["locked_until"]) > _now():

@@ -10,6 +10,7 @@ export const DoctorSignatureSection = ({ data }) => {
   const [sig, setSig] = useState(undefined);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(false);
   useEffect(() => { api.doctorSignature().then(setSig).catch(() => setSig({ image: null })); }, []);
 
   const save = async ({ image }) => {
@@ -21,6 +22,7 @@ export const DoctorSignatureSection = ({ data }) => {
     setBusy(true);
     try { setSig(await api.deleteDoctorSignature()); toast.success("Firma rimossa dai referti"); } catch (e) { toast.error(errMsg(e)); }
     setBusy(false);
+    setConfirmDel(false);
   };
 
   return (
@@ -38,7 +40,14 @@ export const DoctorSignatureSection = ({ data }) => {
           </div>
           <div className="flex flex-wrap gap-2 sm:flex-col">
             <button onClick={() => setOpen(true)} disabled={busy} className="flex h-11 items-center justify-center gap-2 rounded-full border border-slate-200 px-5 text-sm font-medium text-night hover:border-night" data-testid="doctor-signature-redo"><RotateCcw size={15} /> Rifirma</button>
-            <button onClick={remove} disabled={busy} className="flex h-11 items-center justify-center gap-2 rounded-full border border-slate-200 px-5 text-sm font-medium text-rose-700 hover:border-rose-700" data-testid="doctor-signature-delete"><Trash2 size={15} /> Rimuovi</button>
+            {confirmDel ? (
+              <div className="flex flex-wrap gap-2 sm:flex-col">
+                <button onClick={remove} disabled={busy} className="flex h-11 items-center justify-center gap-2 rounded-full bg-rose-700 px-5 text-sm font-semibold text-white" data-testid="doctor-signature-delete-confirm"><Trash2 size={15} /> Sì, rimuovi</button>
+                <button onClick={() => setConfirmDel(false)} className="h-11 rounded-full px-5 text-sm text-slate-600 hover:text-night" data-testid="doctor-signature-delete-cancel">Annulla</button>
+              </div>
+            ) : (
+              <button onClick={() => setConfirmDel(true)} disabled={busy} className="flex h-11 items-center justify-center gap-2 rounded-full border border-slate-200 px-5 text-sm font-medium text-rose-700 hover:border-rose-700" data-testid="doctor-signature-delete"><Trash2 size={15} /> Rimuovi</button>
+            )}
           </div>
         </div>
       ) : (

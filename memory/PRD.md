@@ -201,6 +201,17 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - components/signature/SignaturePadModal.jsx: modale "Firma del Genitore / Tutore" / "Firma Consenso", canvas senza librerie (pointer events + coalesced events, tratto variabile per pressione pennino e velocità, curve quadratiche, HiDPI, ResizeObserver con replay), campo nome firmatario, data/ora sotto la firma, Pulisci / Riscrivi, Conferma Firma con validazione (vuoto, troppo corta, nome); output PNG base64 ritagliato e trasparente; SignatureField con anteprima e "Rifirma"
 - Usato nel consenso informato del Passaporto (ConsentDialog) e nel consenso di rete del Portale (NetworkSharing); testato iteration_18 (100%, desktop/tablet/mobile touch)
 
+## Implemented (2026-10-21, Firma elettronica: backend, PDF firmati, archivio)
+- backend/signed_docs.py + signed_pdf.py: POST /api/signatures (medico) e POST /api/portal/signatures (genitore) ricevono firma PNG, paziente, documento (consenso_privacy), firmatario, clausole, ora dispositivo; il server aggiunge marca temporale, IP reale (netutil.client_ip: X-Forwarded-For letto da destra saltando Cloudflare/Google/reti private), user-agent, codice firmatario FIR-… (HMAC)
+- PDF reportlab protetto da modifiche (StandardEncryption canModify=0, solo stampa/copia), template ufficiale con intestazione medico, informativa (testo ora dal backend GET /signatures/template), dichiarazioni, riquadro firma, box "Dati di firma elettronica" (n. documento, modello, marca temporale, IP, dispositivo, canale, codice firmatario, SHA-256 dei dati firmati); PDF generato prima di revocare i consensi precedenti
+- Archivio: collezione signed_docs (PDF + firmatario + IP + UA cifrati AES-256, file_sha256 in chiaro per verifica), consents.document_id; revoca consenso/condivisione → documento "non più valido"
+- Accesso: GET /api/patients/{pid}/documents, /api/documents/{id}/pdf (owner_ids), /api/portal/documents/{id}/pdf (figli collegati), portal/me children[].documents + consent_at; GET /api/patients/{pid}/consent-form.pdf modulo cartaceo stampabile
+- Verifica pubblica /verifica (SHA-256 calcolato nel browser) → POST /api/public/verify (limite 30/ora per IP, collezione verify_hits TTL)
+- Consenso di condivisione tra specialisti: PDF archiviato e collegato a tutte le cartelle dei medici coinvolti (network.create_share)
+- Firma del medico: Area Riservata > "Firma per i referti" (GET/PUT/DELETE /api/settings/signature, cifrata) apposta su ogni referto PDF con data e ora
+- Portale: banner "Consenso informato da firmare" + "Firma ora" (PortalConsentDialog) per ogni cartella senza consenso; tab Consensi con documenti firmati scaricabili
+- Testato iteration_19 (backend 15/15 tests/test_signed_docs.py, frontend 100%); fix: IP non falsificabile, revoca senza immagine firma, generazione atomica, rate limit su Mongo, canvas robusto, conferma rimozione firma medico
+
 ## Backlog
 - P1: percentili automatici con curve OMS, storico crescita del paziente, dati demo pediatrici in agenda/sala d'attesa, rinomina brand in "MantMed"
 - P1 (prec.): storico paziente, export PDF dedicato
