@@ -17,6 +17,8 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
   const [manual, setManual] = useState(false);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [sendStep, setSendStep] = useState("");
+  const uploaded = useRef([]);
   const [result, setResult] = useState(null);
   const lastBlob = useRef(null);
   const { track } = useProcessing();
@@ -38,17 +40,25 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
   const process = async (transcript, duration) => {
     setSending(true);
     try {
-      let blob = null;
+      let partIds = [];
       if (transcript === null) {
-        blob = rec.state !== "idle" ? await rec.stop() : lastBlob.current;
-        lastBlob.current = blob;
-        if (!blob || !blob.size) throw new Error("Registrazione vuota");
+        // le parti (una ogni 10 minuti) vengono caricate una alla volta; in caso di errore si riprende dalla prima non inviata
+        if (rec.state !== "idle") { lastBlob.current = await rec.stop(); uploaded.current = []; }
+        const blobs = lastBlob.current ?? [];
+        if (!blobs.length) throw new Error("Registrazione vuota");
+        for (let i = uploaded.current.length; i < blobs.length; i += 1) {
+          setSendStep(blobs.length > 1 ? `Invio parte ${i + 1} di ${blobs.length}…` : "Apertura cartella…");
+          uploaded.current.push(await api.uploadAudioPart(blobs[i], i));
+        }
+        partIds = uploaded.current;
       }
+      setSendStep("Apertura cartella…");
       const c = await api.startConsultation({
         patient_name: name, patient_id: sel?.patient_id ?? "", clinic: sel?.clinic ?? "", waiting_id: sel?.id ?? "",
-        duration_sec: duration, paper_consent: paper, transcript: transcript ?? "",
-      }, blob);
+        duration_sec: duration, paper_consent: paper, transcript: transcript ?? "", part_ids: partIds.join(","),
+      }, null);
       lastBlob.current = null;
+      uploaded.current = [];
       track(c);
       setResult(c);
       setStage("note");
@@ -104,7 +114,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
             <Setup {...{ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, sending }} gate={<ConsentGate patient={patients.find((p) => p.id === sel?.patient_id)} free={!sel?.patient_id && Boolean(freeName.trim())} paper={paper} setPaper={setPaper} onSaved={onPatientsChange} />} />
           )}
           {(stage === "recording") && (
-            <Recording name={name} rec={rec} sending={sending} onStop={() => process(null, rec.seconds)} />
+            <Recording name={name} rec={rec} sending={sending} sendStep={sendStep} onStop={() => process(null, rec.seconds)} />
           )}
           {stage === "retry" && (
             <div className="flex flex-col items-center gap-5 text-center" data-testid="consultation-retry">
@@ -115,7 +125,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
               </button>
             </div>
           )}
-          {stage === "note" && result && <NoteEditor consultation={result} onSaved={onDone} onEditPatient={onEditPatient} />}
+          {stage === "note" && result && <NoteEditor consultation={result} onSaved={onDone} onEditPatient={onEditPatient} onLeave={close} />}
         </div>
       </div>
     </motion.div>
@@ -148,7 +158,7 @@ const Setup = ({ waiting, sel, setSel, freeName, setFreeName, manual, setManual,
   </div>
 );
 
-const Recording = ({ name, rec, onStop, sending }) => {
+const Recording = ({ name, rec, onStop, sending, sendStep }) => {
   const live = rec.state === "recording";
   return (
     <div className="flex flex-col items-center text-center" data-testid="consultation-recording">
@@ -157,11 +167,12 @@ const Recording = ({ name, rec, onStop, sending }) => {
       </div>
       <div className="mt-6 font-mono text-7xl tabular-nums sm:text-8xl lg:text-9xl" data-testid="recording-timer">{fmtClock(rec.seconds)}</div>
       <div className="mt-3 text-slate-300">{name}</div>
+      {rec.parts > 1 && <div className="mt-2 text-xs uppercase tracking-[0.18em] text-[#A9C2FF]" data-testid="recording-parts">Visita lunga · parte {rec.parts} · salvataggio automatico ogni 10 minuti</div>}
       <div className="mt-8 w-full max-w-3xl"><Waveform analyser={rec.analyser} active={live} /></div>
       <div className="mt-10 flex items-center gap-4">
         <button onClick={live ? rec.pause : rec.resume} className="grid h-16 w-16 place-items-center rounded-full border border-white/25 transition-colors hover:bg-white/10" data-testid="recording-pause-btn" aria-label="Pausa">{live ? <Pause /> : <Play />}</button>
         <button onClick={onStop} disabled={sending} className="flex h-16 items-center gap-3 rounded-full bg-white px-8 text-lg font-semibold text-night transition-transform hover:-translate-y-0.5 disabled:opacity-80" data-testid="recording-stop-btn">
-          {sending ? <Loader2 size={18} className="animate-spin" /> : <Square size={18} fill="currentColor" />} {sending ? "Apertura cartella…" : "Termina e trascrivi"}
+          {sending ? <Loader2 size={18} className="animate-spin" /> : <Square size={18} fill="currentColor" />} {sending ? sendStep || "Apertura cartella…" : "Termina e trascrivi"}
         </button>
       </div>
     </div>

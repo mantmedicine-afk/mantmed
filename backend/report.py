@@ -222,14 +222,23 @@ def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dic
                               ("LINEABOVE", (0, 0), (-1, 0), 1.2, NIGHT), ("LINEABOVE", (0, 2), (-1, 2), 0.4, LINE),
                               ("SPAN", (0, 2), (2, 2)), ("SPAN", (3, 2), (4, 2)), ("VALIGN", (0, 0), (-1, 1), "BOTTOM")]))
 
-    story = [Paragraph("Referto di visita", S["title"]), Paragraph("pediatrica specialistica", S["titleIt"]),
+    spec = (note.get("specialita") or "").strip()
+    ped = not spec or bool(re.search(r"pediatr|neonatolog", spec, re.I))
+    sez = [x for x in note.get("sezioni") or [] if (x.get("titolo") or "").strip()]
+    extra = lambda *groups: [(x["titolo"][:40], x.get("testo")) for x in sez if x.get("gruppo") in groups]
+    story = [Paragraph("Referto di visita", S["title"]), Paragraph("pediatrica specialistica" if ped else f"specialistica · {spec}", S["titleIt"]),
              Spacer(1, 6 * mm), meta, Spacer(1, 9 * mm)]
 
-    story += section("01", "Anamnesi", [("Fisiologica", note.get("anamnesi_fisiologica")),
-                                        ("Allattamento", note.get("allattamento")), ("Svezzamento", note.get("svezzamento"))])
-    story += section("02", "Motivo della visita e sintomi", [("Motivo", note.get("motivo_visita")), ("Sintomi", note.get("sintomi"))])
-    story += section("03", "Esame obiettivo", [("TORL", note.get("torl")), ("Torace · Auscultazione", note.get("torace_auscultazione")),
-                                               ("Addome", note.get("addome"))])
+    if ped:
+        story += section("01", "Anamnesi", [("Fisiologica", note.get("anamnesi_fisiologica")),
+                                            ("Allattamento", note.get("allattamento")), ("Svezzamento", note.get("svezzamento"))] + extra("anamnesi"))
+        story += section("02", "Motivo della visita e sintomi", [("Motivo", note.get("motivo_visita")), ("Sintomi", note.get("sintomi"))] + extra("sintomi"))
+        story += section("03", "Esame obiettivo", [("TORL", note.get("torl")), ("Torace · Auscultazione", note.get("torace_auscultazione")),
+                                                   ("Addome", note.get("addome"))] + extra("esame_obiettivo", "altro"))
+    else:
+        story += section("01", "Anamnesi", [("Anamnesi", note.get("anamnesi_fisiologica"))] + extra("anamnesi"))
+        story += section("02", "Motivo della visita e sintomi", [("Motivo", note.get("motivo_visita")), ("Sintomi", note.get("sintomi"))] + extra("sintomi"))
+        story += section("03", "Esame obiettivo", extra("esame_obiettivo", "altro") or [("Esame obiettivo", "Non riportato")])
 
     peso, alt, cc = g.get("peso_kg"), g.get("altezza_cm"), g.get("circonferenza_cranica_cm")
     bmi = peso / (alt / 100) ** 2 if peso and alt else None
@@ -247,8 +256,12 @@ def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dic
     rows_g.append(["BMI", f"{fmt(bmi)} kg/m²" if bmi else "—", "—", "—"])
     gw = W - 2 * MX - 42 * mm
     growth = grid(["Parametro", "Valore", "Percentile OMS", "z-score"], rows_g, [gw * 0.34, gw * 0.22, gw * 0.24, gw * 0.20], right=(1, 2, 3))
-    story += section("04", "Parametri di crescita", [("Età · sesso", f"{fmt(g.get('eta_mesi'), 'mesi')} · {sesso}"),
-                                                     ("Misure e percentili", growth)])
+    if ped:
+        story += section("04", "Parametri di crescita", [("Età · sesso", f"{fmt(g.get('eta_mesi'), 'mesi')} · {sesso}"),
+                                                         ("Misure e percentili", growth)])
+    elif peso or alt:
+        story += section("04", "Parametri", [("Peso", fmt(peso, "kg") if peso else "—"), ("Altezza", fmt(alt, "cm") if alt else "—"),
+                                             ("BMI", f"{fmt(bmi)} kg/m²" if bmi else "—")])
 
     rows = [("Diagnosi", note.get("diagnosi")), ("Terapia", note.get("terapia"))]
     drugs = [d for d in note.get("farmaci") or [] if d.get("nome")]
@@ -267,7 +280,7 @@ def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dic
         if peso:
             rows.append(("", P(f"Dosi calcolate sul peso di {fmt(peso, 'kg')} rilevato in visita.", "small")))
     rows.append(("Follow-up", note.get("follow_up")))
-    story += section("05", "Diagnosi e terapia", rows)
+    story += section("05" if (ped or peso or alt) else "04", "Diagnosi e terapia", rows)
 
     box = lambda label, content: [P(label, "label"), Spacer(1, 2 * mm), content]
     sign = Table([[box("LUOGO", P(info["city"])), box("DATA", P(date_s)), box("TIMBRO DELLO STUDIO", Spacer(1, 24 * mm)),

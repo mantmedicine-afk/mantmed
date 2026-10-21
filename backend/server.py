@@ -222,8 +222,18 @@ class Drug(BaseModel):
     note: str = ""
 
 
+class NoteSection(BaseModel):
+    """Voce specialistica dinamica (es. Cardiologia → 'Pressione arteriosa', Ortopedia → 'Range of motion')."""
+    model_config = ConfigDict(extra="ignore")
+    gruppo: Literal["anamnesi", "sintomi", "esame_obiettivo", "altro"] = "esame_obiettivo"
+    titolo: str = ""
+    testo: str = ""
+
+
 class ClinicalNote(BaseModel):
     model_config = ConfigDict(extra="ignore")
+    specialita: str = ""
+    sezioni: List[NoteSection] = Field(default_factory=list)
     anamnesi_fisiologica: str = ""
     allattamento: str = ""
     svezzamento: str = ""
@@ -248,6 +258,7 @@ class Consultation(BaseDocument):
     note: ClinicalNote
     status: Literal["processing", "ready", "failed"] = "ready"
     ai_error: str = ""
+    ai_step: str = ""
     duration_sec: int = 0
     report_sent_at: Optional[str] = None
     report_sent_to: Optional[str] = None
@@ -377,6 +388,8 @@ async def get_patient(pid: Optional[str]):
 
 
 def enrich_growth(note: ClinicalNote, patient: Optional[dict], visit_day: date):
+    if note.specialita and not is_pediatric(note.specialita):
+        return  # percentili OMS solo per l'età evolutiva
     g = note.crescita
     if patient:
         g.sesso = patient["sex"]
@@ -496,9 +509,9 @@ async def resume_consult_jobs():
 
 async def sweep_audio():
     """Elimina gli audio cifrati rimasti senza job (job scaduti dopo JOB_TTL_DAYS)."""
-    old = datetime.now(timezone.utc) - timedelta(days=JOB_TTL_DAYS)
+    old = datetime.now(timezone.utc) - timedelta(days=1)  # job attivi referenziano i loro file; parti orfane dopo 1 giorno
     async for f in db["consult_audio.files"].find({"uploadDate": {"$lt": old}}, {"_id": 1}):
-        if not await db.consult_jobs.find_one({"audio_file": f["_id"]}):
+        if not await db.consult_jobs.find_one({"$or": [{"audio_file": f["_id"]}, {"audio_files": f["_id"]}]}):
             await audio_fs.delete(f["_id"])
 
 
@@ -657,15 +670,58 @@ NOTE_SYSTEM = (
 )
 
 
-async def structure_note(transcript: str, session: str) -> ClinicalNote:
-    chat = LlmChat(api_key=LLM_KEY, session_id=session, system_message=NOTE_SYSTEM).with_model("openai", "gpt-5.6-terra")
+def clean_specialty(raw: str) -> str:
+    s = re.sub(r"^(medico\s+)?(specialista|specializzat[oa])\s+in\s+", "", (raw or "").strip(), flags=re.I).strip(" .")
+    return s or "Pediatria"
+
+
+def is_pediatric(spec: str) -> bool:
+    return bool(re.search(r"pediatr|neonatolog", spec or "", re.I))
+
+
+async def doctor_specialty(uid: Optional[str]) -> str:
+    """Specializzazione dal profilo del medico (Area Riservata); per lo studio fondatore senza profilo, DOCTOR_SPECIALTY."""
+    u = await db.users.find_one({"_id": ObjectId(uid)}, {"profile": 1}) if uid and ObjectId.is_valid(uid) else None
+    return clean_specialty(((u or {}).get("profile") or {}).get("specialty") or os.environ.get("DOCTOR_SPECIALTY", "Pediatria"))
+
+
+def note_system(spec: str) -> str:
+    head = (f"Sei un assistente medico specializzato in {spec}. Estrai le informazioni dalla seguente trascrizione e compilale "
+            "nei campi standard pertinenti per questa specifica branca medica. Rispondi SOLO con un JSON valido.\n")
+    rules = ("Regole: usa solo informazioni presenti nella trascrizione. Se un campo testuale manca scrivi 'Non riportato'; se un numero manca usa null. "
+             "Per i farmaci riporta SOLO quelli prescritti dal medico e SOLO i dosaggi da lui indicati: non proporre mai dosaggi o farmaci non menzionati.")
+    drugs = ("farmaci: lista di {nome, mg_kg_dose (numero|null), dosi_giorno (intero|null), concentrazione_mg_ml (numero|null), "
+             "max_mg_dose (numero|null), giorni (intero|null), note}.\n")
+    if is_pediatric(spec):
+        return head + "Chiavi:\n" + NOTE_SYSTEM.split("\n", 1)[1]
+    return head + (
+        "Chiavi:\n"
+        "anamnesi_fisiologica (anamnesi generale: patologica remota e prossima, familiarità, farmaci in uso, allergie), motivo_visita, sintomi, "
+        "diagnosi, terapia, follow_up (stringhe in italiano, concise e cliniche);\n"
+        f"sezioni: lista di {{gruppo, titolo, testo}} con le voci SPECIFICHE di {spec}. gruppo è uno tra 'anamnesi', 'sintomi', 'esame_obiettivo', 'altro'. "
+        f"Per l'esame obiettivo usa i distretti e le manovre tipici di {spec} (es. Cardiologia: Pressione arteriosa, Frequenza cardiaca, Auscultazione cardiaca, ECG; "
+        "Ortopedia: Ispezione, Palpazione, Range of motion, Test specifici, Imaging; Dermatologia: Sede e morfologia delle lesioni, Dermatoscopia). "
+        "Includi da 3 a 8 voci di esame obiettivo pertinenti e, se utili, voci specifiche di anamnesi o sintomi (es. scala del dolore, classe NYHA);\n"
+        "crescita: {peso_kg (numero|null), altezza_cm (numero|null)} solo se riportati;\n" + drugs + rules)
+
+
+async def structure_note(transcript: str, session: str, specialty: str = "Pediatria") -> ClinicalNote:
+    spec = clean_specialty(specialty)
+    chat = LlmChat(api_key=LLM_KEY, session_id=session, system_message=note_system(spec)).with_model("openai", "gpt-5.6-terra")
     raw = await chat.send_message(UserMessage(text=f"Trascrizione:\n{transcript}"))
     match = re.search(r"\{.*\}", raw, re.S)
     data = json.loads(match.group(0)) if match else {}
     text_keys = [k for k, f in ClinicalNote.model_fields.items() if f.annotation is str]
     clean = {k: str(data.get(k) or "") for k in text_keys}
+    clean["specialita"] = spec
     clean["crescita"] = data.get("crescita") if isinstance(data.get("crescita"), dict) else {}
     clean["farmaci"] = [d for d in data.get("farmaci") or [] if isinstance(d, dict)]
+    sez = []
+    for d in data.get("sezioni") or []:
+        if isinstance(d, dict) and str(d.get("titolo") or "").strip():
+            g = d.get("gruppo") if d.get("gruppo") in ("anamnesi", "sintomi", "esame_obiettivo", "altro") else "esame_obiettivo"
+            sez.append({"gruppo": g, "titolo": str(d["titolo"])[:80], "testo": str(d.get("testo") or "Non riportato")})
+    clean["sezioni"] = sez[:20]
     return ClinicalNote.model_validate(clean)
 
 
@@ -680,7 +736,7 @@ async def create_consultation(body: ConsultationIn, user: dict = Depends(current
         raise HTTPException(412, "Conferma l'acquisizione del consenso privacy per la visita libera")
     t0 = time.monotonic()
     try:
-        note = await structure_note(body.transcript, f"consult-{uuid.uuid4()}")
+        note = await structure_note(body.transcript, f"consult-{uuid.uuid4()}", await doctor_specialty(user["id"]))
     except Exception as e:
         logger.exception("Strutturazione fallita")
         raise HTTPException(502, f"Generazione nota fallita: {e}")
@@ -722,13 +778,17 @@ def friendly_ai_error(e: Exception) -> str:
     return "Elaborazione IA non riuscita. Riprovi tra qualche istante."
 
 
-async def _whisper(data: bytes, filename: str) -> str:
+async def _whisper(data: bytes, filename: str, context: str = "", strict: bool = True) -> str:
     buf = io.BytesIO(data)
     buf.name = filename or "consultazione.webm"
     stt = OpenAISpeechToText(api_key=LLM_KEY)
-    res = await stt.transcribe(file=buf, model="whisper-1", response_format="json", language="it", prompt=WHISPER_PROMPT)
+    # per le parti successive il prompt include la coda della parte precedente: continuità di nomi e termini
+    prompt = (WHISPER_PROMPT + (" Continua da: " + context if context else ""))[-900:]
+    res = await stt.transcribe(file=buf, model="whisper-1", response_format="json", language="it", prompt=prompt)
     text = (res.text or "").strip()
     cleaned = HALLUCINATIONS.sub("", text).strip(" .,-")
+    if not strict and not cleaned:
+        return ""
     if len(cleaned.split()) < 4:
         raise AIJobError("Nessun parlato rilevato nella registrazione: verifichi il microfono e riprovi, oppure incolli la trascrizione.")
     return text
@@ -747,11 +807,11 @@ def _apply_doctor(ai: ClinicalNote, mine: dict):
 
 async def _drop_job(cid: str):
     job = await db.consult_jobs.find_one_and_delete({"consultation_id": cid})
-    if job and job.get("audio_file"):
+    for fid in ([job["audio_file"]] if job and job.get("audio_file") else []) + ((job or {}).get("audio_files") or []):
         try:
-            await audio_fs.delete(job["audio_file"])
+            await audio_fs.delete(fid)
         except Exception:
-            logger.warning("Audio %s già rimosso", job["audio_file"])
+            logger.warning("Audio %s già rimosso", fid)
 
 
 async def run_consult_job(cid: str, owner: str):
@@ -766,13 +826,28 @@ async def run_consult_job(cid: str, owner: str):
         if not job:
             raise AIJobError("Registrazione non più disponibile: incolli la trascrizione o compili la cartella a mano.")
         transcript = unseal(job.get("transcript")) or ""
-        if not transcript and job.get("audio_file"):
-            stream = await audio_fs.open_download_stream(job["audio_file"])
-            transcript = await _whisper(unseal_bytes(await stream.read()), job.get("filename", ""))
+        files = job.get("audio_files") or ([job["audio_file"]] if job.get("audio_file") else [])
+        if not transcript and files:
+            parts = []
+            for i, fid in enumerate(files):
+                if len(files) > 1:
+                    await db.consultations.update_one({"_id": ObjectId(cid)}, {"$set": {"ai_step": f"Trascrizione parte {i + 1} di {len(files)}"}})
+                stream = await audio_fs.open_download_stream(fid)
+                meta = (stream.metadata or {})
+                try:
+                    parts.append(await _whisper(unseal_bytes(await stream.read()), meta.get("filename") or job.get("filename", ""),
+                                                context=" ".join(parts)[-600:], strict=len(files) == 1))
+                except AIJobError:
+                    if len(files) == 1:
+                        raise
+            transcript = "\n".join(p for p in parts if p)
+            if len(transcript.split()) < 4:
+                raise AIJobError("Nessun parlato rilevato nella registrazione: verifichi il microfono e riprovi, oppure incolli la trascrizione.")
+            await db.consultations.update_one({"_id": ObjectId(cid)}, {"$set": {"ai_step": "Compilazione della cartella"}})
             await db.consult_jobs.update_one({"_id": job["_id"]}, {"$set": {"transcript": seal(transcript)}})
             await db.consultations.update_one({"_id": ObjectId(cid), "owner_id": owner, "status": "processing"},
                                               {"$set": Consultation.sealed_set({"transcript": transcript})})
-        ai = await structure_note(transcript, f"consult-{cid}")
+        ai = await structure_note(transcript, f"consult-{cid}", await doctor_specialty(owner))
         for _ in range(5):  # concorrenza ottimistica con i salvataggi del medico (campo rev)
             doc = await db.consultations.find_one({"_id": ObjectId(cid), "owner_id": owner})
             if not doc or doc.get("status") != "processing":
@@ -804,14 +879,29 @@ def spawn_consult_job(cid: str, owner: str):
     task.add_done_callback(_TASKS.discard)
 
 
-async def create_job(cid: str, owner: str, transcript: str = "", audio: bytes = b"", filename: str = "") -> None:
-    file_id = None
+async def create_job(cid: str, owner: str, transcript: str = "", audio: bytes = b"", filename: str = "", part_ids: Optional[list] = None) -> None:
+    files = list(part_ids or [])
     if audio:
-        file_id = await audio_fs.upload_from_stream(f"{cid}.bin", seal_bytes(audio), metadata={"consultation_id": cid, "owner_id": owner})
+        files.append(await audio_fs.upload_from_stream(f"{cid}.bin", seal_bytes(audio), metadata={"consultation_id": cid, "owner_id": owner, "filename": filename}))
     await db.consult_jobs.update_one({"consultation_id": cid}, {"$set": {
         "consultation_id": cid, "owner_id": owner, "created_at": now_iso(), "filename": filename or "consultazione.webm",
-        "audio_file": file_id, "transcript": seal(transcript) if transcript else None,
+        "audio_files": files, "audio_file": None, "transcript": seal(transcript) if transcript else None,
         "expires_at": datetime.now(timezone.utc) + timedelta(days=JOB_TTL_DAYS)}}, upsert=True)
+
+
+MAX_PARTS = 12  # 12 parti da ~10 minuti: visite fino a 2 ore
+
+
+@api.post("/consultations/audio-parts")
+async def upload_audio_part(audio: UploadFile = File(...), user: dict = Depends(current_user)):
+    """Una parte (≤25 MB) di una registrazione lunga, cifrata in GridFS in attesa di /consultations/start."""
+    data = await audio.read()
+    if not data:
+        raise HTTPException(400, "Parte audio vuota")
+    if len(data) > 25 * 1024 * 1024:
+        raise HTTPException(413, "Parte audio oltre 25 MB")
+    fid = await audio_fs.upload_from_stream("part.bin", seal_bytes(data), metadata={"owner_id": user["id"], "kind": "part", "filename": audio.filename or "parte.webm"})
+    return {"part_id": str(fid), "size": len(data)}
 
 
 @api.post("/consultations/start")
@@ -819,8 +909,10 @@ async def start_consultation(
     user: dict = Depends(current_user),
     patient_name: str = Form(...), patient_id: Optional[str] = Form(None), clinic: str = Form(""), waiting_id: Optional[str] = Form(None),
     duration_sec: int = Form(0), paper_consent: bool = Form(False), transcript: str = Form(""), audio: Optional[UploadFile] = File(None),
+    part_ids: str = Form(""),
 ):
-    """Crea subito la visita 'in elaborazione' e avvia Whisper + IA in background."""
+    """Crea subito la visita 'in elaborazione' e avvia Whisper + IA in background.
+    Visite lunghe: l'audio arriva prima in parti (POST /consultations/audio-parts) e qui si passano i loro id in ordine."""
     patient_id = patient_id or None
     waiting_id = waiting_id or None
     if not patient_name.strip():
@@ -831,23 +923,31 @@ async def start_consultation(
     if not patient and not paper_consent:
         raise HTTPException(412, "Conferma l'acquisizione del consenso privacy per la visita libera")
     data = await audio.read() if audio else b""
-    if not data and len(transcript.strip()) < 20:
+    parts = []
+    for pid_ in [p for p in part_ids.split(",") if p.strip()][:MAX_PARTS]:
+        f_ = await db["consult_audio.files"].find_one({"_id": ObjectId(pid_.strip()), "metadata.owner_id": user["id"], "metadata.kind": "part"}) if ObjectId.is_valid(pid_.strip()) else None
+        if not f_:
+            raise HTTPException(400, "Parte audio non trovata: ripeta l'invio")
+        parts.append(f_["_id"])
+    if parts:
+        data = b""
+    if not data and not parts and len(transcript.strip()) < 20:
         raise HTTPException(400, "Registrazione vuota o trascrizione troppo breve")
     if len(data) > 25 * 1024 * 1024:
         raise HTTPException(413, "Audio oltre 25 MB: per visite molto lunghe divida la registrazione")
-    note = ClinicalNote()
+    note = ClinicalNote(specialita=await doctor_specialty(user["id"]))
     enrich_growth(note, patient, date.today())
     oid_new = ObjectId()
     cid = str(oid_new)
     try:  # prima il job (audio cifrato in GridFS), poi la visita: niente visite orfane
-        await create_job(cid, user["id"], transcript=transcript.strip() if not data else "", audio=data,
-                         filename=(audio.filename if audio else "") or "consultazione.webm")
+        await create_job(cid, user["id"], transcript=transcript.strip() if not (data or parts) else "", audio=data,
+                         filename=(audio.filename if audio else "") or "consultazione.webm", part_ids=parts)
     except Exception:
         logger.exception("Salvataggio audio fallito")
         await _drop_job(cid)
         raise HTTPException(500, "Impossibile salvare la registrazione: riprovi")
     c = Consultation(patient_name=patient_name.strip(), patient_id=patient_id, clinic=clinic, waiting_id=waiting_id,
-                     transcript="" if data else transcript.strip(),
+                     transcript="" if (data or parts) else transcript.strip(),
                      note=note, status="processing", duration_sec=duration_sec, paper_consent=paper_consent, doctor_id=user["id"])
     await tdb.consultations.insert_one({**c.to_mongo(), "_id": oid_new, "rev": 0})
     c.id = cid

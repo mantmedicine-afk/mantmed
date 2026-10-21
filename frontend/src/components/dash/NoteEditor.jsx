@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { Copy, Printer, Save, Check, FileDown, Loader2, PersonStanding, IdCard, Sparkles, AlertTriangle, RotateCcw } from "lucide-react";
+import { Copy, Printer, Save, Check, FileDown, Loader2, PersonStanding, IdCard, Sparkles, AlertTriangle, RotateCcw, Plus, X } from "lucide-react";
 import { useProcessing } from "@/lib/processing";
+import { SignatureHint } from "@/components/signature/SignatureReminder";
 import { api, errMsg } from "@/lib/api";
-import { TABS, tabDone, noteToText } from "@/lib/pediatric";
+import { tabsFor, tabDone, noteToText, isPediatric } from "@/lib/pediatric";
 import { GrowthPanel } from "./GrowthPanel";
 import { DoseCalculator } from "./DoseCalculator";
 import { SendToParents } from "./SendToParents";
@@ -12,9 +13,10 @@ import { CashPanel } from "./CashPanel";
 import { BodychartEditor } from "@/components/bodychart/BodychartEditor";
 
 const BR = { position: "bottom-right" };
+const SignatureSlot = ({ onLeave }) => <div className="-mt-1 xl:col-start-1 xl:row-start-2"><SignatureHint onNavigate={onLeave} /></div>;
 const GROWTH_KEYS = ["peso_kg", "altezza_cm", "circonferenza_cranica_cm", "eta_mesi"];
 
-export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient }) => {
+export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onLeave }) => {
   const [consultation, setC] = useState(initialC);
   const [note, setNote] = useState(initialC.note ?? {});
   const [flash, setFlash] = useState(0);
@@ -24,7 +26,7 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient }) =
   const processing = consultation.status === "processing";
   const failed = consultation.status === "failed";
   const ready = !processing && !failed;
-  const [tab, setTab] = useState(TABS[0].id);
+  const [tab, setTab] = useState("anamnesi");
   const [saving, setSaving] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [chart, setChart] = useState(false);
@@ -76,7 +78,12 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient }) =
   const [paste, setPaste] = useState(null);
 
   const g = note.crescita ?? {};
-  const current = TABS.find((t) => t.id === tab);
+  const tabs = tabsFor(note);
+  const current = tabs.find((t) => t.id === tab) ?? tabs[0];
+  const sections = (note.sezioni ?? []).map((x, i) => ({ ...x, i })).filter((x) => x.gruppo === current.group || (current.id === "esame" && x.gruppo === "esame_obiettivo"));
+  const setSection = (i, patch) => setNote((n) => ({ ...n, sezioni: (n.sezioni ?? []).map((x, j) => (j === i ? { ...x, ...patch } : x)) }));
+  const addSection = () => setNote((n) => ({ ...n, sezioni: [...(n.sezioni ?? []), { gruppo: current.group || "esame_obiettivo", titolo: "Nuova voce", testo: "" }] }));
+  const delSection = (i) => setNote((n) => ({ ...n, sezioni: (n.sezioni ?? []).filter((_, j) => j !== i) }));
 
   const save = async () => {
     setSaving(true);
@@ -121,7 +128,7 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient }) =
       <div className="min-w-0 rounded-3xl bg-white p-5 text-night lg:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Cartella pediatrica · visita specialistica</div>
+            <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500" data-testid="note-specialty">{isPediatric(note) ? "Cartella pediatrica · visita specialistica" : `Cartella clinica · ${note.specialita}`}</div>
             <div className="font-display text-3xl">{consultation.patient_name}</div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -168,12 +175,13 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient }) =
           </span>
           <span className="text-[11px] uppercase tracking-[0.2em] text-[#A9C2FF] transition-transform group-hover:translate-x-1">A4 · PDF</span>
         </button>
+        <SignatureSlot onLeave={onLeave} />
         <SendToParents consultation={consultation} disabled={!ready} beforeSend={() => api.updateConsultation(consultation.id, note)} />
         </div>
         <CashPanel consultation={consultation} service={note.motivo_visita && note.motivo_visita !== "Non riportato" ? `Visita pediatrica · ${note.motivo_visita}` : ""} onChange={onSaved} />
 
-        <div className="-mx-1 mt-5 flex gap-1 overflow-x-auto px-1 pb-1 md:mx-0 md:grid md:grid-cols-5 md:overflow-visible md:rounded-2xl md:bg-slate-100 md:p-1" role="tablist" data-testid="note-tabs">
-          {TABS.map((t) => {
+        <div className="-mx-1 mt-5 flex gap-1 overflow-x-auto px-1 pb-1 md:mx-0 md:grid md:auto-cols-fr md:grid-flow-col md:overflow-visible md:rounded-2xl md:bg-slate-100 md:p-1" role="tablist" data-testid="note-tabs">
+          {tabs.map((t) => {
             const active = t.id === tab;
             const done = ready && tabDone(t, note);
             return (
@@ -207,6 +215,22 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient }) =
                   )}
                 </label>
               ))}
+              {sections.map((x) => (
+                <div key={x.i} className="block" data-testid={`note-sezione-${x.i}`}>
+                  <div className="flex items-center gap-2">
+                    <input value={x.titolo} onChange={(e) => setSection(x.i, { titolo: e.target.value })} disabled={processing} className="min-w-0 flex-1 bg-transparent text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 outline-none focus:text-night" aria-label="Titolo della voce" data-testid={`note-sezione-title-${x.i}`} />
+                    {!processing && <button onClick={() => delSection(x.i)} className="grid h-7 w-7 place-items-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-rose-700" aria-label="Rimuovi voce" data-testid={`note-sezione-del-${x.i}`}><X size={14} /></button>}
+                  </div>
+                  <motion.textarea key={`s${x.i}-${flash}`} initial={glow ? { opacity: 0, y: 6 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} value={x.testo} onChange={(e) => setSection(x.i, { testo: e.target.value })} rows={2}
+                    className={`mt-1.5 w-full resize-y rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[15px] leading-relaxed outline-none transition-colors focus:border-night focus:bg-white ${glow ? "ai-filled" : ""}`} data-testid={`note-sezione-text-${x.i}`} />
+                </div>
+              ))}
+              {!isPediatric(note) && current.id === "esame" && processing && !sections.length && [1, 2, 3].map((k) => (
+                <div key={k} className="space-y-2"><div className="ai-shimmer h-3 w-40 rounded-full" /><div className="ai-shimmer h-14 w-full rounded-2xl" /></div>
+              ))}
+              {!processing && current.group && (
+                <button onClick={addSection} className="flex items-center gap-1.5 rounded-full border border-dashed border-slate-300 px-4 py-2 text-sm text-slate-600 hover:border-night hover:text-night" data-testid="note-sezione-add"><Plus size={14} /> Aggiungi voce</button>
+              )}
               {tab === "terapia" && <DoseCalculator drugs={note.farmaci ?? []} peso={g.peso_kg} set={setDrugs} />}
             </div>
           )}

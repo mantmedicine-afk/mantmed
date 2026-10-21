@@ -60,6 +60,12 @@ export const api = {
     }
     return http.post("/consultations/start", fd).then((r) => r.data);
   },
+  uploadAudioPart: (blob, i) => {
+    const fd = new FormData();
+    const ext = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "webm";
+    fd.append("audio", blob, `parte-${i + 1}.${ext}`);
+    return http.post("/consultations/audio-parts", fd).then((r) => r.data.part_id);
+  },
   getConsultation: (id) => http.get(`/consultations/${id}`).then((r) => r.data),
   retryConsultation: (id, transcript = "") => http.post(`/consultations/${id}/retry`, { transcript }).then((r) => r.data),
   updateConsultation: (id, note, growthOnly = false) => http.patch(`/consultations/${id}`, { note, growth_only: growthOnly }).then((r) => r.data),

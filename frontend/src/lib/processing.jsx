@@ -47,7 +47,11 @@ export const ProcessingProvider = ({ children, onSettled, onOpen }) => {
       for (const id of ids.split(",")) {
         let c;
         try { c = await api.getConsultation(id); } catch (e) { if (e?.response?.status === 404) c = { id, status: "gone" }; else continue; }
-        if (!alive || c.status === "processing") continue;
+        if (!alive) continue;
+        if (c.status === "processing") {
+          setJobs((j) => (j[id] && j[id].step !== c.ai_step ? { ...j, [id]: { ...j[id], step: c.ai_step } } : j));
+          continue;
+        }
         setJobs((j) => { const n = { ...j }; delete n[id]; return n; });
         if (c.status === "gone") continue;
         const watching = (listeners.current.get(id)?.size ?? 0) > 0;
@@ -102,8 +106,8 @@ const ProcessingIndicator = ({ jobs }) => {
             </span>
             <span className="sr-only sm:not-sr-only sm:leading-tight">
               <span className="block text-sm font-semibold">Elaborazione referto in corso…</span>
-              <span className="hidden max-w-[220px] truncate text-[11px] text-slate-500 sm:block" data-testid="processing-indicator-names">
-                {list.length === 1 ? list[0].patient_name : `${list.length} referti · ${list.map((j) => j.patient_name).join(", ")}`}
+              <span className="hidden max-w-[260px] truncate text-[11px] text-slate-500 sm:block" data-testid="processing-indicator-names">
+                {list.length === 1 ? `${list[0].patient_name}${list[0].step ? ` · ${list[0].step}` : ""}` : `${list.length} referti · ${list.map((j) => j.patient_name).join(", ")}`}
               </span>
             </span>
           </div>
