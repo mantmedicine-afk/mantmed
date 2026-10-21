@@ -1,19 +1,27 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { Copy, Printer, Save, Check, FileDown, Loader2 } from "lucide-react";
+import { Copy, Printer, Save, Check, FileDown, Loader2, PersonStanding } from "lucide-react";
 import { api, errMsg } from "@/lib/api";
 import { TABS, tabDone, noteToText } from "@/lib/pediatric";
 import { GrowthPanel } from "./GrowthPanel";
 import { DoseCalculator } from "./DoseCalculator";
 import { SendToParents } from "./SendToParents";
 import { CashPanel } from "./CashPanel";
+import { BodychartEditor } from "@/components/bodychart/BodychartEditor";
 
 export const NoteEditor = ({ consultation, onSaved }) => {
   const [note, setNote] = useState(consultation.note ?? {});
   const [tab, setTab] = useState(TABS[0].id);
   const [saving, setSaving] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [chart, setChart] = useState(false);
+  const [pins, setPins] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    api.getBodychart(consultation.id).then((b) => { if (alive) setPins(b ? (b.markers ?? []).length : null); }).catch(() => {});
+    return () => { alive = false; };
+  }, [consultation.id]);
   useEffect(() => {
     setNote(consultation.note ?? {});
   }, [consultation]);
@@ -54,7 +62,10 @@ export const NoteEditor = ({ consultation, onSaved }) => {
             <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Cartella pediatrica · visita specialistica</div>
             <div className="font-display text-3xl">{consultation.patient_name}</div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setChart(true)} className="flex items-center gap-2 rounded-full border border-night bg-[#EAF0FF] px-4 py-2 text-sm font-semibold text-night transition-transform hover:-translate-y-0.5" data-testid="note-bodychart-btn">
+              <PersonStanding size={15} /> Bodychart{pins !== null && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-night px-1 text-[11px] text-white" data-testid="note-bodychart-count">{pins}</span>}
+            </button>
             <ActionBtn onClick={copy} id="note-copy-btn"><Copy size={15} /> Copia</ActionBtn>
             <ActionBtn onClick={() => printNote(consultation, note)} id="note-print-btn"><Printer size={15} /> Stampa</ActionBtn>
             <button onClick={save} disabled={saving} className="flex items-center gap-2 rounded-full bg-night px-4 py-2 text-sm font-medium text-white transition-transform hover:-translate-y-0.5 disabled:opacity-60" data-testid="note-save-btn"><Save size={15} /> {saving ? "Salvataggio…" : "Salva"}</button>
@@ -108,6 +119,7 @@ export const NoteEditor = ({ consultation, onSaved }) => {
           )}
         </div>
       </div>
+      {chart && <BodychartEditor consultation={consultation} defaultKind={(g.eta_mesi ?? 0) >= 168 ? "adult" : "child"} onClose={() => setChart(false)} onSaved={(n) => { setPins(n); setChart(false); onSaved?.(); }} />}
     </div>
   );
 };

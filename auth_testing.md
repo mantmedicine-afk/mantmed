@@ -5,3 +5,7 @@
 3. Wrong password → 401 with remaining attempts; 5th → 429 lock 15 min (clear db.login_attempts after tests)
 4. Idle: set db.sessions.last_seen older than SESSION_IDLE_MINUTES → /me returns 401 "Sessione chiusa per inattività"
 5. 2FA: /2fa/setup → secret; pyotp.TOTP(secret).now() → /2fa/enable; login returns mfa_token → /2fa/verify; disable with password+code afterwards
+6. Forgot password: POST /api/auth/password/forgot {identifier} (email, or child's fiscal code for parents) → always generic 200; 10/hour/IP (429); max 3 links per account per 30 min
+7. Reset info: GET /api/auth/password/reset/{token} → {email masked, role} or 410. Reset: POST /api/auth/password/reset {token,password} → ≥10 chars, letter, digit, special (422 otherwise); single use (410 after); 30 min expiry; all user sessions deleted; 2FA unchanged
+8. Valid link helper: `cd /app/backend && python tests/reset_token.py <email> [minutes]` → /reimposta-password?token=... (emails to @example.com are blocked by provider, expected)
+

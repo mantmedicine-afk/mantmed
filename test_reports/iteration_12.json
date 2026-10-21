@@ -1,0 +1,41 @@
+{
+  "summary": "End-to-end validation of the parent<->doctor messaging feature (Comunicazioni e Notifiche con lo Studio). 6/6 pytest cases pass: full thread flow (Inviato/Letto/Risposto + encrypted bodies/fields), RBAC isolation parent<->doctor, mark-all-notifications-read, report-publish notification, checkpoint notification, appointment reminder for today's slot. Frontend validated on desktop (1440) and mobile (390) for parent portal and doctor dashboard: all required data-testids present, status chips update, bell badge/dropdown works, 4 quick-request cards open NewThreadDialog with correct template fields (sport-praticato, farmaco), responsive back button hides/shows thread list correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/patients/{pid}/checkpoints", "issue": "CheckpointDoc stores patient_id but NOT owner_id. child_view in registration.py filters db.checkpoints with {patient_id, owner_id}, so a freshly-inserted checkpoint relies on the startup backfill (`update_many owner_id $exists false -> foti`) which only runs at process start. For a non-Foti owner or across restarts the filter would miss newly created checkpoints. Add owner_id=doc['owner_id'] in CheckpointDoc at creation."},
+      {"endpoint": "POST /api/consultations/{cid}/portal", "issue": "notify_parents uses key `rep:{cid}` which prevents a second notification on re-publish; however the UI still works because the first notification remains. Not a bug per se, worth documenting."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "NewThreadDialog <select> options", "issues": ["Dev-mode Emergent IDE overlay injects <span style=display:contents> inside <option> producing a React hydration warning ('In HTML, <span> cannot be a child of <option>'). Also noted in iteration_11. Not an app-code issue."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_messaging.py",
+    "/app/test_reports/pytest/messaging.xml"
+  ],
+  "action_items": [
+    "Persist owner_id on CheckpointDoc so child_view filter works for every owner and after restart (currently relies on startup backfill)."
+  ],
+  "critical_code_review_comments": [
+    "messaging.py notify_parents iterates db.users.find and inserts notifications; uses update_one upsert when a dedupe key is provided (good for report dedup). The 'only' parameter correctly scopes reply/reminder notifications to the single parent.",
+    "ensure_reminders uses Europe/Rome today for date comparison, correctly matching appointment.date strings. Reminder notifications are deduped via key `rem:{aid}:{date}:{time}` so polling every 20s does not create duplicates.",
+    "messages_out walks messages in reverse to decide 'risposto' vs 'letto' per parent message - correct and simple. Encryption confirmed: db.messages[*].body and .fields both start with 'enc:v1:' at rest.",
+    "parent create thread uses MAX_THREADS_PER_DAY=15 limit with 429 (good rate limit).",
+    "RBAC verified end-to-end: parent GET /api/messages/threads -> 403, doctor GET /api/portal/threads -> 403, parent create thread for unlinked owner_id -> 404."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_messaging.py"
+  ],
+  "success_rate": {"backend": "100% (6/6)", "frontend": "100% (all required data-testids verified on desktop + mobile)"},
+  "test_credentials": "Doctor medico@mantmed.it / Auscula-Studio-2026 (2FA ON — python /app/backend/tests/totp_code.py). Parent genitore.demo@example.com / Portale-Demo-2026.",
+  "seed_data_creation": "No persistent seed added. All TEST threads/messages/notifications/checkpoints/appointments created during tests are cleaned up in-fixture or in-test (ids captured and deleted via pymongo). The one pre-existing thread 'Richiesta ricetta ripetibile' (Bentelan 1 mg) from the previous smoke test is preserved as requested. The parent-side 'test reply' message from test_full_thread_flow is cleaned via the module fixture teardown.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Portal messaging + notifications feature is production ready. Backend test file: /app/backend/tests/test_messaging.py (6 tests, serial via -n 0). Data-testids verified: portal-messages, quick-request-{certificato_sportivo,ricetta,info,clinico}, new-thread-{dialog,recipient,subject,body,submit,urgent-note}, new-thread-field-{sport-praticato,farmaco,...}, thread-row-<id>, thread-unread-<id>, thread-status-<id>, conversation-{subject,status,input,send-btn,back-btn}, msg-status-<id>, portal-bell-btn, portal-bell-badge, portal-notifications, notification-<id>, portal-notifications-read-all, portal-reminders, portal-reminder-<id>, portal-checkpoint-<id>, doctor-messages, doc-thread-row-<id>, doc-messages-filter-{all,todo,done}, topbar-messages-btn, topbar-messages-badge. Only latent issue is checkpoint owner_id persistence (see action_items).",
+  "rca of the issue": "N/A - no blocking issues. Minor latent bug: CheckpointDoc model (server.py:330) does not include owner_id; child_view filter in registration.py:266 requires owner_id. Current demo data works because of startup backfill (server.py:484). Fix: add `owner_id: str` to CheckpointDoc and pass it in server.py:981 when instantiating."
+}

@@ -18,7 +18,7 @@ from tenancy import cf_hash
 
 
 def in_network(u: dict) -> bool:
-    return u.get("in_network", not u.get("profile"))
+    return u.get("in_network", bool(u.get("founder")) or not u.get("profile"))
 
 logger = logging.getLogger(__name__)
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -216,7 +216,7 @@ def build_registration(db, current_user, start_session, models, pdf_for):
             p = u.get("profile") or {}
             out.append({"id": str(u["_id"]), "name": u.get("name", ""), "email": u["email"], "status": u.get("status", "active"), "in_network": in_network(u),
                         "clinics": u.get("clinics") or [],
-                        "founder": not u.get("profile"), "specialty": p.get("specialty", ""), "order_number": p.get("order_number", ""),
+                        "founder": bool(u.get("founder")) or not u.get("profile"), "specialty": p.get("specialty", ""), "order_number": p.get("order_number", ""),
                         "phone": p.get("phone", ""), "studio_address": p.get("studio_address", ""), "created_at": u.get("created_at"),
                         "approved_at": u.get("approved_at"), "patients": await db.patients.count_documents({"owner_id": str(u["_id"])})})
         return out
@@ -226,7 +226,7 @@ def build_registration(db, current_user, start_session, models, pdf_for):
         u = await db.users.find_one({"_id": ObjectId(uid)}) if ObjectId.is_valid(uid) else None
         if not u or u.get("role") != "doctor":
             raise HTTPException(404, "Medico non trovato")
-        if not u.get("profile"):
+        if u.get("founder") or not u.get("profile"):
             raise HTTPException(400, "Lo studio fondatore non può essere modificato da qui")
         upd = {"status": body.status}
         first = body.status == "active" and not u.get("approved_at")
@@ -262,7 +262,14 @@ def build_registration(db, current_user, start_session, models, pdf_for):
         consents = [Consent.from_mongo(c).out() async for c in db.consents.find({"patient_id": pid, "owner_id": owner}).sort("signed_at", -1)]
         reports = [Consultation.from_mongo(c).out() async for c in db.consultations.find(
             {"patient_id": pid, "owner_id": owner, "$or": [{"report_sent_at": {"$ne": None}}, {"portal_published": True}]}).sort("created_at", -1)]
+        charts = {d["consultation_id"] async for d in db.bodycharts.find({"consultation_id": {"$in": [r["id"] for r in reports]}, "owner_id": owner}, {"consultation_id": 1})}
+        checkpoints = []
+        async for k in db.checkpoints.find({"patient_id": pid, "owner_id": owner}).sort("created_at", -1).limit(20):
+            res = unseal_fields(k, ("result",)).get("result") or {}
+            checkpoints.append({"id": str(k["_id"]), "band_label": k["band_label"], "created_at": k["created_at"], "clinic": k.get("clinic", ""),
+                                "status": res.get("status", ""), "next": res.get("next") or ""})
         return {"patient": {"id": pid, "name": pt["name"], "birth_date": pt["birth_date"], "sex": pt["sex"]},
+                "checkpoints": checkpoints,
                 "doctor": {"id": owner, "name": (doc or {}).get("name", ""), "clinics": (doc or {}).get("clinics", []),
                            "specialty": ((doc or {}).get("profile") or {}).get("specialty") or "Pediatria"},
                 "group": p.get("cf_hash") or pid,
@@ -273,7 +280,7 @@ def build_registration(db, current_user, start_session, models, pdf_for):
                 "consents": [{"id": c["id"], "version": c["version"], "signer_name": c["signer_name"], "signer_relation": c["signer_relation"],
                               "method": c["method"], "email_reports": c["email_reports"], "signed_at": c["signed_at"], "revoked_at": c["revoked_at"]} for c in consents],
                 "reports": [{"id": r["id"], "created_at": r["created_at"], "clinic": r["clinic"], "motivo": (r["note"] or {}).get("motivo_visita", ""),
-                             "diagnosi": (r["note"] or {}).get("diagnosi", "")} for r in reports]}
+                             "diagnosi": (r["note"] or {}).get("diagnosi", ""), "bodychart": r["id"] in charts} for r in reports]}
 
     @portal.get("/me")
     async def portal_me(user: dict = Depends(parent_user)):

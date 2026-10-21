@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, field_validator
 from auth import require_role
 from crypto import unseal_fields
 from mailer import send_email
+from account import parent_wants, is_absent
 from registration import mail_shell, in_network
 
 logger = logging.getLogger(__name__)
@@ -142,7 +143,7 @@ async def free_slots(db, owner: dict, clinic: str, service: str, day: str) -> li
         raise HTTPException(400, "Studio non valido")
     d = Date.fromisoformat(day)
     now = datetime.now(ROME)
-    if d < now.date() or d.isoweekday() not in h["days"]:
+    if d < now.date() or d.isoweekday() not in h["days"] or is_absent(owner, day):
         return []
     dur = sch["durations"].get(service)
     if not dur:
@@ -224,6 +225,8 @@ def build_scheduling(db, tdb, current_user):
             email = (unseal_fields(p, ("guardian_email",)).get("guardian_email") or "").strip() if p else ""
             claim = await db.appointments.update_one({"_id": a["_id"], "reminder_sent_at": None}, {"$set": {"reminder_sent_at": datetime.now(timezone.utc).isoformat()}})
             if not email or not claim.modified_count:
+                continue
+            if not await parent_wants(db, "appointments", "email", email=email):
                 continue
             owner = await db.users.find_one({"_id": ObjectId(a["owner_id"])}) or {}
             addr = next((c.get("address", "") for c in owner.get("clinics", []) if c["name"] == a["clinic"]), "")

@@ -9,6 +9,7 @@ import Landing from "@/pages/Landing";
 import Admin from "@/pages/Admin";
 import Register from "@/pages/Register";
 import Activate from "@/pages/Activate";
+import ResetPassword from "@/pages/ResetPassword";
 import Portal from "@/pages/Portal";
 import { setClinics } from "@/lib/api";
 import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
@@ -46,7 +47,7 @@ const Gate = () => {
 const PortalGate = () => {
   const { user } = useAuth();
   if (user === null) return <Loading />;
-  if (!user) return <Login subtitle="Portale Paziente · genitori e tutori" note="Referti, consensi e appuntamenti di suo figlio" />;
+  if (!user) return <Login parent subtitle="Portale Paziente · genitori e tutori" note="Referti, consensi e appuntamenti di suo figlio" />;
   return user.role === "parent" ? <><Portal /><IdleWarning /></> : <WrongArea to={user.role === "admin" ? "/admin" : "/app"} label="Vai alla sua area" />;
 };
 
@@ -55,6 +56,15 @@ const AdminGate = () => {
   if (user === null) return <Loading />;
   if (!user) return <Login subtitle="Pannello Founder · accesso amministratore" note="Accesso riservato all'amministratore MantMed" signup={false} />;
   return user.role === "admin" ? <><Admin /><IdleWarning /></> : <WrongArea to="/app" label="Vai alla dashboard" />;
+};
+
+const AccountGate = () => {
+  const { user } = useAuth();
+  if (user === null) return <Loading />;
+  if (!user) return <Login subtitle="Area riservata · gestione account" note="Acceda per gestire profilo, sicurezza e notifiche" />;
+  if (user.role === "admin") return <WrongArea to="/admin" label="Vai al Pannello Founder" />;
+  if (user.role === "doctor") return <Navigate to={`/app/impostazioni${window.location.search}`} replace />;
+  return <Navigate to={`/portale/impostazioni${window.location.search}`} replace />;
 };
 
 function App() {
@@ -70,12 +80,14 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Landing />} />
-        <Route path="/app" element={<AuthProvider><Gate /></AuthProvider>} />
+        <Route path="/app/:sezione?" element={<AuthProvider><Gate /></AuthProvider>} />
         <Route path="/admin" element={<AuthProvider><AdminGate /></AuthProvider>} />
-        <Route path="/portale" element={<AuthProvider><PortalGate /></AuthProvider>} />
+        <Route path="/portale/:sezione?" element={<AuthProvider><PortalGate /></AuthProvider>} />
         <Route path="/registrati/medico" element={<Register key="doctor" role="doctor" />} />
         <Route path="/registrati/paziente" element={<Register key="parent" role="parent" />} />
         <Route path="/attiva" element={<Activate />} />
+        <Route path="/reimposta-password" element={<ResetPassword />} />
+        <Route path="/area-riservata" element={<AuthProvider><AccountGate /></AuthProvider>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Toaster position="top-center" richColors />

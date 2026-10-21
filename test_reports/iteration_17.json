@@ -1,0 +1,26 @@
+{
+  "summary": "Frontend-only regression on fixed-left sidebar navigation (doctor + parent). All doctor routes verified: /app (dashboard data-section=agenda), /app/pazienti (patients-page with 11 patient-card-*; opening a card renders patient-folder-<id> with patient-folder-passport-btn, visit-row-<id> list, bodychart-history, patient-folder-close), /app/messaggi (doctor-messages testid present), /app/visite (visits-page + visits-search; 12 visit-row-* opens ConsultationOverlay with note-bodychart-btn + note editor), /app/cassa (ts-card with ts-coming-soon then CashRegister), /app/impostazioni (Account embedded with settings-extras containing settings-compliance-btn, settings-feedback-btn, settings-tour-btn). Unknown section /app/foobar redirects to /app. Sidebar at 1440x900: data-testid=sidebar visible; sidebar-link-<id> for agenda/pazienti/messaggi/visite/cassa/impostazioni all present; active link has bg-white and inner element has aria-current=page; sidebar-user-name='Dott.ssa Tiziana Foti' and sidebar-logout-btn work. Mobile 390x844: sidebar hidden; sidebar-open-btn in header opens sidebar-drawer with sidebar-backdrop + sidebar-close-btn; tapping sidebar-link-visite inside the drawer navigates to /app/visite and the drawer translates off-screen (x<0); Escape key also closes the drawer. Tablet 768x1024: sidebar hidden, hamburger present. Parent flow at 1440: /portale shows all 6 sidebar links (panoramica/appuntamenti/referti/messaggi/ricevute/impostazioni); each navigates and portal-page data-section updates accordingly. /portale panoramica shows 4 portal-tab-* child tabs, portal-add-child-form, and ReminderBanner; /portale/appuntamenti has NO portal-tab-* (per spec); /portale/impostazioni shows embedded Account with portal-feedback-btn which opens a role=dialog. Stripe return /portale?pagamento=success renders portal-pay-banner-*; /portale?visita=xxx loads portal-page without errors. TopBar: topbar-messages-btn navigates to /app/messaggi; doctor-chip opens profile-menu containing profile-account that navigates to /app/impostazioni; parent portal-profile-btn -> profile-account -> /portale/impostazioni. /area-riservata redirects to /app/impostazioni for doctor and /portale/impostazioni for parent. Parent NotificationBell exposes portal-bell-btn with onPick wired to nav() per Portal.jsx (reply->/portale/messaggi with thread, report->/portale/referti, reminder->/portale/appuntamenti). Only console errors seen were pre-login 401s on authenticated API probes (expected before auth cookie set); no runtime errors post-login. Credentials worked WITHOUT 2FA on medico@mantmed.it as previously noted.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AppShell.jsx: NavLink uses `aria-current=page` only on inner span (via render-prop isActive); technically the <a> itself does not carry aria-current. Still passes WCAG via the inner span, and screen readers announce 'current page' correctly, but putting aria-current on the <a> would be more idiomatic.",
+    "AppShell.jsx: Mobile drawer DOM is always mounted (just translated off-screen with -translate-x-full and pointer-events-none on parent). This is fine for a11y, but means the desktop/mobile sidebar-link-<id> selectors each match twice at lg<1024; tests must scope to [data-testid=sidebar-drawer] or [data-testid=sidebar]. Consider documenting or using unique inner ids.",
+    "sections.jsx VisitsList: patient_name.toLowerCase() will crash if any note has null patient_name. Add optional chaining defensive guard: (c.patient_name||'').toLowerCase().",
+    "sections.jsx PatientFolder: BodychartHistory renders even when the patient has no visits; good UX but confirm empty state exists inside BodychartHistory to avoid blank card.",
+    "Portal.jsx line 233: `if (!(sezione in SECTIONS)) return <Navigate to='/portale' replace />;` is correct; mirror behavior exists in Dashboard.jsx (SECTIONS array). Both consistent."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100%"},
+  "test_credentials": "Doctor medico@mantmed.it / Auscula-Studio-2026 (2FA OFF - direct login). Parent genitore.demo@example.com / Portale-Demo-2026.",
+  "seed_data_creation": "None. No feedback submitted (dialog opened then Escape-closed). No TEST_ data created.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Sidebar/role-based navigation feature end-to-end OK. Key gotcha for Playwright: at mobile widths, both the desktop <aside data-testid=sidebar> and <div data-testid=sidebar-drawer> stay in DOM. ALWAYS scope sidebar-link-<id> selectors to one of them, otherwise click targets the first (hidden desktop) element and times out. Login page is embedded—navigate to /app or /portale (unauthenticated) to see the <Login> form with login-email-input/login-password-input/login-submit-button testids; there is no /login route.",
+  "rca of the issue": "No issues found."
+}

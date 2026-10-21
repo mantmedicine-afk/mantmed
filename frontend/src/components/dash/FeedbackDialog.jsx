@@ -39,7 +39,7 @@ const ThankYou = ({ onClose }) => (
   </motion.div>
 );
 
-export const FeedbackDialog = ({ open, onClose, onSent }) => {
+export const FeedbackDialog = ({ open, onClose, onSent, parent = false }) => {
   const [rating, setRating] = useState(0);
   const [area, setArea] = useState("");
   const [text, setText] = useState("");
@@ -51,7 +51,7 @@ export const FeedbackDialog = ({ open, onClose, onSent }) => {
     if (!rating) return toast.error("Assegni un punteggio di usabilità");
     if (!area) return toast.error("Selezioni l'area del commento");
     setBusy(true);
-    try { await api.sendFeedback({ rating, area, text }); setDone(true); onSent?.(); }
+    try { await (parent ? api.sendPortalFeedback : api.sendFeedback)({ rating, area, text }); setDone(true); onSent?.(); }
     catch (e) { toast.error(errMsg(e)); }
     setBusy(false);
   };

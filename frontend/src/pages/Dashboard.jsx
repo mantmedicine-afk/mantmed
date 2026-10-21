@@ -19,6 +19,16 @@ import { CompliancePanel } from "@/components/dash/CompliancePanel";
 import { FeedbackDialog } from "@/components/dash/FeedbackDialog";
 import { BetaMetrics } from "@/components/dash/BetaMetrics";
 import { OnboardingTour } from "@/components/dash/OnboardingTour";
+import { DoctorMessages } from "@/components/dash/DoctorMessages";
+import { AbsenceBanner } from "@/components/dash/AbsenceBanner";
+import { usePoll } from "@/hooks/usePoll";
+import { useParams, Navigate } from "react-router-dom";
+import { LayoutDashboard, Users, MessagesSquare, PersonStanding, ReceiptText, Settings } from "lucide-react";
+import { AppShell } from "@/components/nav/AppShell";
+import { PageTitle, VisitsList, PatientFolder, TsCard, SettingsExtras } from "@/components/nav/sections";
+import Account from "@/pages/Account";
+
+const SECTIONS = ["agenda", "pazienti", "messaggi", "visite", "cassa", "impostazioni"];
 
 const isToday = (iso) => new Date(iso).toDateString() === new Date().toDateString();
 
@@ -40,6 +50,9 @@ export default function Dashboard() {
   const [compliance, setCompliance] = useState(false);
   const [feedback, setFeedback] = useState(false);
   const [tour, setTour] = useState(false);
+  const [unread, setUnread] = useState(0);
+  const loadUnread = useCallback(() => api.msgSummary().then(setUnread).catch(() => {}), []);
+  usePoll(loadUnread, []);
   useEffect(() => {
     if (user && user.tour_done === false) { const t = setTimeout(() => setTour(true), 900); return () => clearTimeout(t); }
     return undefined;
@@ -73,22 +86,47 @@ export default function Dashboard() {
   ];
 
   const start = (patient) => setOverlay({ open: true, patient: patient ?? null, initial: null });
+  const { sezione = "agenda" } = useParams();
+  const [folder, setFolder] = useState(null);
+  const openVisit = (c) => setOverlay({ open: true, patient: null, initial: c });
+  const items = [
+    { id: "agenda", to: "/app", end: true, label: "Dashboard / Agenda", icon: LayoutDashboard },
+    { id: "pazienti", to: "/app/pazienti", label: "Pazienti & Cartelle", icon: Users },
+    { id: "messaggi", to: "/app/messaggi", label: "Messaggi / Chat", icon: MessagesSquare, badge: unread },
+    { id: "visite", to: "/app/visite", label: "Bodychart / Visite", icon: PersonStanding },
+    { id: "cassa", to: "/app/cassa", label: "Fatturazione & Tessera Sanitaria", icon: ReceiptText },
+    { id: "impostazioni", to: "/app/impostazioni", label: "Impostazioni Account", icon: Settings },
+  ];
+  if (!SECTIONS.includes(sezione)) return <Navigate to="/app" replace />;
 
   return (
-    <div className="min-h-screen overflow-x-clip bg-paper" data-testid="dashboard">
-      <TopBar onCompliance={() => setCompliance(true)} onFeedback={() => setFeedback(true)} onTour={() => setTour(true)} />
+    <AppShell items={items} area="Studio medico">
+    <div className="min-h-screen overflow-x-clip bg-paper" data-testid="dashboard" data-section={sezione}>
+      <TopBar onCompliance={() => setCompliance(true)} onFeedback={() => setFeedback(true)} onTour={() => setTour(true)} unread={unread} />
+      {sezione === "agenda" && <>
       <Marquee items={ticker} />
       <Hero total={appointments.length} waiting={waiting.length} name={shortName} income={income} />
+      <AbsenceBanner />
       <main className="mx-auto grid max-w-[1440px] grid-cols-1 gap-5 px-5 pb-10 lg:grid-cols-12 lg:px-8">
         <motion.div {...col(0.35)} className="order-2 min-w-0 lg:order-1 lg:col-span-4"><Agenda appointments={appointments} onChange={load} patients={patients} onPassport={setPassportId} /></motion.div>
         <motion.div {...col(0.45)} className="order-1 min-w-0 lg:order-2 lg:col-span-4"><ConsultHub next={next} onStart={start} /></motion.div>
         <motion.div {...col(0.55)} className="order-3 min-w-0 lg:col-span-4"><WaitingList waiting={waiting} onChange={load} onStart={start} patients={patients} onPassport={setPassportId} /></motion.div>
       </main>
-      <RecentNotes items={notes.filter((c) => isToday(c.created_at))} onOpen={(c) => setOverlay({ open: true, patient: null, initial: c })} />
+      <RecentNotes items={notes.filter((c) => isToday(c.created_at))} onOpen={openVisit} />
       <PortalRequests onChange={load} />
-      <CashRegister refreshKey={cashKey} />
       <BetaMetrics refreshKey={cashKey} onFeedback={() => setFeedback(true)} />
-      <PassportSection patients={patients} onOpen={setPassportId} onAdd={() => setEditPatient({})} />
+      </>}
+      {sezione === "pazienti" && <>
+        <PageTitle kicker="Archivio clinico" title="Pazienti" it="& cartelle cliniche" />
+        <div className="mx-auto max-w-[1440px] space-y-5 pb-12" data-testid="patients-page">
+          {folder && <div className="px-5 lg:px-8" id="patient-folder"><PatientFolder patient={patients.find((p) => p.id === folder)} notes={notes} onOpenVisit={openVisit} onPassport={setPassportId} onClose={() => setFolder(null)} /></div>}
+          <PassportSection patients={patients} onOpen={(id) => { setFolder(id); window.scrollTo({ top: 0, behavior: "smooth" }); }} onAdd={() => setEditPatient({})} />
+        </div>
+      </>}
+      {sezione === "messaggi" && <div className="pt-4"><DoctorMessages onRead={loadUnread} /></div>}
+      {sezione === "visite" && <><PageTitle kicker="Diario clinico" title="Visite" it="e Bodychart" /><VisitsList notes={notes} onOpen={openVisit} /></>}
+      {sezione === "cassa" && <><PageTitle kicker="Amministrazione" title="Fatturazione" it="& Tessera Sanitaria" /><TsCard /><CashRegister refreshKey={cashKey} /></>}
+      {sezione === "impostazioni" && <Account role="doctor" embedded extras={<SettingsExtras onCompliance={() => setCompliance(true)} onFeedback={() => setFeedback(true)} onTour={() => setTour(true)} />} />}
       {passportId && <Passport key={`${passportId}-${passportKey}`} patientId={passportId} onClose={() => { setPassportId(null); load(); }} onEdit={setEditPatient} />}
       <PatientDialog value={editPatient} onClose={() => setEditPatient(null)} onSaved={() => { load(); setPassportKey((k) => k + 1); }} />
       {compliance && <CompliancePanel onClose={() => setCompliance(false)} />}
@@ -105,5 +143,6 @@ export default function Dashboard() {
         onDone={load}
       />
     </div>
+    </AppShell>
   );
 }

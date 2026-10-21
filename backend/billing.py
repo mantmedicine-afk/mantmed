@@ -14,6 +14,7 @@ from pymongo import ReturnDocument
 from auth import require_role
 from crypto import unseal_fields
 from mailer import send_email
+from account import notify_doctor
 from registration import mail_shell
 from scheduling import online_quote, schedule_of
 from portal_flow import RequestIn, check_request, request_doc, _fmt_day
@@ -125,6 +126,8 @@ def build_billing(db, current_user, Appointment, Payment, today_rome):
                 "<p style=\"color:#5B6478;font-size:13px\">Può annullare dal portale fino a 12 ore prima con rimborso completo.</p>"))
         except Exception:
             logger.exception("Email di conferma pagamento non inviata")
+        await notify_doctor(db, r["owner_id"], "bookings", f"MantMed · nuova visita prenotata e pagata online ({_fmt_day(r['date'])} {r['time']})",
+                            f"<p>Una famiglia ha prenotato e pagato online: {hesc(r['service'])} del {_fmt_day(r['date'])} alle {r['time']} ({hesc(r['clinic'])}). La visita è già in agenda.</p>")
 
     async def expire(r: dict):
         await db.appt_requests.update_one({"_id": r["_id"], "status": "awaiting_payment"}, {"$set": {"status": "expired"}})

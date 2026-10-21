@@ -11,7 +11,8 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (BaseDocTemplate, Frame, PageTemplate, Paragraph, Spacer, Table, TableStyle,
-                                KeepTogether, Flowable)
+                                KeepTogether, Flowable, PageBreak, Image as RLImage)
+from reportlab.lib.utils import ImageReader
 
 FONTS = Path(__file__).parent / "fonts"
 pdfmetrics.registerFont(TTFont("Serif", str(FONTS / "InstrumentSerif-Regular.ttf")))
@@ -131,7 +132,7 @@ def grid(header, rows, widths, right=()):
     return t
 
 
-def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dict | None = None) -> bytes:
+def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dict | None = None, bodychart: dict | None = None) -> bytes:
     note = c.get("note") or {}
     g = note.get("crescita") or {}
     created = datetime.fromisoformat(c["created_at"])
@@ -261,5 +262,25 @@ def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dic
                               ("BOTTOMPADDING", (0, 0), (-1, -1), 8)]))
     story.append(KeepTogether([Spacer(1, 4 * mm), sign, Spacer(1, 3 * mm),
                                P("Referto generato con il supporto di trascrizione AI e verificato dal medico firmatario.", "small")]))
+    if bodychart:
+        story += bodychart_page(bodychart)
     doc.build(story)
     return buf.getvalue()
+
+
+CAT_LABEL = {"lesione": "Lesione", "trauma": "Trauma / contusione", "dolore": "Dolore", "eruzione": "Eruzione cutanea / dermatite", "nevo": "Punto di controllo / nevo"}
+VIEW_LABEL = {"front": "Frontale", "back": "Posteriore", "left": "Laterale sinistra", "right": "Laterale destra"}
+
+
+def bodychart_page(b: dict) -> list:
+    png = b["png"]
+    iw, ih = ImageReader(io.BytesIO(png)).getSize()
+    maxw, maxh = W - 2 * MX, 120 * mm
+    k = min(maxw / iw, maxh / ih)
+    out = [PageBreak(), Paragraph("Bodychart", S["title"]), Paragraph("mappa corporea della visita", S["titleIt"]), Spacer(1, 5 * mm),
+           RLImage(io.BytesIO(png), width=iw * k, height=ih * k), Spacer(1, 5 * mm)]
+    rows = [[str(i + 1), CAT_LABEL.get(m.get("cat"), m.get("cat", "")), VIEW_LABEL.get(m.get("view"), ""), m.get("note") or "—"] for i, m in enumerate(b.get("markers") or [])]
+    if rows:
+        tw = W - 2 * MX
+        out.append(grid(["N.", "Tipo", "Vista", "Nota"], rows, [tw * 0.07, tw * 0.3, tw * 0.18, tw * 0.45]))
+    return out

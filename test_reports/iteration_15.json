@@ -1,0 +1,34 @@
+{
+  "summary": "Area Riservata full regression: 8/8 backend tests PASS (3 pre-existing in test_account.py + 5 new in test_account_extra.py) covering parent profile/prefs/sessions/export, doctor profile + absences blocking /api/portal/slots, parent deactivation (login after -> 403 'Account disattivato'), email change errors (wrong-pw 400, duplicate 409, invalid 400, same-email 200 no-op), RBAC (parent cannot POST absences / PUT doctor profile; doctor cannot GET export / POST delete -> 403), notification prefs (reports.inapp OFF -> notify_parents creates NO bell notification; re-enable -> notification created), admin /api/account returns admin-role path. Frontend tested at 1440px and 390px: parent flow (login -> profile menu -> profile-account -> /area-riservata -> all 5 nav sections render: dati, famiglia, sicurezza, notifiche, privacy; account-sessions/account-export-btn/account-delete-btn visible; account-back-link returns to /portale), doctor flow (login+2FA -> doctor-chip -> profile-account -> /area-riservata -> all 4 doctor sections; absence add via absence-from/to/reason+absence-add-btn creates absence-<id> listed, delete via absence-delete-<id> works with 'Assenza rimossa' toast; in-app toggles for bookings/cancellations/messages are disabled+ON as spec; SMS 'In arrivo' chip shown; account-open-schedule visible). Responsive 390px: account-nav is horizontally scrollable (scrollWidth 815 > 390). State restored (demo parent and doctor documents snapshot/restore via fixture; absences cleaned; test_deact user removed).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_account.py",
+    "/app/backend/tests/test_account_extra.py",
+    "/app/test_reports/pytest/account_iter15.xml"
+  ],
+  "action_items": [
+    "MINOR naming discrepancy: review request specifies doctor nav testids 'account-nav-professionale' and 'account-nav-disponibilita', but actual code (Account.jsx) uses 'account-nav-profilo' and 'account-nav-orari'. If spec is canonical, rename ids (profilo->professionale, orari->disponibilita) and keep ?sezione= backward compatibility. Otherwise update the spec. Not blocking - UI works correctly."
+  ],
+  "critical_code_review_comments": [
+    "account.py: ParentProfileIn/DoctorProfileIn use Pydantic validators correctly, phone/CF regex via registration module (DRY). Sealed fields pattern applied for PII (fiscal_code/address/phone). Good.",
+    "notify_parents in messaging.py respects prefs_of(p)[cat]['inapp'] before inserting notification doc - the key suppression mechanism works end-to-end (verified).",
+    "put_email returns 400 for both wrong-password and invalid-email (same status) - this is fine from UX standpoint since the field is a password, but consider 401 for wrong password for API consistency. Non-blocking.",
+    "end_session rejects closing the current session with 400 'Per chiudere questa sessione usi Esci' - correct safety.",
+    "delete_account marks status='deactivated' and deletes all sessions; subsequent login returns 403 with 'disattivato' (verified)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_account_extra.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Parent genitore.demo@example.com / Portale-Demo-2026; Doctor medico@mantmed.it / Auscula-Studio-2026 (2FA ON, code via /app/backend/tests/totp_code.py); Admin mantmedicine@gmail.com / MM-3EjwJpn5w64aCu2ZkOLA. All demo user documents snapshotted/restored via pytest fixture.",
+  "seed_data_creation": "None persisted. Fixture replaces full parent+doctor documents; test_deact throwaway parent inserted and deleted; TEST notifications/audit cleaned.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Area Riservata backend+frontend fully working. Run `pytest tests/test_account.py tests/test_account_extra.py -v -n 0` (serial - some tests mutate email/sessions). Doctor nav IDs are 'profilo'/'orari' in code vs 'professionale'/'disponibilita' in review spec - cosmetic only. Pre-existing failures in tests/test_network.py persist (unrelated, as noted).",
+  "rca of the issue": "None - all features working as designed."
+}

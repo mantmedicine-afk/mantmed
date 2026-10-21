@@ -1,0 +1,23 @@
+{
+  "summary": "Tested 'Cambio Password Profilo' end-to-end. Backend: all 10 tests pass (4 existing password_reset + 6 new in test_password_change_extra.py) covering: 401 unauthenticated, 400 wrong current with remaining-attempts message, 429 lockout after 5 wrong attempts (15 min), 422 weak new password, 400 same-as-current, 200 success with other_sessions_closed, seed_doctor idempotency after password_changed_at (new password survives reseed, old .env password rejected), 2FA still required at login after change. Frontend: ProfileMenu renders correctly for parent (no security item) and doctor (security item present and opens Sicurezza e GDPR panel). ChangePasswordDialog live rules (change-rule-len/letter/digit/special with data-pass) update correctly, strength bar works, change-password-same warning shows when new==current, change-password-match hint shows mismatch, submit disabled until valid, wrong current shows change-password-error with remaining attempts, success shows toast 'Password aggiornata · N altre sessioni chiuse' and closes dialog, current session stays logged in (GET /api/auth/me = 200). Dialog renders correctly at both 1440px and 390px viewports. State restored (doctor + parent passwords, 2FA still ON).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_password_change_extra.py",
+    "/app/backend/tests/test_password_reset.py",
+    "/app/test_reports/pytest/password_change_extra.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "password_reset.py change(): verify_password(new, old_hash) is used to detect same-as-current only AFTER current_password was validated correctly, which is correct and avoids leaking info. OK.",
+    "ChangePasswordDialog uses a single `show` state for all three password fields: toggling reveals current/new/confirm together. Minor UX point, not a bug.",
+    "seed_doctor/seed_admin correctly preserve name update (not password) when password_changed_at is set. Good."
+  ],
+  "updated_files": ["/app/backend/tests/test_password_change_extra.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Parent: genitore.demo@example.com / Portale-Demo-2026. Doctor: medico@mantmed.it / Auscula-Studio-2026 (2FA ON, code via tests/totp_code.py). All restored.",
+  "seed_data_creation": "None persisted. All tests use fixture to restore passwords and $unset password_changed_at; login_attempts and audit entries cleaned.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Change-password feature is fully working. New regression tests at /app/backend/tests/test_password_change_extra.py (6 tests, run with -n 0 due to doctor-password mutation). Keep together with test_password_reset.py."
+}

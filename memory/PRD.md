@@ -147,9 +147,58 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Consenso di rete: il genitore sceglie gli specialisti, legge l'informativa e firma con il dito (share_consents, firma e testo cifrati, revocabile, audit); passaporto medico: tab "Specialisti Collegati" con riepilogo (ultima diagnosi, terapia, ultime misure) e referti PDF in sola lettura
 - Testato iteration_11 (15/15 backend, frontend 100%); test legacy di orari/pagamenti/annullamenti aggiornati al nuovo formato
 
+## Implemented (2026-10-20, Comunicazioni e Notifiche con lo Studio)
+- Richiesta utente: "Comunicazioni e Notifiche con lo Studio" nel portale paziente: centro messaggi (chat/ticket) con stato Inviato/Letto/Risposto, notifiche in tempo reale (campanella con badge) per nuovo referto, nuovo bilancio di salute, risposta del medico, promemoria appuntamenti imminenti; richieste rapide precompilate (certificato idoneità sportiva, ricetta ripetibile). Scelte: risposta dal medico in nuova sezione "Messaggi" della dashboard; conversazione separata per ogni coppia figlio-specialista; aggiornamento automatico ogni 20 s (polling); nessuna email, solo notifiche nel portale
+- Backend messaging.py: collezioni threads/messages/notifications (oggetto, testo, campi, titoli cifrati AES-256), API /api/portal/threads*, /api/portal/notifications(+/read), /api/messages/summary|threads*; promemoria oggi/domani generati in modo idempotente; hook notify_parents su invio referto, pubblicazione nel portale (deduplicata per referto) e nuovo bilancio di salute; limite 15 nuove conversazioni/giorno; audit
+- Portale: campanella con badge e menu notifiche (click → apre conversazione o tab del figlio), banner promemoria, sezione Messaggi e richieste con 4 richieste rapide, elenco + conversazione (responsive, tasto indietro su mobile), "Bilanci di salute" nella tab Referti
+- Dashboard medico: sezione "Messaggi dalle famiglie" (filtri Tutte/Da rispondere/Risposte) e icona messaggi con badge in TopBar
+- Testato iteration_12 (6/6 pytest test_messaging.py, frontend 1440/390 OK)
+
+## Implemented (2026-10-20, Password dimenticata)
+- Richiesta utente: recupero/reset password per Portale Paziente e Portale Medico/Operatore: link "Password dimenticata?" sotto il login, schermata "Recupera password" (email o Codice Fiscale) con "Invia link di ripristino" e messaggio generico, token temporaneo via email, pagina nuova password con validazione in tempo reale e conferma. Scelte: link valido 30 minuti; il genitore può usare il CF del figlio (link all'email del genitore collegato), i medici l'email; dopo il reset si chiudono tutte le sessioni e la 2FA resta attiva
+- Backend password_reset.py: POST /api/auth/password/forgot (risposta sempre generica, 10 richieste/ora per IP, max 3 link per account ogni 30 min, solo account attivi), GET /api/auth/password/reset/{token} (email mascherata, ruolo), POST /api/auth/password/reset (min 10 caratteri con lettere, numeri e carattere speciale; token monouso salvato come hash SHA-256, TTL index; link costruito dall'host della richiesta, non da input del client; sessioni eliminate, blocchi login azzerati, email di conferma, audit)
+- Frontend: ForgotStep.jsx dentro la card di login (/app, /portale, /admin), pagina /reimposta-password (ResetPassword.jsx) con barra di robustezza, regole live, conferma, mostra/nascondi; il successo rimanda all'area corretta
+- Test helper: python tests/reset_token.py <email> [minuti]. Testato iteration_13 (backend 7/7, frontend 100%)
+
+## Implemented (2026-10-20, Cambio password dal profilo)
+- Richiesta utente: "Aggiungi nel profilo di medici e genitori la possibilità di cambiare password conoscendo quella attuale"
+- Menu profilo (ProfileMenu.jsx): chip medico in TopBar (nome, email, Cambia password, Sicurezza e 2FA, Esci) e pulsante profilo nel Portale Paziente; ChangePasswordDialog.jsx con password attuale, nuova (regole live condivise in PasswordRules.jsx) e conferma
+- POST /api/auth/password/change: verifica password attuale con blocco 15 min dopo 5 errori, nuova password robusta e diversa, sessione corrente mantenuta, altre sessioni chiuse, 2FA invariata, email di conferma, audit
+- Seed medico/admin: la password da .env non sovrascrive più una password cambiata dall'utente (password_changed_at)
+- Testato iteration_14 (backend 100%, frontend 100%)
+## Implemented (2026-10-20, Area Riservata / Gestione Account)
+- Richiesta utente: sezione "Area Riservata / Gestione Account" per Portale Paziente e Portale Medico/Operatore, adattata al ruolo, accessibile dal clic sul nome/avatar in alto a destra, responsive mobile/tablet. Scelte: SMS mostrato "in arrivo"; email del genitore attive di default solo per gli appuntamenti; cancellazione = disattivazione immediata + avviso a medico e MantMed, cartelle conservate; ferie/assenze bloccano gli orari nel portale e sono segnalate in dashboard
+- Pagina /area-riservata (Account.jsx, components/account/*): Genitore → Dati personali (nome, cognome, CF, indirizzo, telefono cifrati), Nucleo familiare (figli collegati, aggiungi con CF, "Richiedi modifica" che apre una conversazione con lo studio), Sicurezza (password, email di accesso con conferma password, 2FA, sessioni attive), Notifiche (Email/In-App per appuntamenti, referti, messaggi; SMS in arrivo), Privacy (consensi, export JSON art. 15/20, cancellazione). Medico → Profilo professionale (titolo, nome, specializzazione, Albo, indirizzo studio, telefono, email contatto, usati nell'intestazione dei referti), Orari e disponibilità (ScheduleDialog + ferie/assenze), Notifiche (email per prenotazioni, disdette, messaggi; in-app sempre attive), Sicurezza
+- Backend account.py: /api/account (GET, profile/parent, profile/doctor, email, notifications, sessions, sessions/close-others, absences, export, delete); preferenze rispettate in notify_parents, email appuntamenti (portal_flow, promemoria cron) e avvisi email al medico (richieste, pagamenti online, disdette, messaggi); free_slots esclude i giorni di assenza; stato "deactivated" bloccato al login; sessioni con dispositivo/IP; flag founder esplicito nel seed (nome/password modificati dall'utente non più sovrascritti)
+- Testato iteration_15 (backend 8/8, frontend 100%)
+
+
+## Implemented (2026-10-20, Bodychart Interattivo)
+- Richiesta utente: "Bodychart Interattivo (Mappa Corporea)" nella scheda visita del medico: sagome Frontale/Posteriore/Laterale (bambino o adulto), marcatori per categoria con colori (Lesione, Trauma/Contusione, Dolore, Eruzione/Dermatite, Punto di controllo/Nevo) e note brevi, penna ed evidenziatore a mano libera, "Salva Bodychart nella Visita" con istantanea collegata al report, storico delle visite precedenti, touch-friendly. Scelte: pagina nel referto PDF (anche inviato/pubblicato) solo con "Includi nel referto"; famiglie vedono sempre il bodychart accanto al referto pubblicato; laterale destra e sinistra
+- Frontend: components/bodychart/* (BodychartEditor a tutto schermo, BodyCanvas con pointer events e touch-action none, sagome SVG vettoriali parametriche in lib/bodychart.js, Tools, storico, snapshot PNG 4 viste via renderToStaticMarkup+canvas), pulsante "Bodychart" con contatore in NoteEditor, PortalBodychart nel Portale
+- Backend bodychart.py: GET/PUT/DELETE /api/consultations/{cid}/bodychart, GET /api/patients/{pid}/bodycharts, GET /api/bodycharts/{id}, GET /api/portal/reports/{cid}/bodychart (solo referti inviati/pubblicati); marcatori, tratti e istantanea cifrati AES-256; report.py bodychart_page (immagine + legenda) quando include_in_report
+- Testato iteration_16 (backend 3/3, frontend 100%)
+- Nota: la 2FA del medico demo risulta disattivata dopo i test (segreto non recuperabile): va riattivata dall'Area riservata
+
+
+## Implemented (2026-10-20, Sidebar di navigazione)
+- Richiesta utente: barra laterale fissa a sinistra per medici e pazienti con voci per ruolo (Medico: Dashboard/Agenda, Pazienti & Cartelle Cliniche, Messaggi/Chat, Bodychart/Visite, Fatturazione & Tessera Sanitaria, Impostazioni Account; Paziente: Panoramica/Famiglia, Appuntamenti, Referti & Bilanci di Salute, Messaggi con lo Studio, Ricevute e Pagamenti, Impostazioni/Feedback), collassabile con hamburger su tablet/mobile, stato attivo evidente. Scelte: ogni voce apre una pagina separata; nuova pagina Pazienti con cartella (visite + storico bodychart); Fatturazione = Registro Cassa + riquadro "Invio al Sistema TS: in arrivo"
+- AppShell.jsx (sidebar fissa ≥1024px, drawer con hamburger sotto 1024px, badge messaggi), sections.jsx (PageTitle, VisitsList, PatientFolder, TsCard, SettingsExtras); rotte /app/:sezione? e /portale/:sezione?; Account embedded nelle Impostazioni; /area-riservata reindirizza; notifiche portale navigano alla pagina giusta; feedback anche per i genitori (POST /api/portal/feedback)
+- Testato iteration_17 (frontend 100%)
+
+
+## Implemented (2026-10-20, Barra compatta)
+- Richiesta utente: "Aggiungi un pulsante per ridurre la barra laterale alle sole icone e lasciare più spazio all'agenda su tablet"
+- AppShell: pulsante "Riduci barra" / espandi (sidebar-collapse-btn) sopra il profilo; modalità compatta 84px solo icone con etichetta come tooltip e per screen reader, badge sull'icona, indicatore attivo; scelta ricordata per browser (localStorage mantmed.sidebar.mini); transizione fluida di larghezza e del contenuto. Verificato con screenshot a 1180px
+
+
+
+
+
+
 ## Backlog
 - P1: percentili automatici con curve OMS, storico crescita del paziente, dati demo pediatrici in agenda/sala d'attesa, rinomina brand in "MantMed"
-- P1 (prec.): storico paziente, export PDF dedicato, recupero password
+- P1 (prec.): storico paziente, export PDF dedicato
 - P2: agenda multi-giorno, trascrizione in streaming durante la registrazione
 - P2 (pagamenti): rimborso/storno manuale dal medico, export ricevute per Sistema Tessera Sanitaria, selettore data shadcn nel portale
 - P2 (rete): tipi visita della dashboard medico (AppointmentDialog) allineati all'elenco prestazioni del medico; aggiornamento sedi in dashboard senza ricaricare la pagina

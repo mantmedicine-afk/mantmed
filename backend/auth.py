@@ -57,7 +57,8 @@ def public(user: dict) -> dict:
 
 STATUS_MSG = {"pending": "Account in attesa di approvazione da parte di MantMed: riceverà un'email all'attivazione",
               "suspended": "Account sospeso: contatti MantMed",
-              "invited": "Account non ancora attivato: usi il link ricevuto via email per scegliere la password"}
+              "invited": "Account non ancora attivato: usi il link ricevuto via email per scegliere la password",
+              "deactivated": "Account disattivato su sua richiesta: per riattivarlo contatti lo studio"}
 
 
 def ensure_active(user: dict):
@@ -113,10 +114,14 @@ def build_auth(db):
             raise HTTPException(401, "Non autenticato")
         return public(await check_session(decode(token, "access")))
 
-    async def start_session(response: Response, user: dict) -> dict:
+    async def start_session(response: Response, user: dict, request: Request = None) -> dict:
         sid = secrets.token_urlsafe(24)
         now = datetime.now(timezone.utc).isoformat()
-        await db.sessions.insert_one({"sid": sid, "uid": str(user["_id"]), "created_at": now, "last_seen": now})
+        meta = {}
+        if request is not None:
+            meta = {"ua": (request.headers.get("user-agent") or "")[:200],
+                    "ip": (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "")).split(",")[0].strip()}
+        await db.sessions.insert_one({"sid": sid, "uid": str(user["_id"]), "created_at": now, "last_seen": now, **meta})
         set_cookies(response, str(user["_id"]), sid)
         return public(user)
 
@@ -153,7 +158,7 @@ def build_auth(db):
         ensure_active(user)
         if user.get("totp_enabled"):
             return {"mfa_required": True, "mfa_token": make_token(str(user["_id"]), "mfa", timedelta(minutes=5))}
-        return await start_session(response, user)
+        return await start_session(response, user, request)
 
     @router.post("/2fa/verify")
     async def verify_2fa(body: MfaIn, request: Request, response: Response):
@@ -166,7 +171,7 @@ def build_auth(db):
         if not pyotp.TOTP(unseal(user["totp_secret"])).verify(body.code.strip(), valid_window=1):
             await fail(ident, att, "Codice di verifica non corretto")
         await db.login_attempts.delete_many({"identifier": ident})
-        return await start_session(response, user)
+        return await start_session(response, user, request)
 
     @router.post("/2fa/setup")
     async def setup_2fa(user: dict = Depends(current_user)):
@@ -241,8 +246,13 @@ async def seed_doctor(db):
     if existing is None:
         await db.users.insert_one({"email": email, "password_hash": hash_password(pwd), "name": name, "role": "doctor",
                                    "created_at": datetime.now(timezone.utc).isoformat()})
-    elif not verify_password(pwd, existing["password_hash"]) or existing.get("name") != name:
-        await db.users.update_one({"email": email}, {"$set": {"password_hash": hash_password(pwd), "name": name}})
+    elif (not existing.get("password_changed_at") and not verify_password(pwd, existing["password_hash"])) or (existing.get("name") != name and not existing.get("profile_edited_at")):
+        upd = {} if existing.get("profile_edited_at") else {"name": name}
+        if not existing.get("password_changed_at"):
+            upd["password_hash"] = hash_password(pwd)
+        if upd:
+            await db.users.update_one({"email": email}, {"$set": upd})
+    await db.users.update_one({"email": email}, {"$set": {"founder": True}})
     clinics = [{"name": "Studio Centro", "address": os.environ["STUDIO_CENTRO_ADDRESS"]},
                {"name": "Studio Provincia", "address": os.environ["STUDIO_PROVINCIA_ADDRESS"]}]
     await db.users.update_one({"email": email}, {"$set": {"status": "active", "clinics": clinics}})
@@ -256,7 +266,7 @@ async def seed_admin(db):
     if existing is None:
         await db.users.insert_one({"email": email, "password_hash": hash_password(pwd), "name": "Founder MantMed", "role": "admin",
                                    "created_at": datetime.now(timezone.utc).isoformat()})
-    elif existing.get("role") != "admin" or not verify_password(pwd, existing["password_hash"]):
+    elif existing.get("role") != "admin" or (not existing.get("password_changed_at") and not verify_password(pwd, existing["password_hash"])):
         await db.users.update_one({"email": email}, {"$set": {"password_hash": hash_password(pwd), "role": "admin"}})
 
 

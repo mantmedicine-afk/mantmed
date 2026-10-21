@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field, field_validator
 from auth import require_role
 from crypto import seal_fields, unseal_fields
 from mailer import send_email
+from account import parent_wants, notify_doctor
 from registration import mail_shell
 from scheduling import free_slots, schedule_of, network_doctor
 
@@ -137,6 +138,8 @@ def build_portal_flow(db, tdb, current_user, Appointment, tenant_clinics, refund
 
     async def notify(r: dict, subject: str, body: str):
         try:
+            if not await parent_wants(db, "appointments", "email", email=r["parent_email"]):
+                return
             await send_email(to=r["parent_email"], subject=subject, html=mail_shell("PORTALE PAZIENTE", body))
         except Exception:
             logger.exception("Email al genitore non inviata")
@@ -260,6 +263,8 @@ def build_portal_flow(db, tdb, current_user, Appointment, tenant_clinics, refund
                                                                     **seal_fields({"cancel_reason": body.reason.strip()}, ("cancel_reason",))}})
         await db.appt_requests.update_many({"appointment_id": aid}, {"$set": {"status": "cancelled", "decided_at": now}})
         await db.audit.insert_one({"action": "visita_annullata_genitore", "subject": seal_fields({"s": a["patient_name"]}, ("s",))["s"], "at": now, "owner_id": a["owner_id"]})
+        await notify_doctor(db, a["owner_id"], "cancellations", f"MantMed · visita annullata dal genitore ({_fmt_day(day)} {a['time']})",
+                            f"<p>Un genitore ha annullato dal Portale Paziente la visita del {_fmt_day(day)} alle {a['time']} ({hesc(a['clinic'])}). L'orario è tornato libero.</p>")
         await notify({"parent_email": u["email"]}, f"MantMed · visita di {a['patient_name']} annullata",
                      f"<p>Gentile {hesc(u['name'])},</p><p>confermiamo l'annullamento della visita di <strong>{hesc(a['patient_name'])}</strong> "
                      f"del {_fmt_day(day)} alle {a['time']} ({hesc(a['clinic'])}). Lo studio è stato avvisato.</p>"
@@ -284,6 +289,8 @@ def build_portal_flow(db, tdb, current_user, Appointment, tenant_clinics, refund
         u, doc, p = await check_request(db, body, user["id"])
         r = request_doc(body, u, doc, p, "pending")
         res = await db.appt_requests.insert_one(r)
+        await notify_doctor(db, r["owner_id"], "bookings", f"MantMed · nuova richiesta di appuntamento ({_fmt_day(r['date'])} {r['time']})",
+                            f"<p>Nuova richiesta dal Portale Paziente: {hesc(r['service'])} del {_fmt_day(r['date'])} alle {r['time']} ({hesc(r['clinic'])}), in attesa di conferma.</p>")
         return req_out({**r, "_id": res.inserted_id})
 
     return doctor, parent, public

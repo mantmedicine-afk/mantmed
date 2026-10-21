@@ -1,0 +1,30 @@
+{
+  "summary": "Bodychart (Mappa Corporea) full regression: 3/3 backend pytest tests PASS (test_bodychart.py) covering save/load with AES-256-GCM encryption at rest, history (snapshot excluded), PDF page conditional on include_in_report, portal visibility gated by publication, RBAC (parent 403 on doctor endpoint, 404 before publish), and schema validation (bad snapshot MIME 422, invalid cat 422). Frontend E2E at 1440x900 and 390x844: doctor logs in (2FA OFF on medico@mantmed.it currently), opens recent-note card for TEST consultation 6ad7f03847e0412aa12b24dd (Aurora Ricci), note-bodychart-btn shows count badge '1' (from pre-existing marker). Editor opens with all 4 view tabs (front/back/left/right) and child/adult silhouette toggle; D/S side labels render on front; pre-existing Trauma pin visible on Lat. sinistra. Added a new Trauma marker on front via canvas click: marker-editor opens with autofocused note input, hint chips (3), category select, delete button. Tapping an existing pin selects without creating a new one (pin count unchanged). Pen tool strokes work (undo enables after draw). Marker row click switches to its view and selects. Marker delete reduces list from 2->1. Clear-view + undo work. Storico tab lists past bodycharts for the patient, viewer renders bodychart-history-image. Save with include_in_report=True shows toast 'Bodychart salvato nella visita e incluso nel referto' and closes. Portal flow: doctor publishes consultation via /api/consultations/{cid}/portal {published:true}; parent genitore.demo@example.com logs in to /portale, sees portal-report-bodychart-<cid> button; clicking opens portal-bodychart-dialog with composite portal-bodychart-image (4 views: Frontale, Posteriore, Lat. Sinistra, Lat. Destra) and legend. Unpublished afterwards; notifications with ref=<cid> deleted. Mobile 390px: tools stacked under canvas (canvas y=273.5 < tools y=844), canvas touch-action=none for tablet pointer handling. All data-testids match review spec.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_bodychart.py",
+    "/app/test_reports/pytest/bodychart_iter16.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "bodychart.py: AES-256-GCM encryption via seal_fields for markers/strokes/snapshot verified at DB level (enc:v1: prefix). Good.",
+    "BodyCanvas.jsx: uses pointer events + setPointerCapture + touchAction:none - correctly supports touch devices without default scroll/zoom interference. picked ref prevents accidental marker creation when tapping existing pin. Correct.",
+    "BodychartEditor.jsx: undo stack capped at 50 entries (slice(-49)). Reasonable.",
+    "report_payload() correctly returns None unless include_in_report (or force) is set - matches 'only in PDF when ticked' spec.",
+    "portal_chart() requires c.report_sent_at OR c.portal_published - correct gating; parent gets 404 pre-publish and post-unpublish (verified both ways).",
+    "Minor: Mobile 390px view-tab bar scrolls horizontally (overflow-x-auto) so Lat. destra is reachable by scroll. Could add scroll indicator, but not blocking."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Doctor medico@mantmed.it / Auscula-Studio-2026 (2FA currently OFF on account despite memory note saying ON - totp_code.py returned '2FA disattivata'); Parent genitore.demo@example.com / Portale-Demo-2026",
+  "seed_data_creation": "Only used pre-existing TEST consultation 6ad7f03847e0412aa12b24dd (main agent will delete). Added a Trauma marker + pen stroke to its bodychart; include_in_report ended TRUE (persisted). Portal was published then unpublished; notifications with ref=<cid> deleted after test.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Bodychart feature fully working end-to-end. Backend: `pytest tests/test_bodychart.py -v -n 0` (3 tests). Frontend data-testids all match spec. Note that medico 2FA is currently disabled - if main agent re-enables, playwright flow needs the 2FA code step (totp_code.py). The test consultation 6ad7f03847e0412aa12b24dd will be deleted by main agent per their note - do not reference it again.",
+  "rca of the issue": "No issues found."
+}

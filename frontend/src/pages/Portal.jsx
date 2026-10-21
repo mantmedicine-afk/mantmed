@@ -1,10 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { LogOut, CalendarClock, FileSignature, FileDown, Plus, Loader2, Baby, Info, CalendarPlus, ReceiptText, CheckCircle2, AlertCircle } from "lucide-react";
+import { LogOut, CalendarClock, FileSignature, FileDown, Plus, Loader2, Baby, Info, CalendarPlus, ReceiptText, CheckCircle2, AlertCircle, UserRound } from "lucide-react";
 import { RequestDialog } from "@/components/portal/RequestDialog";
 import { CancelVisit } from "@/components/portal/CancelVisit";
 import { NetworkSharing } from "@/components/portal/NetworkSharing";
-import { useSearchParams } from "react-router-dom";
+import { Messages } from "@/components/portal/Messages";
+import { NotificationBell, useNotifications } from "@/components/portal/NotificationBell";
+import { ReminderBanner } from "@/components/portal/ReminderBanner";
+import { PortalBodychart } from "@/components/portal/PortalBodychart";
+import { ProfileMenu, Caret } from "@/components/auth/ProfileMenu";
+import { useSearchParams, useParams, useNavigate, Navigate } from "react-router-dom";
+import { LayoutGrid, MessagesSquare, Settings } from "lucide-react";
+import { AppShell, MenuButton } from "@/components/nav/AppShell";
+import { FeedbackDialog } from "@/components/dash/FeedbackDialog";
+import Account from "@/pages/Account";
+
+const SECTIONS = { panoramica: null, appuntamenti: "appointments", referti: "reports", ricevute: "receipts", messaggi: null, impostazioni: null };
 import { LogoMark } from "@/components/dash/Logo";
 import { api, errMsg, eur } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -14,16 +25,30 @@ const TABS = [{ id: "reports", label: "Referti", icon: FileDown }, { id: "appoin
 
 const Empty = ({ text }) => <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-600">{text}</p>;
 
-const Reports = ({ items }) => {
+const CP_CLS = { ottimo: "bg-emerald-100 text-emerald-900", buono: "bg-sky-100 text-sky-900" };
+
+const Checkpoints = ({ items }) => (items.length > 0 && (
+  <>
+    <div className="pt-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600">Bilanci di salute</div>
+    {items.map((k) => (
+      <div key={k.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white p-4" data-testid={`portal-checkpoint-${k.id}`}>
+        <div className="min-w-0"><div className="text-xs text-slate-600">{day(k.created_at)}{k.clinic ? ` · ${k.clinic}` : ""}</div><div className="font-medium text-night">Bilancio {k.band_label}</div>{k.next && <div className="text-sm text-slate-600">Prossimo: {k.next}</div>}</div>
+        {k.status && <span className={`rounded-full px-3 py-1 text-[11px] font-semibold capitalize ${CP_CLS[k.status] ?? "bg-amber-100 text-amber-900"}`}>{k.status}</span>}
+      </div>
+    ))}
+  </>
+));
+
+const Reports = ({ items, checkpoints = [] }) => {
   const [busy, setBusy] = useState("");
   const dl = async (id) => { setBusy(id); try { await api.portalReport(id); toast.success("Referto scaricato"); } catch (e) { toast.error(errMsg(e)); } setBusy(""); };
-  if (!items.length) return <Empty text="Nessun referto disponibile. I referti compaiono qui quando il medico li invia o li pubblica nel portale." />;
-  return items.map((r) => (
+  if (!items.length) return <><Empty text="Nessun referto disponibile. I referti compaiono qui quando il medico li invia o li pubblica nel portale." /><Checkpoints items={checkpoints} /></>;
+  return [...items.map((r) => (
     <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4" data-testid={`portal-report-${r.id}`}>
       <div className="min-w-0"><div className="text-xs text-slate-600">{day(r.created_at)} · {r.clinic || "Studio"}</div><div className="font-medium text-night">{r.motivo || "Visita"}</div>{r.diagnosi && <div className="text-sm text-slate-600">{r.diagnosi}</div>}</div>
-      <button onClick={() => dl(r.id)} disabled={busy === r.id} className="flex h-10 items-center gap-2 rounded-full bg-night px-4 text-sm font-medium text-white disabled:opacity-60" data-testid={`portal-report-pdf-${r.id}`}>{busy === r.id ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />} PDF</button>
+      <div className="flex flex-wrap gap-2">{r.bodychart && <PortalBodychart cid={r.id} />}<button onClick={() => dl(r.id)} disabled={busy === r.id} className="flex h-10 items-center gap-2 rounded-full bg-night px-4 text-sm font-medium text-white disabled:opacity-60" data-testid={`portal-report-pdf-${r.id}`}>{busy === r.id ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />} PDF</button></div>
     </div>
-  ));
+  )), <Checkpoints key="cp" items={checkpoints} />];
 };
 
 const Receipts = ({ items }) => {
@@ -76,24 +101,31 @@ const Consents = ({ items }) => (items.length ? items.map((c) => (
   </div>
 )) : <Empty text="Nessun consenso registrato dallo studio." />);
 
-const Child = ({ c, onRequest, focus, onChange }) => {
-  const [tab, setTab] = useState(focus && c.appointments.some((a) => a.id === focus) ? "appointments" : "reports");
+const Child = ({ c, onRequest, focus, onChange, jump, only }) => {
+  const [tabState, setTab] = useState(focus && c.appointments.some((a) => a.id === focus) ? "appointments" : "reports");
+  const tab = only ?? tabState;
   const p = c.patient;
+  useEffect(() => {
+    if (jump?.pid !== p.id) return undefined;
+    setTab(jump.tab);
+    document.getElementById(`child-${p.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    return undefined;
+  }, [jump?.n]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <section className="rounded-[28px] border border-slate-200 bg-[#F4F5F7] p-5 sm:p-7" data-testid={`portal-child-${p.id}`}>
+    <section id={`child-${p.id}`} className="scroll-mt-24 rounded-[28px] border border-slate-200 bg-[#F4F5F7] p-5 sm:p-7" data-testid={`portal-child-${p.id}`}>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div><div className="text-[11px] uppercase tracking-[0.2em] text-slate-600">Nato/a il {day(p.birth_date)}</div><h2 className="font-display text-4xl text-night">{p.name}</h2><div className="text-sm text-slate-600" data-testid={`portal-child-doctor-${p.id}`}>{c.doctor.name} · {c.doctor.specialty}</div>
           <button onClick={() => onRequest(p.id)} className="mt-3 flex h-10 items-center gap-2 rounded-full bg-night px-4 text-sm font-medium text-white transition-transform hover:-translate-y-0.5" data-testid={`portal-request-btn-${p.id}`}><CalendarPlus size={15} /> Richiedi appuntamento</button></div>
-        <div className="flex flex-wrap gap-1 rounded-full bg-white p-1 ring-1 ring-slate-200" role="tablist">
+        {!only && <div className="flex flex-wrap gap-1 rounded-full bg-white p-1 ring-1 ring-slate-200" role="tablist">
           {TABS.map((t) => (
             <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} className={`flex h-9 items-center gap-1.5 rounded-full px-3 text-sm transition-colors ${tab === t.id ? "bg-night text-white" : "text-slate-600 hover:text-night"}`} data-testid={`portal-tab-${t.id}-${p.id}`}>
               <t.icon size={14} /> {t.label} <span className="font-mono text-xs opacity-70">{c[t.id]?.length ?? 0}</span>
             </button>
           ))}
-        </div>
+        </div>}
       </div>
       <div className="mt-5 space-y-2">
-        {tab === "reports" && <Reports items={c.reports} />}
+        {tab === "reports" && <Reports items={c.reports} checkpoints={c.checkpoints ?? []} />}
         {tab === "appointments" && <Appointments items={c.appointments} requests={c.requests ?? []} focus={focus} onChange={onChange} />}
         {tab === "receipts" && <Receipts items={c.receipts ?? []} />}
         {tab === "consents" && <Consents items={c.consents} />}
@@ -174,33 +206,65 @@ export default function Portal() {
   const focus = params.get("visita");
   const load = useCallback(() => api.portalMe().then(setData).catch((e) => toast.error(errMsg(e))), []);
   const payState = usePaymentReturn(params, setParams, load);
+  const [notif, reloadNotif] = useNotifications();
+  const [openThread, setOpenThread] = useState(null);
+  const [jump, setJump] = useState(null);
+  const [feedback, setFeedback] = useState(false);
+  const { sezione = "panoramica" } = useParams();
+  const nav = useNavigate();
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, notif.unread]);
   const children = Array.isArray(data?.children) ? data.children : [];
+  const go = (pid, tab) => { nav(tab === "appointments" ? "/portale/appuntamenti" : "/portale/referti"); setJump((j) => ({ pid, tab, n: (j?.n ?? 0) + 1 })); };
+  const pickNotif = (n) => {
+    if (n.kind === "reply") { nav("/portale/messaggi"); setOpenThread(n.ref); }
+    else go(n.patient_id, n.kind === "reminder" ? "appointments" : "reports");
+  };
+  const count = (k) => children.reduce((s, c) => s + (c[k]?.length ?? 0), 0);
+  const items = [
+    { id: "panoramica", to: "/portale", end: true, label: "Panoramica / Famiglia", icon: LayoutGrid },
+    { id: "appuntamenti", to: "/portale/appuntamenti", label: "Appuntamenti", icon: CalendarClock },
+    { id: "referti", to: "/portale/referti", label: "Referti & Bilanci di Salute", icon: FileDown },
+    { id: "messaggi", to: "/portale/messaggi", label: "Messaggi con lo Studio", icon: MessagesSquare, badge: notif.messages_unread },
+    { id: "ricevute", to: "/portale/ricevute", label: "Ricevute e Pagamenti", icon: ReceiptText },
+    { id: "impostazioni", to: "/portale/impostazioni", label: "Impostazioni / Feedback", icon: Settings },
+  ];
+  if (!(sezione in SECTIONS)) return <Navigate to="/portale" replace />;
+  const only = SECTIONS[sezione];
+  const TITLES = { appuntamenti: "Appuntamenti", referti: "Referti e bilanci di salute", ricevute: "Ricevute e pagamenti", messaggi: "Messaggi con lo studio" };
   return (
-    <div className="min-h-screen bg-white" data-testid="portal-page">
+    <AppShell items={items} area="Portale Paziente">
+    <div className="min-h-screen bg-white" data-testid="portal-page" data-section={sezione}>
       <header className="sticky top-0 z-40 border-b border-[#C9CCD3]/15 bg-[#0A192F]">
         <div className="mx-auto flex max-w-[1100px] items-center justify-between gap-3 px-5 py-3">
-          <div className="flex items-center gap-3"><LogoMark size={34} light /><div className="leading-none"><div className="font-display text-2xl text-white">MantMed</div><div className="mt-1 text-[10px] uppercase tracking-[0.22em] text-[#C9CCD3]">Portale Paziente</div></div></div>
-          <div className="flex items-center gap-3"><span className="hidden text-sm text-[#C9CCD3] sm:inline" data-testid="portal-user-name">{user?.name}</span>
+          <div className="flex items-center gap-3"><MenuButton dark /><span className="flex items-center gap-3 lg:hidden"><LogoMark size={34} light /><span className="hidden leading-none sm:block"><span className="block font-display text-2xl text-white">MantMed</span><span className="mt-1 block text-[10px] uppercase tracking-[0.22em] text-[#C9CCD3]">Portale Paziente</span></span></span>
+            <span className="hidden text-[11px] uppercase tracking-[0.22em] text-[#C9CCD3] lg:block" data-testid="portal-section-label">{items.find((i) => i.id === sezione)?.label}</span></div>
+          <div className="flex items-center gap-3">
+            <ProfileMenu trigger={<button className="flex h-10 items-center gap-2 rounded-full border border-[#C9CCD3]/30 px-2 text-sm text-[#C9CCD3] transition-colors hover:border-white hover:text-white sm:px-3" data-testid="portal-profile-btn" aria-label="Il mio profilo"><UserRound size={16} /><span className="hidden sm:inline" data-testid="portal-user-name">{user?.name}</span><Caret /></button>} />
+            <NotificationBell state={notif} reload={reloadNotif} onPick={pickNotif} />
             <button onClick={() => logout()} className="grid h-10 w-10 place-items-center rounded-full border border-[#C9CCD3]/30 text-white hover:border-white" aria-label="Esci" data-testid="portal-logout-btn"><LogOut size={16} /></button></div>
         </div>
       </header>
+      {sezione === "impostazioni" ? <Account role="parent" embedded extras={<button onClick={() => setFeedback(true)} className="flex h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-night hover:border-night" data-testid="portal-feedback-btn"><MessagesSquare size={15} /> Invia un feedback</button>} /> : (
       <main className="mx-auto max-w-[1100px] space-y-5 px-5 py-10">
-        <div><div className="text-[11px] uppercase tracking-[0.22em] text-slate-600">Area personale protetta</div><h1 className="mt-1 font-display text-4xl text-night sm:text-5xl">Buongiorno, <span className="italic text-slate-500">{user?.name?.split(" ")[0]}</span></h1></div>
+        <div><div className="text-[11px] uppercase tracking-[0.22em] text-slate-600">Area personale protetta</div><h1 className="mt-1 font-display text-4xl text-night sm:text-5xl">{TITLES[sezione] ?? <>Buongiorno, <span className="italic text-slate-500">{user?.name?.split(" ")[0]}</span></>}</h1></div>
         <PayBanner state={payState} />
+        {sezione === "panoramica" && <ReminderBanner kids={children} onOpen={(pid) => go(pid, "appointments")} />}
         {!data && <Loader2 className="animate-spin text-night" />}
         {data && children.length === 0 && (
           <div className="flex gap-3 rounded-[28px] bg-[#0A192F] p-6 text-white" data-testid="portal-no-children"><Baby className="shrink-0 text-[#C9CCD3]" />
             <p className="text-sm leading-relaxed text-slate-200">Non abbiamo ancora trovato una cartella collegata. Il collegamento avviene in automatico quando lo studio registra il codice fiscale del bambino e la sua email ({user?.email}). Se ha già fatto una visita, chieda allo studio di verificare questi due dati.</p></div>
         )}
-        {children.map((c) => <Child key={c.patient.id} c={c} onRequest={setReq} focus={focus} onChange={load} />)}
-        {[...new Set(children.map((c) => c.group))].map((g) => <NetworkSharing key={g} entries={children.filter((c) => c.group === g)} />)}
+        {sezione !== "messaggi" && children.map((c) => <Child key={c.patient.id} c={c} onRequest={setReq} focus={focus} onChange={load} jump={jump} only={only} />)}
+        {sezione === "messaggi" && children.length > 0 && <Messages kids={children} openId={openThread} onOpened={() => setOpenThread(null)} onRead={reloadNotif} />}
+        {sezione === "panoramica" && [...new Set(children.map((c) => c.group))].map((g) => <NetworkSharing key={g} entries={children.filter((c) => c.group === g)} />)}
         <RequestDialog open={!!req} initial={req} kids={children} onClose={() => setReq(null)} onSent={load} />
-        {data && <AddChild onLinked={load} />}
-        {data?.consent && <p className="flex items-center gap-2 text-xs text-slate-600" data-testid="portal-consent-note"><Info size={13} /> Consenso accettato il {day(data.consent.at)} · {data.consent.version}</p>}
-      </main>
+        {data && sezione === "panoramica" && <AddChild onLinked={load} />}
+        {data?.consent && sezione === "panoramica" && <p className="flex items-center gap-2 text-xs text-slate-600" data-testid="portal-consent-note"><Info size={13} /> Consenso accettato il {day(data.consent.at)} · {data.consent.version} · {count("reports")} referti · {count("appointments")} appuntamenti</p>}
+      </main>)}
+      <FeedbackDialog parent open={feedback} onClose={() => setFeedback(false)} />
     </div>
+    </AppShell>
   );
 }

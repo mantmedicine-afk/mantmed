@@ -21,6 +21,10 @@ from portal_flow import build_portal_flow
 from scheduling import build_scheduling
 from billing import build_billing
 from network import build_network
+from messaging import build_messaging, notify_parents
+from password_reset import build_password_reset
+from account import build_account
+from bodychart import build_bodychart, report_payload
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
 from typing import List, Optional, Annotated, Literal, ClassVar
@@ -101,8 +105,8 @@ async def doctor_profile(uid: str) -> Optional[dict]:
     if not p:
         return None
     address = p.get("studio_address", "")
-    return {"specialty": p.get("specialty", ""), "titles": "", "order": f"Iscr. N. {p.get('order_number', '')}", "phone": p.get("phone", ""),
-            "email": u["email"], "address": address, "city": address.split(",")[-1].strip() if address else ""}
+    return {"specialty": p.get("specialty", ""), "titles": os.environ.get("DOCTOR_TITLES", "") if u.get("founder") else "", "order": f"Iscr. N. {p.get('order_number', '')}", "phone": p.get("phone", ""),
+            "email": p.get("contact_email") or u["email"], "address": address, "city": address.split(",")[-1].strip() if address else ""}
 
 
 def header_line(profile: Optional[dict]) -> str:
@@ -478,6 +482,8 @@ async def seed_pediatric():
 async def seed():
     foti = await seed_doctor(db)
     await seed_admin(db)
+    await db.password_resets.create_index("expires_at", expireAfterSeconds=0)
+    await db.password_resets.create_index("token")
     set_tenant(foti, CLINICS)
     for name in (*ENCRYPTED_COLLECTIONS, "audit"):
         await db[name].update_many({"owner_id": {"$exists": False}}, {"$set": {"owner_id": foti}})
@@ -661,7 +667,7 @@ async def consultation_pdf(cid: str, user: dict = Depends(current_user)):
     if not doc:
         raise HTTPException(404, "Consultazione non trovata")
     c = Consultation.from_mongo(doc).out()
-    pdf = build_report(c, user["name"], await get_patient(c.get("patient_id")), await doctor_profile(user["id"]))
+    pdf = build_report(c, user["name"], await get_patient(c.get("patient_id")), await doctor_profile(user["id"]), await chart_for(cid))
     await tdb.consultations.update_one({"_id": oid(cid)}, {"$set": {"finalized_at": now_iso()}, "$inc": {"pdf_exports": 1}})
     await audit("referto_pdf", c["patient_name"])
     name = f"Referto_{re.sub(r'[^A-Za-z0-9]+', '_', c['patient_name']).strip('_')}_{c['created_at'][:10]}.pdf"
@@ -682,7 +688,7 @@ async def send_report(cid: str, user: dict = Depends(current_user)):
     if not patient.get("consent_email"):
         raise HTTPException(412, "Il genitore non ha acconsentito all'invio dei referti via email")
     profile = await doctor_profile(user["id"])
-    pdf = build_report(c, user["name"], patient, profile)
+    pdf = build_report(c, user["name"], patient, profile, await chart_for(cid))
     day = datetime.fromisoformat(c["created_at"]).strftime("%d/%m/%Y")
     fname = f"Referto_{re.sub(r'[^A-Za-z0-9]+', '_', c['patient_name']).strip('_')}_{c['created_at'][:10]}.pdf"
     subject = f"Referto della visita pediatrica di {c['patient_name']} – {day}"
@@ -705,6 +711,8 @@ async def send_report(cid: str, user: dict = Depends(current_user)):
     sent_at = now_iso()
     await tdb.consultations.update_one({"_id": oid(cid)}, {"$set": {**Consultation.sealed_set({"report_sent_at": sent_at, "report_sent_to": to}), "finalized_at": sent_at}, "$inc": {"pdf_exports": 1}})
     await audit("referto_email", c["patient_name"])
+    if c.get("patient_id"):
+        await notify_parents(db, c["patient_id"], user["id"], "report", "Nuovo referto disponibile", f"{c['patient_name']} · visita del {day}", ref=cid, key=f"rep:{cid}")
     return {"sent": True, "to": to, "sent_at": sent_at, "email_id": email_id}
 
 
@@ -721,6 +729,9 @@ async def publish_to_portal(cid: str, body: PortalPublishIn):
     if not doc:
         raise HTTPException(404, "Consultazione non trovata")
     await audit("referto_portale" if body.published else "referto_portale_ritirato", doc["patient_name"])
+    if body.published and doc.get("patient_id"):
+        visit = datetime.fromisoformat(doc["created_at"]).strftime("%d/%m/%Y")
+        await notify_parents(db, doc["patient_id"], doc["owner_id"], "report", "Nuovo referto disponibile", f"{doc['patient_name']} · visita del {visit}", ref=cid, key=f"rep:{cid}")
     return Consultation.from_mongo(doc).out()
 
 
@@ -976,6 +987,7 @@ async def submit_checkpoint(pid: str, body: CheckpointIn):
                        clinic=body.clinic, answers=body.answers, result=result)
     res = await tdb.checkpoints.insert_one(cp.to_mongo())
     cp.id = str(res.inserted_id)
+    await notify_parents(db, pid, doc["owner_id"], "checkpoint", "Nuovo bilancio di salute", f"{doc['name']} · {band['label']}", ref=cp.id)
     return cp.out()
 
 
@@ -1103,11 +1115,15 @@ async def security_headers(request, call_next):
     return resp
 
 
+async def chart_for(cid: str):
+    return report_payload(await db.bodycharts.find_one({"consultation_id": cid}))
+
+
 async def portal_pdf_for(c: dict):
     out = Consultation.from_mongo(c).out()
     p = await db.patients.find_one({"_id": ObjectId(out["patient_id"])}) if out.get("patient_id") else None
     owner = await db.users.find_one({"_id": ObjectId(c["owner_id"])})
-    pdf = build_report(out, (owner or {}).get("name", ""), unseal_fields(p, Patient.__encrypted__) if p else None, await doctor_profile(c["owner_id"]))
+    pdf = build_report(out, (owner or {}).get("name", ""), unseal_fields(p, Patient.__encrypted__) if p else None, await doctor_profile(c["owner_id"]), await chart_for(str(c["_id"])))
     return pdf, f"Referto_{re.sub(r'[^A-Za-z0-9]+', '_', out['patient_name']).strip('_')}_{out['created_at'][:10]}.pdf"
 
 
@@ -1126,6 +1142,9 @@ public_api.include_router(net_public)
 public_api.include_router(net_parent)
 api.include_router(net_doctor)
 api.include_router(flow_doctor)
+msg_parent, msg_doctor = build_messaging(db, current_user)
+public_api.include_router(msg_parent)
+api.include_router(msg_doctor)
 public_api.include_router(flow_parent)
 public_api.include_router(flow_public)
 sched_doctor, sched_portal, sched_cron, send_reminders = build_scheduling(db, tdb, current_user)
@@ -1138,6 +1157,11 @@ leads_public, leads_private = build_leads(db, require_role(current_user, "admin"
 public_api.include_router(leads_public)
 public_api.include_router(leads_private)
 public_api.include_router(auth_router)
+public_api.include_router(build_password_reset(db, current_user))
+public_api.include_router(build_account(db, current_user))
+bc_doctor, bc_parent = build_bodychart(db, current_user)
+api.include_router(bc_doctor)
+public_api.include_router(bc_parent)
 app.include_router(public_api)
 app.include_router(api)
 app.add_middleware(
