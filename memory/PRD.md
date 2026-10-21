@@ -251,3 +251,8 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Pediatria: cartella standard invariata + campi modello come voci extra. Nuovo gruppo parametri_vitali (tab Crescita/Parametri, PDF sezione 04, copia testo)
 - UI: Impostazioni > Modelli Visita (crea, rinomina, duplica, elimina, ripristina base, campi con riordino, avviso modifiche non salvate); selettore modello nell overlay consultazione
 - Test: iteration_24 (19 backend + frontend OK)
+
+## 2026-06 Feedback e assistenza via email
+- FeedbackDialog unico (medico + portale): tipi feedback / supporto / segnalazione; stelle obbligatorie solo per feedback; aree specifiche per portale paziente; info tecniche automatiche per segnalazioni; schermata conferma + errore con Riprova (client_id idempotente)
+- backend beta.submit_feedback: salva in db.feedback (email_sent flag) e invia email a ADMIN_EMAIL (mantmedicine@gmail.com) con oggetto descrittivo, nome/cognome/ruolo/email, area, messaggio, data-ora Europe/Rome; reply-to = email utente. Endpoint /api/beta/feedback e /api/portal/feedback
+- Test: iteration_25 OK

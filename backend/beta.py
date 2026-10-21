@@ -1,5 +1,7 @@
 import logging
 import os
+import re
+from bson import ObjectId
 from datetime import datetime, timezone, timedelta
 from html import escape as hesc
 from typing import Literal, Optional
@@ -22,7 +24,11 @@ AREAS = {
     "cassa": "Cassa",
     "altro": "Altro",
 }
-Area = Literal["trascrizione", "pdf", "agenda", "cassa", "altro"]
+PORTAL_AREAS = {"appuntamenti": "Appuntamenti e prenotazioni", "referti": "Referti e documenti", "pagamenti": "Pagamenti e ricevute",
+                "messaggi": "Messaggi con il medico", "account": "Account e accesso"}
+ALL_AREAS = {**AREAS, **PORTAL_AREAS}
+Area = Literal["trascrizione", "pdf", "agenda", "cassa", "altro", "appuntamenti", "referti", "pagamenti", "messaggi", "account"]
+TITLES = re.compile(r"^((dott\.?(ssa)?|dr\.?(ssa)?|prof\.?(ssa)?|sig\.?(ra)?)\s+)+", re.I)
 
 
 class TechInfo(BaseModel):
@@ -54,9 +60,12 @@ class FeedbackIn(BaseModel):
 
 
 def team_email_html(doc: dict, user: dict, sent_at: datetime) -> str:
-    first, _, last = (user.get("name") or "").strip().partition(" ")
+    first, last = user.get("first_name"), user.get("last_name")
+    if not first:
+        parts = TITLES.sub("", (user.get("name") or "").strip()).split()
+        first, last = " ".join(parts[:-1]) or (parts[0] if parts else ""), parts[-1] if len(parts) > 1 else ""
     rows = [("Tipo", KINDS[doc["kind"]]), ("Nome", first), ("Cognome", last), ("Ruolo", ROLES.get(user.get("role"), user.get("role"))),
-            ("Email di contatto", user.get("email")), ("Area", AREAS[doc["area"]]),
+            ("Email di contatto", user.get("email")), ("Area", ALL_AREAS[doc["area"]]),
             ("Data e ora", sent_at.astimezone(ZoneInfo("Europe/Rome")).strftime("%d/%m/%Y %H:%M:%S") + " (ora italiana)")]
     if doc.get("rating"):
         rows.append(("Valutazione", f"{doc['rating']} / 5"))
@@ -87,6 +96,8 @@ async def submit_feedback(db, body: FeedbackIn, user: dict, extra: dict) -> dict
         await db.feedback.update_one({"_id": fid}, {"$set": seal_fields(dict(doc), ("text",))})
     else:
         fid = (await db.feedback.insert_one(seal_fields({**doc, "user_id": user["id"], "client_id": body.client_id or None, "email_sent": False}, ("text",)))).inserted_id
+    u = await db.users.find_one({"_id": ObjectId(user["id"])}, {"first_name": 1, "last_name": 1}) if ObjectId.is_valid(user["id"]) else None
+    user = {**user, "first_name": (u or {}).get("first_name"), "last_name": (u or {}).get("last_name")}
     who = user.get("name") or user.get("email")
     label = {"feedback": "Nuovo Feedback", "supporto": "Richiesta di Supporto", "segnalazione": "Nuova Segnalazione"}[body.kind]
     try:
@@ -158,7 +169,7 @@ def build_beta(db, current_user):
             "daily": [{"date": d, "count": by_day[d]} for d in days],
             "by_area": by_area,
             "recent": [{"id": str(f["_id"]), "doctor_name": f["doctor_name"], "rating": f["rating"], "area": f["area"],
-                        "area_label": AREAS[f["area"]], "text": f.get("text") or "", "created_at": f["created_at"], "mine": f["doctor_id"] == user["id"]}
+                        "area_label": ALL_AREAS[f["area"]], "text": f.get("text") or "", "created_at": f["created_at"], "mine": f["doctor_id"] == user["id"]}
                        for f in fbs[:8]],
         }
 

@@ -1,0 +1,32 @@
+{
+  "summary": "Tested the feedback, technical support and problem-report emails to the MantMed team on the backend and in both portals. Backend: 7/7 pytest tests pass. They cover the 422 checks (feedback without rating, support text under 5 characters, invalid area, portal feedback without rating) and 401 when not logged in. A doctor feedback returns {id, email_sent:true}; sending it again with the same client_id returns the same id and sends no second email. A parent support request returns email_sent:true. The backend log shows the email POST to integrations.emergentagent.com returning 202 Accepted. Doctor UI (/app, 1920px): the TopBar feedback-beta-button opens the dialog with all 3 kinds. Stars show only for Feedback. The tech note shows only for Segnala un problema, and the request includes tech info (page, user_agent, screen, language). All 3 validation toasts are correct. With a forced network failure (route abort), feedback-error shows the 'Connessione assente' message with Riprova and the text is kept. After unblocking, Riprova succeeds with the same client_id and shows the thanks screen and success toast. 'Torna alla dashboard' closes the dialog and the form is reset when reopened. A Feedback-kind submit also succeeds. Patient portal (/portale/impostazioni, 390px mobile): portal-feedback-btn opens the dialog; a support submit calls /api/portal/feedback and shows the thanks screen with 'Torna al portale'. 5 real emails were sent in total (2 from pytest, 3 from the UI).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "beta.team_email_html", "issue": "First name and last name are taken by splitting user.name at the first space. For the doctor 'Dott.ssa Tiziana Foti' the email shows Nome='Dott.ssa' and Cognome='Tiziana Foti'. Parent users already have first_name/last_name fields in the DB, but these are ignored, so compound names such as 'Maria Chiara Rossi' are also split wrongly. Use user.first_name/last_name when present and strip title prefixes (Dott., Dott.ssa, Prof., Dr.) before splitting."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Patient portal FeedbackDialog", "issues": ["The Area chips are doctor-specific: 'Trascrizione Ambientale / Wispr Flow', 'Agenda Multi-Studio', 'Cassa'. The Feedback placeholder mentions 'otoscopia' and the rating is labelled 'Usabilità' from a doctor's point of view. Parents should get their own area list (e.g. Appuntamenti, Referti, Pagamenti/Ricevute, Messaggi, Altro) and placeholders written for them.", "At 390px the dialog runs to the screen edges (no side margin), so its rounded corners touch the viewport."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_feedback_email.py", "/app/test_reports/pytest/pytest_feedback.xml"],
+  "action_items": [
+    "Fix how first name and last name are worked out in team_email_html: use user.first_name/last_name and strip title prefixes such as Dott./Dott.ssa.",
+    "Optional: make the dialog areas and placeholders specific to parents when parent=true; add a side margin to the dialog on mobile."
+  ],
+  "critical_code_review_comments": [
+    "beta.submit_feedback: if the email fails, the document is kept with email_sent:false and the client retries with the same client_id. This is correct and idempotent.",
+    "Duplicate protection is limited to client_id and user_id. A new dialog session (new client_id) can send unlimited emails, and there is no rate limit on /beta/feedback or /portal/feedback. Consider a per-user throttle so the admin inbox and email credits cannot be flooded.",
+    "FeedbackDialog: the error state handles network failure and API errors (errMsg) well. When the error is a 503 (email credits used up), the message is shown but Riprova will keep failing. This is acceptable."
+  ],
+  "updated_files": ["/app/backend/tests/test_feedback_email.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "5 feedback docs with TEST_ text in db.feedback (2 doctor via pytest/UI feedback, 1 doctor segnalazione, 2 parent supporto).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Feedback tests are in tests/test_feedback_email.py; each run sends 2 real emails to mantmed.it's admin inbox (mantmedicine@gmail.com). Doctor login goes through /app (the Gate shows the login form; /login redirects to the landing page). Portal settings page: /portale/impostazioni. settings-feedback-btn is not on the dashboard; it is in the account settings section and was not clicked in this run."
+}

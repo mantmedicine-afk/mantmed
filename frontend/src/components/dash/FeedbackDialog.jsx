@@ -17,6 +17,14 @@ const KINDS = [
   { id: "supporto", label: "Supporto tecnico", icon: LifeBuoy, ph: "Descriva di cosa ha bisogno: la contatteremo all'email del suo account." },
   { id: "segnalazione", label: "Segnala un problema", icon: Bug, ph: "Cosa stava facendo, cosa si aspettava e cosa è successo invece…" },
 ];
+const PORTAL_AREAS = [
+  { id: "appuntamenti", label: "Appuntamenti e prenotazioni" },
+  { id: "referti", label: "Referti e documenti" },
+  { id: "pagamenti", label: "Pagamenti e ricevute" },
+  { id: "messaggi", label: "Messaggi con il medico" },
+  { id: "account", label: "Account e accesso" },
+  { id: "altro", label: "Altro" },
+];
 const LABELS = ["", "Molto difficile", "Faticoso", "Accettabile", "Fluido", "Impeccabile"];
 const newId = () => (window.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`);
 const techInfo = () => ({ page: window.location.pathname + window.location.search, user_agent: navigator.userAgent, screen: `${window.screen.width}x${window.screen.height}`, language: navigator.language });
@@ -64,6 +72,8 @@ export const FeedbackDialog = ({ open, onClose, onSent, parent = false }) => {
   const [error, setError] = useState("");
   const cid = useRef(newId());
   const k = KINDS.find((x) => x.id === kind);
+  const areas = parent ? PORTAL_AREAS : AREAS;
+  const ph = parent && kind === "feedback" ? "Es. trovare il referto della visita è stato semplice, ma…" : k.ph;
 
   const close = () => { onClose(); setTimeout(() => { setKind("feedback"); setRating(0); setArea(""); setText(""); setDone(false); setError(""); cid.current = newId(); }, 200); };
   const submit = async () => {
@@ -83,7 +93,7 @@ export const FeedbackDialog = ({ open, onClose, onSent, parent = false }) => {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && close()}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl bg-white sm:max-w-lg" data-testid="feedback-dialog">
+      <DialogContent className="max-h-[92vh] w-[calc(100%-1.5rem)] overflow-y-auto rounded-3xl bg-white sm:max-w-lg" data-testid="feedback-dialog">
         {done ? <ThankYou onClose={close} parent={parent} /> : (
           <>
             <DialogHeader>
@@ -97,18 +107,18 @@ export const FeedbackDialog = ({ open, onClose, onSent, parent = false }) => {
                   <button key={id} type="button" role="radio" aria-checked={kind === id} onClick={() => setKind(id)} className={`flex flex-col items-center gap-1.5 rounded-2xl border px-2 py-3 text-xs font-medium transition-colors ${kind === id ? "border-night bg-night text-white" : "border-slate-200 text-night hover:border-night"}`} data-testid={`feedback-kind-${id}`}><I size={18} /> {label}</button>
                 ))}
               </div>
-              {kind === "feedback" && <div data-testid="feedback-rating"><Label>Usabilità</Label><Stars value={rating} onChange={setRating} /></div>}
+              {kind === "feedback" && <div data-testid="feedback-rating"><Label>{parent ? "Facilità d'uso del portale" : "Usabilità"}</Label><Stars value={rating} onChange={setRating} /></div>}
               <div>
                 <Label>Area</Label>
                 <div className="flex flex-wrap gap-2">
-                  {AREAS.map((a) => (
+                  {areas.map((a) => (
                     <button key={a.id} type="button" onClick={() => setArea(a.id)} aria-pressed={area === a.id} className={`rounded-full border px-4 py-2 text-sm transition-colors ${area === a.id ? "border-night bg-night text-white" : "border-slate-200 text-night hover:border-night"}`} data-testid={`feedback-area-${a.id}`}>{a.label}</button>
                   ))}
                 </div>
               </div>
               <div>
                 <Label>{kind === "feedback" ? "Note dal campo" : "Messaggio"}</Label>
-                <textarea value={text} onChange={(e) => setText(e.target.value)} maxLength={4000} rows={4} placeholder={k.ph} className="w-full resize-none rounded-2xl border border-slate-200 bg-[#F4F5F7] p-3 text-sm text-night outline-none focus:border-night" data-testid="feedback-text-input" />
+                <textarea value={text} onChange={(e) => setText(e.target.value)} maxLength={4000} rows={4} placeholder={ph} className="w-full resize-none rounded-2xl border border-slate-200 bg-[#F4F5F7] p-3 text-sm text-night outline-none focus:border-night" data-testid="feedback-text-input" />
                 {kind === "segnalazione" && <p className="mt-1.5 text-xs text-slate-500" data-testid="feedback-tech-note">Allegheremo in automatico pagina aperta, browser e dispositivo per riprodurre il problema.</p>}
               </div>
               {error && <SendError msg={error} onRetry={submit} busy={busy} />}
