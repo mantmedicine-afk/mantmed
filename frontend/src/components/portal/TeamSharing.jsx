@@ -7,6 +7,7 @@ import { api, errMsg } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 const day = (iso) => (iso ? new Date(iso).toLocaleDateString("it-IT", { day: "numeric", month: "short", year: "numeric" }) : "");
+const stamp = (iso) => (iso ? new Date(iso).toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" }) : "");
 const ACT = { consultazione: "ha consultato la cartella", referto_pdf: "ha scaricato un referto", nota: "ha scritto una nota di squadra", richiesta: "ha chiesto l'accesso" };
 const card = "rounded-3xl bg-white p-5 ring-1 ring-[#0A192F]/10 sm:p-6";
 
@@ -54,12 +55,13 @@ const Row = ({ g, info, actions, testid }) => (
 
 const Group = ({ grp, child, network, onAuthorize, onChange }) => {
   const [log, setLog] = useState(false);
+  const [all, setAll] = useState(false);
   const act = async (fn, id, msg) => { try { await fn(id); toast.success(msg); onChange(); } catch (e) { toast.error(errMsg(e)); } };
   const active = grp.grants.filter((g) => g.status === "active");
   const pending = grp.grants.filter((g) => g.status === "pending");
   const closed = grp.grants.filter((g) => ["revoked", "denied"].includes(g.status));
   const busyIds = new Set([...active, ...pending].map((g) => g.doctor.id));
-  const candidates = [...grp.followers, ...network].filter((d, i, a) => a.findIndex((x) => x.id === d.id) === i && !busyIds.has(d.id));
+  const candidates = [...grp.followers, ...network, ...closed.map((g) => g.doctor)].filter((d, i, a) => a.findIndex((x) => x.id === d.id) === i && !busyIds.has(d.id));
   const [pick, setPick] = useState("");
   return (
     <article className={`${card} space-y-5`} data-testid={`team-group-${child.id}`}>
@@ -83,11 +85,13 @@ const Group = ({ grp, child, network, onAuthorize, onChange }) => {
         <button disabled={!pick} onClick={() => onAuthorize({ group: grp.group, doctor: candidates.find((d) => d.id === pick), child: child.name })} className="flex h-11 items-center justify-center gap-2 rounded-full bg-night px-5 text-sm font-medium text-white disabled:opacity-40" data-testid={`team-add-${child.id}`}><UserPlus size={15} /> Autorizza</button>
       </div>}
       <button onClick={() => setLog((v) => !v)} className="flex items-center gap-1.5 text-sm font-medium text-[#3B6CF6]" data-testid={`team-log-toggle-${child.id}`}><History size={14} /> Registro accessi e storico ({grp.log.length + closed.length}) <ChevronDown size={14} className={`transition-transform ${log ? "rotate-180" : ""}`} /></button>
-      {log && <ul className="space-y-1.5 text-sm text-[#0A192F]/70" data-testid={`team-log-${child.id}`}>
-        {closed.map((g) => <li key={g.id}>{day(g.updated_at || g.revoked_at)} · Delega a {g.doctor.name} {g.status === "revoked" ? "revocata" : "rifiutata"}</li>)}
-        {grp.log.map((l, i) => <li key={i}>{new Date(l.at).toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" })} · {l.doctor_name} ({l.specialty}) {ACT[l.action] ?? l.action}</li>)}
-        {!grp.log.length && !closed.length && <li>Nessun accesso registrato.</li>}
-      </ul>}
+      {log && <div className="grid gap-4 md:grid-cols-2" data-testid={`team-log-${child.id}`}>
+        <div><div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#0A192F]/50">Deleghe chiuse</div>
+          <ul className="mt-2 space-y-1.5 text-sm text-[#0A192F]/70">{(all ? closed : closed.slice(0, 10)).map((g) => <li key={g.id}>{stamp(g.updated_at || g.revoked_at)} · {g.doctor.name} · {g.status === "revoked" ? "revocata" : "rifiutata"}</li>)}{!closed.length && <li>Nessuna.</li>}</ul></div>
+        <div><div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#0A192F]/50">Registro accessi</div>
+          <ul className="mt-2 space-y-1.5 text-sm text-[#0A192F]/70">{(all ? grp.log : grp.log.slice(0, 10)).map((l, i) => <li key={i}>{stamp(l.at)} · {l.doctor_name} ({l.specialty}) {ACT[l.action] ?? l.action}</li>)}{!grp.log.length && <li>Nessun accesso registrato.</li>}</ul>
+          {(grp.log.length > 10 || closed.length > 10) && <button onClick={() => setAll((v) => !v)} className="mt-2 text-sm font-medium text-[#3B6CF6]" data-testid={`team-log-all-${child.id}`}>{all ? "Mostra meno" : `Mostra tutto (${grp.log.length + closed.length})`}</button>}</div>
+      </div>}
     </article>
   );
 };

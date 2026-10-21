@@ -333,3 +333,11 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Riavvio: medico TopBar + Impostazioni; portale icona in header + Impostazioni
 - Fix backend: POST /api/onboarding/tour spostato su public_api (prima 403 per i genitori)
 - Rimosso vecchio components/dash/OnboardingTour.jsx
+
+## 2026-06 · Medicina di Squadra (iteration_38 PASS + fix)
+- backend/team.py: team_grants (pending/active/revoked/denied, firma sigillata), team_notes (cifrate), team_access_log; migrazione share_consents -> deleghe individuali (vecchie revocate)
+- Medico: /api/team/search (CF), /team/patients/{pid}, /team/view/{ref} (+request con cooldown 24h dopo rifiuto/revoca, notes, reports/{cid}/pdf); audit medicina_squadra_* agli owner
+- Genitore: /api/portal/team, /grants (firma), /grants/{id}/revoke, /deny; notifica kind "team"
+- UI: NetworkSearch (Pazienti), TeamPanel (cartella + passaporto tab "Medicina di squadra"), portale tab "Condivisione" (TeamSharing) con richieste, accessi, registro
+- Rimossi NetworkSharing.jsx e LinkedSpecialists.jsx
+- Test: backend/tests/test_team_medicine.py (21 pass); dati team di test ripuliti

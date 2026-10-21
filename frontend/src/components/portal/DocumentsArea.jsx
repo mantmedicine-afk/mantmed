@@ -13,7 +13,7 @@ const year = (iso) => new Date(iso.length === 10 ? `${iso}T12:00:00` : iso).getF
 const byYear = (items, key) => Object.entries(items.reduce((m, x) => ({ ...m, [year(x[key])]: [...(m[year(x[key])] ?? []), x] }), {})).sort(([a], [b]) => b - a);
 const Empty = ({ text, testid }) => <p className="rounded-2xl border border-dashed border-[#0A192F]/20 bg-white/60 p-8 text-center text-sm text-[#0A192F]/60" data-testid={testid}>{text}</p>;
 const Year = ({ y, right }) => <div className="flex items-baseline justify-between pt-4"><span className="font-display text-3xl text-night">{y}</span>{right}</div>;
-const TABS = [["visite", "Visite & Referti", Stethoscope], ["bilanci", "Bilanci di salute", HeartPulse], ["prescrizioni", "Prescrizioni & Ricette", Pill], ["ricevute", "Ricevute e Fatture", ReceiptText], ["famiglia", "Famiglia e Consensi", Users], ["condivisione", "Condivisione e Deleghe", Share2]];
+const TABS = [["visite", "Visite & Referti", Stethoscope], ["bilanci", "Bilanci di salute", HeartPulse], ["prescrizioni", "Prescrizioni & Ricette", Pill], ["ricevute", "Ricevute e Fatture", ReceiptText], ["famiglia", "Famiglia e Consensi", Users], ["condivisione", "Condivisione", Share2]];
 
 const Visit = ({ r }) => (
   <div className="rounded-3xl bg-white p-5 ring-1 ring-[#0A192F]/10 transition-shadow hover:shadow-md" data-testid={`docs-visit-${r.id}`}>

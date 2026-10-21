@@ -1,7 +1,7 @@
 """Medicina di squadra: deleghe individuali del genitore a specialisti della rete, vista condivisa, note di squadra e registro accessi."""
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from html import escape as hesc
 from typing import Optional
 from bson import ObjectId
@@ -17,6 +17,7 @@ from tenancy import cf_hash
 
 logger = logging.getLogger(__name__)
 TEAM_VERSION = "Delega Medicina di Squadra v1.0"
+REQUEST_COOLDOWN_H = 24
 TEAM_TEXT = ("Autorizzo lo specialista indicato della rete MantMed a consultare la cartella condivisa di mio figlio/a: referti, visite, bilanci di salute, "
              "ultime misure di crescita e note di squadra degli altri specialisti che lo/la seguono, e ad aggiungere note di squadra. "
              "Ogni accesso viene registrato e posso revocare la delega in qualsiasi momento dal Portale Paziente. "
@@ -119,7 +120,7 @@ def build_team(db, current_user, Consultation, pdf_for):
         me = user["id"]
         grants = await active_grants(cf, me)
         parents = await parents_with(cf)
-        owners = {o for _, ms in parents for _, o in ms} | {o for _, o in await cf_pairs(cf)}
+        owners = {o for _, ms in parents for _, o in ms} | {o for _, o in await cf_pairs(cf)} | set(await db.team_grants.distinct("grantee_id", {"cf_hash": cf, "status": "active"}))
         base = {"ref": cf, "followers": len(owners - {me}), "parent_linked": bool(parents)}
         if not grants:
             pending = await db.team_grants.find_one({"cf_hash": cf, "grantee_id": me, "status": "pending"})
@@ -167,6 +168,12 @@ def build_team(db, current_user, Consultation, pdf_for):
         parents = await parents_with(ref)
         if not parents:
             raise HTTPException(400, "Nessun genitore ha ancora collegato questa cartella al Portale Paziente: non è possibile inviare la richiesta")
+        pending = await db.team_grants.find_one({"cf_hash": ref, "grantee_id": user["id"], "status": "pending"})
+        if pending:
+            return {"status": "pending", "requested_at": pending.get("requested_at")}
+        since = (datetime.now(timezone.utc) - timedelta(hours=REQUEST_COOLDOWN_H)).isoformat()
+        if await db.team_grants.find_one({"cf_hash": ref, "grantee_id": user["id"], "status": {"$in": ["denied", "revoked"]}, "updated_at": {"$gte": since}}):
+            raise HTTPException(429, f"Il genitore ha chiuso la delega di recente: potrà inviare una nuova richiesta dopo {REQUEST_COOLDOWN_H} ore")
         info = await doc_info(user["id"])
         now = _now()
         for u, ms in parents:
@@ -237,13 +244,13 @@ def build_team(db, current_user, Consultation, pdf_for):
             raise HTTPException(404, "Cartella non collegata al suo account")
         d = await db.users.find_one({"_id": ObjectId(body.doctor_id), "role": "doctor", "status": "active"}) if ObjectId.is_valid(body.doctor_id) else None
         q = {"cf_hash": body.group, "parent_id": user["id"], "grantee_id": body.doctor_id}
-        if not d or not (in_network(d) or body.doctor_id in groups[body.group] or await db.team_grants.find_one({**q, "status": "pending"})):
+        if await db.team_grants.find_one({**q, "status": "active"}):
+            raise HTTPException(400, "Lo specialista ha già una delega attiva")
+        if not d or not (in_network(d) or body.doctor_id in groups[body.group] or await db.team_grants.find_one(q)):
             raise HTTPException(404, "Specialista non disponibile nella rete MantMed")
         now = _now()
         signed = {"status": "active", "granted_at": now, "updated_at": now, "revoked_at": None, "version": TEAM_VERSION,
                   **seal_fields({"signer_name": body.signer_name.strip(), "signature": body.signature, "text": TEAM_TEXT}, ("signer_name", "signature", "text"))}
-        if await db.team_grants.find_one({**q, "status": "active"}):
-            raise HTTPException(400, "Lo specialista ha già una delega attiva")
         res = await db.team_grants.find_one_and_update({**q, "status": "pending"}, {"$set": signed})
         if not res:
             await db.team_grants.insert_one({**q, **signed, "requested_at": None})
