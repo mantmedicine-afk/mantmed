@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { HeartPulse, Users, ShieldCheck, Stethoscope, FileSignature, CalendarHeart, ClipboardList, FileDown, Loader2 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { errMsg } from "@/lib/api";
 import { api } from "@/lib/api";
 import { PrevisitCard } from "@/components/portal/PrevisitCard";
 import { ConsentBanner } from "@/components/portal/ConsentSign";
-import { NetworkSharing } from "@/components/portal/NetworkSharing";
 import { SignedDocsList } from "@/components/signature/SignedDocs";
 
 const day = (iso) => new Date(iso.length === 10 ? `${iso}T12:00:00` : iso).toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" });
@@ -82,7 +82,7 @@ const FamilyMember = ({ g, onChange }) => {
         <p className="text-xs text-[#0A192F]/50">Per revocare o modificare un consenso contatti lo studio del medico: la revoca viene registrata in cartella.</p></div>
       <div className="space-y-2"><Label icon={FileSignature}>Documenti firmati</Label>
         <SignedDocsList docs={g.flatMap((c) => c.documents ?? [])} download={api.portalDocumentPdf} testId={`docs-family-signed-${p.id}`} empty="Nessun documento firmato." /></div>
-      <NetworkSharing entries={g} />
+      <Link to="/portale/documenti?tab=condivisione" className="inline-flex items-center gap-1.5 text-sm font-medium text-[#3B6CF6] hover:underline" data-testid={`docs-family-team-link-${p.id}`}><ShieldCheck size={14} /> Gestisci condivisione e deleghe specialistiche</Link>
     </article>
   );
 };

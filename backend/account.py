@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 PARENT_PREFS = {"appointments": {"email": True, "inapp": True}, "reports": {"email": False, "inapp": True}, "messages": {"email": False, "inapp": True}}
 DOCTOR_PREFS = {"bookings": {"email": False, "inapp": True}, "cancellations": {"email": False, "inapp": True}, "messages": {"email": False, "inapp": True}}
 P_SEALED = ("fiscal_code", "address", "phone")
-NOTIF_CAT = {"report": "reports", "checkpoint": "reports", "reply": "messages", "reminder": "appointments"}
+NOTIF_CAT = {"report": "reports", "checkpoint": "reports", "reply": "messages", "reminder": "appointments", "team": "messages"}
 
 
 def _now():

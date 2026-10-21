@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
-import { Loader2, Pill, ReceiptText, Stethoscope, ShieldCheck, FileSignature, HeartPulse, Users } from "lucide-react";
+import { Loader2, Pill, ReceiptText, Stethoscope, ShieldCheck, FileSignature, HeartPulse, Users, Share2 } from "lucide-react";
 import { BilanciTab, FamilyTab, DlBtn } from "@/components/portal/AreaTabs";
+import { TeamSharing } from "@/components/portal/TeamSharing";
 import { api, errMsg, eur } from "@/lib/api";
 import { PortalBodychart } from "@/components/portal/PortalBodychart";
 import { SignedDocsList } from "@/components/signature/SignedDocs";
@@ -12,7 +13,7 @@ const year = (iso) => new Date(iso.length === 10 ? `${iso}T12:00:00` : iso).getF
 const byYear = (items, key) => Object.entries(items.reduce((m, x) => ({ ...m, [year(x[key])]: [...(m[year(x[key])] ?? []), x] }), {})).sort(([a], [b]) => b - a);
 const Empty = ({ text, testid }) => <p className="rounded-2xl border border-dashed border-[#0A192F]/20 bg-white/60 p-8 text-center text-sm text-[#0A192F]/60" data-testid={testid}>{text}</p>;
 const Year = ({ y, right }) => <div className="flex items-baseline justify-between pt-4"><span className="font-display text-3xl text-night">{y}</span>{right}</div>;
-const TABS = [["visite", "Visite & Referti", Stethoscope], ["bilanci", "Bilanci di salute", HeartPulse], ["prescrizioni", "Prescrizioni & Ricette", Pill], ["ricevute", "Ricevute e Fatture", ReceiptText], ["famiglia", "Famiglia e Consensi", Users]];
+const TABS = [["visite", "Visite & Referti", Stethoscope], ["bilanci", "Bilanci di salute", HeartPulse], ["prescrizioni", "Prescrizioni & Ricette", Pill], ["ricevute", "Ricevute e Fatture", ReceiptText], ["famiglia", "Famiglia e Consensi", Users], ["condivisione", "Condivisione e Deleghe", Share2]];
 
 const Visit = ({ r }) => (
   <div className="rounded-3xl bg-white p-5 ring-1 ring-[#0A192F]/10 transition-shadow hover:shadow-md" data-testid={`docs-visit-${r.id}`}>
@@ -94,12 +95,13 @@ export const DocumentsArea = ({ kids, onChange, addChild }) => {
   return (
     <section className="space-y-5" data-testid="documents-area">
       <div className="flex items-center gap-2 text-sm text-[#0A192F]/60"><ShieldCheck size={15} strokeWidth={1.5} className="text-emerald-700" /> Documenti cifrati e visibili solo a lei e ai medici di {g[0].patient.name.split(" ")[0]}.</div>
-      {groups.length > 1 && tab !== "famiglia" && <div className="flex flex-wrap gap-2" data-testid="docs-kids">{groups.map((x) => <button key={x[0].group} onClick={() => setGid(x[0].group)} className={`rounded-full px-4 py-2 text-sm transition-colors ${x === g ? "bg-night text-white" : "bg-white text-night ring-1 ring-[#0A192F]/10 hover:ring-night"}`} data-testid={`docs-kid-${x[0].patient.id}`}>{x[0].patient.name}</button>)}</div>}
+      {groups.length > 1 && !["famiglia", "condivisione"].includes(tab) && <div className="flex flex-wrap gap-2" data-testid="docs-kids">{groups.map((x) => <button key={x[0].group} onClick={() => setGid(x[0].group)} className={`rounded-full px-4 py-2 text-sm transition-colors ${x === g ? "bg-night text-white" : "bg-white text-night ring-1 ring-[#0A192F]/10 hover:ring-night"}`} data-testid={`docs-kid-${x[0].patient.id}`}>{x[0].patient.name}</button>)}</div>}
       <div className="-mx-1 flex snap-x gap-1 overflow-x-auto rounded-full bg-white p-1 ring-1 ring-[#0A192F]/10 [mask-image:linear-gradient(to_right,black_85%,transparent)] sm:mx-0 sm:inline-flex sm:[mask-image:none]" role="tablist">
         {TABS.map(([id, label, I]) => <button key={id} ref={(el) => { if (el && tab === id) el.scrollIntoView({ block: "nearest", inline: "nearest" }); }} role="tab" aria-selected={tab === id} onClick={() => set("tab", id)} className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition-colors ${tab === id ? "bg-night text-white" : "text-night hover:bg-[#F6F1E9]"}`} data-testid={`docs-tab-${id}`}><I size={15} strokeWidth={1.5} /> {label}</button>)}
       </div>
       {tab === "visite" && <Visits reports={reports} docs={g.flatMap((c) => c.documents ?? [])} />}
       {tab === "bilanci" && <BilanciTab g={g} reports={reports} onChange={onChange} />}
+      {tab === "condivisione" && <TeamSharing kids={kids} />}
       {tab === "famiglia" && <FamilyTab groups={groups} onChange={onChange} addChild={addChild} />}
       {tab === "prescrizioni" && <Prescriptions pid={g[0].patient.id} />}
       {tab === "ricevute" && <Receipts items={receipts} />}

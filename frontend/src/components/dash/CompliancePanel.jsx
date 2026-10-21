@@ -4,7 +4,11 @@ import { X, Lock, ShieldCheck, Server, FileCheck2, AlertTriangle, CheckCircle2, 
 import { http } from "@/lib/api";
 import { TwoFactorCard } from "./Security";
 
-const ACTION = { accesso_passaporto: "Accesso al passaporto", referto_pdf: "Referto PDF generato", referto_email: "Referto inviato via email", consenso_registrato: "Consenso registrato", consenso_revocato: "Consenso revocato" };
+const ACTION = { accesso_passaporto: "Accesso al passaporto", referto_pdf: "Referto PDF generato", referto_email: "Referto inviato via email", consenso_registrato: "Consenso registrato", consenso_revocato: "Consenso revocato",
+  medicina_squadra_consultazione: "Medicina di squadra · cartella consultata da", medicina_squadra_referto_pdf: "Medicina di squadra · referto scaricato da",
+  medicina_squadra_nota: "Medicina di squadra · nota di squadra di", medicina_squadra_richiesta: "Medicina di squadra · richiesta di accesso da",
+  medicina_squadra_delega_firmata: "Medicina di squadra · delega firmata per", medicina_squadra_delega_revocata: "Medicina di squadra · delega revocata",
+  medicina_squadra_delega_rifiutata: "Medicina di squadra · richiesta rifiutata" };
 const STEPS = [
   "Crea un cluster su MongoDB Atlas scegliendo la regione Francoforte (eu-central-1) o Milano (eu-south-1).",
   "Abilita la crittografia a riposo del cluster e, se disponibile, il backup in regione UE.",

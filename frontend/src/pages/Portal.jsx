@@ -3,7 +3,6 @@ import { toast } from "sonner";
 import { LogOut, CalendarClock, FileSignature, FileDown, Plus, Loader2, Baby, Info, CalendarPlus, ReceiptText, CheckCircle2, AlertCircle, UserRound } from "lucide-react";
 import { RequestDialog } from "@/components/portal/RequestDialog";
 import { CancelVisit } from "@/components/portal/CancelVisit";
-import { NetworkSharing } from "@/components/portal/NetworkSharing";
 import { Messages } from "@/components/portal/Messages";
 import { NotificationBell, useNotifications } from "@/components/portal/NotificationBell";
 import { ReminderBanner } from "@/components/portal/ReminderBanner";
@@ -250,6 +249,7 @@ export default function Portal() {
   const go = (pid, tab) => { nav(tab === "appointments" ? "/portale/appuntamenti" : "/portale/documenti?tab=visite"); setJump((j) => ({ pid, tab, n: (j?.n ?? 0) + 1 })); };
   const pickNotif = (n) => {
     if (n.kind === "reply") { nav("/portale/messaggi"); setOpenThread(n.ref); }
+    else if (n.kind === "team") nav("/portale/documenti?tab=condivisione");
     else go(n.patient_id, n.kind === "reminder" ? "appointments" : "reports");
   };
   const count = (k) => children.reduce((s, c) => s + (c[k]?.length ?? 0), 0);
@@ -297,7 +297,6 @@ export default function Portal() {
         {sezione === "documenti" && data && <DocumentsArea kids={children} onChange={load} addChild={<AddChild onLinked={load} />} />}
         {!["messaggi", "trova-specialista", "documenti"].includes(sezione) && children.map((c) => <Child key={c.patient.id} c={c} onRequest={setReq} focus={focus} onChange={load} jump={jump} only={only} />)}
         {sezione === "messaggi" && children.length > 0 && <Messages kids={children} openId={openThread} onOpened={() => setOpenThread(null)} onRead={reloadNotif} />}
-        {sezione === "panoramica" && [...new Set(children.map((c) => c.group))].map((g) => <NetworkSharing key={g} entries={children.filter((c) => c.group === g)} />)}
         <RequestDialog key={`${req}-${reqDoctor}-${reqPreset?.date}${reqPreset?.time}`} open={!!req} initial={req} doctorId={reqDoctor} preset={reqPreset} kids={children} onClose={() => { setReq(null); setReqDoctor(""); setReqPreset(null); }} onSent={load} />
         {data && sezione === "panoramica" && <AddChild onLinked={load} />}
         {data?.consent && sezione === "panoramica" && <p className="flex items-center gap-2 text-xs text-slate-600" data-testid="portal-consent-note"><Info size={13} /> Consenso accettato il {day(data.consent.at)} · {data.consent.version} · {count("reports")} referti · {count("appointments")} appuntamenti</p>}

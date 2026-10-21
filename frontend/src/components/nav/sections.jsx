@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search, FileText, PersonStanding, Landmark, ShieldCheck, MessageSquarePlus, Compass, X } from "lucide-react";
 import { BodychartHistory } from "@/components/bodychart/BodychartHistory";
+import { TeamPanel } from "@/components/team/TeamPanel";
 import { api } from "@/lib/api";
 
 const dt = (iso) => new Date(iso).toLocaleDateString("it-IT", { day: "numeric", month: "short", year: "numeric" });
@@ -55,6 +56,7 @@ const PatientFolderBody = ({ patient, notes, onOpenVisit, onPassport, onClose })
       </div>
       <BodychartHistory patientId={patient.id} />
       </div>
+      <TeamPanel patientId={patient.id} />
     </div>
   );
 };

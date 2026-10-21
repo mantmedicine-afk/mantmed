@@ -19,6 +19,7 @@ import { PortalRequests } from "@/components/dash/PortalRequests";
 import { CompliancePanel } from "@/components/dash/CompliancePanel";
 import { FeedbackDialog } from "@/components/dash/FeedbackDialog";
 import { BetaMetrics } from "@/components/dash/BetaMetrics";
+import { NetworkSearch } from "@/components/team/TeamPanel";
 import { GuidedTour } from "@/components/tour/GuidedTour";
 import { DOCTOR_STEPS } from "@/components/tour/steps";
 import { useTour } from "@/components/tour/useTour";
@@ -135,6 +136,7 @@ export default function Dashboard() {
         <PageTitle kicker="Archivio clinico" title="Pazienti" it="& cartelle cliniche" />
         <div className="mx-auto max-w-[1440px] space-y-5 pb-12" data-testid="patients-page">
           {folder && <div className="px-5 lg:px-8" id="patient-folder"><PatientFolder patient={patients.find((p) => p.id === folder)} notes={notes} onOpenVisit={openVisit} onPassport={setPassportId} onClose={() => setFolder(null)} /></div>}
+          <NetworkSearch />
           <PassportSection patients={patients} onOpen={(id) => { setFolder(id); window.scrollTo({ top: 0, behavior: "smooth" }); }} onAdd={() => setEditPatient({})} />
         </div>
       </>}

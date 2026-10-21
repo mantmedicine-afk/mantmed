@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Bell, FileText, HeartPulse, MessageCircleReply, CalendarClock, CheckCheck } from "lucide-react";
+import { Bell, FileText, HeartPulse, MessageCircleReply, CalendarClock, CheckCheck, ShieldCheck } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { api } from "@/lib/api";
 import { usePoll } from "@/hooks/usePoll";
@@ -10,6 +10,7 @@ const KIND = {
   checkpoint: [HeartPulse, "bg-violet-100 text-violet-900"],
   reply: [MessageCircleReply, "bg-emerald-100 text-emerald-900"],
   reminder: [CalendarClock, "bg-amber-100 text-amber-900"],
+  team: [ShieldCheck, "bg-emerald-100 text-emerald-900"],
 };
 
 export const useNotifications = () => {
