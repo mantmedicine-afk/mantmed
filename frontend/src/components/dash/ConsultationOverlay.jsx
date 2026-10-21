@@ -9,6 +9,8 @@ import { Waveform } from "./Waveform";
 import { NoteEditor } from "./NoteEditor";
 import { ConsentGate } from "./ConsentGate";
 import { useProcessing } from "@/lib/processing";
+import { micError } from "@/lib/mic";
+import { MicCheck } from "./MicCheck";
 
 export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, onDone, patients = [], onPatientsChange, onEditPatient }) => {
   const [paper, setPaper] = useState(false);
@@ -156,17 +158,6 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
   );
 };
 
-const micError = (e) => {
-  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) return "Il browser non consente il microfono su questa pagina: apra MantMed in una scheda sicura (https) o usi la trascrizione manuale";
-  if (e?.name === "TimeoutError") return "Nessuna risposta alla richiesta del microfono: consenta l'accesso dall'icona nella barra degli indirizzi e riprovi";
-  if (e?.name === "NotAllowedError" || e?.name === "SecurityError") return window.self !== window.top
-    ? "Accesso al microfono bloccato in questa anteprima: apra MantMed in una nuova scheda del browser e riprovi"
-    : "Accesso al microfono negato: lo consenta dall'icona del lucchetto nella barra degli indirizzi e riprovi";
-  if (e?.name === "NotFoundError" || e?.name === "OverconstrainedError") return "Nessun microfono trovato: colleghi un microfono o usi la trascrizione manuale";
-  if (e?.name === "NotReadableError") return "Il microfono è usato da un'altra applicazione: la chiuda e riprovi";
-  return "Microfono non disponibile: consenta l'accesso o usi la trascrizione manuale";
-};
-
 const stageLabel = { setup: "preparazione", recording: "registrazione", retry: "invio audio", note: "cartella della visita" };
 
 const ageMonths = (bd) => {
@@ -218,6 +209,7 @@ const Setup = ({ waiting, sel, setSel, freeName, setFreeName, manual, setManual,
       {picker}
       <button onClick={() => setManual(!manual)} className="flex items-center gap-2 text-sm text-slate-300 hover:text-white" data-testid="consult-manual-toggle"><Keyboard size={15} /> {manual ? "Torna alla registrazione vocale" : "Senza microfono? Incolla una trascrizione"}</button>
       {manual && <textarea value={text} onChange={(e) => setText(e.target.value)} rows={5} placeholder="Medico: Buongiorno, cosa la porta qui oggi? Paziente: …" className="w-full rounded-2xl border border-white/15 bg-white/5 px-5 py-4 text-white placeholder:text-slate-400 outline-none focus:border-white/50" data-testid="consult-manual-textarea" />}
+      {!manual && <MicCheck />}
       {hint && <p role="alert" className="rounded-2xl border border-rose-300/40 bg-rose-500/10 px-5 py-3 text-sm text-rose-200" data-testid="consult-start-error">{hint}</p>}
       <button onClick={start} disabled={sending} className="mt-2 flex w-full items-center justify-center gap-3 rounded-full bg-white py-5 text-lg font-semibold text-night transition-transform hover:-translate-y-0.5 active:scale-[0.98]" data-testid="consult-begin-btn">
         {sending ? <Loader2 size={20} className="animate-spin" /> : manual ? <Keyboard size={20} /> : <Mic size={20} />} {starting ? "In attesa del microfono…" : manual ? "Genera nota clinica" : "Inizia registrazione"}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { micConstraints } from "@/lib/mic";
 
 // Visite lunghe: ogni 10 minuti di registrazione si chiude una parte audio autonoma (file valido a sé)
 // e se ne apre subito un'altra sullo stesso microfono, senza interruzioni. Ogni parte resta sotto i 25 MB di Whisper.
@@ -58,7 +59,7 @@ export const useRecorder = () => {
     if (!navigator.mediaDevices?.getUserMedia) throw Object.assign(new Error("unsupported"), { name: "NotSupportedError" });
     let timer;
     const s = await Promise.race([
-      navigator.mediaDevices.getUserMedia({ audio: true }),
+      navigator.mediaDevices.getUserMedia(micConstraints()),
       new Promise((_, rej) => { timer = setTimeout(() => rej(Object.assign(new Error("timeout"), { name: "TimeoutError" })), 20000); }),
     ]).finally(() => clearTimeout(timer));
     stream.current = s;
