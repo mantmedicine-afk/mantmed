@@ -16,8 +16,8 @@ http.interceptors.response.use(undefined, async (error) => {
 const list = (r) => (Array.isArray(r?.data) ? r.data : []);
 
 export const api = {
-  me: () => http.get("/auth/me").then((r) => r.data),
-  refresh: () => http.post("/auth/refresh").then((r) => r.data),
+  me: () => http.get("/auth/me", { timeout: 12000 }).then((r) => r.data),
+  refresh: () => http.post("/auth/refresh", null, { timeout: 12000 }).then((r) => r.data),
   login: (email, password) => http.post("/auth/login", { email, password }).then((r) => r.data),
   verify2fa: (mfa_token, code) => http.post("/auth/2fa/verify", { mfa_token, code }).then((r) => r.data),
   setup2fa: () => http.post("/auth/2fa/setup").then((r) => r.data),
@@ -112,6 +112,7 @@ export const api = {
   adminDoctors: () => http.get("/admin/doctors").then(list),
   setDoctorStatus: (id, status) => http.post(`/admin/doctors/${id}/status`, { status }).then((r) => r.data),
   registerStart: (b) => http.post("/register/start", b).then((r) => r.data),
+  emailAvailable: (email) => http.get("/register/email-available", { params: { email } }).then((r) => r.data),
   registerVerify: (b) => http.post("/register/verify", b).then((r) => r.data),
   portalMe: () => http.get("/portal/me").then((r) => r.data),
   portalAddChild: (fiscal_code) => http.post("/portal/children", { fiscal_code }).then((r) => r.data),
@@ -221,6 +222,7 @@ export const setClinics = (list) => {
 export const minutesSince = (iso) => Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
 
 export const errMsg = (e) => {
+  if (e && !e.response) return e.code === "ECONNABORTED" ? "Il server non risponde: riprovi tra qualche istante" : "Connessione non riuscita: verifichi la rete e riprovi";
   const d = e?.response?.data?.detail;
   if (typeof d === "string") return d;
   if (Array.isArray(d)) return d.map((x) => x?.msg).filter(Boolean).join(" ") || "Dati non validi";

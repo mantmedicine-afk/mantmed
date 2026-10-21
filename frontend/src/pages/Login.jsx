@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Lock, ArrowRight, Loader2, Eye, EyeOff, ShieldCheck, Check, AlertTriangle, ArrowLeft } from "lucide-react";
 import { LogoMark } from "@/components/dash/Logo";
@@ -19,6 +20,19 @@ const Hint = ({ ok, show, children, id }) => show ? (
   <p className={`mt-1.5 flex items-center gap-1.5 text-xs ${ok ? "text-emerald-300" : "text-amber-300"}`} data-testid={id}>{ok ? <Check size={12} /> : <AlertTriangle size={12} />}{children}</p>
 ) : null;
 
+const HOME = { doctor: "/app", parent: "/portale", admin: "/admin" };
+
+const useWelcome = () => {
+  const nav = useNavigate();
+  const { pathname } = useLocation();
+  return (u) => {
+    if (!u) return;
+    toast.success(`Bentornato, ${u.name || u.email}`, { description: "Accesso effettuato" });
+    const home = HOME[u.role];
+    if (home && pathname !== "/area-riservata" && !pathname.startsWith(home)) nav(home, { replace: true });
+  };
+};
+
 const inputCls = "mt-1.5 w-full rounded-2xl border bg-white/5 px-4 py-3.5 text-white outline-none transition-colors placeholder:text-slate-400 focus:bg-white/10";
 
 export default function Login({ subtitle = "Studio medico specialistico · Pediatria", note = "Accesso protetto per i medici MantMed", signup = true, parent = false }) {
@@ -31,6 +45,7 @@ export default function Login({ subtitle = "Studio medico specialistico · Pedia
   const [busy, setBusy] = useState(false);
   const [mfa, setMfa] = useState(null);
   const [forgot, setForgot] = useState(false);
+  const welcome = useWelcome();
 
   const emailOk = EMAIL_RE.test(email.trim());
   const pwOk = password.length >= 8;
@@ -41,9 +56,10 @@ export default function Login({ subtitle = "Studio medico specialistico · Pedia
     if (!emailOk || !pwOk) return;
     setError("");
     setBusy(true);
-    try { const r = await login(email, password); if (r.mfaToken) setMfa(r.mfaToken); }
-    catch (err) { setError(errMsg(err)); }
-    setBusy(false);
+    try {
+      const r = await login(email, password);
+      if (r.mfaToken) { setMfa(r.mfaToken); setBusy(false); } else welcome(r.user);
+    } catch (err) { setError(errMsg(err)); setBusy(false); }
   };
 
   return (
@@ -56,7 +72,7 @@ export default function Login({ subtitle = "Studio medico specialistico · Pedia
           <div className="mt-1 text-[11px] uppercase tracking-[0.28em] text-[#C9CCD3]" data-testid="login-subtitle">{subtitle}</div>
         </div>
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25, duration: 0.6 }} className="rounded-[28px] border border-[#C9CCD3]/25 bg-white/[0.04] p-7 backdrop-blur-xl">
-          {forgot ? <ForgotStep parent={parent} initial={emailOk ? email.trim() : ""} onBack={() => setForgot(false)} /> : mfa ? <MfaStep token={mfa} onBack={() => { setMfa(null); setPassword(""); }} verify2fa={verify2fa} /> : (
+          {forgot ? <ForgotStep parent={parent} initial={emailOk ? email.trim() : ""} onBack={() => setForgot(false)} /> : mfa ? <MfaStep token={mfa} onBack={() => { setMfa(null); setPassword(""); }} verify2fa={verify2fa} onDone={welcome} /> : (
             <form onSubmit={submit} noValidate data-testid="login-form">
               <h1 className="font-display text-4xl leading-tight"><Line delay={0.3}>Area riservata</Line></h1>
               <p className="mt-1 text-sm text-slate-300" data-testid="login-note">{note}</p>
@@ -75,7 +91,7 @@ export default function Login({ subtitle = "Studio medico specialistico · Pedia
               </div>
               {error && <p className="mt-4 rounded-xl bg-red-500/15 px-4 py-3 text-sm text-red-200" data-testid="login-error">{error}</p>}
               <button type="submit" disabled={busy} className="group mt-7 flex w-full items-center justify-center gap-3 rounded-full bg-white py-4 font-semibold text-[#0A192F] transition-transform hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-60" data-testid="login-submit-button">
-                {busy ? <Loader2 className="animate-spin" size={18} /> : <Lock size={16} />} Accedi
+                {busy ? <Loader2 className="animate-spin" size={18} /> : <Lock size={16} />} {busy ? "Accesso in corso…" : "Accedi"}
                 {!busy && <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />}
               </button>
             </form>
@@ -95,7 +111,7 @@ export default function Login({ subtitle = "Studio medico specialistico · Pedia
   );
 }
 
-const MfaStep = ({ token, onBack, verify2fa }) => {
+const MfaStep = ({ token, onBack, verify2fa, onDone }) => {
   const [digits, setDigits] = useState(Array(6).fill(""));
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -103,9 +119,8 @@ const MfaStep = ({ token, onBack, verify2fa }) => {
   const submit = async (code) => {
     setBusy(true);
     setError("");
-    try { await verify2fa(token, code); }
-    catch (e) { setError(errMsg(e)); setDigits(Array(6).fill("")); refs.current[0]?.focus(); }
-    setBusy(false);
+    try { onDone(await verify2fa(token, code)); }
+    catch (e) { setError(errMsg(e)); setDigits(Array(6).fill("")); refs.current[0]?.focus(); setBusy(false); }
   };
   const set = (i, v) => {
     const clean = v.replace(/\D/g, "");

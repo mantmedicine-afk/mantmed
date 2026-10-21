@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import Lenis from "lenis";
 import "@/App.css";
 import { Toaster } from "@/components/ui/sonner";
-import { Loader2 } from "lucide-react";
+import { Loading } from "@/components/auth/BootScreens";
 import Dashboard from "@/pages/Dashboard";
 import Login from "@/pages/Login";
 import Landing from "@/pages/Landing";
@@ -18,7 +18,6 @@ import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { IdleWarning } from "@/components/dash/Security";
 
-const Loading = () => <div className="grid min-h-screen place-items-center bg-night" data-testid="auth-loading"><Loader2 className="animate-spin text-white" /></div>;
 
 const WrongArea = ({ to, label }) => {
   const { logout } = useAuth();

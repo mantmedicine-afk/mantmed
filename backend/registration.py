@@ -32,6 +32,18 @@ MAX_LINKS_PER_DAY = 10
 _CODE_KEY = hashlib.sha256(("signup:" + os.environ["JWT_SECRET"]).encode()).digest()
 
 
+_CF_ODD = [1, 0, 5, 7, 9, 13, 15, 17, 19, 21, 2, 4, 18, 20, 11, 3, 6, 8, 12, 14, 16, 10, 22, 25, 24, 23]
+MAX_EMAIL_CHECKS = 30
+
+
+def cf_valid(v: str) -> bool:
+    if not CF_RE.match(v):
+        return False
+    val = lambda ch: int(ch) if ch.isdigit() else ord(ch) - 65
+    s = sum(_CF_ODD[val(ch)] if i % 2 == 0 else val(ch) for i, ch in enumerate(v[:15]))
+    return chr(65 + s % 26) == v[15]
+
+
 def _now():
     return datetime.now(timezone.utc)
 
@@ -41,8 +53,8 @@ def _code_hash(email: str, code: str) -> str:
 
 
 def _strong(pw: str) -> str:
-    if len(pw) < 10 or not re.search(r"[A-Za-z]", pw) or not re.search(r"\d", pw):
-        raise ValueError("La password deve avere almeno 10 caratteri, con lettere e numeri")
+    if len(pw) < 10 or not re.search(r"[A-Za-z]", pw) or not re.search(r"\d", pw) or not re.search(r"[^A-Za-z0-9]", pw):
+        raise ValueError("La password deve avere almeno 10 caratteri, con lettere, numeri e almeno un carattere speciale")
     return pw
 
 
@@ -92,8 +104,8 @@ class ParentSignup(Base):
     @classmethod
     def v_cf(cls, v):
         v = v.strip().upper()
-        if not CF_RE.match(v):
-            raise ValueError("Codice fiscale del bambino non valido")
+        if not cf_valid(v):
+            raise ValueError("Codice fiscale del bambino non valido: verifichi i 16 caratteri")
         return v
 
 
@@ -109,7 +121,7 @@ class ChildIn(BaseModel):
     @classmethod
     def v_cf(cls, v):
         v = v.strip().upper()
-        if not CF_RE.match(v):
+        if not cf_valid(v):
             raise ValueError("Codice fiscale non valido")
         return v
 
@@ -145,7 +157,22 @@ def build_registration(db, current_user, start_session, models, pdf_for):
             await db.users.update_one({"_id": user["_id"]}, {"$set": {"children": list(children.values())}})
         return len(children)
 
+    def client_ip(request: Request) -> str:
+        return (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "")).split(",")[0].strip()
+
     # ---------- Registrazione pubblica con codice email ----------
+    @reg.get("/email-available")
+    async def email_available(email: str, request: Request):
+        email = email.strip().lower()
+        if not EMAIL_RE.match(email) or len(email) > 200:
+            raise HTTPException(422, "Email non valida")
+        ip = client_ip(request)
+        since = (_now() - timedelta(minutes=10)).isoformat()
+        if await db.email_checks.count_documents({"ip": ip, "at": {"$gte": since}}) >= MAX_EMAIL_CHECKS:
+            raise HTTPException(429, "Troppe verifiche ravvicinate: riprovi tra qualche minuto")
+        await db.email_checks.insert_one({"ip": ip, "at": _now().isoformat()})
+        return {"available": not await db.users.find_one({"email": email}, {"_id": 1})}
+
     @reg.post("/start")
     async def start(request: Request, data: Annotated[Union[DoctorSignup, ParentSignup], Field(discriminator="role")]):
         if data.role == "doctor" and not data.terms:
@@ -153,8 +180,8 @@ def build_registration(db, current_user, start_session, models, pdf_for):
         if data.role == "parent" and not (data.privacy_policy and data.health_data):
             raise HTTPException(400, "Informativa privacy e consenso al trattamento dei dati sanitari sono obbligatori")
         if await db.users.find_one({"email": data.email}):
-            raise HTTPException(409, "Esiste già un account con questa email: acceda dalla pagina di login")
-        ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "")).split(",")[0].strip()
+            raise HTTPException(409, "Email già registrata: acceda dalla pagina di login")
+        ip = client_ip(request)
         since = (_now() - timedelta(hours=1)).isoformat()
         if await db.signups.count_documents({"ip": ip, "created_at": {"$gte": since}}) >= MAX_STARTS_PER_HOUR:
             raise HTTPException(429, "Troppe registrazioni da questa connessione. Riprovi tra un'ora.")

@@ -9,3 +9,11 @@
 7. Reset info: GET /api/auth/password/reset/{token} → {email masked, role} or 410. Reset: POST /api/auth/password/reset {token,password} → ≥10 chars, letter, digit, special (422 otherwise); single use (410 after); 30 min expiry; all user sessions deleted; 2FA unchanged
 8. Valid link helper: `cd /app/backend && python tests/reset_token.py <email> [minutes]` → /reimposta-password?token=... (emails to @example.com are blocked by provider, expected)
 
+
+## Update (June 2026 – auth flow refactor)
+- `GET /api/register/email-available?email=` -> {available}; rate limit 30 / 10 min per IP (429)
+- Password rules (all flows): >=10 chars, letter, digit, special char
+- Child CF: regex + check-character validation (valid sample: RSSSFO24E41H224Y, invalid: RSSSFO24E41H224K)
+- To complete signup verify without real email, overwrite the code hash for a pending signup:
+  cd /app/backend && python3 -c "from dotenv import load_dotenv;load_dotenv();import asyncio,os;from motor.motor_asyncio import AsyncIOMotorClient;from registration import _code_hash;e='EMAIL';db=AsyncIOMotorClient(os.environ['MONGO_URL'])[os.environ['DB_NAME']];asyncio.run(db.signups.update_one({'email':e},{'\$set':{'code':_code_hash(e,'123456')}}))"
+  then use code 123456.
