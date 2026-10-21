@@ -274,3 +274,10 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - /api/portal/children/{pid}/simple: "In parole semplici" (diagnosi, cosa fare, quando tornare, glossario) IA con cache su consultation.simple (cifrata, invalidata al PATCH)
 - UI: PortalOverview (copertina saluto, SimpleBox, DoctorCard), sezione Portale Trova Specialista + dialog Vetrina con prenotazione (RequestDialog doctorId), pagina pubblica /medico/:slug, Area Riservata > Vetrina pubblica con anteprima dal vivo; sfondo Portale caldo #FBF8F3
 - Test: iteration_28 (19/19 backend, frontend ok) + fix layout editor prestazioni
+
+## 2026-06 I miei Documenti e Visite + Trova Specialista arricchito
+- backend/portal_docs.py: /api/portal/children/{pid}/therapy (+/pdf promemoria terapia, non sostituisce ricetta), referti aggregati per stesso CF tra medici collegati
+- UI: sezione Portale /portale/documenti (DocumentsArea: tab visite/prescrizioni/ricevute, per anno, totale spese sanitarie), voce nel menu profilo; /portale/referti e /ricevute reindirizzano
+- Trova Specialista: card con bio breve, 3 prestazioni, Visualizza profilo / Richiedi visita, filtri per specialita
+- Demo: pubblicati nel Portale 2 referti di Aurora (otite + bilancio 5 anni)
+- Test: iteration_29 OK

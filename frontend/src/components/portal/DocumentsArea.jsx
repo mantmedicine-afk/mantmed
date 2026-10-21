@@ -23,8 +23,8 @@ const Visit = ({ r }) => (
   <div className="rounded-3xl bg-white p-5 ring-1 ring-[#0A192F]/10 transition-shadow hover:shadow-md" data-testid={`docs-visit-${r.id}`}>
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
-        <div className="text-xs text-[#0A192F]/60">{day(r.created_at)} · {r.clinic || "Studio"} · {r.doctor}</div>
-        <div className="mt-1 flex flex-wrap items-center gap-2"><span className="font-display text-xl text-night">{r.motivo || "Visita"}</span>{/bilancio/i.test(r.template_name) && <span className="rounded-full bg-[#FFF9E6] px-2.5 py-0.5 text-[11px] font-semibold text-[#B7791F] ring-1 ring-[#FFE5B4]">Bilancio di salute</span>}</div>
+        <div className="text-xs text-[#0A192F]/60">{[day(r.created_at), r.clinic, r.doctor].filter(Boolean).join(" · ")}</div>
+        <div className="mt-1 flex flex-wrap items-center gap-2"><span className="font-display text-xl text-night">{r.motivo || "Visita"}</span>{/bilancio/i.test(`${r.template_name} ${r.motivo}`) && <span className="rounded-full bg-[#FFF9E6] px-2.5 py-0.5 text-[11px] font-semibold text-[#B7791F] ring-1 ring-[#FFE5B4]">Bilancio di salute</span>}</div>
         {r.diagnosi && <div className="mt-1 text-sm text-[#0A192F]/70">{r.diagnosi}</div>}
       </div>
       <div className="flex flex-wrap gap-2">{r.bodychart && <PortalBodychart cid={r.id} />}<DlBtn onClick={() => api.portalReport(r.id)} label="Referto PDF" testid={`docs-visit-pdf-${r.id}`} /></div>
@@ -102,7 +102,7 @@ export const DocumentsArea = ({ kids }) => {
     <section className="space-y-5" data-testid="documents-area">
       <div className="flex items-center gap-2 text-sm text-[#0A192F]/60"><ShieldCheck size={15} strokeWidth={1.5} className="text-emerald-700" /> Documenti cifrati e visibili solo a lei e ai medici di {g[0].patient.name.split(" ")[0]}.</div>
       {groups.length > 1 && <div className="flex flex-wrap gap-2" data-testid="docs-kids">{groups.map((x) => <button key={x[0].group} onClick={() => setGid(x[0].group)} className={`rounded-full px-4 py-2 text-sm transition-colors ${x === g ? "bg-night text-white" : "bg-white text-night ring-1 ring-[#0A192F]/10 hover:ring-night"}`} data-testid={`docs-kid-${x[0].patient.id}`}>{x[0].patient.name}</button>)}</div>}
-      <div className="-mx-1 flex gap-1 overflow-x-auto rounded-full bg-white p-1 ring-1 ring-[#0A192F]/10 sm:mx-0 sm:inline-flex" role="tablist">
+      <div className="-mx-1 flex snap-x gap-1 overflow-x-auto rounded-full bg-white p-1 ring-1 ring-[#0A192F]/10 [mask-image:linear-gradient(to_right,black_85%,transparent)] sm:mx-0 sm:inline-flex sm:[mask-image:none]" role="tablist">
         {TABS.map(([id, label, I]) => <button key={id} role="tab" aria-selected={tab === id} onClick={() => set("tab", id)} className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition-colors ${tab === id ? "bg-night text-white" : "text-night hover:bg-[#F6F1E9]"}`} data-testid={`docs-tab-${id}`}><I size={15} strokeWidth={1.5} /> {label}</button>)}
       </div>
       {tab === "visite" && <Visits reports={reports} checkpoints={g.flatMap((c) => c.checkpoints ?? [])} docs={g.flatMap((c) => c.documents ?? [])} />}

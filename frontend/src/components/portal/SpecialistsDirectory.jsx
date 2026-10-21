@@ -14,9 +14,9 @@ const DoctorTile = ({ d, onOpen, onBook }) => (
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"><span className="font-medium text-[#3B6CF6]">{d.specialty}</span>{d.city && <span className="flex items-center gap-1 text-[#0A192F]/60"><MapPin size={13} strokeWidth={1.5} /> {d.city}</span>}</div>
       <p className="line-clamp-3 text-sm leading-relaxed text-[#0A192F]/70" data-testid={`specialist-bio-${d.slug}`}>{d.bio_short || d.tagline || "Medico della rete MantMed."}</p>
       {d.services?.length > 0 && <div className="flex flex-wrap gap-1.5" data-testid={`specialist-services-${d.slug}`}>{d.services.map((s) => <span key={s} className="rounded-full bg-[#F6F1E9] px-3 py-1 text-xs text-night">{s}</span>)}{d.services_count > d.services.length && <span className="px-1 py-1 text-xs text-[#0A192F]/50">+{d.services_count - d.services.length}</span>}</div>}
-      <div className="mt-auto grid grid-cols-2 gap-2 pt-3">
-        <button onClick={onOpen} className="flex h-11 items-center justify-center gap-1 rounded-full text-sm font-medium text-night ring-1 ring-[#0A192F]/15 transition-colors hover:ring-night" data-testid={`specialist-view-${d.slug}`}>Visualizza profilo <ArrowUpRight size={14} /></button>
-        <button onClick={onBook} className="h-11 rounded-full bg-night text-sm font-semibold text-white transition-transform hover:-translate-y-0.5" data-testid={`specialist-book-${d.slug}`}>Richiedi appuntamento</button>
+      <div className="mt-auto flex flex-col gap-2 pt-3 sm:flex-row">
+        <button onClick={onOpen} className="flex h-11 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-full px-3 text-sm font-medium text-night ring-1 ring-[#0A192F]/15 transition-colors hover:ring-night" data-testid={`specialist-view-${d.slug}`}>Visualizza profilo <ArrowUpRight size={14} /></button>
+        <button onClick={onBook} className="h-11 flex-1 whitespace-nowrap rounded-full bg-night px-3 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5" data-testid={`specialist-book-${d.slug}`} title="Richiedi appuntamento">Richiedi visita</button>
       </div>
     </div>
   </article>

@@ -1,0 +1,39 @@
+{
+  "summary": "Tested the Portal 'I miei Documenti e Visite' area, the therapy endpoints and the richer Trova Specialista cards. Backend: 8/8 new pytest pass (therapy rows include Amoxicillina and Paracetamolo from the otitis report; therapy PDF is a valid %PDF named Promemoria_terapia_Aurora_Ricci.pdf; unlinked or invalid pid returns 404 for both endpoints; doctor 403; unauthenticated 401/403; portal/me reports have no _id; referto PDF works; directory cards have bio_short (180 chars max), services (3 max) and services_count). Frontend (genitore.demo) passes end to end: sidebar link and profile-documents both go to /portale/documenti; tabs update ?tab=; Visite shows 2026 with 3 visits (otitis plus 'Bilancio di salute' badge), 'In parole semplici' opens, Referto PDF downloads, 5 checkpoints and the signed docs list show; Prescrizioni shows 2 rx rows and Promemoria terapia downloads; Ricevute shows docs-receipts-empty (Aurora has 0 receipts); /portale/referti and /portale/ricevute redirect correctly; the report notification goes to documenti?tab=visite; the Appuntamenti section renders. Trova Specialista: chips tutti/Pediatria, search filter and empty state, card bio and 3 services (+1), view opens the dialog (?medico=tiziana-foti) and Esc closes it, book opens the booking dialog with Aurora and Dott.ssa Foti preselected. Responsive 390/768/1440: no horizontal page overflow; at 390 the tablist scrolls (601px content in 358px). No page errors.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/portal/children/{pid}/therapy/pdf", "issue": "The 404-when-no-rows branch was not verified end to end: the demo parent has only Aurora, who has therapy rows. The code path looks correct."},
+      {"endpoint": "portal_docs.group_reports", "issue": "N+1 pattern: one find_one per linked child for the cf_hash match, and one per group for the doctor name. Fine at the current scale."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Documenti > Visite", "issues": ["The 'Bilancio di salute' badge only checks template_name. The 12 Aug 2026 visit has motivo 'Bilancio di salute' but an empty template_name, so it gets no badge. Consider also testing motivo or checkpoint linkage.", "The newest visit shows clinic 'Studio' (fallback) because its clinic is empty."]},
+      {"screen": "Documenti tabs on mobile (390)", "issues": ["The tablist scrolls horizontally but the third tab is cut off with no fade or scroll hint. Optional: add a gradient edge."]},
+      {"screen": "Trova Specialista card", "issues": ["'Richiedi appuntamento' wraps onto 2 lines in the 2-column button grid at 390 and 1440. Optional: shorten it to 'Prenota' or stack the buttons.", "The bio falls back to 'Medico della rete MantMed.' because the founder bio is empty (data, not a bug)."]},
+      {"screen": "RequestDialog (pre-existing)", "issues": ["'Data desiderata' uses the browser's native date input instead of the shadcn Calendar."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_portal_docs.py", "/app/test_reports/pytest/pytest_portal_docs.xml"],
+  "action_items": [
+    "Optional: make the Bilancio badge detection also use motivo or checkpoint data",
+    "Optional: add a scroll affordance on the mobile tablist and shorten the card CTA label",
+    "Optional: replace the native date input in RequestDialog with the shadcn Calendar"
+  ],
+  "critical_code_review_comments": [
+    "DocumentsArea Prescriptions uses g[0].patient.id. The backend aggregates by cf_hash, so this is correct for grouped kids.",
+    "Portal.jsx has an import placed after the const declarations (LogoMark/api imports after SECTIONS/LEGACY). Harmless but untidy.",
+    "TITLES still contains the referti/ricevute keys, which are unreachable after the legacy redirect (dead code).",
+    "The 'In parole semplici' content in Documenti relies on r.riepilogo, so only one visit shows it; the AI simple summary from the overview is not reused here."
+  ],
+  "updated_files": ["/app/backend/tests/test_portal_docs.py"],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "100% of requested flows"},
+  "test_credentials": "genitore.demo@example.com / Portale-Demo-2026; medico@mantmed.it / Auscula-Studio-2026",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest with -n 0. Aurora (6ad86e64c06e50ff4cd67d1e) has 3 published reports, 0 receipts, 5 checkpoints, 7 documents and no bodychart, so the receipts-with-totals and body chart button paths were not exercised in the UI. Otitis consultation id 6ad8841f1f70d7452350667b."
+}
