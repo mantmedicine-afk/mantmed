@@ -85,6 +85,8 @@ export const api = {
   deleteShowcaseImage: (kind) => http.delete(`/showcase/image/${kind}`).then((r) => r.data),
   publicDoctors: () => http.get("/public/doctors").then(list),
   publicDoctor: (slug) => http.get(`/public/doctors/${slug}`).then((r) => r.data),
+  portalTherapy: (pid) => http.get(`/portal/children/${pid}/therapy`).then(list),
+  portalTherapyPdf: async (pid) => saveBlob(await http.get(`/portal/children/${pid}/therapy/pdf`, { responseType: "blob" }), "Promemoria_terapia.pdf"),
   portalSimple: (pid) => http.get(`/portal/children/${pid}/simple`).then((r) => r.data),
   visitBilanci: () => http.get("/visit-templates/bilanci").then(list),
   addBilanci: (keys) => http.post("/visit-templates/bilanci", { keys }).then((r) => r.data),

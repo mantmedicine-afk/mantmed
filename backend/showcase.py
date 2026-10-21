@@ -187,7 +187,10 @@ def build_showcase(db, current_user, doctor_user):
         out = []
         async for u in db.users.find({"role": "doctor", "status": "active", "showcase.slug": {"$exists": True}}).sort("created_at", 1):
             if visible(u) and in_network(u):
-                out.append(card(u))
+                f = full(u)
+                bio = f["bio"].strip()
+                out.append({**card(u), "bio_short": bio[:180].rsplit(" ", 1)[0] + "…" if len(bio) > 180 else bio,
+                            "services": [s["name"] for s in f["services"]][:3], "services_count": len(f["services"])})
         return out
 
     async def ensure_all_slugs():

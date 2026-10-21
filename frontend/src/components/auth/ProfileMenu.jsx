@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { KeyRound, LogOut, ShieldCheck, ChevronDown, UserCog } from "lucide-react";
+import { KeyRound, LogOut, ShieldCheck, ChevronDown, UserCog, FolderOpen } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/lib/auth";
 import { ChangePasswordDialog } from "./ChangePasswordDialog";
@@ -20,6 +20,7 @@ export const ProfileMenu = ({ trigger, onSecurity }) => {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => nav(user?.role === "parent" ? "/portale/impostazioni" : "/app/impostazioni")} className="cursor-pointer gap-2 rounded-xl px-3 py-2.5 text-sm font-medium" data-testid="profile-account"><UserCog size={15} /> Area riservata</DropdownMenuItem>
+          {user?.role === "parent" && <DropdownMenuItem onSelect={() => nav("/portale/documenti")} className="cursor-pointer gap-2 rounded-xl px-3 py-2.5 text-sm" data-testid="profile-documents"><FolderOpen size={15} /> I miei Documenti e Visite</DropdownMenuItem>}
           <DropdownMenuItem onSelect={() => setPw(true)} className="cursor-pointer gap-2 rounded-xl px-3 py-2.5 text-sm" data-testid="profile-change-password"><KeyRound size={15} /> Cambia password</DropdownMenuItem>
           {onSecurity && <DropdownMenuItem onSelect={onSecurity} className="cursor-pointer gap-2 rounded-xl px-3 py-2.5 text-sm" data-testid="profile-security"><ShieldCheck size={15} /> Sicurezza e 2FA</DropdownMenuItem>}
           <DropdownMenuSeparator />

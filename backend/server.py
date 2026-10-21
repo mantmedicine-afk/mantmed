@@ -27,6 +27,7 @@ from account import build_account, notify_doctor
 from previsit import build_previsit, latest_previsit, previsit_prompt
 from support_inbox import build_support_inbox
 from showcase import build_showcase
+from portal_docs import build_portal_docs
 from bodychart import build_bodychart, report_payload
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
@@ -1708,6 +1709,7 @@ inbox_admin, inbox_mine = build_support_inbox(db, require_role(current_user, "ad
 sc_doctor, sc_public, ensure_doctor_slugs = build_showcase(db, current_user, require_role(current_user, "doctor"))
 public_api.include_router(sc_doctor)
 public_api.include_router(sc_public)
+public_api.include_router(build_portal_docs(db, require_role(current_user, "parent"), Consultation, Patient))
 
 
 @public_api.get("/portal/children/{pid}/simple")

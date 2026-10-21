@@ -286,7 +286,8 @@ def build_registration(db, current_user, start_session, models, pdf_for):
                               "method": c["method"], "email_reports": c["email_reports"], "signed_at": c["signed_at"], "revoked_at": c["revoked_at"],
                               "channel": c.get("channel"), "document_id": c.get("document_id")} for c in consents],
                 "reports": [{"id": r["id"], "created_at": r["created_at"], "clinic": r["clinic"], "motivo": (r["note"] or {}).get("motivo_visita", ""),
-                             "diagnosi": (r["note"] or {}).get("diagnosi", ""), "riepilogo": (r["note"] or {}).get("riepilogo", ""), "bodychart": r["id"] in charts} for r in reports]}
+                             "diagnosi": (r["note"] or {}).get("diagnosi", ""), "riepilogo": (r["note"] or {}).get("riepilogo", ""), "bodychart": r["id"] in charts,
+                             "template_name": r.get("template_name", ""), "follow_up": (r["note"] or {}).get("follow_up", "")} for r in reports]}
 
     @portal.get("/me")
     async def portal_me(user: dict = Depends(parent_user)):

@@ -11,17 +11,19 @@ import { SupportReplies } from "@/components/support/SupportReplies";
 import { PrevisitCard } from "@/components/portal/PrevisitCard";
 import { PortalOverview } from "@/components/portal/PortalOverview";
 import { SpecialistsDirectory } from "@/components/portal/SpecialistsDirectory";
+import { DocumentsArea } from "@/components/portal/DocumentsArea";
 import { PortalBodychart } from "@/components/portal/PortalBodychart";
 import { ConsentBanner } from "@/components/portal/ConsentSign";
 import { SignedDocsList } from "@/components/signature/SignedDocs";
 import { ProfileMenu, Caret } from "@/components/auth/ProfileMenu";
 import { useSearchParams, useParams, useNavigate, Navigate } from "react-router-dom";
-import { LayoutGrid, MessagesSquare, Settings, Stethoscope } from "lucide-react";
+import { LayoutGrid, MessagesSquare, Settings, Stethoscope, FolderOpen } from "lucide-react";
 import { AppShell, MenuButton } from "@/components/nav/AppShell";
 import { FeedbackDialog } from "@/components/dash/FeedbackDialog";
 import Account from "@/pages/Account";
 
-const SECTIONS = { panoramica: null, "trova-specialista": null, appuntamenti: "appointments", referti: "reports", ricevute: "receipts", messaggi: null, impostazioni: null };
+const SECTIONS = { panoramica: null, documenti: null, "trova-specialista": null, appuntamenti: "appointments", messaggi: null, impostazioni: null };
+const LEGACY = { referti: "visite", ricevute: "ricevute" };
 import { LogoMark } from "@/components/dash/Logo";
 import { api, errMsg, eur } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -240,7 +242,7 @@ export default function Portal() {
     load();
   }, [load, notif.unread]);
   const children = Array.isArray(data?.children) ? data.children : [];
-  const go = (pid, tab) => { nav(tab === "appointments" ? "/portale/appuntamenti" : "/portale/referti"); setJump((j) => ({ pid, tab, n: (j?.n ?? 0) + 1 })); };
+  const go = (pid, tab) => { nav(tab === "appointments" ? "/portale/appuntamenti" : "/portale/documenti?tab=visite"); setJump((j) => ({ pid, tab, n: (j?.n ?? 0) + 1 })); };
   const pickNotif = (n) => {
     if (n.kind === "reply") { nav("/portale/messaggi"); setOpenThread(n.ref); }
     else go(n.patient_id, n.kind === "reminder" ? "appointments" : "reports");
@@ -250,14 +252,14 @@ export default function Portal() {
     { id: "panoramica", to: "/portale", end: true, label: "Panoramica / Famiglia", icon: LayoutGrid },
     { id: "trova-specialista", to: "/portale/trova-specialista", label: "Trova Specialista", icon: Stethoscope },
     { id: "appuntamenti", to: "/portale/appuntamenti", label: "Appuntamenti", icon: CalendarClock },
-    { id: "referti", to: "/portale/referti", label: "Referti & Bilanci di Salute", icon: FileDown },
+    { id: "documenti", to: "/portale/documenti", label: "I miei Documenti e Visite", icon: FolderOpen },
     { id: "messaggi", to: "/portale/messaggi", label: "Messaggi con lo Studio", icon: MessagesSquare, badge: notif.messages_unread },
-    { id: "ricevute", to: "/portale/ricevute", label: "Ricevute e Pagamenti", icon: ReceiptText },
     { id: "impostazioni", to: "/portale/impostazioni", label: "Impostazioni / Feedback", icon: Settings },
   ];
+  if (LEGACY[sezione]) return <Navigate to={`/portale/documenti?tab=${LEGACY[sezione]}`} replace />;
   if (!(sezione in SECTIONS)) return <Navigate to="/portale" replace />;
   const only = SECTIONS[sezione];
-  const TITLES = { "trova-specialista": "Trova Specialista", appuntamenti: "Appuntamenti", referti: "Referti e bilanci di salute", ricevute: "Ricevute e pagamenti", messaggi: "Messaggi con lo studio" };
+  const TITLES = { documenti: "I miei Documenti e Visite", "trova-specialista": "Trova Specialista", appuntamenti: "Appuntamenti", referti: "Referti e bilanci di salute", ricevute: "Ricevute e pagamenti", messaggi: "Messaggi con lo studio" };
   return (
     <AppShell items={items} area="Portale Paziente">
     <div className="min-h-screen bg-[#FBF8F3]" data-testid="portal-page" data-section={sezione}>
@@ -285,7 +287,8 @@ export default function Portal() {
         )}
         {sezione === "trova-specialista" && <SpecialistsDirectory onBook={(id) => { setReqDoctor(id); setReq(children[0]?.patient.id ?? null); if (!children.length) toast.message("Colleghi prima la cartella di suo figlio per prenotare"); }} />}
         {sezione === "panoramica" && children.length > 0 && <div className="pt-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">La famiglia</div>}
-        {sezione !== "messaggi" && sezione !== "trova-specialista" && children.map((c) => <Child key={c.patient.id} c={c} onRequest={setReq} focus={focus} onChange={load} jump={jump} only={only} />)}
+        {sezione === "documenti" && data && <DocumentsArea kids={children} />}
+        {!["messaggi", "trova-specialista", "documenti"].includes(sezione) && children.map((c) => <Child key={c.patient.id} c={c} onRequest={setReq} focus={focus} onChange={load} jump={jump} only={only} />)}
         {sezione === "messaggi" && children.length > 0 && <Messages kids={children} openId={openThread} onOpened={() => setOpenThread(null)} onRead={reloadNotif} />}
         {sezione === "panoramica" && [...new Set(children.map((c) => c.group))].map((g) => <NetworkSharing key={g} entries={children.filter((c) => c.group === g)} />)}
         <RequestDialog key={`${req}-${reqDoctor}`} open={!!req} initial={req} doctorId={reqDoctor} kids={children} onClose={() => { setReq(null); setReqDoctor(""); }} onSent={load} />
