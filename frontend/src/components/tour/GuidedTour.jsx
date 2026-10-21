@@ -30,12 +30,12 @@ const useTargetRect = (ids, key, active) => {
 };
 
 const Spotlight = ({ rect }) => {
-  if (!rect) return <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-[#0A192F]/80" data-testid="tour-backdrop" />;
+  if (!rect) return <motion.div key="backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-[#0A192F]/80" data-testid="tour-backdrop" />;
   const top = Math.max(rect.top - PAD, HEADER - PAD);
   const bottom = Math.min(rect.bottom + PAD, window.innerHeight - 8);
   return (
-    <motion.div className="pointer-events-none fixed rounded-[32px] ring-2 ring-[#C9CCD3] shadow-[0_0_0_9999px_rgba(10,25,47,0.78)]"
-      animate={{ top, left: rect.left - PAD, width: rect.width + PAD * 2, height: Math.max(0, bottom - top) }}
+    <motion.div key="spot" initial={{ opacity: 0 }} className="pointer-events-none fixed rounded-[32px] ring-2 ring-[#C9CCD3] shadow-[0_0_0_9999px_rgba(10,25,47,0.78)]"
+      animate={{ opacity: 1, top, left: rect.left - PAD, width: rect.width + PAD * 2, height: Math.max(0, bottom - top) }}
       transition={{ type: "spring", stiffness: 260, damping: 30 }} data-testid="tour-spotlight" />
   );
 };
@@ -95,8 +95,8 @@ export const GuidedTour = ({ open, steps, name, where = "Impostazioni", onDone }
           <motion.div key={i} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}
             className="grain relative rounded-[28px] border border-[#C9CCD3]/30 bg-[#0A192F] p-5 text-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.6)] sm:p-6" data-testid={done ? "tour-step-done" : `tour-step-${i + 1}`}>
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-[#C9CCD3]"><Sparkles size={13} /> {i === 0 ? `Benvenuto${name ? `, ${name}` : ""}` : "Guida MantMed"}</span>
-              {!done && <button onClick={onDone} className="flex items-center gap-1 rounded-full px-2 py-1 text-xs text-[#C9CCD3] transition-colors hover:text-white" data-testid="tour-skip-btn"><X size={13} /> Salta il tour</button>}
+              <span className="flex min-w-0 items-center gap-2 truncate text-[11px] uppercase tracking-[0.22em] text-[#C9CCD3]"><Sparkles size={13} className="shrink-0" /> <span className="truncate">{i === 0 ? `Benvenuto${name ? `, ${name}` : ""}` : "Guida MantMed"}</span></span>
+              {!done && <button onClick={onDone} className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-xs text-[#C9CCD3] transition-colors hover:text-white" data-testid="tour-skip-btn"><X size={13} /> Salta il tour</button>}
             </div>
             <div className="max-h-[38vh] overflow-y-auto sm:max-h-none" data-testid="tour-body">{done ? <DoneBody where={where} /> : <StepBody step={step} i={i} total={steps.length} />}</div>
             {!done && step.extra && <button onClick={() => go(step.extra.to)} className="mt-3 inline-flex items-center gap-1.5 text-sm text-[#C9CCD3] underline underline-offset-4 hover:text-white" data-testid="tour-extra-link"><ExternalLink size={13} /> {step.extra.label}</button>}

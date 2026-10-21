@@ -326,3 +326,10 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Segnaposto "[da completare: …]" per ragione sociale, sede, P.IVA, email privacy, DPO (da sostituire in content.js)
 - Avviso "Bozza da validare con DPO" visibile solo agli admin
 - Link: finestra MantAI (/privacy#fornitori), footer landing, pagine di registrazione
+
+## 2026-06 · Tour guidato ampliato (iteration_37 + fix spotlight verificato)
+- components/tour/GuidedTour.jsx (riusabile), steps.js (DOCTOR_STEPS / PATIENT_STEPS, 4 passi + "Tutto pronto"), useTour.js (avvio automatico se tour_done false, Salta = visto)
+- Ogni passo naviga alla sezione e evidenzia l'elemento reale; link extra (Fatturazione & TS, Messaggi); tastiera ← → Esc
+- Riavvio: medico TopBar + Impostazioni; portale icona in header + Impostazioni
+- Fix backend: POST /api/onboarding/tour spostato su public_api (prima 403 per i genitori)
+- Rimosso vecchio components/dash/OnboardingTour.jsx

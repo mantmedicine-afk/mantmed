@@ -1511,7 +1511,7 @@ class TourIn(BaseModel):
     completed: bool
 
 
-@api.post("/onboarding/tour")
+@public_api.post("/onboarding/tour")
 async def onboarding_tour(body: TourIn, user: dict = Depends(current_user)):
     await db.users.update_one({"_id": ObjectId(user["id"])}, {"$set": {"tour_completed_at": now_iso() if body.completed else None}})
     return {"tour_done": body.completed}
