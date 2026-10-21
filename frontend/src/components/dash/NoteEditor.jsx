@@ -13,6 +13,31 @@ import { CashPanel } from "./CashPanel";
 import { BodychartEditor } from "@/components/bodychart/BodychartEditor";
 
 const BR = { position: "bottom-right" };
+const motivo = (n) => (n.motivo_visita && n.motivo_visita !== "Non riportato" ? n.motivo_visita : "");
+const visitLabel = (n) => {
+  const m = motivo(n);
+  if (isPediatric(n)) return m ? `Visita pediatrica · ${m}` : "";
+  return `Visita specialistica di ${n.specialita}${m ? ` · ${m}` : ""}`;
+};
+// Parametri per le specializzazioni dell'adulto: solo peso, altezza e BMI (niente percentili OMS)
+const AdultParams = ({ g, set }) => {
+  const num = (v) => (v === "" ? null : Number(v));
+  const bmiV = g.peso_kg && g.altezza_cm ? g.peso_kg / (g.altezza_cm / 100) ** 2 : null;
+  return (
+    <div className="grid gap-4 sm:grid-cols-3" data-testid="adult-params">
+      {[["peso_kg", "Peso", "kg"], ["altezza_cm", "Altezza", "cm"]].map(([k, l, u]) => (
+        <label key={k} className="block">
+          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{l}</span>
+          <div className="mt-1.5 flex items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 focus-within:border-night">
+            <input type="number" step="0.1" min="0" value={g[k] ?? ""} onChange={(e) => set({ ...g, [k]: num(e.target.value) })} className="h-12 w-full bg-transparent text-[15px] outline-none" data-testid={`adult-${k}`} />
+            <span className="text-sm text-slate-500">{u}</span>
+          </div>
+        </label>
+      ))}
+      <div className="rounded-2xl bg-night p-4 text-white"><div className="text-xs uppercase tracking-[0.18em] text-slate-300">BMI</div><div className="mt-1 font-display text-3xl" data-testid="adult-bmi">{bmiV ? bmiV.toFixed(1).replace(".", ",") : "—"}</div></div>
+    </div>
+  );
+};
 const SignatureSlot = ({ onLeave }) => <div className="-mt-1 xl:col-start-1 xl:row-start-2"><SignatureHint onNavigate={onLeave} /></div>;
 const GROWTH_KEYS = ["peso_kg", "altezza_cm", "circonferenza_cranica_cm", "eta_mesi"];
 
@@ -178,7 +203,7 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
         <SignatureSlot onLeave={onLeave} />
         <SendToParents consultation={consultation} disabled={!ready} beforeSend={() => api.updateConsultation(consultation.id, note)} />
         </div>
-        <CashPanel consultation={consultation} service={note.motivo_visita && note.motivo_visita !== "Non riportato" ? `Visita pediatrica · ${note.motivo_visita}` : ""} onChange={onSaved} />
+        <CashPanel consultation={consultation} service={visitLabel(note)} onChange={onSaved} />
 
         <div className="-mx-1 mt-5 flex gap-1 overflow-x-auto px-1 pb-1 md:mx-0 md:grid md:auto-cols-fr md:grid-flow-col md:overflow-visible md:rounded-2xl md:bg-slate-100 md:p-1" role="tablist" data-testid="note-tabs">
           {tabs.map((t) => {
@@ -196,7 +221,9 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
         </div>
 
         <div className="mt-5 max-h-[58vh] overflow-auto pr-1" data-lenis-prevent data-testid={`note-panel-${tab}`}>
-          {tab === "crescita" ? (
+          {tab === "crescita" && !isPediatric(note) ? (
+            <AdultParams g={g} set={setGrowth} />
+          ) : tab === "crescita" ? (
             <GrowthPanel g={g} set={setGrowth} />
           ) : (
             <div className="space-y-4">

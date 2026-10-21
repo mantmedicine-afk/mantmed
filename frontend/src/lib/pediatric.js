@@ -57,8 +57,8 @@ export const noteToText = (c, note) => {
       `${c.patient_name} — ${new Date(c.created_at).toLocaleString("it-IT")} · ${note.specialita}`,
       block("1. Anamnesi", [txt("anamnesi_fisiologica", "Anamnesi"), ...sez("anamnesi")]),
       block("2. Motivo della visita e sintomi", [txt("motivo_visita", "Motivo"), txt("sintomi", "Sintomi"), ...sez("sintomi")]),
-      block("3. Esame obiettivo", sez("esame_obiettivo", "altro")),
-      block("4. Diagnosi e terapia", [txt("diagnosi", "Diagnosi"), txt("terapia", "Terapia"), ...drugs, txt("follow_up", "Follow-up")]),
+      block("3. Esame obiettivo", sez("esame_obiettivo")),
+      block("4. Diagnosi e terapia", [txt("diagnosi", "Diagnosi"), txt("terapia", "Terapia"), ...drugs, ...sez("altro"), txt("follow_up", "Follow-up")]),
     ].join("\n\n");
   }
   return [

@@ -219,6 +219,13 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Frontend: lib/processing.jsx (ProcessingProvider, polling 2s, pill "Elaborazione referto in corso…" in alto a destra, toast "Referto pronto" con Apri / errore con Riprova, in basso a destra); "Termina e trascrivi" apre subito la cartella della visita: campi IA con shimmer, poi riempiti con animazione; Bodychart, Cassa, Crescita (autosalvataggio), "Dati anagrafici" (PatientDialog) usabili subito; banner errore con Incolla trascrizione / Riprova
 - Testato iteration_20-21 (backend 24/24 test async, frontend 100%)
 
+## Implemented (2026-10-21, Prompt IA per specializzazione + visite lunghe + promemoria firma)
+- structure_note legge la specializzazione del medico (users.profile.specialty, fallback DOCTOR_SPECIALTY) → system prompt "Sei un assistente medico specializzato in …"; Pediatria mantiene il modello pediatrico (TORL, allattamento, svezzamento, percentili OMS); altre branche: campi comuni + ClinicalNote.sezioni [{gruppo anamnesi|sintomi|esame_obiettivo|altro, titolo, testo}]; note.specialita salvata dall'avvio della visita
+- PDF/Copia/Stampa e NoteEditor dinamici (voci modificabili, aggiungi/rimuovi; Parametri adulto = peso/altezza/BMI; farmaci testuali per adulti; Cassa "Visita specialistica di …")
+- Visite lunghe: useRecorder ruota il MediaRecorder ogni 10 minuti (parti autonome), POST /api/consultations/audio-parts per parte (≤25 MB, cifrata GridFS), /start con part_ids (max 12 ≈ 2 h, parti riservate a una sola visita, 409 se riusate); job trascrive in ordine con contesto della parte precedente, ai_step mostrato nella pillola, ripresa dalle parti già trascritte
+- Promemoria firma medico: banner in dashboard + link sotto "Genera Referto PDF" verso Impostazioni > Firma per i referti (la Dott.ssa Foti deve disegnarla lei)
+- Medico demo Cardiologia: cardiologo.demo@example.com / Cardio-Demo-2026; testato iteration_22 (backend 36/36, frontend 100%)
+
 ## Backlog
 - P1: percentili automatici con curve OMS, storico crescita del paziente, dati demo pediatrici in agenda/sala d'attesa, rinomina brand in "MantMed"
 - P1 (prec.): storico paziente, export PDF dedicato

@@ -701,7 +701,8 @@ def note_system(spec: str) -> str:
         f"sezioni: lista di {{gruppo, titolo, testo}} con le voci SPECIFICHE di {spec}. gruppo è uno tra 'anamnesi', 'sintomi', 'esame_obiettivo', 'altro'. "
         f"Per l'esame obiettivo usa i distretti e le manovre tipici di {spec} (es. Cardiologia: Pressione arteriosa, Frequenza cardiaca, Auscultazione cardiaca, ECG; "
         "Ortopedia: Ispezione, Palpazione, Range of motion, Test specifici, Imaging; Dermatologia: Sede e morfologia delle lesioni, Dermatoscopia). "
-        "Includi da 3 a 8 voci di esame obiettivo pertinenti e, se utili, voci specifiche di anamnesi o sintomi (es. scala del dolore, classe NYHA);\n"
+        "Includi da 3 a 8 voci di esame obiettivo pertinenti e, se utili, voci specifiche di anamnesi o sintomi (es. scala del dolore, classe NYHA). "
+        "Non ripetere nelle sezioni contenuti già scritti in anamnesi_fisiologica, motivo_visita, sintomi, diagnosi o terapia; usa 'altro' per accertamenti e indagini programmate;\n"
         "crescita: {peso_kg (numero|null), altezza_cm (numero|null)} solo se riportati;\n" + drugs + rules)
 
 
@@ -828,8 +829,10 @@ async def run_consult_job(cid: str, owner: str):
         transcript = unseal(job.get("transcript")) or ""
         files = job.get("audio_files") or ([job["audio_file"]] if job.get("audio_file") else [])
         if not transcript and files:
-            parts = []
+            parts = list(job.get("part_texts") or [])  # parti già trascritte in un tentativo precedente
             for i, fid in enumerate(files):
+                if i < len(parts):
+                    continue
                 if len(files) > 1:
                     await db.consultations.update_one({"_id": ObjectId(cid)}, {"$set": {"ai_step": f"Trascrizione parte {i + 1} di {len(files)}"}})
                 stream = await audio_fs.open_download_stream(fid)
@@ -840,6 +843,8 @@ async def run_consult_job(cid: str, owner: str):
                 except AIJobError:
                     if len(files) == 1:
                         raise
+                    parts.append("")
+                await db.consult_jobs.update_one({"_id": job["_id"]}, {"$set": {"part_texts": parts}})
             transcript = "\n".join(p for p in parts if p)
             if len(transcript.split()) < 4:
                 raise AIJobError("Nessun parlato rilevato nella registrazione: verifichi il microfono e riprovi, oppure incolli la trascrizione.")
@@ -939,6 +944,13 @@ async def start_consultation(
     enrich_growth(note, patient, date.today())
     oid_new = ObjectId()
     cid = str(oid_new)
+    claimed = []
+    for fid in parts:  # ogni parte può appartenere a una sola visita
+        r = await db["consult_audio.files"].update_one({"_id": fid, "metadata.consultation_id": {"$exists": False}}, {"$set": {"metadata.consultation_id": cid}})
+        if not r.modified_count:
+            await db["consult_audio.files"].update_many({"_id": {"$in": claimed}}, {"$unset": {"metadata.consultation_id": ""}})
+            raise HTTPException(409, "Parte audio già usata per un'altra visita: ripeta l'invio")
+        claimed.append(fid)
     try:  # prima il job (audio cifrato in GridFS), poi la visita: niente visite orfane
         await create_job(cid, user["id"], transcript=transcript.strip() if not (data or parts) else "", audio=data,
                          filename=(audio.filename if audio else "") or "consultazione.webm", part_ids=parts)

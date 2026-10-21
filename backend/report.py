@@ -238,7 +238,7 @@ def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dic
     else:
         story += section("01", "Anamnesi", [("Anamnesi", note.get("anamnesi_fisiologica"))] + extra("anamnesi"))
         story += section("02", "Motivo della visita e sintomi", [("Motivo", note.get("motivo_visita")), ("Sintomi", note.get("sintomi"))] + extra("sintomi"))
-        story += section("03", "Esame obiettivo", extra("esame_obiettivo", "altro") or [("Esame obiettivo", "Non riportato")])
+        story += section("03", "Esame obiettivo", extra("esame_obiettivo") or [("Esame obiettivo", "Non riportato")])
 
     peso, alt, cc = g.get("peso_kg"), g.get("altezza_cm"), g.get("circonferenza_cranica_cm")
     bmi = peso / (alt / 100) ** 2 if peso and alt else None
@@ -265,6 +265,11 @@ def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dic
 
     rows = [("Diagnosi", note.get("diagnosi")), ("Terapia", note.get("terapia"))]
     drugs = [d for d in note.get("farmaci") or [] if d.get("nome")]
+    if drugs and not ped:  # adulti: niente posologia mg/kg, si riporta la prescrizione testuale
+        rows.append(("Farmaci", "\n".join((f"• {d['nome']}" + (f" — {d['note']}" if d.get("note") else "")
+                                                     + (f" · {int(d['dosi_giorno'])} {'volta' if int(d['dosi_giorno']) == 1 else 'volte'}/die" if d.get("dosi_giorno") else "")
+                                                     + (f" · {int(d['giorni'])} gg" if d.get("giorni") else "")) for d in drugs)))
+        drugs = []
     if drugs:
         lines = []
         for d in drugs:
@@ -279,6 +284,7 @@ def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dic
                                                     [dw * 0.25, dw * 0.15, dw * 0.14, dw * 0.13, dw * 0.19, dw * 0.14], right=(1, 2, 3, 5))))
         if peso:
             rows.append(("", P(f"Dosi calcolate sul peso di {fmt(peso, 'kg')} rilevato in visita.", "small")))
+    rows += [] if ped else extra("altro")
     rows.append(("Follow-up", note.get("follow_up")))
     story += section("05" if (ped or peso or alt) else "04", "Diagnosi e terapia", rows)
 

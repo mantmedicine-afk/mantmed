@@ -43,10 +43,11 @@ def test_large_audio_13mb(s):
     assert r.json()["status"] == "processing"
     job = mdb.consult_jobs.find_one({"consultation_id": cid})
     if job:  # may already be failed + kept
-        assert job.get("audio_file") is not None
+        fids = job.get("audio_files") or [job.get("audio_file")]  # schema since iteration 22: audio_files list
+        assert fids and fids[0] is not None
         assert "audio" not in job or not isinstance(job.get("audio"), (bytes, bytearray))
         assert job.get("expires_at") is not None
-        assert mdb["consult_audio.files"].find_one({"_id": job["audio_file"]})
+        assert mdb["consult_audio.files"].find_one({"_id": fids[0]})
     d = wait_status(s, cid, timeout=150)
     print("13MB result", d["status"], d.get("ai_error"))
     assert d["status"] == "failed"
