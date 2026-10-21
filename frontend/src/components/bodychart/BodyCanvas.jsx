@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { VB_W, VB_H } from "@/lib/bodychart";
 import { Silhouette, Strokes, Pins } from "./Silhouette";
 
@@ -10,7 +11,8 @@ const toVB = (svg, e) => {
   return [Math.max(0, Math.min(VB_W, +p.x.toFixed(1))), Math.max(0, Math.min(VB_H, +p.y.toFixed(1)))];
 };
 
-export const BodyCanvas = ({ kind, view, tool, pen, markers, strokes, numbers, selected, onMarker, onStroke, onPick }) => {
+export const BodyCanvas = ({ kind, view, tool, pen, markers, strokes, numbers, selected, onMarker, onStroke, onPick, box = [0, 0, VB_W, VB_H] }) => {
+  const k = Math.max(0.45, Math.min(1, box[2] / VB_W + 0.15));
   const ref = useRef(null);
   const [live, setLive] = useState(null);
   const picked = useRef(false);
@@ -35,12 +37,12 @@ export const BodyCanvas = ({ kind, view, tool, pen, markers, strokes, numbers, s
     onMarker({ view, x: +(x / VB_W).toFixed(4), y: +(y / VB_H).toFixed(4) });
   };
   return (
-    <svg ref={ref} viewBox={`0 0 ${VB_W} ${VB_H}`} className="h-full w-full select-none" style={{ touchAction: "none", cursor: drawing ? "crosshair" : "copy" }}
+    <motion.svg ref={ref} initial={false} animate={{ viewBox: box.join(" ") }} transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }} viewBox={box.join(" ")} className="h-full w-full select-none" style={{ touchAction: "none", cursor: drawing ? "crosshair" : "copy" }}
       onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={() => setLive(null)} data-testid="bodychart-canvas" role="img" aria-label={`Sagoma ${view}`}>
       <Silhouette kind={kind} view={view} />
       <Strokes items={strokes.filter((s) => s.view === view)} />
       {live && <Strokes items={[live]} />}
-      <Pins items={markers.filter((m) => m.view === view)} numbers={numbers} selected={selected} onPick={drawing ? undefined : (id) => { picked.current = true; onPick(id); }} />
-    </svg>
+      <Pins k={k} items={markers.filter((m) => m.view === view)} numbers={numbers} selected={selected} onPick={drawing ? undefined : (id) => { picked.current = true; onPick(id); }} />
+    </motion.svg>
   );
 };

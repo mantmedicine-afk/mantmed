@@ -3,13 +3,18 @@ import base64
 from datetime import datetime, timezone
 from typing import Literal
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException
+import asyncio
+import uuid
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
+from showcase import get_object, put_object
 from pydantic import BaseModel, Field, field_validator
 from auth import require_role
 from crypto import seal_fields, unseal_fields
 
-VIEWS = Literal["front", "back", "left", "right"]
-CATS = Literal["lesione", "trauma", "dolore", "eruzione", "nevo"]
+VIEWS = Literal["front", "back", "left", "right", "mouth"]
+CAT_IDS = ("lesione", "trauma", "dolore", "eruzione", "nevo", "controllo")
+CATS = Literal["lesione", "trauma", "dolore", "eruzione", "nevo", "controllo"]
+PHOTO_MIME = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/heic": "heic"}
 SEALED = ("markers", "strokes", "snapshot")
 PNG_PREFIX = "data:image/png;base64,"
 MAX_SNAPSHOT = 4_000_000
@@ -26,6 +31,7 @@ class Marker(BaseModel):
     y: float = Field(ge=0, le=1)
     cat: CATS
     note: str = Field(default="", max_length=140)
+    photos: list[str] = Field(default_factory=list, max_length=4)
 
 
 class Stroke(BaseModel):
@@ -57,7 +63,7 @@ def out(doc: dict, full: bool = True) -> dict:
     markers = u.get("markers") or []
     o = {"id": str(doc["_id"]), "consultation_id": doc["consultation_id"], "patient_id": doc.get("patient_id"), "visit_date": doc["visit_date"],
          "silhouette": doc["silhouette"], "include_in_report": doc.get("include_in_report", False), "created_at": doc["created_at"], "updated_at": doc["updated_at"],
-         "markers": markers, "counts": {c: sum(1 for m in markers if m["cat"] == c) for c in ("lesione", "trauma", "dolore", "eruzione", "nevo")}}
+         "markers": markers, "counts": {c: sum(1 for m in markers if m["cat"] == c) for c in CAT_IDS}}
     if full:
         o["strokes"] = u.get("strokes") or []
         o["snapshot"] = u.get("snapshot")
@@ -117,6 +123,33 @@ def build_bodychart(db, current_user):
         if not doc:
             raise HTTPException(404, "Bodychart non trovato")
         return out(doc)
+
+    @doctor.post("/consultations/{cid}/bodychart/photos")
+    async def add_photo(cid: str, file: UploadFile = File(...), user: dict = Depends(current_user)):
+        """Foto reale ancorata a un pin: archiviata nello storage, visibile solo al medico."""
+        c = await consultation(cid, user["id"])
+        ext = PHOTO_MIME.get(file.content_type or "")
+        if not ext:
+            raise HTTPException(400, "Formato non supportato: usi JPG, PNG, WEBP o HEIC")
+        data = await file.read()
+        if len(data) > 12 * 1024 * 1024:
+            raise HTTPException(400, "Foto troppo grande (massimo 12 MB)")
+        try:
+            res = await asyncio.to_thread(put_object, f"mantmed/bodychart/{user['id']}/{cid}/{uuid.uuid4().hex}.{ext}", data, file.content_type)
+        except Exception:
+            raise HTTPException(503, "Caricamento non riuscito, riprovi tra qualche istante")
+        fid = (await db.files.insert_one({"storage_path": res["path"], "content_type": file.content_type, "size": len(data), "owner_id": user["id"],
+                                          "purpose": "bodychart_photo", "consultation_id": cid, "patient_id": c.get("patient_id"), "public": False,
+                                          "is_deleted": False, "created_at": _now()})).inserted_id
+        return {"id": str(fid), "created_at": _now()}
+
+    @doctor.get("/bodychart-photos/{fid}")
+    async def photo(fid: str, user: dict = Depends(current_user)):
+        rec = await db.files.find_one({"_id": ObjectId(fid), "owner_id": user["id"], "purpose": "bodychart_photo", "is_deleted": False}) if ObjectId.is_valid(fid) else None
+        if not rec:
+            raise HTTPException(404, "Foto non trovata")
+        data, ctype = await asyncio.to_thread(get_object, rec["storage_path"])
+        return Response(content=data, media_type=rec.get("content_type") or ctype, headers={"Cache-Control": "private, max-age=3600"})
 
     @parent.get("/reports/{cid}/bodychart")
     async def portal_chart(cid: str, user: dict = Depends(current_user)):

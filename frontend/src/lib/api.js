@@ -191,6 +191,8 @@ export const api = {
   saveBodychart: (cid, b) => http.put(`/consultations/${cid}/bodychart`, b).then((r) => r.data),
   patientBodycharts: (pid) => http.get(`/patients/${pid}/bodycharts`).then(list),
   bodychart: (id) => http.get(`/bodycharts/${id}`).then((r) => r.data),
+  uploadBodychartPhoto: (cid, file) => { const fd = new FormData(); fd.append("file", file); return http.post(`/consultations/${cid}/bodychart/photos`, fd).then((r) => r.data); },
+  bodychartPhotoUrl: (fid) => `${BASE}/api/bodychart-photos/${fid}`,
   portalBodychart: (cid) => http.get(`/portal/reports/${cid}/bodychart`).then((r) => r.data),
   sendPortalFeedback: (b) => http.post("/portal/feedback", b).then((r) => r.data),
 };

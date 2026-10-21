@@ -306,8 +306,8 @@ def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dic
     return buf.getvalue()
 
 
-CAT_LABEL = {"lesione": "Lesione", "trauma": "Trauma / contusione", "dolore": "Dolore", "eruzione": "Eruzione cutanea / dermatite", "nevo": "Punto di controllo / nevo"}
-VIEW_LABEL = {"front": "Frontale", "back": "Posteriore", "left": "Laterale sinistra", "right": "Laterale destra"}
+CAT_LABEL = {"lesione": "Lesione", "trauma": "Trauma / contusione", "dolore": "Dolore", "eruzione": "Eruzione cutanea / dermatite", "nevo": "Nevo / macchia", "controllo": "Controllo"}
+VIEW_LABEL = {"front": "Frontale", "back": "Posteriore", "left": "Laterale sinistra", "right": "Laterale destra", "mouth": "Cavo orale"}
 
 
 def bodychart_page(b: dict) -> list:

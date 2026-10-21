@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { X, Save, Loader2, Baby, User, Map as MapIcon, History } from "lucide-react";
+import { X, Save, Loader2, Baby, User, Map as MapIcon, History, ZoomIn, CopyPlus } from "lucide-react";
 import { api, errMsg } from "@/lib/api";
-import { VIEWS, uid } from "@/lib/bodychart";
+import { VIEWS, ZOOMS, uid } from "@/lib/bodychart";
 import { BodyCanvas } from "./BodyCanvas";
 import { Tools, MarkerEditor, MarkerList } from "./Tools";
 import { BodychartHistory } from "./BodychartHistory";
 import { makeSnapshot } from "./snapshot";
+import { PinPhotos } from "./PinPhotos";
 
 const seg = (on) => `flex h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition-colors ${on ? "bg-night text-white" : "text-slate-600 hover:text-night"}`;
 
@@ -15,6 +16,8 @@ export const BodychartEditor = ({ consultation, defaultKind = "child", onClose, 
   const [loading, setLoading] = useState(true);
   const [kind, setKind] = useState(defaultKind);
   const [view, setView] = useState("front");
+  const [zoom, setZoom] = useState("full");
+  const [prev, setPrev] = useState(null);
   const [tool, setTool] = useState("marker");
   const [cat, setCat] = useState("lesione");
   const [pen, setPen] = useState({ color: "#DC2626", width: 2.5 });
@@ -30,8 +33,15 @@ export const BodychartEditor = ({ consultation, defaultKind = "child", onClose, 
       if (!alive || !b) return;
       setKind(b.silhouette); setDoc({ markers: b.markers ?? [], strokes: b.strokes ?? [] }); setInclude(!!b.include_in_report);
     }).catch((e) => toast.error(errMsg(e))).finally(() => { if (alive) setLoading(false); });
+    if (consultation.patient_id) api.patientBodycharts(consultation.patient_id).then((xs) => { if (alive) setPrev(xs.find((b) => b.consultation_id !== consultation.id && b.markers.length) ?? null); }).catch(() => {});
     return () => { alive = false; };
-  }, [consultation.id]);
+  }, [consultation.id, consultation.patient_id]);
+  const carryOver = () => {
+    const copied = prev.markers.map((m) => ({ ...m, id: uid(), cat: "controllo", photos: [], note: `Controllo: ${m.note || "reperto"}`.slice(0, 140) }));
+    commit({ ...doc, markers: [...doc.markers, ...copied] });
+    toast.success(`${copied.length} marcatori riportati dalla visita del ${new Date(`${prev.visit_date}T12:00:00`).toLocaleDateString("it-IT")}`);
+  };
+  const box = view === "mouth" ? undefined : ZOOMS.find((z) => z.id === zoom)?.box;
 
   const numbers = useMemo(() => Object.fromEntries(doc.markers.map((m, i) => [m.id, i + 1])), [doc.markers]);
   const commit = (next) => { setPast((p) => [...p.slice(-49), doc]); setDoc(next); };
@@ -81,13 +91,20 @@ export const BodychartEditor = ({ consultation, defaultKind = "child", onClose, 
                   <button onClick={() => setKind("adult")} className={seg(kind === "adult")} data-testid="bodychart-kind-adult"><User size={15} /> Adulto</button>
                 </div>
               </div>
+              {view !== "mouth" && (
+                <div className="-mx-1 mt-3 flex items-center gap-1 overflow-x-auto px-1" role="tablist" data-testid="bodychart-zooms">
+                  <ZoomIn size={15} className="mr-1 shrink-0 text-slate-500" />
+                  {ZOOMS.map((z) => <button key={z.id} role="tab" aria-selected={zoom === z.id} onClick={() => setZoom(z.id)} className={`h-9 shrink-0 rounded-full px-3.5 text-[13px] font-medium transition-colors ${zoom === z.id ? "bg-[#3B6CF6] text-white" : "bg-[#F4F5F7] text-night hover:bg-slate-200"}`} data-testid={`bodychart-zoom-${z.id}`}>{z.label}</button>)}
+                </div>
+              )}
               <div className="mx-auto mt-3 h-[62vh] min-h-[440px] max-w-[520px]">
-                <BodyCanvas kind={kind} view={view} tool={tool} pen={pen} markers={doc.markers} strokes={doc.strokes} numbers={numbers} selected={selected}
+                <BodyCanvas box={box} kind={kind} view={view} tool={tool} pen={pen} markers={doc.markers} strokes={doc.strokes} numbers={numbers} selected={selected}
                   onMarker={addMarker} onStroke={(s) => commit({ ...doc, strokes: [...doc.strokes, s] })} onPick={setSelected} />
               </div>
             </div>
             <aside className="space-y-4">
-              {sel && <MarkerEditor m={sel} n={numbers[sel.id]} onChange={update} onDelete={() => remove(sel.id)} />}
+              {sel && <MarkerEditor m={sel} n={numbers[sel.id]} onChange={update} onDelete={() => remove(sel.id)} extra={<PinPhotos cid={consultation.id} m={sel} onChange={update} />} />}
+              {prev && <button onClick={carryOver} className="flex w-full items-center gap-3 rounded-3xl bg-[#F0FDF4] p-4 text-left text-sm text-night ring-1 ring-emerald-200 transition-colors hover:ring-emerald-400" data-testid="bodychart-carry-over"><CopyPlus size={18} className="shrink-0 text-emerald-700" /><span><span className="block font-medium">Riporta i marcatori della visita precedente</span><span className="text-xs text-slate-600">{prev.markers.length} reperti del {new Date(`${prev.visit_date}T12:00:00`).toLocaleDateString("it-IT")} come «Controllo»</span></span></button>}
               <div className="rounded-3xl bg-white p-4 ring-1 ring-slate-200"><Tools {...{ tool, cat, pen, setTool, setCat, setPen }} onUndo={undo} onClear={clearView} canUndo={past.length > 0} /></div>
               <div className="rounded-3xl bg-white p-4 ring-1 ring-slate-200">
                 <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600">Marcatori ({doc.markers.length})</div>

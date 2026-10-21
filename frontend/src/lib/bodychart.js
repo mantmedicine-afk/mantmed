@@ -2,11 +2,12 @@ export const VB_W = 200;
 export const VB_H = 460;
 
 export const CATS = [
-  { id: "lesione", label: "Lesione", color: "#DC2626" },
-  { id: "trauma", label: "Trauma / Contusione", color: "#7C3AED" },
-  { id: "dolore", label: "Dolore", color: "#EA580C" },
-  { id: "eruzione", label: "Eruzione / Dermatite", color: "#0D9488" },
-  { id: "nevo", label: "Punto di controllo / Nevo", color: "#2563EB" },
+  { id: "lesione", label: "Trauma / Lesione", color: "#DC2626", group: "Rosso" },
+  { id: "trauma", label: "Contusione / Ecchimosi", color: "#991B1B", group: "Rosso scuro" },
+  { id: "nevo", label: "Nevo / Macchia", color: "#2563EB", group: "Blu" },
+  { id: "eruzione", label: "Dermatite / Eruzione", color: "#EA580C", group: "Arancione" },
+  { id: "dolore", label: "Dolore", color: "#7C3AED", group: "Viola" },
+  { id: "controllo", label: "Controllo", color: "#16A34A", group: "Verde" },
 ];
 export const CAT = Object.fromEntries(CATS.map((c) => [c.id, c]));
 
@@ -15,6 +16,16 @@ export const VIEWS = [
   { id: "back", label: "Posteriore" },
   { id: "left", label: "Lat. sinistra" },
   { id: "right", label: "Lat. destra" },
+  { id: "mouth", label: "Cavo orale" },
+];
+
+// Zoom anatomici (viewBox) sulle viste del corpo; i pin restano in coordinate normalizzate
+export const ZOOMS = [
+  { id: "full", label: "Intera", box: [0, 0, VB_W, VB_H] },
+  { id: "head", label: "Testa / Volto", box: [40, 0, 120, 110] },
+  { id: "torso", label: "Torace / Addome", box: [30, 60, 140, 190] },
+  { id: "arms", label: "Arti superiori", box: [0, 60, VB_W, 220] },
+  { id: "legs", label: "Arti inferiori", box: [20, 200, 160, 260] },
 ];
 
 export const NOTE_HINTS = {
@@ -22,7 +33,8 @@ export const NOTE_HINTS = {
   trauma: ["Livido 2 cm", "Ecchimosi", "Tumefazione"],
   dolore: ["Dolore alla palpazione", "Dolore al movimento", "Dolore riferito"],
   eruzione: ["Arrossamento intenso", "Papule pruriginose", "Eczema"],
-  nevo: ["Nevo da monitorare", "Neo piano < 5 mm", "Controllo dermatoscopico"],
+  nevo: ["Nevo da monitorare", "Neo piano < 5 mm", "Macchia caffellatte"],
+  controllo: ["In miglioramento", "Invariato", "Guarito"],
 };
 
 const P = {
