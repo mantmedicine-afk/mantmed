@@ -1,0 +1,28 @@
+{
+  "summary": "Frontend E2E testing of the new Digital Signature Pad (SignaturePadModal/SignatureField) in the doctor Passport consent flow at desktop 1920x1080, mobile 390x844 (hasTouch, real CDP touch events) and tablet 1180x820 (hasTouch). Portal NetworkSharing SignDialog checked by code review plus a /portale load check. Every requested scenario passed; no page errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Signature pad modal on touch devices", "issues": ["When the pad opens, Radix auto-focuses the signer name input (signature-signer-input) and selects its prefilled text. On a phone or tablet this opens the on-screen keyboard right away, which covers the canvas. Suggested fix: onOpenAutoFocus={(e)=>e.preventDefault()} on DialogContent, or focus the canvas container instead."]},
+      {"screen": "Signature pad modal at 390px", "issues": ["The 'Pulisci / Riscrivi' label almost touches the edges of its 157px pill button. It fits, but the button is tight. Consider text-sm or less horizontal padding on small screens."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Minor UX) Stop the signer input from auto-focusing when the pad opens, so the virtual keyboard does not cover the canvas on touch devices",
+    "(Minor) The client does not check the exported PNG size. The backend caps signatures at 400000 chars (ConsentIn and ShareIn), so a very dense signature exported at up to 1400px wide (scale up to 3) gets a 422 with a generic error. A typical signature came out at about 51KB, so the risk is low. Consider a client-side size guard or a lower export scale."
+  ],
+  "critical_code_review_comments": [
+    "SignaturePadModal useEffect([open]) leaves out defaultName from deps on purpose. That is fine because it reads defaultName at open time.",
+    "Order of effects between the SignatureCanvas child and the modal's strokes reset: Rifirma could in theory replay the old strokes. Tested: it does not happen. On Rifirma the canvas is empty (0 ink pixels), the placeholder shows and Clear is disabled.",
+    "NetworkSharing SignDialog uses SignatureField with testId share-signature, title 'Firma Consenso', and takes signer_name and signature from the pad. The backend checks the data:image/png;base64 prefix. Code looks correct; not reachable in the UI with demo data."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (not requested)", "frontend": "100% of requested scenarios"},
+  "seed_data_creation": "Recorded consents on demo patients: Alice Conti (tablet signature, signer 'TEST Firmatario Pad') and Aurora Ricci (paper method, signer 'TEST Cartaceo Mobile'). Each new consent revoked the previous active one.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Verified: consent-dialog hides consent-signer-input for tablet and shows it for paper. Pad title is 'Firma del Genitore / Tutore' and the signer is prefilled with the guardian name. Live caption shows name and date. Validation errors work: empty canvas, too short, name under 3 chars; modal stays open. Clear is disabled when empty, clears, and the placeholder comes back. Confirm closes only the pad. Preview img src is data:image/png;base64 (1318x388, transparent corner alpha 0), with 'Firmato il ... alle ore ...' and Rifirma, which reopens with the last signer name. Escape closes only the pad. Clicking outside does not close it. Save gives POST 200, toast, and a history row with signer name and image. At mobile and tablet with CDP touch events, strokes draw (about 5300 ink px) with no page or modal scroll, the modal fits the viewport, and the buttons sit side by side. The portal loads for the parent; the share dialog is not visible (only 1 specialist)."
+}

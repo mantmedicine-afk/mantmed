@@ -272,6 +272,7 @@ export const SignaturePadModal = ({
       <DialogContent
         className="w-[calc(100vw-1.5rem)] max-w-2xl gap-5 rounded-3xl border-0 bg-white p-5 sm:p-7"
         onInteractOutside={(e) => e.preventDefault()}
+        onOpenAutoFocus={(e) => e.preventDefault()}
         data-testid="signature-modal"
         data-lenis-prevent
       >
@@ -312,18 +313,18 @@ export const SignaturePadModal = ({
             type="button"
             onClick={clear}
             disabled={!hasInk}
-            className="flex h-14 items-center justify-center gap-2 rounded-full border border-slate-300 text-base font-medium text-night transition-colors hover:border-night disabled:opacity-40"
+            className="flex h-14 items-center justify-center gap-2 rounded-full border border-slate-300 px-2 text-sm font-medium sm:text-base text-night transition-colors hover:border-night disabled:opacity-40"
             data-testid="signature-clear-btn"
           >
-            <Eraser size={18} /> Pulisci / Riscrivi
+            <Eraser size={18} className="shrink-0" /> Pulisci / Riscrivi
           </button>
           <button
             type="button"
             onClick={confirm}
-            className="flex h-14 items-center justify-center gap-2 rounded-full bg-night text-base font-semibold text-white transition-transform hover:-translate-y-0.5"
+            className="flex h-14 items-center justify-center gap-2 rounded-full bg-night px-2 text-sm font-semibold sm:text-base text-white transition-transform hover:-translate-y-0.5"
             data-testid="signature-confirm-btn"
           >
-            <Check size={18} /> Conferma Firma
+            <Check size={18} className="shrink-0" /> Conferma Firma
           </button>
         </div>
       </DialogContent>

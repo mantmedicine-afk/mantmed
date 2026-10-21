@@ -196,6 +196,11 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 
 
 
+## Implemented (2026-10-21, Ripristino ambiente + Pad di Firma Digitale)
+- Codice importato dallo ZIP (FANCULO-main); .env ricreati (DATA_ENCRYPTION_KEY e JWT_SECRET originali forniti dall'utente, STUDIO_PHONE 0965 371313; STRIPE_WEBHOOK_SECRET ancora vuoto); DB locale riseminato + genitore demo genitore.demo@example.com
+- components/signature/SignaturePadModal.jsx: modale "Firma del Genitore / Tutore" / "Firma Consenso", canvas senza librerie (pointer events + coalesced events, tratto variabile per pressione pennino e velocità, curve quadratiche, HiDPI, ResizeObserver con replay), campo nome firmatario, data/ora sotto la firma, Pulisci / Riscrivi, Conferma Firma con validazione (vuoto, troppo corta, nome); output PNG base64 ritagliato e trasparente; SignatureField con anteprima e "Rifirma"
+- Usato nel consenso informato del Passaporto (ConsentDialog) e nel consenso di rete del Portale (NetworkSharing); testato iteration_18 (100%, desktop/tablet/mobile touch)
+
 ## Backlog
 - P1: percentili automatici con curve OMS, storico crescita del paziente, dati demo pediatrici in agenda/sala d'attesa, rinomina brand in "MantMed"
 - P1 (prec.): storico paziente, export PDF dedicato
