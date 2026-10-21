@@ -180,7 +180,7 @@ const ConsentsTab = ({ patient, items, onChange }) => {
             <div className="font-medium text-night">{c.signer_name} · {c.signer_relation} · {c.method === "firma_tablet" ? "firma su tablet" : "modulo cartaceo"}</div>
             <div className="text-slate-600">{c.version} · {new Date(c.signed_at).toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" })} · email {c.email_reports ? "sì" : "no"}</div>
           </div>
-          {c.signature && <img src={c.signature} alt="Firma" className="h-12 rounded-lg border border-slate-200 bg-slate-50" />}
+          {c.signature && <img src={c.signature} alt="Firma" className="h-12 max-w-[160px] rounded-lg border border-slate-200 bg-white object-contain p-1" />}
           {c.revoked_at ? <span className="text-xs text-slate-500">Revocato il {new Date(c.revoked_at).toLocaleDateString("it-IT")}</span>
             : <button onClick={() => revoke(c.id)} className="text-xs font-medium text-red-600 hover:underline" data-testid={`consent-revoke-${c.id}`}>Revoca</button>}
         </div>

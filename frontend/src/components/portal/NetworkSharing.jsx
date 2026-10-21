@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Share2, ShieldCheck, Undo2, PenLine } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { SignaturePad } from "@/components/dash/ConsentDialog";
+import { SignatureField } from "@/components/signature/SignaturePadModal";
 import { api, errMsg } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
@@ -11,21 +11,20 @@ const day = (iso) => new Date(iso).toLocaleDateString("it-IT", { day: "numeric",
 const SignDialog = ({ open, onClose, entries, text, onSigned }) => {
   const { user } = useAuth();
   const [sel, setSel] = useState([]);
-  const [name, setName] = useState("");
   const [ok, setOk] = useState(false);
   const [sig, setSig] = useState(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    if (open) { setSel(entries.map((e) => e.patient.id)); setName(user?.name ?? ""); setOk(false); setSig(null); }
+    if (open) { setSel(entries.map((e) => e.patient.id)); setOk(false); setSig(null); }
     return undefined;
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   const toggle = (id) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   const submit = async () => {
     if (sel.length < 2) return toast.error("Selezioni almeno due specialisti");
     if (!ok) return toast.error("Serve il consenso esplicito");
-    if (!sig) return toast.error("Manca la firma");
+    if (!sig) return toast.error("Manca la firma: tocchi il riquadro per firmare");
     setBusy(true);
-    try { await api.createShare({ patient_ids: sel, signer_name: name, accepted: ok, signature: sig }); toast.success("Consenso firmato: gli specialisti selezionati vedono i referti in sola lettura"); onSigned(); onClose(); }
+    try { await api.createShare({ patient_ids: sel, signer_name: sig.signerName, accepted: ok, signature: sig.image }); toast.success("Consenso firmato: gli specialisti selezionati vedono i referti in sola lettura"); onSigned(); onClose(); }
     catch (e) { toast.error(errMsg(e)); }
     setBusy(false);
   };
@@ -49,8 +48,8 @@ const SignDialog = ({ open, onClose, entries, text, onSigned }) => {
           <input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#0A192F]" data-testid="share-accept" />
           <span>Ho letto l'informativa e acconsento alla condivisione dei referti tra gli specialisti selezionati <span className="text-red-600">*</span></span>
         </label>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome e cognome del firmatario" className="h-11 rounded-xl border border-slate-200 px-3 text-sm text-night outline-none focus:border-night" data-testid="share-signer" />
-        <SignaturePad onChange={setSig} />
+        <SignatureField value={sig} onChange={setSig} defaultName={user?.name ?? ""} testId="share-signature" title="Firma Consenso"
+          description="Consenso alla condivisione dei referti tra gli specialisti selezionati. Firmi per esteso nel riquadro." />
         <button onClick={submit} disabled={busy} className="flex h-12 items-center justify-center gap-2 rounded-full bg-night text-sm font-semibold text-white disabled:opacity-60" data-testid="share-submit">{busy ? <Loader2 size={16} className="animate-spin" /> : <PenLine size={16} />} Firma e attiva la condivisione</button>
       </DialogContent>
     </Dialog>

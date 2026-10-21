@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ShieldCheck, Eraser, FileSignature, PenLine } from "lucide-react";
+import { ShieldCheck, FileSignature, PenLine } from "lucide-react";
+import { SignatureField } from "@/components/signature/SignaturePadModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { http, errMsg } from "@/lib/api";
@@ -8,34 +9,6 @@ import { Field } from "./AppointmentDialog";
 import { useAuth } from "@/lib/auth";
 
 const informativa = (doctor) => `Ai sensi degli artt. 13 e 9 del Reg. UE 2016/679, il titolare del trattamento (${doctor}) tratta i dati personali e sanitari del minore esclusivamente per finalità di diagnosi, cura e gestione amministrativa della visita. I dati sono conservati con crittografia AES-256, accessibili solo al medico e non diffusi. Il genitore può esercitare in ogni momento i diritti di accesso, rettifica, cancellazione e revoca del consenso contattando lo studio. [Testo da validare con il proprio consulente privacy/DPO]`;
-
-export const SignaturePad = ({ onChange }) => {
-  const ref = useRef(null);
-  const drawing = useRef(false);
-  useEffect(() => {
-    const c = ref.current;
-    const r = c.getBoundingClientRect();
-    c.width = r.width * 2;
-    c.height = r.height * 2;
-    const g = c.getContext("2d");
-    g.scale(2, 2);
-    g.lineWidth = 2.2;
-    g.lineCap = "round";
-    g.strokeStyle = "#0A192F";
-  }, []);
-  const pos = (e) => { const r = ref.current.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
-  const down = (e) => { drawing.current = true; const g = ref.current.getContext("2d"); g.beginPath(); g.moveTo(...pos(e)); ref.current.setPointerCapture(e.pointerId); };
-  const move = (e) => { if (!drawing.current) return; const g = ref.current.getContext("2d"); g.lineTo(...pos(e)); g.stroke(); };
-  const up = () => { if (!drawing.current) return; drawing.current = false; onChange(ref.current.toDataURL("image/png")); };
-  const clear = () => { const c = ref.current; c.getContext("2d").clearRect(0, 0, c.width, c.height); onChange(null); };
-  return (
-    <div className="relative">
-      <canvas ref={ref} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerLeave={up} className="h-32 w-full touch-none rounded-2xl border border-dashed border-slate-300 bg-slate-50" data-testid="consent-signature-pad" />
-      <span className="pointer-events-none absolute bottom-2 left-3 text-[11px] text-slate-400">Firma del genitore / tutore</span>
-      <button onClick={clear} className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-white px-2 py-1 text-xs text-slate-600 shadow-sm" data-testid="consent-signature-clear"><Eraser size={12} /> Cancella</button>
-    </div>
-  );
-};
 
 export const ConsentDialog = ({ patient, open, onClose, onSaved }) => {
   const { user } = useAuth();
@@ -48,11 +21,13 @@ export const ConsentDialog = ({ patient, open, onClose, onSaved }) => {
 
   const save = async () => {
     if (!f.privacy_policy || !f.health_data) return toast.error("Informativa e trattamento dei dati sanitari sono obbligatori");
-    if (!f.signer_name.trim()) return toast.error("Inserisci il nome del firmatario");
-    if (f.method === "firma_tablet" && !signature) return toast.error("Manca la firma");
+    const tablet = f.method === "firma_tablet";
+    if (tablet && !signature) return toast.error("Manca la firma: tocchi il riquadro per firmare");
+    const signer = tablet ? signature.signerName : f.signer_name.trim();
+    if (!signer) return toast.error("Inserisci il nome del firmatario");
     setBusy(true);
     try {
-      await http.post(`/patients/${patient.id}/consents`, { ...f, signature: f.method === "firma_tablet" ? signature : null });
+      await http.post(`/patients/${patient.id}/consents`, { ...f, signer_name: signer, signature: tablet ? signature.image : null });
       toast.success("Consenso informato registrato");
       onSaved?.();
       onClose();
@@ -76,9 +51,9 @@ export const ConsentDialog = ({ patient, open, onClose, onSaved }) => {
           <Check k="health_data" label="Acconsento al trattamento dei dati sanitari del minore (art. 9 GDPR)" required />
           <Check k="email_reports" label="Acconsento a ricevere referti e comunicazioni via email" />
         </div>
-        <div className="grid grid-cols-[1fr_130px] gap-3">
-          <Field label="Firmatario"><Input value={f.signer_name} onChange={(e) => setF({ ...f, signer_name: e.target.value })} data-testid="consent-signer-input" /></Field>
-          <Field label="Relazione">
+        <div className={`grid gap-3 ${f.method === "modulo_cartaceo" ? "grid-cols-[1fr_130px]" : "grid-cols-1"}`}>
+          {f.method === "modulo_cartaceo" && <Field label="Firmatario"><Input value={f.signer_name} onChange={(e) => setF({ ...f, signer_name: e.target.value })} data-testid="consent-signer-input" /></Field>}
+          <Field label="Relazione del firmatario con il minore">
             <select value={f.signer_relation} onChange={(e) => setF({ ...f, signer_relation: e.target.value })} className="h-9 rounded-md border border-input bg-transparent px-2 text-sm" data-testid="consent-relation-select">
               {["Madre", "Padre", "Tutore legale"].map((r) => <option key={r}>{r}</option>)}
             </select>
@@ -89,7 +64,11 @@ export const ConsentDialog = ({ patient, open, onClose, onSaved }) => {
             <button key={v} onClick={() => setF({ ...f, method: v })} className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-medium ${f.method === v ? "bg-night text-white" : "border border-slate-200 text-slate-600"}`} data-testid={`consent-method-${v}`}><Icon size={15} /> {l}</button>
           ))}
         </div>
-        {f.method === "firma_tablet" ? <SignaturePad onChange={setSignature} /> : <p className="text-xs text-slate-600">Il modulo firmato su carta va conservato in studio.</p>}
+        {f.method === "firma_tablet" ? (
+          <SignatureField value={signature} onChange={setSignature} defaultName={f.signer_name} testId="consent-signature"
+            title={`Firma ${f.signer_relation === "Tutore legale" ? "del Tutore" : "del Genitore / Tutore"}`}
+            description={`Consenso informato al trattamento dei dati di ${patient?.name || "del minore"}. Firmi per esteso nel riquadro.`} />
+        ) : <p className="text-xs text-slate-600">Il modulo firmato su carta va conservato in studio.</p>}
         <button onClick={save} disabled={busy} className="rounded-full bg-night py-3.5 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 disabled:opacity-60" data-testid="consent-save-btn">Registra consenso</button>
       </DialogContent>
     </Dialog>
