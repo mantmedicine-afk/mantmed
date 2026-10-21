@@ -228,4 +228,35 @@ def build_showcase(db, current_user, doctor_user):
         out.sort(key=lambda x: (x["date"], x["time"]))
         return {"service": svc, "services": services, "clinics": [c["name"] for c in sch["clinics"]], "slots": out[:max(1, min(limit, 12))]}
 
+    @public.get("/doctors/{slug}/week")
+    async def week(slug: str, start: str = "", service: str = "", clinic: str = ""):
+        """Calendario settimanale (lun-dom) degli orari liberi, sfogliabile fino a 8 settimane."""
+        u = await db.users.find_one({"showcase.slug": slug})
+        if not u or not visible(u) or not in_network(u):
+            raise HTTPException(404, "Vetrina non trovata")
+        sch = schedule_of(u)
+        services = [s["name"] for s in sch["services"]]
+        svc = service if service in services else (services[0] if services else "")
+        today = datetime.now(ROME).date()
+        first = today - timedelta(days=today.weekday())
+        try:
+            monday = datetime.strptime(start, "%Y-%m-%d").date() if start else first
+        except ValueError:
+            raise HTTPException(400, "Data non valida")
+        monday -= timedelta(days=monday.weekday())
+        monday = min(max(monday, first), first + timedelta(weeks=7))
+        clinics = [c["name"] for c in sch["clinics"] if not clinic or c["name"] == clinic]
+        days = []
+        for i in range(7):
+            d = monday + timedelta(days=i)
+            slots = []
+            if d >= today:
+                for c in clinics:
+                    try:
+                        slots += [{"time": t, "clinic": c} for t in await free_slots(db, u, c, svc, d.isoformat())]
+                    except HTTPException:
+                        pass
+            days.append({"date": d.isoformat(), "past": d < today, "slots": sorted(slots, key=lambda x: x["time"])})
+        return {"week_start": monday.isoformat(), "service": svc, "prev": monday > first, "next": monday < first + timedelta(weeks=7), "days": days}
+
     return doctor, public, ensure_all_slugs

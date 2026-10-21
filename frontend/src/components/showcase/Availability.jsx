@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { CalendarClock, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
+import { WeekCalendar } from "./WeekCalendar";
 
 const dshort = (d) => new Date(`${d}T12:00:00`).toLocaleDateString("it-IT", { weekday: "short", day: "numeric", month: "short" });
 
@@ -32,6 +33,7 @@ export const Availability = ({ slug, onPick }) => {
           ))}
         </div>
       ) : <p className="mt-4 text-sm text-[#0A192F]/60" data-testid="availability-empty">Nessun orario libero nei prossimi 14 giorni: può comunque inviare una richiesta allo studio.</p>}
+      {a && a.services.length > 0 && <WeekCalendar slug={slug} service={f.service || a.service} clinic={f.clinic} onPick={onPick} />}
     </section>
   );
 };

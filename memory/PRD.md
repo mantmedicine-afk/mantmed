@@ -286,3 +286,7 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Portale /portale/documenti = "Area Riservata": tab Visite, Bilanci di salute (prossimo bilancio, questionario pre-visita, bilanci, check-point), Prescrizioni, Ricevute, Famiglia e Consensi (dati figlio, medici, consensi attivi + storico, documenti firmati, condivisione, collega figlio; revoca solo tramite studio)
 - /api/public/doctors/{slug}/availability: primi 6 orari liberi in 14 giorni per prestazione/studio; Availability in Vetrina (Portale e pagina pubblica); clic -> RequestDialog precompilato (preset), anche dalla pagina pubblica via ?slot=
 - Test: iteration_30 OK + fix (scroll tab attivo, DlBtn, slot preservato, storico consensi, testi per genere)
+
+## 2026-06 Calendario visuale disponibilita
+- /api/public/doctors/{slug}/week?start=&service=&clinic= (lun-dom, 8 settimane, giorni passati vuoti)
+- WeekCalendar.jsx dentro Availability: 7 colonne scorrevoli su desktop, striscia giorni + swipe su mobile; clic orario -> prenotazione precompilata. Verificato con screenshot desktop/mobile
