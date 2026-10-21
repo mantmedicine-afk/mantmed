@@ -82,7 +82,7 @@ export const MantAIDialog = ({ open, onOpenChange, view = "doctor" }) => {
         </div>
         <div className="mt-5"><RoleView role={role} /></div>
         <Safety />
-        <p className="mt-5 flex items-start gap-2 text-xs leading-relaxed text-slate-500"><Eye size={13} className="mt-0.5 shrink-0" /> Per esercitare i diritti previsti dal GDPR (accesso, rettifica, cancellazione) può rivolgersi allo studio medico, titolare del trattamento dei dati clinici.</p>
+        <p className="mt-5 flex items-start gap-2 text-xs leading-relaxed text-slate-500"><Eye size={13} className="mt-0.5 shrink-0" /> <span>Per esercitare i diritti previsti dal GDPR (accesso, rettifica, cancellazione) può rivolgersi allo studio medico, titolare del trattamento dei dati clinici. <a href="/privacy#fornitori" target="_blank" rel="noreferrer" className="font-medium text-[#3B6CF6] underline underline-offset-2" data-testid="mantai-privacy-link">Informativa privacy completa ed elenco dei fornitori AI</a></span></p>
       </DialogContent>
     </Dialog>
   );

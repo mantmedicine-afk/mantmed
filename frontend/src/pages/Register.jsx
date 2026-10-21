@@ -150,6 +150,7 @@ export default function Register({ role }) {
           {f.password && <Strength pw={f.password} prefix="register" />}
           {!doctor && <p className="text-xs leading-relaxed text-slate-300">La cartella di suo figlio viene collegata automaticamente solo se codice fiscale ed email coincidono con quelli registrati dallo studio.</p>}
           <div className="space-y-3">
+            <a href="/privacy" target="_blank" rel="noreferrer" className="text-xs text-white underline underline-offset-4" data-testid="register-privacy-link">Leggi l'informativa privacy e sull'uso dell'AI</a>
             {doctor ? (
               <Check id="terms" checked={f.terms} onChange={set("terms")} text="Ho letto l'informativa privacy e acconsento al trattamento dei miei dati per la verifica professionale e l'attivazione della licenza MantMed." />
             ) : (

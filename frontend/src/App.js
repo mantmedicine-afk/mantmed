@@ -13,6 +13,7 @@ import Activate from "@/pages/Activate";
 import ResetPassword from "@/pages/ResetPassword";
 import Portal from "@/pages/Portal";
 import Verify from "@/pages/Verify";
+import Privacy from "@/pages/Privacy";
 import { setClinics } from "@/lib/api";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/lib/auth";
@@ -73,6 +74,7 @@ function App() {
         <Route path="/attiva" element={<Activate />} />
         <Route path="/medico/:slug" element={<DoctorShowcase />} />
         <Route path="/reimposta-password" element={<ResetPassword />} />
+        <Route path="/privacy" element={<Privacy />} />
         <Route path="/verifica" element={<Verify />} />
         <Route path="/area-riservata" element={<AuthProvider><AccountGate /></AuthProvider>} />
         <Route path="*" element={<Navigate to="/" replace />} />
