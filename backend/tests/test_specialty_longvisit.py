@@ -88,7 +88,7 @@ class TestCardiology:
         n = d["note"]
         STATE["card_note"] = n
         print("SEZIONI:", [(x["gruppo"], x["titolo"]) for x in n["sezioni"]])
-        titles = " | ".join(x["titolo"].lower() for x in n["sezioni"] if x["gruppo"] == "esame_obiettivo")
+        titles = " | ".join(x["titolo"].lower() for x in n["sezioni"] if x["gruppo"] in ("esame_obiettivo", "parametri_vitali"))
         assert "pressione" in titles
         assert "auscult" in titles
         assert "ecg" in titles

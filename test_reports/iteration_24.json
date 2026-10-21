@@ -1,0 +1,38 @@
+{
+  "summary": "Modelli Visita feature tested end-to-end. Backend: new pytest suite test_visit_templates.py (19 tests, all passing) covering library seeding (cardio 10 fields incl. Pressione arteriosa/parametri_vitali, pediatric 9 fields), CRUD (create w/o fields -> base, create custom, rename+reorder, rename-only keeps fields), 422 validation (empty name, empty titolo, invalid gruppo), 404 on unknown/foreign ids, tenant isolation cardio vs pediatra, 401 unauth, DELETE ok + 400 on last template (verified on medico@mantmed.it with 1 template), consultation start with template_id (template_name, sezioni prefilled with empty testo, status processing), async mapping exactly in template order (Pressione 135/85, Holter extracted), no template_id -> first template, invalid template_id -> fallback to first, pediatric run keeps TORL/allattamento/svezzamento, PDF section 04 Parametri for adult and pediatric vitals. Frontend (Playwright, 1920x1080): settings card at /app/impostazioni?sezione=modelli - pills, Nuovo modello, rename, up/down reorder, delete field, add field with group/hint, save disabled with empty title, Salva toast, persistence after reload, Duplica '(copia)', Elimina (confirm) , Ripristina modello base toast; consultation overlay template picker (3 templates listed with field counts), choosing 'Controllo breve', manual transcript, free name + paper consent, shimmer on sezioni while processing, filled results: Pressione arteriosa in Parametri tab, Holter ECG in Esame tab. Pediatric regression in UI: TORL/Torace/Addome in Esame tab + template esame fields, Allattamento/Svezzamento in Anamnesi tab + template anamnesi fields, GrowthPanel + vitals sezioni in Crescita tab. No functional bugs found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/visit-templates (ensure())", "issue": "Seeding is not atomic: two concurrent first calls (e.g. settings page + overlay, or two tabs) for a doctor with no templates can insert two 'Prima visita' docs. Consider a unique seed marker / upsert on {seed:true} or find_one_and_update with upsert."},
+      {"endpoint": "POST/PUT /api/visit-templates", "issue": "No upper bound on number of fields / templates per doctor (very large lists will bloat LLM prompt). Consider a sane cap (e.g. 40 fields)."},
+      {"endpoint": "POST /api/consultations/start", "issue": "Unknown/invalid template_id silently falls back to first template instead of 400/404 (acceptable, but undocumented)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "ConsultationOverlay Setup (non-pediatric doctor)", "issues": ["Intro copy still says 'trasformata nella cartella pediatrica: ... crescita' for Cardiologia doctor - should be specialty-aware"]},
+      {"screen": "Modelli Visita settings", "issues": ["Switching template pill or clicking Nuovo/Duplica silently discards unsaved draft edits (no dirty warning)", "'Nuovo modello' immediately persists a server template named 'Nuovo modello'; pill label does not reflect the typed name until saved", "Group select uses native <select> (acceptable, but inconsistent with shadcn components)"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_visit_templates.py", "/app/test_reports/pytest/pytest_visit_templates.xml", "/app/backend/tests/test_specialty_longvisit.py"],
+  "action_items": [
+    "Optional: make visit template seeding idempotent under concurrency",
+    "Optional: make ConsultationOverlay setup copy specialty-aware (not 'cartella pediatrica' for Cardiologia)",
+    "Optional: warn on unsaved template changes when switching pills"
+  ],
+  "critical_code_review_comments": [
+    "visit_templates.ensure(): race condition on first seed (no unique constraint)",
+    "Pediatric 'altro' group fields are shown in UI tab 'Diagnosi e terapia' (PED_GROUPS terapia: altro) but report.py renders ped 'altro' under '03 Esame obiettivo' - inconsistent placement between editor and PDF",
+    "server.py is 1722 lines - should be split into modules",
+    "map_fields: by_title fallback only used if numeric key missing - fine; LLM drift handled with 'Non riportato'"
+  ],
+  "updated_files": ["/app/backend/tests/test_visit_templates.py (new)", "/app/backend/tests/test_specialty_longvisit.py (test_ready_sections now accepts Pressione in parametri_vitali group, matching new library)"],
+  "success_rate": {"backend": "100% (19/19)", "frontend": "100% of tested flows"},
+  "seed_data_creation": "Created TEST_ prefixed consultations (TEST_Cardio Tpl, TEST_Cardio NoTpl, TEST_Cardio Bad, TEST_Bimbo Tpl, TEST_UI Cardio, TEST_UI Bimbo) for cardiologo/medico - purge by patient_name prefix TEST_. Test templates (TEST_*, 'Nuovo modello') were deleted; cardiologo keeps 'Prima visita' + 'Controllo breve', medico keeps 'Prima visita'.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run with `pytest tests/test_visit_templates.py -n0` (pytest.ini forces xdist -n 2; tests share module state). PDF text is uppercased for row labels - compare case-insensitively. AI processing finished in ~5-20s. Playwright tool mangles '%' string formatting inside selectors - use f-strings.",
+  "test_credentials": "From /app/memory/test_credentials.md: medico@mantmed.it / Auscula-Studio-2026, cardiologo.demo@example.com / Cardio-Demo-2026"
+}

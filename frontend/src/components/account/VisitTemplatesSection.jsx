@@ -12,6 +12,9 @@ export const VisitTemplatesSection = () => {
   const [draft, setDraft] = useState(null);
   const [busy, setBusy] = useState("");
   const pick = (t) => { setCurId(t.id); setDraft({ name: t.name, fields: t.fields.map((f) => ({ ...f })) }); };
+  const saved = list?.find((x) => x.id === curId);
+  const dirty = Boolean(saved && draft && JSON.stringify({ name: saved.name, fields: saved.fields }) !== JSON.stringify(draft));
+  const leave = () => !dirty || window.confirm("Ci sono modifiche non salvate a questo modello: vuole scartarle?");
   useEffect(() => { api.visitTemplates().then((xs) => { setList(xs); if (xs[0]) pick(xs[0]); }).catch((e) => toast.error(errMsg(e))); }, []);
 
   const run = async (key, fn) => { setBusy(key); try { await fn(); } catch (e) { toast.error(errMsg(e)); } setBusy(""); };
@@ -46,9 +49,9 @@ export const VisitTemplatesSection = () => {
         <div className="space-y-5">
           <div className="flex flex-wrap gap-2" data-testid="templates-list">
             {list.map((t) => (
-              <button key={t.id} onClick={() => pick(t)} className={`h-10 rounded-full px-4 text-sm font-medium transition-colors ${t.id === curId ? "bg-night text-white" : "border border-slate-200 text-night hover:border-night"}`} data-testid={`template-pill-${t.id}`}>{t.name} <span className="opacity-60">· {t.fields.length}</span></button>
+              <button key={t.id} onClick={() => t.id !== curId && leave() && pick(t)} className={`h-10 rounded-full px-4 text-sm font-medium transition-colors ${t.id === curId ? "bg-night text-white" : "border border-slate-200 text-night hover:border-night"}`} data-testid={`template-pill-${t.id}`}>{t.id === curId ? draft.name || "Senza nome" : t.name} <span className="opacity-60">· {t.id === curId ? draft.fields.length : t.fields.length}</span>{t.id === curId && dirty && <span className="ml-1 text-amber-300" data-testid="template-dirty-dot">•</span>}</button>
             ))}
-            <button onClick={() => create(false)} disabled={!!busy} className="flex h-10 items-center gap-1.5 rounded-full border border-dashed border-slate-300 px-4 text-sm text-slate-600 hover:border-night hover:text-night" data-testid="template-new-btn">{busy === "new" ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Nuovo modello</button>
+            <button onClick={() => leave() && create(false)} disabled={!!busy} className="flex h-10 items-center gap-1.5 rounded-full border border-dashed border-slate-300 px-4 text-sm text-slate-600 hover:border-night hover:text-night" data-testid="template-new-btn">{busy === "new" ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Nuovo modello</button>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <input value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} className={`${inp} max-w-xs`} aria-label="Nome del modello" data-testid="template-name-input" />

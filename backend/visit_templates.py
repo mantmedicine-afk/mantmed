@@ -178,10 +178,14 @@ def build_visit_templates(db, tdb, specialty_of, llm_json):
         docs = await tdb.visit_templates.find().sort("created_at", 1).to_list(None)
         if docs:
             return docs
+        await db.visit_templates.create_index([("owner_id", 1), ("seed", 1)], unique=True, partialFilterExpression={"seed": True})
         now = datetime.now(timezone.utc).isoformat()
         doc = {"name": "Prima visita", "fields": await base_fields(await specialty_of(OWNER.get())), "created_at": now, "updated_at": now}
-        res = await tdb.visit_templates.insert_one(doc)
-        return [{**doc, "_id": res.inserted_id}]
+        try:
+            await tdb.visit_templates.update_one({"seed": True}, {"$setOnInsert": doc}, upsert=True)
+        except Exception:
+            logger.info("Modello iniziale già creato da una richiesta concorrente")
+        return await tdb.visit_templates.find().sort("created_at", 1).to_list(None)
 
     async def resolve(tid: Optional[str]) -> Optional[dict]:
         """Modello scelto per la visita (o il primo del medico): {id, name, fields}."""

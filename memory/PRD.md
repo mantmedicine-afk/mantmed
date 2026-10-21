@@ -244,3 +244,10 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 ## 2026-06 Pulizia Dati Prova (Founder)
 - /admin tab "Dati di prova": GET /api/admin/test-data (anteprima), POST /api/admin/test-data/purge {owner_ids}
 - Elimina visite degli account demo selezionati (DOCTOR_EMAIL + @example.com) e visite/pazienti/appuntamenti con nomi TEST_/Test/Prova + audio, job, body chart, misure, notifiche, consensi. Account demo mantenuti. Solo ruolo admin (403 altrimenti). File: backend/cleanup.py, frontend/src/components/admin/TestDataCleanup.jsx
+
+## 2026-06 Modelli Visita (multi-modello)
+- backend/visit_templates.py: libreria 13 specialità (8-10 campi: anamnesi mirata / parametri_vitali / esame obiettivo) + generazione IA per altre (cache db.visit_template_bases) + fallback generico. CRUD /api/visit-templates (GET seed atomico "Prima visita", /base, POST, PUT, DELETE 400 se ultimo)
+- /consultations/start e /consultations accettano template_id: la visita salva template_id/name/fields, note.sezioni precompilate; LLM riceve campi_modello numerati e map_fields li riporta in ordine
+- Pediatria: cartella standard invariata + campi modello come voci extra. Nuovo gruppo parametri_vitali (tab Crescita/Parametri, PDF sezione 04, copia testo)
+- UI: Impostazioni > Modelli Visita (crea, rinomina, duplica, elimina, ripristina base, campi con riordino, avviso modifiche non salvate); selettore modello nell overlay consultazione
+- Test: iteration_24 (19 backend + frontend OK)
