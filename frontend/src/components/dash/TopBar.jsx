@@ -36,7 +36,7 @@ export const TopBar = ({ onCompliance, onFeedback, onTour, unread = 0, search })
               <span className="grid h-8 w-8 place-items-center rounded-full bg-night text-xs font-semibold text-white">{initials(name)}</span>
               <span className="hidden text-sm font-medium sm:inline">{name}</span><Caret />
             </button>} />
-          <button onClick={onTour} className="hidden sm:flex h-10 items-center gap-2 rounded-full border border-slate-200 px-3 text-sm font-medium text-slate-600 transition-colors hover:border-night hover:text-night" data-testid="tour-open-button" aria-label="Rivedi Tour / Guida" title="Rivedi Tour / Guida">
+          <button onClick={onTour} className="flex h-10 items-center gap-2 rounded-full border border-slate-200 px-3 text-sm font-medium text-slate-600 transition-colors hover:border-night hover:text-night" data-testid="tour-open-button" aria-label="Rivedi Tour / Guida" title="Rivedi Tour / Guida">
             <Compass size={16} /><span className="hidden whitespace-nowrap 2xl:inline">Rivedi Tour</span>
           </button>
           <button onClick={onFeedback} className="hidden sm:flex h-10 items-center gap-2 rounded-full border border-slate-200 px-3 text-sm font-medium text-slate-600 transition-colors hover:border-night hover:text-night" data-testid="feedback-beta-button" aria-label="Feedback e assistenza" title="Feedback e assistenza">

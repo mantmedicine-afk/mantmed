@@ -341,3 +341,8 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - UI: NetworkSearch (Pazienti), TeamPanel (cartella + passaporto tab "Medicina di squadra"), portale tab "Condivisione" (TeamSharing) con richieste, accessi, registro
 - Rimossi NetworkSharing.jsx e LinkedSpecialists.jsx
 - Test: backend/tests/test_team_medicine.py (21 pass); dati team di test ripuliti
+
+## 2026-06 · Tour completo v2 (iteration_39 PASS + rifiniture)
+- 5 passi per ruolo: medico +Medicina di Squadra (team-network-search), Bodychart con pin/foto tablet; paziente +prescrizioni, copertine, passo 5 Messaggi e supporto (link Feedback)
+- TOUR_VERSION=2 in auth.py: chi aveva visto il tour v1 lo rivede una volta
+- Rifiniture: card compatta su mobile ("Più dettagli"), card a sinistra se il target è a destra, target prefisso (visit-row-*), toast chiusi all'apertura, pulsante tour visibile anche su mobile nell'area medico

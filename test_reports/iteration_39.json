@@ -1,0 +1,32 @@
+{
+  "summary": "Frontend-only test of the 5-step onboarding tour (TOUR_VERSION=2) with Playwright, for the doctor (medico@mantmed.it) and the parent (genitore.demo@example.com). Both accounts started with tour_done=false (the version bump works), and the tour opened by itself right after login. Doctor: steps 1-5 go to the right routes (/app agenda-panel, /app consult-hub, /app/visite visits-page, /app/pazienti team-network-search, /app/impostazioni?sezione=vetrina account-section-vetrina), the spotlight sits on each target, the card shows 'Passo N di 5', and tour-extra-link opens /app/cassa while the tour stays open. Then tour-step-done, finish, /api/auth/me tour_done=true, and no tour after a reload. Indietro, Salta il tour, Esc, ArrowLeft/ArrowRight and the progress dots all work. The tour restarts from both settings-tour-btn and the TopBar tour-open-button. Parent: steps 1-5 also correct (portal-overview, /portale/documenti documents-area, /portale portal-simple-box, /portale/trova-specialista specialists-directory, /portale/messaggi portal-messages), tour-extra-link opens /portale/impostazioni, and finishing saves tour_done=true. The tour restarts from both portal-tour-open-btn and portal-settings-tour-btn. Responsive: at 390x844, 768x1024 and 1920x800 the card stays inside the viewport and every button can be reached, for both roles and on every step plus the done screen. Both demo accounts were left with tour_done=true.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Tour on mobile 390x844 (both roles)", "issues": ["The bottom card is about 450-480px tall, more than half the viewport, so it covers most of the spotlit target (e.g. doctor step 5 Vetrina, parent step 3 'In parole semplici'). Consider a more compact card on mobile (collapsible points) or scrolling the target into the area above the card."]},
+      {"screen": "Tour at 1920x800 / desktop", "issues": ["The card at the bottom right overlaps the right edge of large targets, for example the 'Referto PDF' buttons on /portale/documenti, the 'Dubbio clinico' tile in messages and the Vetrina preview. This is a small cosmetic issue."]},
+      {"screen": "Doctor step 3 (/app/visite)", "issues": ["The target visits-page is the whole page, so the spotlight frames everything and tells the user nothing about Bodychart. Consider pointing at the first visit card or the Bodychart icon instead."]},
+      {"screen": "Tour step 1 after login", "issues": ["The 'Bentornato' success toast shows above the tour overlay during step 1. This is minor."]},
+      {"screen": "Doctor mobile 390", "issues": ["The TopBar tour-open-button is hidden below sm (hidden sm:flex). On mobile the only way to restart is Impostazioni > Rivedi Tour. Acceptable, but the parent portal does show its compass icon on mobile, so the two roles behave differently."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: make the tour card more compact on mobile so the highlighted element stays visible",
+    "Optional: for doctor step 3, target a specific visit or Bodychart element instead of the whole visits-page"
+  ],
+  "critical_code_review_comments": [
+    "useTour.end() calls saveTour only when tour_done===false and ignores errors (.catch(()=>{})). If the POST fails, the local state says done but the server does not, and the tour comes back at the next login. Acceptable, but consider a retry.",
+    "GuidedTour: the 'Indietro' button on the done screen goes back to step 5 correctly. Arrow keys also work while focus is inside page inputs behind the overlay, which is not a practical problem because the overlay blocks them.",
+    "/api/onboarding/tour always writes tour_version=TOUR_VERSION, even when completed=false. This is fine."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend only)", "frontend": "100% of the requested flows"},
+  "test_credentials": "From /app/memory/test_credentials.md: medico@mantmed.it / Auscula-Studio-2026, genitore.demo@example.com / Portale-Demo-2026. Every login succeeded and there were no lockouts.",
+  "seed_data_creation": "None. Both accounts end with tour_completed_at set and tour_version=2 (tour_done=true).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Login form: wait about 2.5s after login-form appears before filling, otherwise the fields get reset by a re-render. To test the auto-open again, set tour_completed_at to null on the user doc, or bump TOUR_VERSION. Restarting the tour manually never changes tour_done, because end() only saves when tour_done was false."
+}

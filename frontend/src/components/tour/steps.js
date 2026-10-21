@@ -12,7 +12,7 @@ export const DOCTOR_STEPS = [
     points: ["Anamnesi, esame obiettivo, diagnosi e terapia compilati secondo il suo modello", "Meno tastiera, più contatto visivo con la famiglia", "Ogni nota è una bozza: la rivede e la firma prima del referto PDF"],
   },
   {
-    to: "/app/visite", targets: ["visits-page"], icon: PersonStanding, kicker: "Bodychart Interattivo", title: "Annotazioni anatomiche in pochi tocchi",
+    to: "/app/visite", targets: ["visit-row-*", "visits-page"], icon: PersonStanding, kicker: "Bodychart Interattivo", title: "Annotazioni anatomiche in pochi tocchi",
     text: "Apra una visita e scelga \"Bodychart\" per segnare lesioni, dolori o reperti direttamente sulla figura anatomica.",
     points: ["Zoom sulle regioni del corpo e pin colorati per categoria (lesione, dolore, cicatrice…)", "Su tablet scatti una foto e la alleghi al singolo pin per documentare l'evoluzione", "Storico per confrontare le visite nel tempo"],
   },
