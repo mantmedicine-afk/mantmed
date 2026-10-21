@@ -1,0 +1,43 @@
+{
+  "summary": "Tested Vetrina pubblica, Trova Specialista, public /medico/{slug}, and Portal Panoramica ('In parole semplici' + doctor card), backend and frontend, at 390/768/1280/1440/1920. Backend: 19/19 pytest pass (showcase GET/PUT, validation, unpublish hides page and directory entry, photo/cover upload to Emergent object storage, replacing or deleting an image makes the old file 404, gif->400, >8MB->400, bad kind->404, RBAC, public directory/slug/unknown->404, portal simple: available, cached, 404 when not linked, 403 for doctor, cache cleared by doctor PATCH and regenerated in ~4.5s). Frontend: all flows work end to end: greeting 'Buon pomeriggio, Giulia', kid chip, next appointment, simple box with diagnosi/todo/when/glossary and tooltips on hover and focus, Scrivi -> /portale/messaggi, Prenota -> booking dialog with Aurora and Dott.ssa Foti preselected, Vetrina link -> dialog, search filtering and empty state, dialog book -> booking with doctor preselected, public page without login plus book redirect plus missing slug, editor live preview, uploads, save -> public page, unpublish -> missing, copy link. Fixed 2 CSS bugs myself (directory avatar hidden under cover; editor overflowing at 390px). One design issue left for main agent: service-name input in the Vetrina editor is unusably narrow on desktop. Founder data restored: published=true, bio/tagline empty, no photo/cover, the 4 original services.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/public/files/{id}", "issue": "If object storage fails (get_object raises), the error is not caught and becomes a 500. Should catch it and return 503/404 as the upload path does."},
+      {"endpoint": "POST /api/showcase/image/{kind}", "issue": "Reads the whole body before checking size (no streaming limit). 8MB+10B is correctly rejected with 400, but very large bodies are still fully loaded into memory."},
+      {"endpoint": "GET /api/public/doctors", "issue": "N+1 pattern: ensure_slug plus an extra find_one plus full() for every doctor on each request. Fine now (1 network doctor) but will not scale; also performs writes inside a public GET."},
+      {"endpoint": "child_view doctor.slug (registration.py)", "issue": "The slug only exists after ensure_slug runs (doctor opens the Vetrina or someone hits the directory). Until then the portal doctor card hides the 'Vedi la Vetrina' link. Consider generating the slug at doctor activation."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "SpecialistsDirectory DoctorTile", "issue": "FIXED by testing agent: the avatar was painted under the cover band because the cover is position:relative and the content is not. Added 'relative z-10' to the content wrapper; verified the avatar is on top at 390/768/1440.", "selector": "[data-testid^='specialist-card-']", "priority": "HIGH"},
+      {"component": "ShowcaseSection editor", "issue": "FIXED by testing agent: at 390px the editor column grew to 486px (the grid auto column took the min-content of the nowrap link) and was clipped on the right, hiding the Copia/Apri buttons and the input edges. Added grid-cols-1 (minmax(0,1fr)); verified at 390/768.", "selector": "[data-testid='showcase-link']", "priority": "HIGH"},
+      {"component": "ShowcaseSection ServiceRow", "issue": "NOT FIXED: on desktop (xl two-column layout) the service name input is unusable: 26px wide at 1280, 97px at 1440, 109px at 1920, so names like 'Prima visita' are cut off. Cause: sm:grid-cols-[1fr_90px_100px_auto] inside the narrow left column. Suggest putting the name on its own full row (or name + delete), with duration and price on a second row at xl, e.g. 'xl:grid-cols-[1fr_1fr_auto]' with the name spanning all columns.", "selector": "[data-testid^='showcase-service-name-']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Portal Panoramica", "issues": ["A leftover support banner 'TEST_ risposta di prova' from a previous iteration is shown below the overview (test data, not a code bug)", "AI glossary terms are sometimes everyday words ('Crescita regolare') rather than real medical terms. Prompt quality only, optional."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_showcase.py", "/app/test_reports/pytest/pytest_showcase.xml"],
+  "action_items": [
+    "Fix the service row layout in ShowcaseSection.jsx so the service name input is readable at >=1280px (currently 26-109px wide)",
+    "Optional: catch storage errors in GET /api/public/files/{id}",
+    "Optional: generate the showcase slug at doctor activation so the portal 'Vedi la Vetrina' link always appears",
+    "Optional: remove the TEST_ support reply notice for the demo parent"
+  ],
+  "critical_code_review_comments": [
+    "showcase.py public directory does writes (ensure_slug) inside a GET and is N+1",
+    "visible() does not check in_network, so a non-network doctor's /medico/{slug} page is publicly reachable even though it is excluded from the directory. Confirm this is intended.",
+    "SpecialistsDirectory onBook preselects children[0] even when another child is linked to the chosen doctor. Acceptable, but could pick the child linked to that doctor.",
+    "PortalOverview greeting uses the client clock (fine). The next appointment filter includes today's already-past times (backend filters by date only)."
+  ],
+  "updated_files": ["/app/frontend/src/components/portal/SpecialistsDirectory.jsx", "/app/frontend/src/components/account/ShowcaseSection.jsx", "/app/backend/tests/test_showcase.py"],
+  "success_rate": {"backend": "100% (19/19)", "frontend": "~95% (all flows pass; 1 open desktop layout issue in the editor)"},
+  "test_credentials": "From /app/memory/test_credentials.md: genitore.demo@example.com / Portale-Demo-2026; medico@mantmed.it / Auscula-Studio-2026",
+  "seed_data_creation": "None persisted. Test images uploaded then deleted; TEST_ bio/tagline/service removed; founder showcase restored (published=true, empty bio/tagline, no images, 4 original services). Aurora's latest consultation was re-PATCHed with an identical note to test cache invalidation, so its simple cache was regenerated.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest with -n0 (pytest.ini enables xdist; the module fixtures restore founder state). /login is the landing page; the login form appears on /app or /portale directly. Only the founder (tiziana-foti) is in the network directory; the cardiologist is not. Playwright screenshots must use .jpg paths when quality is set."
+}

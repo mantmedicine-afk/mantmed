@@ -29,12 +29,12 @@ const Upload = ({ kind, label, url, onDone, onRemove, testid }) => {
 };
 
 const ServiceRow = ({ s, i, set, del }) => (
-  <div className="grid gap-2 rounded-2xl border border-slate-200 bg-[#F8FAFC] p-3 sm:grid-cols-[1fr_90px_100px_auto]" data-testid={`showcase-edit-service-${i}`}>
-    <input value={s.name} onChange={(e) => set({ name: e.target.value })} placeholder="Prestazione" className={inp} data-testid={`showcase-service-name-${i}`} />
-    <input type="number" min={5} value={s.duration_min ?? ""} onChange={(e) => set({ duration_min: e.target.value ? Number(e.target.value) : null })} placeholder="Min" className={inp} aria-label="Durata in minuti" data-testid={`showcase-service-duration-${i}`} />
-    <input type="number" min={0} value={s.price ?? ""} onChange={(e) => set({ price: e.target.value ? Number(e.target.value) : null })} placeholder="€ (facolt.)" className={inp} aria-label="Prezzo" data-testid={`showcase-service-price-${i}`} />
+  <div className="grid grid-cols-[1fr_1fr_auto] gap-2 rounded-2xl border border-slate-200 bg-[#F8FAFC] p-3" data-testid={`showcase-edit-service-${i}`}>
+    <input value={s.name} onChange={(e) => set({ name: e.target.value })} placeholder="Prestazione" className={`${inp} col-span-2`} data-testid={`showcase-service-name-${i}`} />
     <button type="button" onClick={del} className="grid h-11 w-11 place-items-center rounded-full border border-slate-200 text-rose-700 hover:border-rose-400" aria-label="Rimuovi prestazione" data-testid={`showcase-service-del-${i}`}><X size={14} /></button>
-    <input value={s.description} onChange={(e) => set({ description: e.target.value })} placeholder="Breve descrizione (facoltativa)" className={`${inp} sm:col-span-4`} data-testid={`showcase-service-desc-${i}`} />
+    <input type="number" min={5} value={s.duration_min ?? ""} onChange={(e) => set({ duration_min: e.target.value ? Number(e.target.value) : null })} placeholder="Min" className={inp} aria-label="Durata in minuti" data-testid={`showcase-service-duration-${i}`} />
+    <input type="number" min={0} value={s.price ?? ""} onChange={(e) => set({ price: e.target.value ? Number(e.target.value) : null })} placeholder="€ (facolt.)" className={`${inp} col-span-2`} aria-label="Prezzo" data-testid={`showcase-service-price-${i}`} />
+    <input value={s.description} onChange={(e) => set({ description: e.target.value })} placeholder="Breve descrizione (facoltativa)" className={`${inp} col-span-3`} data-testid={`showcase-service-desc-${i}`} />
   </div>
 );
 
@@ -56,7 +56,7 @@ export const ShowcaseSection = () => {
   };
   return (
     <Card id="account-showcase" icon={Store} title="Vetrina pubblica" text="La pagina con cui i pazienti la conoscono: compare in «Trova Specialista» nel Portale ed è condivisibile con un link.">
-      <div className="grid items-start gap-8 xl:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-8 xl:grid-cols-2">
         <div className="space-y-5">
           <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-[#F3F6FF] p-3 text-sm" data-testid="showcase-link">
             <span className="min-w-0 flex-1 truncate text-night">{link}</span>

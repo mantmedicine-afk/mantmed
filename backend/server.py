@@ -541,6 +541,7 @@ async def seed():
     asyncio.get_event_loop().call_later(3, lambda: asyncio.ensure_future(resume_consult_jobs()))
     foti = await seed_doctor(db)
     await seed_admin(db)
+    await ensure_doctor_slugs()
     await db.password_resets.create_index("expires_at", expireAfterSeconds=0)
     await db.password_resets.create_index("token")
     set_tenant(foti, CLINICS)
@@ -1704,7 +1705,7 @@ public_api.include_router(leads_private)
 public_api.include_router(build_cleanup(db, require_role(current_user, "admin")))
 public_api.include_router(build_previsit(db, require_role(current_user, "parent"), notify_doctor))
 inbox_admin, inbox_mine = build_support_inbox(db, require_role(current_user, "admin"), current_user)
-sc_doctor, sc_public = build_showcase(db, current_user, require_role(current_user, "doctor"))
+sc_doctor, sc_public, ensure_doctor_slugs = build_showcase(db, current_user, require_role(current_user, "doctor"))
 public_api.include_router(sc_doctor)
 public_api.include_router(sc_public)
 
@@ -1734,7 +1735,7 @@ async def portal_simple(pid: str, user: dict = Depends(require_role(current_user
             f"Dati della visita:\nMotivo: {n.get('motivo_visita','')}\nDiagnosi: {n.get('diagnosi','')}\nTerapia: {n.get('terapia','')}\n"
             f"Controlli: {n.get('follow_up','')}\nRiepilogo: {n.get('riepilogo','')}\n"
             'Rispondi SOLO con JSON: {"diagnosi": "1-2 frasi semplici", "cosa_fare": ["azione concreta", "..."] (max 4), '
-            '"quando_tornare": "1 frase", "glossario": [{"termine": "parola medica usata nel referto", "spiegazione": "spiegazione semplice in max 20 parole"}] (2-5 termini, solo termini davvero presenti)}')
+            '"quando_tornare": "1 frase", "glossario": [{"termine": "termine tecnico o medico usato nel referto", "spiegazione": "spiegazione semplice in max 20 parole"}] (0-5 termini: solo parole specialistiche davvero presenti nei dati, es. nomi di esami, farmaci, diagnosi o parti del corpo; mai espressioni di uso comune; lista vuota se non ce ne sono)}')
         simple = {"diagnosi": str(data.get("diagnosi") or "")[:400], "cosa_fare": [str(x)[:200] for x in (data.get("cosa_fare") or [])][:4],
                   "quando_tornare": str(data.get("quando_tornare") or "")[:300],
                   "glossario": [{"termine": str(g.get("termine"))[:60], "spiegazione": str(g.get("spiegazione"))[:200]}

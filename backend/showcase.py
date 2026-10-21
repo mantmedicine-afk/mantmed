@@ -172,7 +172,11 @@ def build_showcase(db, current_user, doctor_user):
         rec = await db.files.find_one({"_id": ObjectId(fid), "public": True, "is_deleted": False}) if ObjectId.is_valid(fid) else None
         if not rec:
             raise HTTPException(404, "Immagine non trovata")
-        data, ctype = await asyncio.to_thread(get_object, rec["storage_path"])
+        try:
+            data, ctype = await asyncio.to_thread(get_object, rec["storage_path"])
+        except Exception:
+            logger.exception("Lettura immagine vetrina fallita")
+            raise HTTPException(503, "Immagine temporaneamente non disponibile")
         return Response(content=data, media_type=rec.get("content_type") or ctype, headers={"Cache-Control": "public, max-age=86400"})
 
     def visible(u):
@@ -181,12 +185,14 @@ def build_showcase(db, current_user, doctor_user):
     @public.get("/doctors")
     async def directory():
         out = []
-        async for u in db.users.find({"role": "doctor", "status": "active"}).sort("created_at", 1):
+        async for u in db.users.find({"role": "doctor", "status": "active", "showcase.slug": {"$exists": True}}).sort("created_at", 1):
             if visible(u) and in_network(u):
-                await ensure_slug(u)
-                u = await db.users.find_one({"_id": u["_id"]})
-                out.append({**card(u), "services_count": len(full(u)["services"])})
+                out.append(card(u))
         return out
+
+    async def ensure_all_slugs():
+        async for u in db.users.find({"role": "doctor", "showcase.slug": {"$exists": False}}):
+            await ensure_slug(u)
 
     @public.get("/doctors/{slug}")
     async def page(slug: str):
@@ -195,4 +201,4 @@ def build_showcase(db, current_user, doctor_user):
             raise HTTPException(404, "Vetrina non trovata")
         return full(u)
 
-    return doctor, public
+    return doctor, public, ensure_all_slugs

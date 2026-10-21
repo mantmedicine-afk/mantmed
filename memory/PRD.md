@@ -268,3 +268,9 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - backend/support_inbox.py: /api/admin/feedback (list, patch status/nota, reply -> salva prima, poi email; reply_email_sent), /api/support/replies + read per avviso in app
 - UI: Admin tab "Feedback e assistenza" (SupportInbox/SupportRow), SupportReplies in Dashboard e Portale
 - Test: iteration_27 + fix post-test (risposta salvata anche se email fallisce, testo non perso, etichette, allineamenti)
+
+## 2026-06 Rifinitura presentazione: Panoramica, Vetrina, Trova Specialista
+- backend/showcase.py: Object Storage Emergent (foto/copertina, db.files soft-delete), /api/showcase (GET/PUT, image upload/delete), /api/public/doctors, /api/public/doctors/{slug}, /api/public/files/{id}; slug generati allo startup
+- /api/portal/children/{pid}/simple: "In parole semplici" (diagnosi, cosa fare, quando tornare, glossario) IA con cache su consultation.simple (cifrata, invalidata al PATCH)
+- UI: PortalOverview (copertina saluto, SimpleBox, DoctorCard), sezione Portale Trova Specialista + dialog Vetrina con prenotazione (RequestDialog doctorId), pagina pubblica /medico/:slug, Area Riservata > Vetrina pubblica con anteprima dal vivo; sfondo Portale caldo #FBF8F3
+- Test: iteration_28 (19/19 backend, frontend ok) + fix layout editor prestazioni

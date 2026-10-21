@@ -8,7 +8,7 @@ import { Avatar, ShowcaseView, imgSrc } from "@/components/showcase/ShowcaseView
 const DoctorTile = ({ d, onOpen }) => (
   <button onClick={onOpen} className="group flex flex-col overflow-hidden rounded-3xl bg-white text-left ring-1 ring-[#0A192F]/10 transition-[transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-lg" data-testid={`specialist-card-${d.slug}`}>
     <div className="relative h-28 bg-[#0A192F]">{d.cover_url && <img src={imgSrc(d.cover_url)} alt="" className="h-full w-full object-cover opacity-90" />}</div>
-    <div className="-mt-9 flex flex-1 flex-col gap-2 px-5 pb-5">
+    <div className="relative z-10 -mt-9 flex flex-1 flex-col gap-2 px-5 pb-5">
       <Avatar src={d.photo_url} name={d.name} size="h-16 w-16 text-xl" ring="ring-4 ring-white" />
       <div className="font-display text-2xl leading-tight text-night">{d.name}</div>
       <div className="text-sm font-medium text-[#3B6CF6]">{d.specialty}</div>
