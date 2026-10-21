@@ -311,3 +311,6 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Errori inline accanto al pulsante (consult-start-error) oltre al toast; stato "In attesa del microfono…" con timeout 20s
 - Messaggi specifici: permesso negato, anteprima in iframe che blocca il microfono, nessun microfono, microfono occupato, contesto non sicuro
 - Anelli animati non intercettano più i clic; consenso cartaceo azzerato a ogni nuova consultazione
+
+## 2026-06 · Prova microfono (iteration_34 PASS)
+- Pulsante "Prova microfono e livello audio" nella preparazione consultazione: indicatore livello in tempo reale, giudizio basso/buono/alto, scelta del microfono (salvata in localStorage 'mantmed-mic' e usata per la registrazione)

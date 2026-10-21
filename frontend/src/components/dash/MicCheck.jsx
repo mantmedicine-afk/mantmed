@@ -70,7 +70,7 @@ export const MicCheck = () => {
       ) : (
         <>
           {devices.length > 1 && (
-            <select value={deviceId || devices[0]?.deviceId} onChange={(e) => pick(e.target.value)} className="mt-3 w-full rounded-xl border border-white/15 bg-night px-3 py-2 text-sm text-white outline-none" data-testid="mic-check-device">
+            <select value={deviceId || devices[0]?.deviceId} onChange={(e) => pick(e.target.value)} className="mt-3 w-full rounded-xl border border-white/15 bg-night px-3 py-2 text-sm text-white outline-none [color-scheme:dark] [&>option]:bg-[#0B1736]" data-testid="mic-check-device">
               {devices.map((d, i) => <option key={d.deviceId || i} value={d.deviceId}>{d.label || `Microfono ${i + 1}`}</option>)}
             </select>
           )}

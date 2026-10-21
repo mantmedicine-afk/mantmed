@@ -1,0 +1,39 @@
+{
+  "summary": "Frontend-only test of the new 'Prova microfono e livello audio' (MicCheck) in the consultation setup. All 7 requested scenarios pass. getUserMedia and enumerateDevices were mocked through add_init_script: an oscillator stream whose gain can be changed, a wrapper that counts track.stop() calls, and either 2 fake audio inputs or 1.",
+  "results": {
+    "button_visibility": "PASS - mic-check-btn is visible in setup. It disappears in manual mode (count 0) and comes back when you switch back to voice.",
+    "meter_and_verdict": "PASS - the meter shows mic-check-waiting first, then mic-check-meter. data-level updates live (14 -> 21). Gain 0.1 gives verdict good. Gain 0.8 gives level 100 and verdict high (red/amber bars, 'Troppo alto'). Gain 0 after speech gives verdict low. Before any sound the verdict is 'silent', and it goes back to good when the level recovers.",
+    "device_selection": "PASS - with 2 inputs, mic-check-device lists 'Microfono A (USB)' and 'Microfono B (Cuffie)'. Choosing B saves localStorage mantmed-mic=mic-B, stops the old track and calls getUserMedia again with {deviceId:{ideal:'mic-B'}}. With a single input the select is hidden.",
+    "permission_denied": "PASS - mic-check-error shows 'Accesso al microfono negato: lo consenta dall'icona del lucchetto...'. Closing and reopening after permission is granted brings the meter back.",
+    "close_stops_tracks": "PASS - with 'Fine prova', live tracks go 1 -> 0 and the button comes back. Closing while getUserMedia is still pending leaves no orphan track. Turning on manual mode or closing the overlay with the panel open also leaves 0 live tracks.",
+    "begin_with_panel_open": "PASS - with a free name and the paper consent ticked, consult-begin-btn starts recording (timer runs). The recorder's getUserMedia gets {audio:{deviceId:{ideal:'mic-B'}}}, and the panel's track is stopped when it unmounts.",
+    "regression_validations": "PASS - with the panel open, the inline errors still appear: no name, no paper consent (the checkbox starts unchecked, so the iteration_33 reset fix is confirmed), and NotAllowedError when starting. The panel stays open after a validation error."
+  },
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "MicCheck panel", "issues": ["The device picker is a native <select>. It works, but it is unlike the shadcn Select used elsewhere, and the native dropdown list may render with light OS styling on the dark overlay."]}
+    ]
+  },
+  "critical_code_review_comments": [
+    "MicCheck verdict UX: the verdict uses the instant smoothed level (decay 0.9 per frame, about 200ms from 20 down to 6). Once heard >= 6, every natural pause between words makes the verdict jump to 'Troppo basso' (amber). Real speech will make it flicker between good and low. Base the verdict on a rolling peak or average over about 1-2s, or keep 'low' only after a sustained period.",
+    "The error state has no 'Riprova' button. The user has to press 'Fine prova' and reopen. Consider adding a retry.",
+    "If the saved mantmed-mic deviceId no longer exists (mic unplugged), the select value matches no option, so the browser shows the first option while getUserMedia(ideal) may pick another device. Fall back to devices[0] or to the actual track.getSettings().deviceId when the saved id is not in the list.",
+    "setLevel runs on every animation frame (about 60 re-renders per second of the panel). This is fine for 24 bars, but it could be throttled to about 20fps.",
+    "Clicking 'Inizia registrazione' with the panel open briefly opens two capture streams on the same device: the recorder requests its stream before the panel unmounts. This worked in testing. On some platforms exclusive-mode devices can throw NotReadableError, so closing the panel before rec.start() would be safer."
+  ],
+  "test_report_links": ["/app/tests/mic_check_ui.py"],
+  "action_items": [
+    "Optional: stabilise the verdict over a time window so it does not flicker to 'Troppo basso' between words",
+    "Optional: handle a stale saved deviceId in the select; add a retry button in the error state"
+  ],
+  "updated_files": ["/app/tests/mic_check_ui.py (mock init script reference)"],
+  "success_rate": {"backend": "not tested (frontend only)", "frontend": "100% (7/7 scenarios)"},
+  "test_credentials": "medico@mantmed.it / Auscula-Studio-2026 (no failed logins)",
+  "seed_data_creation": "Started a recording for 'TEST Mic Rossi' (free visit), then closed the overlay without sending.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Mock getUserMedia via page.add_init_script: AudioContext oscillator -> GainNode -> MediaStreamDestination. Expose window.__setGain(v) to drive the meter (0.1 -> good, about level 21; 0.8 -> high; 0 -> low). Wrap track.stop to count live tracks. Mock enumerateDevices to return 2 audioinputs so the select shows."
+}
