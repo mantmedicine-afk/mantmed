@@ -33,19 +33,26 @@ export const BodychartEditor = ({ consultation, defaultKind = "child", onClose, 
       if (!alive || !b) return;
       setKind(b.silhouette); setDoc({ markers: b.markers ?? [], strokes: b.strokes ?? [] }); setInclude(!!b.include_in_report);
     }).catch((e) => toast.error(errMsg(e))).finally(() => { if (alive) setLoading(false); });
-    if (consultation.patient_id) api.patientBodycharts(consultation.patient_id).then((xs) => { if (alive) setPrev(xs.find((b) => b.consultation_id !== consultation.id && b.markers.length) ?? null); }).catch(() => {});
+    const today = consultation.created_at.slice(0, 10);
+    if (consultation.patient_id) api.patientBodycharts(consultation.patient_id).then((xs) => { if (alive) setPrev(xs.find((b) => b.consultation_id !== consultation.id && b.visit_date <= today && b.markers.length) ?? null); }).catch(() => {});
     return () => { alive = false; };
-  }, [consultation.id, consultation.patient_id]);
+  }, [consultation.id, consultation.patient_id, consultation.created_at]);
   const carryOver = () => {
     const copied = prev.markers.map((m) => ({ ...m, id: uid(), cat: "controllo", photos: [], note: `Controllo: ${m.note || "reperto"}`.slice(0, 140) }));
     commit({ ...doc, markers: [...doc.markers, ...copied] });
+    setPrev(null);
     toast.success(`${copied.length} marcatori riportati dalla visita del ${new Date(`${prev.visit_date}T12:00:00`).toLocaleDateString("it-IT")}`);
   };
   const box = view === "mouth" ? undefined : ZOOMS.find((z) => z.id === zoom)?.box;
 
   const numbers = useMemo(() => Object.fromEntries(doc.markers.map((m, i) => [m.id, i + 1])), [doc.markers]);
   const commit = (next) => { setPast((p) => [...p.slice(-49), doc]); setDoc(next); };
-  const addMarker = (pos) => { const m = { id: uid(), cat, note: "", ...pos }; commit({ ...doc, markers: [...doc.markers, m] }); setSelected(m.id); };
+  const addMarker = (pos) => {
+    const m = { id: uid(), cat, note: "", photos: [], ...pos };
+    commit({ ...doc, markers: [...doc.markers, m] });
+    setSelected(m.id);
+    if (window.innerWidth < 1024) setTimeout(() => document.querySelector('[data-testid="bodychart-marker-editor"]')?.scrollIntoView({ behavior: "smooth", block: "center" }), 80);
+  };
   const update = (m) => setDoc((d) => ({ ...d, markers: d.markers.map((x) => (x.id === m.id ? m : x)) }));
   const remove = (id) => { commit({ ...doc, markers: doc.markers.filter((x) => x.id !== id) }); setSelected(null); };
   const undo = () => { if (!past.length) return; setDoc(past[past.length - 1]); setPast((p) => p.slice(0, -1)); setSelected(null); };
@@ -104,7 +111,7 @@ export const BodychartEditor = ({ consultation, defaultKind = "child", onClose, 
             </div>
             <aside className="space-y-4">
               {sel && <MarkerEditor m={sel} n={numbers[sel.id]} onChange={update} onDelete={() => remove(sel.id)} extra={<PinPhotos cid={consultation.id} m={sel} onChange={update} />} />}
-              {prev && <button onClick={carryOver} className="flex w-full items-center gap-3 rounded-3xl bg-[#F0FDF4] p-4 text-left text-sm text-night ring-1 ring-emerald-200 transition-colors hover:ring-emerald-400" data-testid="bodychart-carry-over"><CopyPlus size={18} className="shrink-0 text-emerald-700" /><span><span className="block font-medium">Riporta i marcatori della visita precedente</span><span className="text-xs text-slate-600">{prev.markers.length} reperti del {new Date(`${prev.visit_date}T12:00:00`).toLocaleDateString("it-IT")} come «Controllo»</span></span></button>}
+              {prev && !doc.markers.some((m) => m.cat === "controllo" && m.note.startsWith("Controllo:")) && <button onClick={carryOver} className="flex w-full items-center gap-3 rounded-3xl bg-[#F0FDF4] p-4 text-left text-sm text-night ring-1 ring-emerald-200 transition-colors hover:ring-emerald-400" data-testid="bodychart-carry-over"><CopyPlus size={18} className="shrink-0 text-emerald-700" /><span><span className="block font-medium">Riporta i marcatori della visita precedente</span><span className="text-xs text-slate-600">{prev.markers.length} reperti del {new Date(`${prev.visit_date}T12:00:00`).toLocaleDateString("it-IT")} come «Controllo»</span></span></button>}
               <div className="rounded-3xl bg-white p-4 ring-1 ring-slate-200"><Tools {...{ tool, cat, pen, setTool, setCat, setPen }} onUndo={undo} onClear={clearView} canUndo={past.length > 0} /></div>
               <div className="rounded-3xl bg-white p-4 ring-1 ring-slate-200">
                 <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600">Marcatori ({doc.markers.length})</div>

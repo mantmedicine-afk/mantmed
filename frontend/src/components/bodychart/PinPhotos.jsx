@@ -6,7 +6,7 @@ import { api, errMsg } from "@/lib/api";
 
 export const PhotoLightbox = ({ src, caption, onClose }) => (
   <Dialog open={!!src} onOpenChange={(o) => !o && onClose()}>
-    <DialogContent className="w-[calc(100%-1rem)] max-w-4xl border-0 bg-[#0A192F] p-2 sm:p-3" data-testid="bodychart-photo-lightbox">
+    <DialogContent className="w-[calc(100%-1rem)] max-w-4xl border-0 bg-[#0A192F] p-2 sm:p-3 [&>button]:rounded-full [&>button]:bg-white [&>button]:p-1 [&>button]:text-night [&>button]:opacity-100" data-testid="bodychart-photo-lightbox">
       <DialogTitle className="sr-only">Foto del reperto</DialogTitle>
       {src && <img src={src} alt={caption} className="max-h-[80vh] w-full rounded-xl object-contain" />}
       {caption && <p className="px-2 pb-1 text-sm text-[#C9CCD3]">{caption}</p>}

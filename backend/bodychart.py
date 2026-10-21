@@ -98,6 +98,13 @@ def build_bodychart(db, current_user):
     async def put_chart(cid: str, body: BodychartIn, user: dict = Depends(current_user)):
         c = await consultation(cid, user["id"])
         now = _now()
+        mine = {str(f["_id"]) async for f in db.files.find({"owner_id": user["id"], "consultation_id": cid, "purpose": "bodychart_photo", "is_deleted": False}, {"_id": 1})}
+        for m in body.markers:  # solo foto caricate per questa visita da questo medico
+            m.photos = [p for p in m.photos if p in mine]
+        used = {p for m in body.markers for p in m.photos}
+        orphans = [ObjectId(p) for p in mine - used]
+        if orphans:
+            await db.files.update_many({"_id": {"$in": orphans}}, {"$set": {"is_deleted": True, "deleted_at": now}})
         sealed = seal_fields({"markers": [m.model_dump() for m in body.markers], "strokes": [s.model_dump() for s in body.strokes], "snapshot": body.snapshot}, SEALED)
         await db.bodycharts.update_one({"consultation_id": cid, "owner_id": user["id"]},
                                        {"$set": {**sealed, "silhouette": body.silhouette, "include_in_report": body.include_in_report, "updated_at": now,

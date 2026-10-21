@@ -290,3 +290,9 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 ## 2026-06 Calendario visuale disponibilita
 - /api/public/doctors/{slug}/week?start=&service=&clinic= (lun-dom, 8 settimane, giorni passati vuoti)
 - WeekCalendar.jsx dentro Availability: 7 colonne scorrevoli su desktop, striscia giorni + swipe su mobile; clic orario -> prenotazione precompilata. Verificato con screenshot desktop/mobile
+
+## 2026-06 Bodychart potenziato
+- Zoom anatomici (ZOOMS viewBox animato con framer-motion), vista Cavo orale (20/32 denti), categorie a colori (+controllo verde)
+- Foto sui pin: POST /api/consultations/{cid}/bodychart/photos, GET /api/bodychart-photos/{fid} (solo medico, object storage); PUT filtra id foto non validi e marca orfane is_deleted
+- Storico: timeline, confronto affiancato 2 visite, galleria foto cronologica; "Riporta marcatori visita precedente" come Controllo
+- Test: iteration_31 OK + fix (validazione foto, carry-over una volta e solo da visite precedenti, etichette cavo orale, X lightbox, scroll editor su mobile)

@@ -27,8 +27,8 @@ const Mouth = ({ kind }) => {
       <path d="M 100 112 L 100 188" stroke="#D99A94" strokeWidth={1.5} strokeDasharray="3 3" />
       {arch(n, 100, 200, 74, 120, Math.PI, 2 * Math.PI).map(([x, y], i) => <rect key={`u${i}`} x={x - r} y={y - r} width={r * 2} height={r * 2} rx={r * 0.6} fill="#FFFDF7" stroke={OUT} strokeWidth={1.4} />)}
       {arch(n, 100, 262, 72, 116, 0, Math.PI).map(([x, y], i) => <rect key={`l${i}`} x={x - r} y={y - r} width={r * 2} height={r * 2} rx={r * 0.6} fill="#FFFDF7" stroke={OUT} strokeWidth={1.4} />)}
-      <text x={100} y={60} {...txt}>ARCATA SUPERIORE</text><text x={100} y={150} {...txt}>Palato</text>
-      <text x={100} y={322} {...txt}>Lingua</text><text x={100} y={408} {...txt}>ARCATA INFERIORE</text>
+      <text x={100} y={20} {...txt}>ARCATA SUPERIORE</text><text x={100} y={150} {...txt}>Palato</text>
+      <text x={100} y={322} {...txt}>Lingua</text><text x={100} y={450} {...txt}>ARCATA INFERIORE</text>
       <text x={14} y={234} {...txt} textAnchor="start">Dx</text><text x={186} y={234} {...txt} textAnchor="end">Sx</text>
     </g>
   );

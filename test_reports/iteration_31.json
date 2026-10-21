@@ -1,0 +1,38 @@
+{
+  "summary": "Tested the Bodychart v2 changes end to end: anatomical zoom presets, the Cavo orale view, colour categories, photos on pins with storage and access control, the Storico timeline with side-by-side compare and photo gallery, carry-over of previous markers, and responsive layout. Backend: 10 new pytest tests in test_bodychart_v2.py plus 3 regression tests in test_bodychart.py; all 13 pass. Frontend: every requested flow works at 1920, 768 and 390. Views front/back/left/right/mouth switch correctly. Zoom pills are hidden on the mouth view. The mouth schematic shows 20 teeth for a child and 32 for an adult. Head zoom animates the viewBox to '40 0 120 110'. With zoom on, the pin lands exactly where the user taps (pin centre equals click point at all 3 widths). All 6 categories are present, and selecting 'controllo' shows its hints (In miglioramento / Invariato / Guarito). Photos: uploaded jpg and png both show a thumbnail. After 4 photos the add button disappears, and removing one brings it back. The pin shows a photo badge. The lightbox opens on top of the editor and closes with Esc. Photos are still there after save and reopen. Carry-over copied 2 markers as green #16A34A 'Controllo: Escoriazione' and 'Controllo: reperto' (when the note was empty). Storico shows 2 timeline items with the 'oggi' badge, compare panels a and b with their snapshots, selection toggles (1 panel when one item is deselected, 2 when reselected), and a gallery with 2 photos whose lightbox works. The note editor badge shows the marker count.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/consultations/{cid}/bodychart", "issue": "The marker.photos IDs are not checked: any string up to 4 items is accepted, and nothing confirms the ID belongs to this doctor or consultation in db.files. There is no data leak, because GET checks the owner, but bad IDs can be stored."},
+      {"endpoint": "POST /api/consultations/{cid}/bodychart/photos", "issue": "Photos that are removed from a pin (or uploaded but never saved) stay in db.files and in object storage. Nothing cleans them up."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "BodychartEditor carry-over", "issue": "The 'Riporta i marcatori della visita precedente' button stays visible after use, and again after save and reopen. Clicking it twice duplicates all the Controllo markers. prev is also simply the most recent OTHER bodychart, so when an older visit is edited it would carry markers over from a LATER visit.", "selector": "[data-testid=bodychart-carry-over]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Cavo orale schematic", "issues": ["The 'ARCATA SUPERIORE' and 'ARCATA INFERIORE' labels at y=60 and y=408 overlap the outer lip ellipse outline and the teeth, so the text is partly cut off."]},
+      {"screen": "Photo lightbox", "issues": ["The default Dialog close X is dark on the dark #0A192F background and barely visible. Make it white."]},
+      {"screen": "Mobile 390px", "issues": ["The marker editor (aside) sits below the canvas, so after tapping the map the doctor must scroll down to type a note or add a photo. Consider scrolling to it automatically or using a bottom sheet."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_bodychart_v2.py", "/app/backend/tests/test_bodychart.py", "/app/backend/tests/seed_bodychart_ui.py", "/app/test_reports/pytest/pytest_bodychart_v2.xml"],
+  "action_items": [
+    "Hide or disable the carry-over button after use (or when Controllo markers from that visit already exist), and only pick a previous bodychart whose visit_date is earlier than the current visit.",
+    "Optional: on PUT, check marker.photos IDs against db.files (owner_id, purpose=bodychart_photo, consultation_id); delete orphaned photos.",
+    "Fix the overlap of the mouth arch labels and the contrast of the lightbox close button."
+  ],
+  "critical_code_review_comments": [
+    "bodychart.py photo GET loads the whole object through get_object (fine at 12MB max). The Cache-Control private header is fine.",
+    "A photo added in PinPhotos is only attached in local state until 'Salva'. Closing without saving orphans the upload, and the toast does warn about this.",
+    "BodyCanvas: pins scale with k based on zoom; hit accuracy was verified while zoomed."
+  ],
+  "updated_files": ["/app/backend/tests/test_bodychart_v2.py", "/app/backend/tests/seed_bodychart_ui.py"],
+  "success_rate": {"backend": "100%", "frontend": "100% of requested flows (3 minor UX/design issues)"},
+  "seed_data_creation": "seed_bodychart_ui.py created 2 TEST_ copies of an Aurora visit (old 2026-09-01 with a bodychart and a photo, new 2026-10-21). They were removed afterwards with 'python seed_bodychart_ui.py clean'. Note: clean deletes ALL consultations whose patient_name starts with TEST_ (30 removed, including TEST_ leftovers from earlier iterations) together with their bodycharts and files.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Open the bodychart via /app/visite, then visit-row-{cid}, then note-bodychart-btn. Saving the bodychart closes the editor automatically (onSaved), so reopen it with note-bodychart-btn. The Playwright tool fails on nested f-string quotes, so build selectors by string concatenation. Run seed_bodychart_ui.py to create old and new TEST_ visits for Aurora (pid 6ad86e64c06e50ff4cd67d1e). Photo GET returns 403 for the parent, 404 for the cardiologist, and 401/403 when anonymous."
+}
