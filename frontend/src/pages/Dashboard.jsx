@@ -94,14 +94,14 @@ export default function Dashboard() {
   const openVisit = (c) => setOverlay({ open: true, patient: null, initial: c });
   const navTo = useNavigate();
   const search = {
-    onPatient: (id) => { navTo("/app/pazienti"); setFolder(id); window.scrollTo({ top: 0, behavior: "smooth" }); },
+    onPatient: (id) => { setOverlay((o) => (o.open ? { ...o, open: false } : o)); navTo("/app/pazienti"); setFolder(id); window.scrollTo({ top: 0, behavior: "smooth" }); },
     onReport: async (id) => {
       try { openVisit(notes.find((c) => c.id === id) ?? await api.getConsultation(id)); } catch (e) { toast.error(errMsg(e)); }
     },
     onAppointment: (a) => {
       const when = `${new Date(`${a.date}T12:00:00`).toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" })} alle ${a.time}`;
       if (a.patient_id) { search.onPatient(a.patient_id); toast(`Appuntamento di ${a.patient_name}`, { description: `${when}${a.clinic ? ` · ${a.clinic}` : ""}` }); }
-      else { navTo("/app/agenda"); toast(`Appuntamento di ${a.patient_name}`, { description: `${when}${a.clinic ? ` · ${a.clinic}` : ""}` }); }
+      else { setOverlay((o) => (o.open ? { ...o, open: false } : o)); navTo("/app/agenda"); toast(`Appuntamento di ${a.patient_name}`, { description: `${when}${a.clinic ? ` · ${a.clinic}` : ""}` }); }
     },
   };
   const items = [

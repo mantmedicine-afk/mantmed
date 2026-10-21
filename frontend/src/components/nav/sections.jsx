@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, FileText, PersonStanding, Landmark, ShieldCheck, MessageSquarePlus, Compass, X } from "lucide-react";
 import { BodychartHistory } from "@/components/bodychart/BodychartHistory";
+import { api } from "@/lib/api";
 
 const dt = (iso) => new Date(iso).toLocaleDateString("it-IT", { day: "numeric", month: "short", year: "numeric" });
 
@@ -34,9 +35,12 @@ export const VisitsList = ({ notes, onOpen }) => {
   );
 };
 
-export const PatientFolder = ({ patient, notes, onOpenVisit, onPassport, onClose }) => {
-  if (!patient) return null;
-  const visits = notes.filter((c) => c.patient_id === patient.id);
+export const PatientFolder = ({ patient, ...rest }) => (patient ? <PatientFolderBody key={patient.id} patient={patient} {...rest} /> : null);
+
+const PatientFolderBody = ({ patient, notes, onOpenVisit, onPassport, onClose }) => {
+  const [own, setOwn] = useState(null);
+  useEffect(() => { let alive = true; api.patientConsultations(patient.id).then((v) => alive && setOwn(v)).catch(() => {}); return () => { alive = false; }; }, [patient.id, notes]);
+  const visits = own ?? notes.filter((c) => c.patient_id === patient.id);
   return (
     <div className="space-y-4" data-testid={`patient-folder-${patient.id}`}>
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-[28px] bg-night p-5 text-white">

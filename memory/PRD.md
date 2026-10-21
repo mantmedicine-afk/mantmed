@@ -226,6 +226,13 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Promemoria firma medico: banner in dashboard + link sotto "Genera Referto PDF" verso Impostazioni > Firma per i referti (la Dott.ssa Foti deve disegnarla lei)
 - Medico demo Cardiologia: cardiologo.demo@example.com / Cardio-Demo-2026; testato iteration_22 (backend 36/36, frontend 100%)
 
+## Implemented (2026-10-21, Ricerca globale + Riepilogo paziente + dicitura)
+- GET /api/search?q= (medico): pazienti (nome normalizzato senza accenti, tutte le parole, o CF esatto via cf_hash), referti passati (diagnosi/motivo/nome dopo decifratura, ultimi 600), appuntamenti futuri (non annullati/completati); max 8 per gruppo; GET /api/consultations?patient_id= per lo storico completo nella cartella
+- GlobalSearch (components/search): pulsante nella top bar + Cmd/Ctrl+K da ovunque, gruppi Pazienti / Referti passati / Appuntamenti futuri, evidenziazione, navigazione tastiera; paziente → cartella, referto → visita, appuntamento → cartella o agenda (chiude l'overlay se aperto). Nota: il componente riga non deve chiamarsi "Item" (ricorsione del plugin visual-edits con Command.Item)
+- ClinicalNote.riepilogo: generato in parallelo alla cartella (asyncio.gather), per genitori (pediatria) o paziente; card "In parole semplici" nel NoteEditor (Copia, Rigenera via POST /api/consultations/{id}/summary); inserito nell'email del referto e nel Portale
+- "Invia al paziente" / testi email per medici non pediatri
+- Testato iteration_23 (backend 28/28, frontend ok; fix successivi: ricerca pazienti per parole/accenti, patient_id appuntamento, overlay chiuso, cartella con tutte le visite, top bar mobile)
+
 ## Backlog
 - P1: percentili automatici con curve OMS, storico crescita del paziente, dati demo pediatrici in agenda/sala d'attesa, rinomina brand in "MantMed"
 - P1 (prec.): storico paziente, export PDF dedicato

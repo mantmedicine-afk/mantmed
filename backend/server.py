@@ -1064,7 +1064,8 @@ def _fold(t: str) -> str:
 
 
 def _snippet(text: str, q: str, width: int = 90) -> str:
-    i = _fold(text).find(q)
+    f = _fold(text)
+    i = f.find(q) if len(f) == len(text) else -1  # offset valido solo se la normalizzazione non ha tolto caratteri
     if i < 0:
         return text[:width]
     a = max(0, i - 30)
@@ -1078,12 +1079,14 @@ async def global_search(q: str = "", user: dict = Depends(current_user)):
     qf = _fold(q.strip())
     if len(qf) < 2:
         return {"patients": [], "reports": [], "appointments": []}
-    rx = {"$regex": re.escape(q.strip()), "$options": "i"}
-    pats = []
-    query = {"$or": [{"name": rx}] + ([{"cf_hash": cf_hash(q.strip().upper())}] if len(q.strip()) == 16 else [])}
-    async for p in tdb.patients.find(query).limit(8):
-        pats.append({"id": str(p["_id"]), "name": p["name"], "birth_date": p.get("birth_date"), "sex": p.get("sex"), "consent": bool(p.get("consent_at"))})
     words = qf.split()
+    pats = []
+    cfh = cf_hash(q.strip().upper()) if len(q.strip()) == 16 else None
+    async for p in tdb.patients.find({}, {"name": 1, "birth_date": 1, "sex": 1, "consent_at": 1, "cf_hash": 1}).sort("name", 1).limit(2000):
+        if (cfh and p.get("cf_hash") == cfh) or all(w in _fold(p["name"]) for w in words):
+            pats.append({"id": str(p["_id"]), "name": p["name"], "birth_date": p.get("birth_date"), "sex": p.get("sex"), "consent": bool(p.get("consent_at"))})
+            if len(pats) >= 8:
+                break
     reports = []
     async for d in tdb.consultations.find({"status": {"$ne": "processing"}}).sort("created_at", -1).limit(600):
         c = Consultation.from_mongo(d).out()
@@ -1105,7 +1108,7 @@ async def global_search(q: str = "", user: dict = Depends(current_user)):
         if o["date"] == today and o["time"] < now_t:
             continue
         if all(w in _fold(f"{o['patient_name']} {o.get('visit_type') or ''} {o.get('clinic') or ''}") for w in words):
-            pid = next((p["id"] for p in pats if p["name"].lower() == o["patient_name"].lower()), None)
+            pid = o.get("patient_id") or next((p["id"] for p in pats if p["name"].lower() == o["patient_name"].lower()), None)
             appts.append({"id": o["id"], "patient_name": o["patient_name"], "date": o["date"], "time": o["time"], "visit_type": o.get("visit_type") or "",
                           "clinic": o.get("clinic") or "", "patient_id": pid})
             if len(appts) >= 8:
@@ -1120,8 +1123,9 @@ async def require_ready(cid: str):
 
 
 @api.get("/consultations")
-async def list_consultations():
-    docs = await tdb.consultations.find().sort("created_at", -1).to_list(20)
+async def list_consultations(patient_id: Optional[str] = None):
+    q = {"patient_id": patient_id} if patient_id else {}
+    docs = await tdb.consultations.find(q).sort("created_at", -1).to_list(200 if patient_id else 20)
     return [Consultation.from_mongo(d).out() for d in docs]
 
 

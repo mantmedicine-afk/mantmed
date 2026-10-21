@@ -1,0 +1,45 @@
+{
+  "summary": "Iteration 23: tested global search (/api/search + Cmd/Ctrl+K dialog), the plain-language summary for patient/parents (note.riepilogo: generation, regenerate, edit+save, summary card, portal display) and the wording that changes by specialty ('Invia ai genitori' vs 'Invia al paziente'). Backend: 16/16 new tests pass (tests/test_search_summary.py). The iter-22 regression test_specialty_longvisit.py also passes 12/12. Frontend: all requested flows work on desktop: Ctrl+K and Meta+K, focused input, hint, groups, highlights, arrow keys + Enter, patient -> folder, report -> overlay, appointment -> folder or agenda + toast, empty state, Esc, works from agenda/cassa/messaggi/impostazioni and over an open consultation overlay. Summary card: shimmer while processing, then the text fills in; Rigenera changes the text; Copia; Salva persists. Cardiologist sees 'Riepilogo per il paziente' and 'Invia al paziente'. In the portal, portal-report-summary-<id> collapses and expands. Found and fixed 1 mobile layout bug in the search dialog. Several minor issues are reported below. The send_report email wording was checked by code review only (as requested); delivery was not asserted. AI consultations used: 3 (+2 regenerations) + the specialty regression test run.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/search (patients group)", "issue": "Patient matching uses re.escape(q) on name with Mongo $regex. It ignores accents, word order and repeated spaces, unlike the reports and appointments groups, which fold the text and require all words. Examples: 'conti alice', 'alicé' and 'alice  conti' (double space) all return 0 patients but 8 reports. Fix: build a regex per word (an $and of per-word regexes) and/or match a folded name."},
+      {"endpoint": "GET /api/search (appointments group)", "issue": "appointments[].patient_id comes only from the patients found by the same query (the `pats` list). The appointment's own stored patient_id is ignored. Repro: an appointment for Alice Conti WITH patient_id and visit_type 'TEST_Ricontrollo Uiq'; searching 'uiq' returns patient_id=None, so the frontend goes to /app/agenda instead of the patient folder. Fix: use o.get('patient_id') or the name lookup."},
+      {"endpoint": "GET /api/search (_snippet)", "issue": "The snippet offset is computed on the _fold() text but applied to the original text. NFKD + ascii-ignore drops some characters (e.g. emoji, œ, ß), which shifts the offset, so snippets can be misaligned. Low impact."},
+      {"endpoint": "GET /api/search performance", "issue": "Every keystroke (160ms debounce) decrypts up to 600 consultations plus 400 appointments. Fine for the demo, but it could become slow for doctors with many visits. Consider caching or a folded diagnosis index."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "GlobalSearch dialog on mobile (390px)", "issue": "FIXED by testing agent: DialogContent is a CSS grid and the Command root grew to its content width (540px inside a 366px dialog), so rows, dates and the footer were clipped. Added min-w-0 to the Command root. Verified: root is now 366px and rows show the date and 'Apri cartella'.", "selector": "[data-testid='global-search-dialog'] [cmdk-root]", "priority": "MEDIUM"},
+      {"component": "TopBar mobile 390px", "issue": "The top-bar buttons overflow the viewport. compliance-button is at x=374-414 and logout-button at x=426-466 (viewport is 390), so they are cut off or unreachable in the top bar (logout is still available in the sidebar). Adding the search trigger increased the crowding. Hide the tour/feedback/compliance buttons below sm, or move them into the profile menu.", "selector": "[data-testid='compliance-button'], [data-testid='logout-button']", "priority": "LOW"},
+      {"component": "GlobalSearch highlight", "issue": "The highlighter also marks the metadata text of patient rows: 'consenso v[ali]do' is highlighted when searching 'ali'. Only highlight the name and diagnosis, not the static labels in sub.", "selector": "[data-testid^='global-search-patient-'] mark", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Search -> patient/appointment while the consultation overlay is open", "issue": "Picking a patient (or a linked appointment) navigates to /app/pazienti and opens #patient-folder behind the overlay, but the consultation overlay stays open. The user doesn't see the result until they close the overlay manually. Picking a report while the overlay is open does correctly switch the visit. Close the overlay in search.onPatient/onAppointment (consider asking before discarding unsaved edits).", "affected_selectors": ["global-search-patient-<id>", "global-search-appt-<id>", "consultation-overlay"]},
+      {"flow": "Search -> patient folder", "issue": "PatientFolder builds its visit list from `notes` (GET /api/consultations, only the latest 20 across all patients). Alice Conti's card says '10 visite', but after jumping from search the folder shows 'VISITE (1)', while the search 'Referti passati' group lists 8 of her reports. This existed before, but search makes it more visible. Load the patient's own history in the folder."}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_search_summary.py", "/app/test_reports/pytest/pytest_iter23.xml", "/app/test_reports/pytest/pytest_iter23_regression.xml"],
+  "action_items": [
+    "In /api/search, make patient matching use folded per-word matching (accents, word order, extra spaces), consistent with reports.",
+    "In /api/search appointments, return the appointment's stored patient_id when present.",
+    "Close the ConsultationOverlay when a patient or appointment is picked from the global search.",
+    "Fix the TopBar overflow at 390px (compliance and logout buttons off-screen).",
+    "Optional: limit search highlights to name/diagnosis text; load the patient's full history in PatientFolder."
+  ],
+  "critical_code_review_comments": [
+    "send_report (code review): the subject contains 'pediatrica ' only when is_pediatric; the IN PAROLE SEMPLICI box is added only when riepilogo is non-empty and escaped with hesc; the footer reads 'al genitore o tutore' / 'al paziente o al suo delegato'; the greeting falls back to 'famiglia' (pediatric) or the patient name. OK.",
+    "send_report: the 400/412 error texts still say 'Email del genitore' / 'Il genitore non ha acconsentito' even for non-pediatric doctors. Adapt the wording.",
+    "run_consult_job runs the note and the summary in parallel with asyncio.gather; _safe_summary swallows errors, so a failed summary never fails the visit. Good.",
+    "_apply_doctor keeps the doctor's riepilogo edits over the AI's. PATCH during processing also keeps cur.riepilogo. OK.",
+    "patient_summary: the regex that strips the 'Riepilogo:'/'Gentile...' header only works when a newline follows. An inline 'Gentili genitori, ...' would remain (rare)."
+  ],
+  "updated_files": ["/app/frontend/src/components/search/GlobalSearch.jsx (min-w-0 on Command root)", "/app/backend/tests/test_search_summary.py (new)"],
+  "success_rate": {"backend": "100% (16/16 new + 12/12 regression)", "frontend": "~92% (all requested flows pass; 1 mobile bug fixed, overlay-stays-open and topbar overflow open)"},
+  "seed_data_creation": "None kept. Test appointments, visits and measurements were deleted. Aurora Ricci's visit 6ad8845f1f70d74523506680 was temporarily given a riepilogo and published, then restored (riepilogo '' and portal_published False). This left one parent notification ('Nuovo referto disponibile') in the demo parent's bell.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "tests/test_search_summary.py covers /api/search (short query, unauth, 'ali', faringite accent folding, multi-word, appointments future/cancelled/completed/past, isolation from the cardiologist, max 8), riepilogo (409 while processing, ready riepilogo, regenerate, PATCH persist, cardiologist wording) and the portal riepilogo. It runs 2 AI consultations + 1 regeneration per run. Alice Conti patient id 6ad86e64c06e50ff4cd67d35. Parent portal URL is /portale (same /api/auth/login). Search dialog testids: global-search-trigger/dialog/input/hint/empty/group-*/patient-/report-/appt-<id>."
+}

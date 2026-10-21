@@ -36,12 +36,12 @@ const Hl = ({ text, q }) => {
   return out;
 };
 
-const ResultRow = ({ value, onSelect, icon: Icon, title, suffix, sub, meta, testId, q }) => (
+const ResultRow = ({ value, onSelect, icon: Icon, title, suffix, sub, meta, testId, q, hlSub = false }) => (
   <Command.Item value={value} onSelect={onSelect} className="group flex cursor-pointer items-center gap-3 rounded-2xl px-3 py-2.5 text-night data-[selected=true]:bg-night data-[selected=true]:text-white" data-testid={testId}>
     <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#F1F4FA] text-night group-data-[selected=true]:bg-white/10 group-data-[selected=true]:text-white"><Icon size={16} /></span>
     <span className="min-w-0 flex-1">
       <span className="block truncate text-sm font-medium"><Hl text={title} q={q} />{suffix && <span className="font-normal opacity-70"> · {suffix}</span>}</span>
-      {sub && <span className="block truncate text-xs text-slate-500 group-data-[selected=true]:text-slate-300"><Hl text={sub} q={q} /></span>}
+      {sub && <span className="block truncate text-xs text-slate-500 group-data-[selected=true]:text-slate-300">{hlSub ? <Hl text={sub} q={q} /> : sub}</span>}
     </span>
     {meta && <span className="shrink-0 text-xs text-slate-500 group-data-[selected=true]:text-slate-300">{meta}</span>}
     <CornerDownLeft size={14} className="hidden shrink-0 opacity-60 group-data-[selected=true]:block" />
@@ -97,7 +97,7 @@ export const GlobalSearch = ({ onPatient, onReport, onAppointment }) => {
         <DialogContent className="top-[12vh] w-[calc(100vw-1.5rem)] max-w-2xl translate-y-0 gap-0 overflow-hidden rounded-3xl border-0 bg-white p-0 shadow-[0_30px_80px_-20px_rgba(10,25,47,0.45)] [&>button]:hidden" data-testid="global-search-dialog" data-lenis-prevent>
           <DialogTitle className="sr-only">Ricerca globale</DialogTitle>
           <DialogDescription className="sr-only">Cerca pazienti, referti passati e appuntamenti futuri</DialogDescription>
-          <Command shouldFilter={false} loop className="flex max-h-[70vh] flex-col">
+          <Command shouldFilter={false} loop className="flex max-h-[70vh] min-w-0 flex-col">
             <div className="flex items-center gap-3 border-b border-slate-100 px-5">
               {loading ? <Loader2 size={18} className="shrink-0 animate-spin text-slate-400" /> : <Search size={18} className="shrink-0 text-slate-400" />}
               <Command.Input value={q} onValueChange={setQ} autoFocus placeholder="Nome del paziente, diagnosi (es. otite), appuntamento…" className="h-16 w-full bg-transparent text-base text-night outline-none placeholder:text-slate-400" data-testid="global-search-input" />
@@ -118,7 +118,7 @@ export const GlobalSearch = ({ onPatient, onReport, onAppointment }) => {
                 <Command.Group heading="Referti passati" className={GROUP} data-testid="global-search-group-reports">
                   {res.reports.map((r) => (
                     <ResultRow key={r.id} value={`r-${r.id}`} icon={FileText} onSelect={() => go(() => onReport(r.id))} testId={`global-search-report-${r.id}`}
-                      q={term} title={r.patient_name} suffix={r.motivo || "Visita"}
+                      q={term} hlSub title={r.patient_name} suffix={r.motivo || "Visita"}
                       sub={r.diagnosi ? `Diagnosi: ${r.diagnosi}` : "Diagnosi non riportata"} meta={dShort(r.created_at)} />
                   ))}
                 </Command.Group>

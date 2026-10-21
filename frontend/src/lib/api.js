@@ -34,6 +34,7 @@ export const api = {
   updateWaiting: (id, b) => http.patch(`/waiting/${id}`, b).then((r) => r.data),
   deleteWaiting: (id) => http.delete(`/waiting/${id}`),
   consultations: () => http.get("/consultations").then(list),
+  patientConsultations: (patient_id) => http.get("/consultations", { params: { patient_id } }).then(list),
   patients: () => http.get("/patients").then(list),
   addPatient: (b) => http.post("/patients", b).then((r) => r.data),
   updatePatient: (id, b) => http.patch(`/patients/${id}`, b).then((r) => r.data),
