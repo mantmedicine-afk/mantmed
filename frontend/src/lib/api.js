@@ -72,6 +72,8 @@ export const api = {
   createVisitTemplate: (b) => http.post("/visit-templates", b).then((r) => r.data),
   saveVisitTemplate: (id, b) => http.put(`/visit-templates/${id}`, b).then((r) => r.data),
   deleteVisitTemplate: (id) => http.delete(`/visit-templates/${id}`).then((r) => r.data),
+  visitBilanci: () => http.get("/visit-templates/bilanci").then(list),
+  addBilanci: (keys) => http.post("/visit-templates/bilanci", { keys }).then((r) => r.data),
   regenerateSummary: (id) => http.post(`/consultations/${id}/summary`).then((r) => r.data.riepilogo),
   search: (q, signal) => http.get("/search", { params: { q }, signal }).then((r) => r.data),
   getConsultation: (id) => http.get(`/consultations/${id}`).then((r) => r.data),

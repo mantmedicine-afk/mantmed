@@ -3,7 +3,7 @@ import json
 import logging
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Literal, Optional
 
 from bson import ObjectId
@@ -73,6 +73,62 @@ LIBRARY = [
                  (A, "Terapie in corso", "DMARD, biologici, steroidi"), (V, "Pressione arteriosa", ""), (V, "Peso", ""),
                  (E, "Articolazioni tumefatte e dolenti", "Conteggio"), (E, "Colonna e sacroiliache", ""), (E, "Cute e annessi", ""),
                  (E, "Indici di attività", "DAS28, BASDAI"), (E, "Esami di laboratorio", "VES, PCR, autoanticorpi")]),
+]
+S, O = "sintomi", "altro"
+BILANCI = [
+    ("1m", "Bilancio di salute · 1° mese", 0, 2, [
+        (A, "Gravidanza e parto", "Età gestazionale, tipo di parto, Apgar, peso alla nascita"), (A, "Screening neonatali", "Metabolico esteso, uditivo (OAE), riflesso rosso, eseguiti/esiti"),
+        (A, "Ittero e calo ponderale", "Recupero del peso alla nascita"), (A, "Sonno e posizione", "Supina, ambiente libero da fumo"),
+        (A, "Profilassi", "Vitamina D, vitamina K"), (E, "Riflesso rosso", ""), (E, "Anche", "Ortolani-Barlow, pieghe, ecografia anche programmata"),
+        (E, "Fontanelle e cranio", ""), (E, "Moncone ombelicale e genitali", "Testicoli in sede"), (E, "Riflessi neonatali e tono", "Moro, prensione, suzione"),
+        (O, "Benessere materno", "Allattamento, umore, supporto familiare"), (O, "Prevenzione e consigli", "Sicurezza in auto, SIDS, calendario vaccinale")]),
+    ("3m", "Bilancio di salute · 3 mesi", 2, 4.5, [
+        (A, "Alimentazione e alvo", ""), (A, "Sonno", ""), (A, "Vaccinazioni", "Esavalente, pneumococco, rotavirus, meningococco B"),
+        (A, "Tappe dello sviluppo", "Sorriso sociale, controllo del capo, vocalizzi, segue con lo sguardo"), (E, "Esame neurologico e tono", ""),
+        (E, "Anche", "Esito ecografia anche"), (E, "Vista e motilità oculare", "Fissazione, inseguimento, riflesso rosso"),
+        (E, "Cute", "Dermatite seborroica, angiomi"), (E, "Plagiocefalia", ""), (O, "Prevenzione e consigli", "Tummy time, sicurezza, cadute dal fasciatoio")]),
+    ("6m", "Bilancio di salute · 6 mesi", 4.5, 7.5, [
+        (A, "Alimentazione complementare", "Inizio, alimenti introdotti, tolleranza"), (A, "Sonno", ""), (A, "Vaccinazioni", ""),
+        (A, "Tappe dello sviluppo", "Rotola, sta seduto con appoggio, afferra, lallazione"), (E, "Esame neurologico", ""),
+        (E, "Vista", "Riflesso rosso, strabismo, Hirschberg"), (E, "Udito", "Risposta ai suoni, si gira alla voce"),
+        (E, "Dentizione", ""), (E, "Anche e arti", ""), (O, "Prevenzione e consigli", "Soffocamento da cibo e piccoli oggetti, seggiolino, schermi")]),
+    ("9m", "Bilancio di salute · 9 mesi", 7.5, 10.5, [
+        (A, "Alimentazione", "Varietà, consistenze, autonomia"), (A, "Sonno", ""), (A, "Vaccinazioni", ""),
+        (A, "Tappe dello sviluppo", "Seduto senza appoggio, gattona, pinza, risponde al nome, angoscia dell'estraneo"),
+        (E, "Esame neurologico e postura", ""), (E, "Vista", "Strabismo, cover test"), (E, "Udito e linguaggio", "Lallazione canonica"),
+        (E, "Dentizione e igiene orale", ""), (E, "Genitali", "Testicoli in sede"), (O, "Prevenzione e consigli", "Sicurezza domestica, scale, prese, ustioni, lettura ad alta voce")]),
+    ("12m", "Bilancio di salute · 12 mesi", 10.5, 15, [
+        (A, "Alimentazione", "Latte, pasti in famiglia, ferro"), (A, "Sonno", ""), (A, "Vaccinazioni", "MPRV, meningococco"),
+        (A, "Tappe dello sviluppo", "In piedi con appoggio, primi passi, prime parole, indica, gioco del cucù"),
+        (E, "Esame neurologico e deambulazione", ""), (E, "Vista", "Riflesso rosso, strabismo"), (E, "Udito e linguaggio", ""),
+        (E, "Denti e carie precoci", ""), (E, "Arti inferiori e piedi", ""), (O, "Prevenzione e consigli", "Annegamento, avvelenamenti, seggiolino, schermi"),
+        (O, "Segnali di allarme", "Mancato indicare, assenza di risposta al nome")]),
+    ("18m", "Bilancio di salute · 18 mesi", 15, 21, [
+        (A, "Alimentazione e autonomia", ""), (A, "Sonno e routine", ""), (A, "Vaccinazioni", ""),
+        (A, "Tappe dello sviluppo", "Cammina da solo, almeno 5-10 parole, indica per condividere, gioco simbolico"),
+        (E, "Screening autismo (M-CHAT-R)", "Punteggio ed esito"), (E, "Deambulazione e motricità", ""), (E, "Vista", ""),
+        (E, "Udito e linguaggio", ""), (E, "Denti e igiene orale", "Fluoro, spazzolino"), (O, "Prevenzione e consigli", "Sicurezza, limitare schermi, lettura condivisa")]),
+    ("2-3a", "Bilancio di salute · 2-3 anni", 21, 42, [
+        (A, "Alimentazione", "Frutta e verdura, bevande zuccherate"), (A, "Sonno", ""), (A, "Controllo sfinterico", ""), (A, "Vaccinazioni", ""),
+        (A, "Linguaggio e relazione", "Frasi di 2-3 parole, comprensione, gioco con coetanei, inserimento al nido"),
+        (V, "BMI e curva di crescita", "Rischio sovrappeso"), (E, "Vista", "Ambliopia, strabismo, test di stereopsi"),
+        (E, "Udito", ""), (E, "Denti e carie", ""), (E, "Motricità", "Corre, salta, scale"), (O, "Prevenzione e consigli", "Movimento quotidiano, schermi < 1 ora, sicurezza in auto")]),
+    ("5-6a", "Bilancio di salute · 5-6 anni", 42, 84, [
+        (A, "Alimentazione e stile di vita", "Colazione, movimento, schermi"), (A, "Sonno", ""), (A, "Scuola e socialità", "Prerequisiti scolastici, comportamento"),
+        (A, "Vaccinazioni", "Richiamo DTPa-IPV, MPRV"), (V, "Pressione arteriosa", "mmHg con percentile per età e statura"), (V, "BMI e curva di crescita", ""),
+        (E, "Acuità visiva", "Ottotipo OD / OS"), (E, "Udito", ""), (E, "Linguaggio e articolazione", ""), (E, "Postura e piedi", ""),
+        (E, "Denti e malocclusioni", ""), (O, "Prevenzione e consigli", "Sicurezza stradale, bici con casco, nuoto")]),
+    ("8-10a", "Bilancio di salute · 8-10 anni", 84, 132, [
+        (A, "Alimentazione e attività fisica", "Sport, sedentarietà, schermi"), (A, "Sonno", ""), (A, "Rendimento scolastico", "Difficoltà di apprendimento, attenzione"),
+        (A, "Benessere emotivo e relazioni", "Bullismo, ansia"), (V, "Pressione arteriosa", "mmHg con percentile"), (V, "BMI e curva di crescita", ""),
+        (E, "Acuità visiva", ""), (E, "Colonna vertebrale", "Test di Adams, scoliosi"), (E, "Stadio puberale (Tanner)", "Segni di pubertà precoce"),
+        (E, "Denti e ortodonzia", ""), (O, "Prevenzione e consigli", "Uso di internet e dispositivi, sicurezza, alimentazione sana")]),
+    ("11-14a", "Bilancio di salute · 11-14 anni (adolescenza)", 132, 216, [
+        (A, "Alimentazione e immagine corporea", "Diete, segnali di disturbi alimentari"), (A, "Attività fisica e sonno", ""),
+        (A, "Scuola, relazioni e uso dei social", ""), (A, "Fattori di rischio", "Fumo, alcol, sostanze (colloquio riservato)"),
+        (A, "Benessere psicologico", "Umore, ansia, autolesionismo"), (A, "Vaccinazioni", "HPV, dTpa-IPV, meningococco ACWY"),
+        (V, "Pressione arteriosa", "mmHg con percentile"), (V, "BMI e curva di crescita", ""), (E, "Stadio puberale (Tanner)", ""),
+        (E, "Colonna vertebrale", "Test di Adams"), (E, "Acuità visiva", ""), (E, "Cute", "Acne"), (O, "Educazione alla salute", "Affettività e sessualità, sicurezza online, guida")]),
 ]
 GENERIC = [(A, "Anamnesi patologica remota", ""), (A, "Farmaci in uso", ""), (A, "Allergie", ""), (V, "Pressione arteriosa", "mmHg"),
            (V, "Frequenza cardiaca", "bpm"), (V, "Peso e BMI", ""), (E, "Esame obiettivo generale", ""), (E, "Esame obiettivo di distretto", ""),
@@ -172,20 +228,54 @@ def build_visit_templates(db, tdb, specialty_of, llm_json):
         return _mk(GENERIC)
 
     def out(d):
-        return {"id": str(d["_id"]), "name": d["name"], "fields": d.get("fields") or [], "updated_at": d.get("updated_at")}
+        return {"id": str(d["_id"]), "name": d["name"], "fields": d.get("fields") or [], "updated_at": d.get("updated_at"),
+                "bilancio": d.get("bilancio"), "age_from": d.get("age_from"), "age_to": d.get("age_to")}
+
+    async def import_bilanci(keys=None) -> int:
+        now = datetime.now(timezone.utc)
+        n = 0
+        for i, (key, name, a, b, rows) in enumerate(BILANCI):
+            if keys is not None and key not in keys:
+                continue
+            ts = (now.replace(microsecond=0) + timedelta(seconds=1 + i)).isoformat()
+            res = await tdb.visit_templates.update_one({"bilancio": key}, {"$setOnInsert": {
+                "name": name, "fields": _mk(rows), "bilancio": key, "age_from": a, "age_to": b, "created_at": ts, "updated_at": ts}}, upsert=True)
+            n += bool(res.upserted_id)
+        return n
+
+    async def seed_bilanci_once():
+        """Prima volta per ogni pediatra: importa i bilanci; quelli eliminati non vengono ricreati."""
+        owner = OWNER.get()
+        if not ObjectId.is_valid(owner) or not re.search(r"pediatr|neonatolog", await specialty_of(owner), re.I):
+            return
+        won = await db.users.find_one_and_update({"_id": ObjectId(owner), "bilanci_seeded_at": {"$exists": False}},
+                                                 {"$set": {"bilanci_seeded_at": datetime.now(timezone.utc).isoformat()}})
+        if won:
+            await import_bilanci()
 
     async def ensure() -> list:
-        docs = await tdb.visit_templates.find().sort("created_at", 1).to_list(None)
-        if docs:
-            return docs
-        await db.visit_templates.create_index([("owner_id", 1), ("seed", 1)], unique=True, partialFilterExpression={"seed": True})
-        now = datetime.now(timezone.utc).isoformat()
-        doc = {"name": "Prima visita", "fields": await base_fields(await specialty_of(OWNER.get())), "created_at": now, "updated_at": now}
-        try:
-            await tdb.visit_templates.update_one({"seed": True}, {"$setOnInsert": doc}, upsert=True)
-        except Exception:
-            logger.info("Modello iniziale già creato da una richiesta concorrente")
+        if not await tdb.visit_templates.count_documents({}):
+            await db.visit_templates.create_index([("owner_id", 1), ("seed", 1)], unique=True, partialFilterExpression={"seed": True})
+            now = datetime.now(timezone.utc).isoformat()
+            doc = {"name": "Prima visita", "fields": await base_fields(await specialty_of(OWNER.get())), "created_at": now, "updated_at": now}
+            try:
+                await tdb.visit_templates.update_one({"seed": True}, {"$setOnInsert": doc}, upsert=True)
+            except Exception:
+                logger.info("Modello iniziale già creato da una richiesta concorrente")
+        await seed_bilanci_once()
         return await tdb.visit_templates.find().sort("created_at", 1).to_list(None)
+
+    @r.get("/bilanci")
+    async def bilanci_library():
+        have = {d["bilancio"] async for d in tdb.visit_templates.find({"bilancio": {"$ne": None}}, {"bilancio": 1})}
+        return [{"key": k, "name": n, "age_from": a, "age_to": b, "fields": _mk(rows), "imported": k in have} for k, n, a, b, rows in BILANCI]
+
+    class BilanciIn(BaseModel):
+        keys: List[str]
+
+    @r.post("/bilanci")
+    async def add_bilanci(body: BilanciIn):
+        return {"imported": await import_bilanci(set(body.keys)), "templates": [out(d) for d in await ensure()]}
 
     async def resolve(tid: Optional[str]) -> Optional[dict]:
         """Modello scelto per la visita (o il primo del medico): {id, name, fields}."""

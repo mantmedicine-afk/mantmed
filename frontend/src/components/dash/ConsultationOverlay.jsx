@@ -38,6 +38,14 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
     if (!initial) api.visitTemplates().then((xs) => { setTemplates(xs); setTplId((cur) => (xs.some((t) => t.id === cur) ? cur : xs[0]?.id ?? "")); }).catch(() => setTemplates([]));
   }, [open, patient, initial]);
 
+  // Bilancio di salute consigliato per l'età del paziente; preselezionato se il motivo della visita è un bilancio
+  const linkedPatient = patients.find((p) => p.id === sel?.patient_id);
+  const ageM = ageMonths(linkedPatient?.birth_date);
+  const suggested = ageM === null ? null : templates.find((t) => t.bilancio && ageM >= t.age_from && ageM < t.age_to);
+  useEffect(() => {
+    if (suggested && /bilancio/i.test(`${sel?.reason ?? ""} ${sel?.visit_type ?? ""}`)) setTplId(suggested.id);
+  }, [suggested?.id, sel?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const name = sel?.name || freeName.trim();
 
   // Invia audio/trascrizione e apre subito la cartella: Whisper + IA lavorano in background sul server
@@ -115,7 +123,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
         </div>
         <div className="flex flex-1 flex-col justify-center py-8">
           {stage === "setup" && (
-            <Setup {...{ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, sending }} picker={<TemplatePicker templates={templates} value={tplId} onChange={setTplId} />} gate={<ConsentGate patient={patients.find((p) => p.id === sel?.patient_id)} free={!sel?.patient_id && Boolean(freeName.trim())} paper={paper} setPaper={setPaper} onSaved={onPatientsChange} />} />
+            <Setup {...{ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, sending }} picker={<TemplatePicker templates={templates} value={tplId} onChange={setTplId} suggested={suggested} ageM={ageM} />} gate={<ConsentGate patient={patients.find((p) => p.id === sel?.patient_id)} free={!sel?.patient_id && Boolean(freeName.trim())} paper={paper} setPaper={setPaper} onSaved={onPatientsChange} />} />
           )}
           {(stage === "recording") && (
             <Recording name={name} rec={rec} sending={sending} sendStep={sendStep} onStop={() => process(null, rec.seconds)} />
@@ -138,14 +146,34 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
 
 const stageLabel = { setup: "preparazione", recording: "registrazione", retry: "invio audio", note: "cartella della visita" };
 
-const TemplatePicker = ({ templates, value, onChange }) => (templates.length ? (
+const ageMonths = (bd) => {
+  if (!bd) return null;
+  const b = new Date(`${bd}T12:00:00`), n = new Date();
+  const m = (n.getFullYear() - b.getFullYear()) * 12 + n.getMonth() - b.getMonth() - (n.getDate() < b.getDate() ? 1 : 0);
+  return m >= 0 ? m + (n.getDate() >= b.getDate() ? (n.getDate() - b.getDate()) / 30 : 0) : null;
+};
+const ageLabel = (m) => (m < 24 ? `${Math.floor(m)} mesi` : `${Math.floor(m / 12)} anni`);
+
+const TplPill = ({ t, value, onChange, hint }) => (
+  <button type="button" onClick={() => onChange(t.id)} className={`rounded-full px-4 py-2 text-sm transition-colors ${t.id === value ? "bg-white font-semibold text-night" : hint ? "border border-[#A9C2FF] text-white hover:border-white" : "border border-white/20 text-slate-200 hover:border-white/50"}`} data-testid={`consult-template-${t.id}`}>
+    {t.name.replace("Bilancio di salute · ", "")} <span className="opacity-60">· {t.fields.length} campi</span>{hint && <span className="ml-1.5 rounded-full bg-[#A9C2FF] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-night" data-testid="consult-template-suggested">{hint}</span>}
+  </button>
+);
+
+const TemplatePicker = ({ templates, value, onChange, suggested, ageM }) => (templates.length ? (
   <div className="rounded-2xl border border-white/15 p-4" data-testid="consult-template-picker">
     <div className="flex items-center justify-between gap-2 text-[11px] uppercase tracking-[0.2em] text-slate-300"><span className="flex items-center gap-1.5"><LayoutTemplate size={13} /> Modello di visita</span><Link to="/app/impostazioni?sezione=modelli" className="normal-case tracking-normal text-[#A9C2FF] hover:text-white" data-testid="consult-template-manage">Gestisci</Link></div>
     <div className="mt-3 flex flex-wrap gap-2">
-      {templates.map((t) => (
-        <button key={t.id} type="button" onClick={() => onChange(t.id)} className={`rounded-full px-4 py-2 text-sm transition-colors ${t.id === value ? "bg-white font-semibold text-night" : "border border-white/20 text-slate-200 hover:border-white/50"}`} data-testid={`consult-template-${t.id}`}>{t.name} <span className="opacity-60">· {t.fields.length} campi</span></button>
-      ))}
+      {templates.filter((t) => !t.bilancio).map((t) => <TplPill key={t.id} t={t} value={value} onChange={onChange} />)}
     </div>
+    {templates.some((t) => t.bilancio) && (
+      <>
+        <div className="mt-4 text-[11px] uppercase tracking-[0.2em] text-slate-400">Bilanci di salute{suggested ? ` · consigliato per ${ageLabel(ageM)}` : ""}</div>
+        <div className="mt-2 flex flex-wrap gap-2" data-testid="consult-bilanci">
+          {[...(suggested ? [suggested] : []), ...templates.filter((t) => t.bilancio && t.id !== suggested?.id)].map((t) => <TplPill key={t.id} t={t} value={value} onChange={onChange} hint={t.id === suggested?.id ? "Consigliato" : ""} />)}
+        </div>
+      </>
+    )}
   </div>
 ) : null);
 
