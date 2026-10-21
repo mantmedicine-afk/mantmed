@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
+import { TourVideo } from "./TourVideo";
 import { ArrowLeft, ArrowRight, Check, Compass, ExternalLink, Sparkles, X } from "lucide-react";
 
 const PAD = 10;
@@ -104,7 +105,8 @@ export const GuidedTour = ({ open, steps, name, where = "Impostazioni", onDone }
               <span className="flex min-w-0 items-center gap-2 truncate text-[11px] uppercase tracking-[0.22em] text-[#C9CCD3]"><Sparkles size={13} className="shrink-0" /> <span className="truncate">{i === 0 ? `Benvenuto${name ? `, ${name}` : ""}` : "Guida MantMed"}</span></span>
               {!done && <button onClick={onDone} className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-xs text-[#C9CCD3] transition-colors hover:text-white" data-testid="tour-skip-btn"><X size={13} /> Salta il tour</button>}
             </div>
-            <div className="max-h-[30vh] overflow-y-auto sm:max-h-none" data-testid="tour-body">{done ? <DoneBody where={where} /> : <StepBody step={step} i={i} total={steps.length} />}</div>
+            {!done && <TourVideo id={step.video} title={step.title} />}
+            <div className="max-h-[30vh] overflow-y-auto sm:max-h-[34vh]" data-testid="tour-body">{done ? <DoneBody where={where} /> : <StepBody step={step} i={i} total={steps.length} />}</div>
             {!done && step.extra && <button onClick={() => go(step.extra.to)} className="mt-3 inline-flex items-center gap-1.5 text-sm text-[#C9CCD3] underline underline-offset-4 hover:text-white" data-testid="tour-extra-link"><ExternalLink size={13} /> {step.extra.label}</button>}
             <div className="mt-5 flex gap-1.5" aria-hidden="true">
               {steps.map((s, k) => <button key={s.title} tabIndex={-1} onClick={() => setI(k)} className={`h-1.5 flex-1 rounded-full transition-colors ${k <= i ? "bg-[#E5E4E2]" : "bg-white/15"}`} data-testid={`tour-dot-${k + 1}`} />)}
