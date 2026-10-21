@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Literal, Optional
 
 from bson import ObjectId
+from pymongo.errors import DuplicateKeyError
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
@@ -232,15 +233,20 @@ def build_visit_templates(db, tdb, specialty_of, llm_json):
                 "bilancio": d.get("bilancio"), "age_from": d.get("age_from"), "age_to": d.get("age_to")}
 
     async def import_bilanci(keys=None) -> int:
+        await db.visit_templates.create_index([("owner_id", 1), ("bilancio", 1)], unique=True, name="owner_bilancio",
+                                              partialFilterExpression={"bilancio": {"$type": "string"}})
         now = datetime.now(timezone.utc)
         n = 0
         for i, (key, name, a, b, rows) in enumerate(BILANCI):
             if keys is not None and key not in keys:
                 continue
             ts = (now.replace(microsecond=0) + timedelta(seconds=1 + i)).isoformat()
-            res = await tdb.visit_templates.update_one({"bilancio": key}, {"$setOnInsert": {
-                "name": name, "fields": _mk(rows), "bilancio": key, "age_from": a, "age_to": b, "created_at": ts, "updated_at": ts}}, upsert=True)
-            n += bool(res.upserted_id)
+            try:
+                res = await tdb.visit_templates.update_one({"bilancio": key}, {"$setOnInsert": {
+                    "name": name, "fields": _mk(rows), "bilancio": key, "age_from": a, "age_to": b, "created_at": ts, "updated_at": ts}}, upsert=True)
+                n += bool(res.upserted_id)
+            except DuplicateKeyError:
+                pass
         return n
 
     async def seed_bilanci_once():
@@ -263,7 +269,8 @@ def build_visit_templates(db, tdb, specialty_of, llm_json):
             except Exception:
                 logger.info("Modello iniziale già creato da una richiesta concorrente")
         await seed_bilanci_once()
-        return await tdb.visit_templates.find().sort("created_at", 1).to_list(None)
+        docs = await tdb.visit_templates.find().sort("created_at", 1).to_list(None)
+        return sorted(docs, key=lambda d: (bool(d.get("bilancio")), d.get("age_from") or 0))
 
     @r.get("/bilanci")
     async def bilanci_library():

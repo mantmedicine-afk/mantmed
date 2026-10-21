@@ -256,3 +256,8 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - FeedbackDialog unico (medico + portale): tipi feedback / supporto / segnalazione; stelle obbligatorie solo per feedback; aree specifiche per portale paziente; info tecniche automatiche per segnalazioni; schermata conferma + errore con Riprova (client_id idempotente)
 - backend beta.submit_feedback: salva in db.feedback (email_sent flag) e invia email a ADMIN_EMAIL (mantmedicine@gmail.com) con oggetto descrittivo, nome/cognome/ruolo/email, area, messaggio, data-ora Europe/Rome; reply-to = email utente. Endpoint /api/beta/feedback e /api/portal/feedback
 - Test: iteration_25 OK
+
+## 2026-06 Bilanci di salute pediatrici
+- visit_templates.BILANCI: 10 bilanci (1m,3m,6m,9m,12m,18m,2-3a,5-6a,8-10a,11-14a) 10-13 campi, age_from/age_to in mesi; import automatico una sola volta per pediatri (users.bilanci_seeded_at), eliminabili; GET/POST /api/visit-templates/bilanci per reimportare; indice unico (owner_id,bilancio)
+- Settings: righe Modelli / Bilanci di salute, BilanciDialog con anteprima; Overlay: bilancio consigliato per eta (badge), preselezionato solo se motivo contiene "bilancio"
+- Test: iteration_26 OK, fix post-test applicati (ordinamento, preselezione, grammatica)

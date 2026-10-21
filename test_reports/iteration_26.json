@@ -1,0 +1,39 @@
+{
+  "summary": "Bilanci di salute feature tested end-to-end. Backend: new tests/test_bilanci.py 9/9 pass (run with -n 0), regression tests/test_visit_templates.py 19/19 pass. Results: the pediatrician has Prima visita + 10 bilanci with correct age_from/age_to and 10-13 fields; the cardiologist has no bilanci; a deleted bilancio is not recreated on GET; /bilanci shows imported=false for it; POST /bilanci re-imports only missing ones (imported=1, then 0, no duplicates) and does not overwrite edited bilanci; a consultation with the 12m bilancio fills 9/11 sezioni while keeping torl/allattamento/svezzamento. Frontend: settings shows the 'Modelli' and 'Bilanci di salute' rows; BilanciDialog preview, per-item checkbox only for missing ones, select-all (shown with 2+ missing), import, toast and pills all work; 'Ripristina modello base' on 12 mesi loads the 12 mesi fields. Consultation overlay: the age-matched bilancio comes first with the 'Consigliato' badge (Aurora about 50 months -> 5-6 anni 'consigliato per 4 anni'; Alice 12 months -> 12 mesi). It is preselected only when the reason contains 'bilancio' (fresh open with a 'Febbre' entry keeps Prima visita). Manual override works; a free-name patient gets no suggestion. A UI manual-transcript visit with 12 mesi produced the bilancio sezioni plus the standard pediatric chart. The cardiologist picker has no bilanci section and no bilanci button. One medium UX bug and a few minor issues were found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/visit-templates/bilanci", "issue": "Re-imported bilanci get created_at=now, so the list (sorted by created_at) puts them at the end: after re-importing, 3 mesi and 9 mesi appear after 11-14 anni in both the settings pills and the consultation picker. Sort bilanci by age_from (backend or frontend)."},
+      {"endpoint": "import_bilanci", "issue": "The upsert on {bilancio:key} has no unique index (owner_id, bilancio), so concurrent POST /bilanci or first-seed races could create duplicates. Add a partial unique index like the existing seed index."},
+      {"endpoint": "POST /api/visit-templates/bilanci", "issue": "Non-pediatric doctors can import bilanci via the API (no specialty check). This may be intended."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ConsultationOverlay preselection", "issue": "The preselected bilancio sticks. The overlay opens with the 'Bilancio di salute' entry (Alice, 12 months) and 12 mesi is preselected. If the doctor then picks another waiting entry (Aurora, 4 years, reason 'Febbre'), 12 mesi stays selected even though it is the wrong age band and the reason is not a bilancio. The doctor can start a visit with the wrong template. The effect should reset to the default/first general template when the new selection's reason does not contain 'bilancio' and the current tplId was auto-preselected.", "selector": "[data-testid=consult-template-picker]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Impostazioni > Modelli Visita", "issues": ["'Ripristina modello base' always marks the draft dirty (new field ids), even when the fields are identical. The next pill click or 'Aggiungi bilanci di salute' then asks to discard changes.", "Grammar: 'Aggiungi 1 bilanci' and toast '1 bilanci aggiunti ai Modelli Visita' should be singular (bilancio).", "Settings pills repeat the 'Bilancio di salute ·' prefix under the 'Bilanci di salute' heading, which wastes space. The consultation picker already strips it."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_bilanci.py", "/app/backend/tests/test_visit_templates.py", "/app/test_reports/pytest/pytest_bilanci.xml"],
+  "action_items": [
+    "Reset the template selection in ConsultationOverlay when switching to a waiting entry whose reason is not a bilancio (avoid a wrong-age bilancio sticking).",
+    "Sort bilanci by age_from in the list and picker so re-imported ones keep calendar order.",
+    "Add a unique partial index on (owner_id, bilancio) for visit_templates.",
+    "Minor: singular/plural in BilanciDialog button and toast; avoid dirty state after reset when content is unchanged."
+  ],
+  "critical_code_review_comments": [
+    "visit_templates.py import_bilanci: there is no unique index for bilancio upserts, so a race can create duplicates.",
+    "ConsultationOverlay useEffect([suggested?.id, sel?.id]) only ever sets tplId to suggested and never reverts it.",
+    "VisitTemplatesSection reset: fields from the library get new uuid ids, so JSON compare is always dirty."
+  ],
+  "updated_files": ["/app/backend/tests/test_bilanci.py"],
+  "success_rate": {"backend": "100% (28/28 incl. regression)", "frontend": "95% (all flows work; 1 medium preselection UX bug)"},
+  "seed_data_creation": "Waiting entries TEST_Alice Conti (consumed by visit) and TEST_Aurora Ricci (deleted). Consultations TEST_Bimba Bilancio (pytest, free name) and TEST_Alice Conti (linked to seeded patient Alice Conti, 12m bilancio) remain. The pediatrician has all 10 bilanci re-imported.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest with -n 0 (xdist splits shared state). Server date is 2026-10-21. Patients: Alice Conti 2025-10-18 (12m, consent ok), Aurora Ricci 2022-08-12 (5-6a), Sofia Russo 2026-08-15 (3m, no consent). Create waiting entries via POST /api/waiting with patient_id to test preselection. The start-consultation-btn preselects the first waiting entry. The 'open consultation from the dashboard patient card' path was not tested separately.",
+  "test_credentials": "From /app/memory/test_credentials.md: medico@mantmed.it / Auscula-Studio-2026, cardiologo.demo@example.com / Cardio-Demo-2026"
+}

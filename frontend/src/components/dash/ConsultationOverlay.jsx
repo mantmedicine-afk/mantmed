@@ -42,9 +42,12 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
   const linkedPatient = patients.find((p) => p.id === sel?.patient_id);
   const ageM = ageMonths(linkedPatient?.birth_date);
   const suggested = ageM === null ? null : templates.find((t) => t.bilancio && ageM >= t.age_from && ageM < t.age_to);
+  const autoPicked = useRef(false);
   useEffect(() => {
-    if (suggested && /bilancio/i.test(`${sel?.reason ?? ""} ${sel?.visit_type ?? ""}`)) setTplId(suggested.id);
+    if (suggested && /bilancio/i.test(`${sel?.reason ?? ""} ${sel?.visit_type ?? ""}`)) { setTplId(suggested.id); autoPicked.current = true; }
+    else if (autoPicked.current) { setTplId(templates.find((t) => !t.bilancio)?.id ?? templates[0]?.id ?? ""); autoPicked.current = false; }
   }, [suggested?.id, sel?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pickTpl = (id) => { autoPicked.current = false; setTplId(id); };
 
   const name = sel?.name || freeName.trim();
 
@@ -123,7 +126,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
         </div>
         <div className="flex flex-1 flex-col justify-center py-8">
           {stage === "setup" && (
-            <Setup {...{ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, sending }} picker={<TemplatePicker templates={templates} value={tplId} onChange={setTplId} suggested={suggested} ageM={ageM} />} gate={<ConsentGate patient={patients.find((p) => p.id === sel?.patient_id)} free={!sel?.patient_id && Boolean(freeName.trim())} paper={paper} setPaper={setPaper} onSaved={onPatientsChange} />} />
+            <Setup {...{ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, sending }} picker={<TemplatePicker templates={templates} value={tplId} onChange={pickTpl} suggested={suggested} ageM={ageM} />} gate={<ConsentGate patient={patients.find((p) => p.id === sel?.patient_id)} free={!sel?.patient_id && Boolean(freeName.trim())} paper={paper} setPaper={setPaper} onSaved={onPatientsChange} />} />
           )}
           {(stage === "recording") && (
             <Recording name={name} rec={rec} sending={sending} sendStep={sendStep} onStop={() => process(null, rec.seconds)} />

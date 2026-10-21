@@ -15,7 +15,7 @@ export const BilanciDialog = ({ open, onClose, onImported }) => {
   const missing = (lib ?? []).filter((b) => !b.imported).map((b) => b.key);
   const submit = async () => {
     setBusy(true);
-    try { const r = await api.addBilanci(sel); onImported(r.templates); toast.success(`${r.imported} bilanci aggiunti ai Modelli Visita`); onClose(); } catch (e) { toast.error(errMsg(e)); }
+    try { const r = await api.addBilanci(sel); onImported(r.templates); toast.success(r.imported === 1 ? "1 bilancio aggiunto ai Modelli Visita" : `${r.imported} bilanci aggiunti ai Modelli Visita`); onClose(); } catch (e) { toast.error(errMsg(e)); }
     setBusy(false);
   };
   return (
@@ -41,7 +41,7 @@ export const BilanciDialog = ({ open, onClose, onImported }) => {
                 {openKey === b.key && <ol className="list-decimal space-y-1 border-t border-slate-100 px-10 py-3 text-sm text-slate-600">{b.fields.map((f) => <li key={f.id}>{f.titolo}{f.hint && <span className="text-slate-400"> · {f.hint}</span>}</li>)}</ol>}
               </div>
             ))}
-            <button onClick={submit} disabled={busy || !sel.length} className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-night text-sm font-semibold text-white disabled:opacity-40" data-testid="bilanci-import-btn">{busy && <Loader2 size={15} className="animate-spin" />} Aggiungi {sel.length || ""} bilanci</button>
+            <button onClick={submit} disabled={busy || !sel.length} className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-night text-sm font-semibold text-white disabled:opacity-40" data-testid="bilanci-import-btn">{busy && <Loader2 size={15} className="animate-spin" />} {sel.length === 1 ? "Aggiungi 1 bilancio" : `Aggiungi ${sel.length || ""} bilanci`}</button>
           </div>
         )}
       </DialogContent>
