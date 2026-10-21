@@ -320,3 +320,9 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Accessi: voce sidebar (medico e portale), banner sotto "In parole semplici" nel portale, pulsante nella preparazione consultazione
 - Testo: "basato su modelli di AI avanzati di fornitori selezionati, responsabili del trattamento (art. 28 GDPR)"; nessuna dichiarazione su localizzazione UE o certificazioni
 - Fix: dialog z-[60] sopra il drawer mobile, Esc chiude solo il dialog, scheda torna alla vista di default a ogni apertura
+
+## 2026-06 · Pagina /privacy (iteration_36 PASS)
+- pages/Privacy.jsx + components/privacy/content.js: informativa artt. 13-14, titolari/responsabili, basi giuridiche, MantAI (art. 22), fornitori (OpenAI, Emergent, Postmark, Stripe) con "possibile trasferimento extra-UE con SCC", conservazione, sicurezza, diritti
+- Segnaposto "[da completare: …]" per ragione sociale, sede, P.IVA, email privacy, DPO (da sostituire in content.js)
+- Avviso "Bozza da validare con DPO" visibile solo agli admin
+- Link: finestra MantAI (/privacy#fornitori), footer landing, pagine di registrazione

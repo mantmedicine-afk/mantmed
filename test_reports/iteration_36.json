@@ -1,0 +1,21 @@
+{
+  "summary": "Frontend-only test of the new /privacy page and links to it. Every requested check passed: page loads logged out; the index links scroll to each section (top offset 96px, which matches scroll-mt-24); all 4 provider cards (openai, emergent, postmark, stripe) show the extra-EU / Standard Contractual Clauses wording; 6 highlighted '[da completare: ...]' placeholders; no ISO, 'proprietaria' or exact-location wording. The admin draft notice is hidden when logged out, for the doctor and for the parent, and shown for the admin. The MantAI link opens /privacy#fornitori in a new tab and lands on the providers section. The landing footer link, both register-page links (new tab), the Indietro button and the home link work. At 390px provider cards stack in one column with no horizontal overflow. MantAI regression: Esc closes the dialog. No page errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AdminNotice uses api.me() (/auth/me). The axios interceptor skips refresh for /auth/* URLs, so an admin whose access token has expired but whose refresh token is still valid will not see the draft notice until the session is refreshed elsewhere. Optional fix: call api.refresh() and retry when me() returns 401.",
+    "The admin notice is hidden only on the client (its text is in the public JS bundle). Acceptable because the text is not sensitive."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100%"},
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Logins done via page.request.post /api/auth/login (cookies are shared with the browser context). Credentials are in /app/memory/test_credentials.md; 2FA is off. The admin can view /privacy directly after an API login. The browser clock in the test env shows Oct 2026, so 'giugno 2026' is not a future date there."
+}
