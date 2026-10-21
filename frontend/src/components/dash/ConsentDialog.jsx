@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ShieldCheck, FileSignature, PenLine } from "lucide-react";
+import { ShieldCheck, FileSignature, PenLine, Printer, Loader2 } from "lucide-react";
 import { SignatureField } from "@/components/signature/SignaturePadModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { http, errMsg } from "@/lib/api";
+import { api, errMsg } from "@/lib/api";
 import { Field } from "./AppointmentDialog";
 import { useAuth } from "@/lib/auth";
 
@@ -15,9 +15,20 @@ export const ConsentDialog = ({ patient, open, onClose, onSaved }) => {
   const [f, setF] = useState({ signer_name: "", signer_relation: "Madre", privacy_policy: false, health_data: false, email_reports: false, method: "firma_tablet" });
   const [signature, setSignature] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [tpl, setTpl] = useState(null);
+  const [printing, setPrinting] = useState(false);
   useEffect(() => {
-    if (open) { setF((x) => ({ ...x, signer_name: (patient?.guardian || "").replace(/^[^:]+:\s*/, "") })); setSignature(null); }
+    if (open) {
+      setF((x) => ({ ...x, signer_name: (patient?.guardian || "").replace(/^[^:]+:\s*/, "") }));
+      setSignature(null);
+      api.signTemplate().then(setTpl).catch(() => setTpl(null));
+    }
   }, [open, patient]);
+  const printForm = async () => {
+    setPrinting(true);
+    try { await api.consentForm(patient.id, { signer: f.signer_name, relation: f.signer_relation }); } catch (e) { toast.error(errMsg(e)); }
+    setPrinting(false);
+  };
 
   const save = async () => {
     if (!f.privacy_policy || !f.health_data) return toast.error("Informativa e trattamento dei dati sanitari sono obbligatori");
@@ -27,8 +38,12 @@ export const ConsentDialog = ({ patient, open, onClose, onSaved }) => {
     if (!signer) return toast.error("Inserisci il nome del firmatario");
     setBusy(true);
     try {
-      await http.post(`/patients/${patient.id}/consents`, { ...f, signer_name: signer, signature: tablet ? signature.image : null });
-      toast.success("Consenso informato registrato");
+      const out = await api.signConsent({
+        patient_id: patient.id, document_id: "consenso_privacy", method: f.method, signature: tablet ? signature.image : null,
+        signer: { name: signer, relation: f.signer_relation }, privacy_policy: f.privacy_policy, health_data: f.health_data,
+        email_reports: f.email_reports, client_signed_at: tablet ? signature.signedAt : null,
+      });
+      toast.success(out.document ? `Consenso firmato · PDF ${out.document.code} archiviato nei Documenti` : "Consenso cartaceo registrato");
       onSaved?.();
       onClose();
     } catch (e) { toast.error(errMsg(e)); }
@@ -45,7 +60,7 @@ export const ConsentDialog = ({ patient, open, onClose, onSaved }) => {
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl bg-white sm:max-w-lg" data-testid="consent-dialog" data-lenis-prevent>
         <DialogHeader><DialogTitle className="flex items-center gap-2 font-display text-3xl font-normal text-night"><ShieldCheck className="text-night" /> Consenso informato</DialogTitle></DialogHeader>
-        <p className="max-h-32 overflow-y-auto rounded-2xl bg-[#F4F5F7] p-4 text-xs leading-relaxed text-slate-700" data-testid="consent-informativa">{informativa(user?.name || "il medico")}</p>
+        <p className="max-h-32 overflow-y-auto rounded-2xl bg-[#F4F5F7] p-4 text-xs leading-relaxed text-slate-700" data-testid="consent-informativa">{tpl?.text || informativa(user?.name || "il medico")}</p>
         <div className="grid gap-2">
           <Check k="privacy_policy" label="Dichiaro di aver letto l'informativa privacy" required />
           <Check k="health_data" label="Acconsento al trattamento dei dati sanitari del minore (art. 9 GDPR)" required />
@@ -68,7 +83,14 @@ export const ConsentDialog = ({ patient, open, onClose, onSaved }) => {
           <SignatureField value={signature} onChange={setSignature} defaultName={f.signer_name} testId="consent-signature"
             title={`Firma ${f.signer_relation === "Tutore legale" ? "del Tutore" : "del Genitore / Tutore"}`}
             description={`Consenso informato al trattamento dei dati di ${patient?.name || "del minore"}. Firmi per esteso nel riquadro.`} />
-        ) : <p className="text-xs text-slate-600">Il modulo firmato su carta va conservato in studio.</p>}
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 p-4">
+            <p className="text-xs text-slate-600">Stampi il modulo precompilato, lo faccia firmare a mano e lo conservi in studio.</p>
+            <button type="button" onClick={printForm} disabled={printing} className="flex h-10 items-center gap-2 rounded-full border border-slate-200 px-4 text-sm font-medium text-night hover:border-night disabled:opacity-60" data-testid="consent-print-form-btn">
+              {printing ? <Loader2 size={15} className="animate-spin" /> : <Printer size={15} />} Scarica modulo da stampare
+            </button>
+          </div>
+        )}
         <button onClick={save} disabled={busy} className="rounded-full bg-night py-3.5 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 disabled:opacity-60" data-testid="consent-save-btn">Registra consenso</button>
       </DialogContent>
     </Dialog>

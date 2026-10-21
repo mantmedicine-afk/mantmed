@@ -132,7 +132,25 @@ def grid(header, rows, widths, right=()):
     return t
 
 
-def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dict | None = None, bodychart: dict | None = None) -> bytes:
+def doctor_sign_cell(doctor: str, signature: dict | None, max_w: float) -> list:
+    """Firma del medico salvata nell'Area Riservata (PNG trasparente) con data e ora di apposizione."""
+    if signature and (signature.get("image") or "").startswith("data:image/png;base64,"):
+        try:
+            import base64
+            from zoneinfo import ZoneInfo
+            raw = base64.b64decode(signature["image"].split(",", 1)[1])
+            iw, ih = ImageReader(io.BytesIO(raw)).getSize()
+            k = min(max_w / iw, 15 * mm / ih)
+            when = datetime.now(ZoneInfo("Europe/Rome")).strftime("%d/%m/%Y alle %H:%M")
+            return [RLImage(io.BytesIO(raw), width=iw * k, height=ih * k, hAlign="LEFT"), Spacer(1, 1 * mm),
+                    Paragraph(escape(doctor), S["body"]), Paragraph(f"Firmato elettronicamente il {when}", S["small"])]
+        except Exception:
+            pass
+    return [Spacer(1, 12 * mm), Paragraph(escape(doctor), S["body"])]
+
+
+def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dict | None = None, bodychart: dict | None = None,
+                 signature: dict | None = None) -> bytes:
     note = c.get("note") or {}
     g = note.get("crescita") or {}
     created = datetime.fromisoformat(c["created_at"])
@@ -253,7 +271,7 @@ def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dic
 
     box = lambda label, content: [P(label, "label"), Spacer(1, 2 * mm), content]
     sign = Table([[box("LUOGO", P(info["city"])), box("DATA", P(date_s)), box("TIMBRO DELLO STUDIO", Spacer(1, 24 * mm)),
-                   box("FIRMA DIGITALE / AUTOGRAFA", [Spacer(1, 12 * mm), Paragraph(escape(doctor), S["body"])])]],
+                   box("FIRMA DIGITALE / AUTOGRAFA", doctor_sign_cell(doctor, signature, W - 2 * MX - 128 * mm))]],
                  colWidths=[32 * mm, 26 * mm, 54 * mm, W - 2 * MX - 112 * mm])
     sign.setStyle(TableStyle([("BOX", (2, 0), (2, 0), 0.6, PLATINUM), ("BOX", (3, 0), (3, 0), 0.6, PLATINUM),
                               ("LINEBELOW", (0, 0), (1, 0), 0.6, PLATINUM), ("VALIGN", (0, 0), (-1, -1), "TOP"),

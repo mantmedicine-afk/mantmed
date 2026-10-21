@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 load_dotenv(Path(__file__).parent / '.env')
 
-from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Depends
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Depends, Request
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
@@ -34,6 +34,7 @@ from emergentintegrations.llm.openai import OpenAISpeechToText
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 from auth import build_auth, seed_doctor, seed_admin, require_role
 from report import build_report
+from signed_docs import build_signed_docs, record_privacy_consent, doctor_signature
 from mailer import send_email
 import base64
 from html import escape as hesc
@@ -494,6 +495,8 @@ async def seed():
         cf = unseal_fields(p, ("fiscal_code",)).get("fiscal_code") or ""
         await db.patients.update_one({"_id": p["_id"]}, {"$set": {"cf_hash": cf_hash(cf) if cf.strip() else None}})
     await db.patients.create_index("cf_hash")
+    await db.signed_docs.create_index("file_sha256")
+    await db.signed_docs.create_index("patient_ids")
 
 
 # ---------- Routes ----------
@@ -667,7 +670,8 @@ async def consultation_pdf(cid: str, user: dict = Depends(current_user)):
     if not doc:
         raise HTTPException(404, "Consultazione non trovata")
     c = Consultation.from_mongo(doc).out()
-    pdf = build_report(c, user["name"], await get_patient(c.get("patient_id")), await doctor_profile(user["id"]), await chart_for(cid))
+    pdf = build_report(c, user["name"], await get_patient(c.get("patient_id")), await doctor_profile(user["id"]), await chart_for(cid),
+                       signature=await doctor_signature(db, user["id"]))
     await tdb.consultations.update_one({"_id": oid(cid)}, {"$set": {"finalized_at": now_iso()}, "$inc": {"pdf_exports": 1}})
     await audit("referto_pdf", c["patient_name"])
     name = f"Referto_{re.sub(r'[^A-Za-z0-9]+', '_', c['patient_name']).strip('_')}_{c['created_at'][:10]}.pdf"
@@ -688,7 +692,7 @@ async def send_report(cid: str, user: dict = Depends(current_user)):
     if not patient.get("consent_email"):
         raise HTTPException(412, "Il genitore non ha acconsentito all'invio dei referti via email")
     profile = await doctor_profile(user["id"])
-    pdf = build_report(c, user["name"], patient, profile, await chart_for(cid))
+    pdf = build_report(c, user["name"], patient, profile, await chart_for(cid), signature=await doctor_signature(db, user["id"]))
     day = datetime.fromisoformat(c["created_at"]).strftime("%d/%m/%Y")
     fname = f"Referto_{re.sub(r'[^A-Za-z0-9]+', '_', c['patient_name']).strip('_')}_{c['created_at'][:10]}.pdf"
     subject = f"Referto della visita pediatrica di {c['patient_name']} – {day}"
@@ -1007,6 +1011,8 @@ class Consent(BaseDocument):
     signature: Optional[str] = None
     signed_at: str = Field(default_factory=now_iso)
     revoked_at: Optional[str] = None
+    channel: Optional[str] = None
+    document_id: Optional[str] = None
     __encrypted__: ClassVar[tuple] = ("signer_name", "signature")
 
 
@@ -1033,23 +1039,16 @@ async def refresh_patient_consent(pid: str):
 
 
 @api.post("/patients/{pid}/consents")
-async def record_consent(pid: str, body: ConsentIn):
+async def record_consent(pid: str, body: ConsentIn, request: Request, user: dict = Depends(current_user)):
+    """Compatibilità: delega alla firma elettronica (PDF firmato archiviato se firma su tablet)."""
     doc = await tdb.patients.find_one({"_id": oid(pid)})
     if not doc:
         raise HTTPException(404, "Paziente non trovato")
-    if not (body.privacy_policy and body.health_data):
-        raise HTTPException(400, "Informativa privacy e trattamento dei dati sanitari sono obbligatori")
-    if not body.signer_name.strip():
-        raise HTTPException(400, "Nome del firmatario obbligatorio")
-    if body.method == "firma_tablet" and not (body.signature or "").startswith("data:image/png;base64,"):
-        raise HTTPException(400, "Firma mancante")
-    await tdb.consents.update_many({"patient_id": pid, "revoked_at": None}, {"$set": {"revoked_at": now_iso()}})
-    c = Consent(patient_id=pid, **body.model_dump())
-    res = await tdb.consents.insert_one(c.to_mongo())
-    c.id = str(res.inserted_id)
-    await refresh_patient_consent(pid)
-    await audit("consenso_registrato", doc["name"])
-    return c.out()
+    return await record_privacy_consent(
+        db, owner=user["id"], patient=doc, version=CONSENT_VERSION, signer={"name": body.signer_name, "relation": body.signer_relation},
+        clauses=body.model_dump(), method=body.method, signature=body.signature,
+        channel="studio_tablet" if body.method == "firma_tablet" else "cartaceo", request=request, client_signed_at=None,
+        collected_by=f"{user['name']} ({user['email']})", signer_ident=f"studio:{pid}:{body.signer_name.strip().lower()}")
 
 
 @api.post("/consents/{cid}/revoke")
@@ -1058,6 +1057,7 @@ async def revoke_consent(cid: str):
     if not doc:
         raise HTTPException(404, "Consenso non trovato o già revocato")
     await refresh_patient_consent(doc["patient_id"])
+    await db.signed_docs.update_many({"ref_id": cid, "revoked_at": None}, {"$set": {"revoked_at": now_iso()}})
     await audit("consenso_revocato", "")
     return Consent.from_mongo(doc).out()
 
@@ -1123,7 +1123,8 @@ async def portal_pdf_for(c: dict):
     out = Consultation.from_mongo(c).out()
     p = await db.patients.find_one({"_id": ObjectId(out["patient_id"])}) if out.get("patient_id") else None
     owner = await db.users.find_one({"_id": ObjectId(c["owner_id"])})
-    pdf = build_report(out, (owner or {}).get("name", ""), unseal_fields(p, Patient.__encrypted__) if p else None, await doctor_profile(c["owner_id"]), await chart_for(str(c["_id"])))
+    pdf = build_report(out, (owner or {}).get("name", ""), unseal_fields(p, Patient.__encrypted__) if p else None, await doctor_profile(c["owner_id"]), await chart_for(str(c["_id"])),
+                       signature=await doctor_signature(db, c["owner_id"]))
     return pdf, f"Referto_{re.sub(r'[^A-Za-z0-9]+', '_', out['patient_name']).strip('_')}_{out['created_at'][:10]}.pdf"
 
 
@@ -1160,6 +1161,10 @@ public_api.include_router(auth_router)
 public_api.include_router(build_password_reset(db, current_user))
 public_api.include_router(build_account(db, current_user))
 bc_doctor, bc_parent = build_bodychart(db, current_user)
+sd_doctor, sd_parent, sd_public = build_signed_docs(db, current_user, CONSENT_VERSION)
+api.include_router(sd_doctor)
+public_api.include_router(sd_parent)
+public_api.include_router(sd_public)
 api.include_router(bc_doctor)
 public_api.include_router(bc_parent)
 app.include_router(public_api)

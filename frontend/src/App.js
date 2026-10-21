@@ -11,6 +11,7 @@ import Register from "@/pages/Register";
 import Activate from "@/pages/Activate";
 import ResetPassword from "@/pages/ResetPassword";
 import Portal from "@/pages/Portal";
+import Verify from "@/pages/Verify";
 import { setClinics } from "@/lib/api";
 import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/lib/auth";
@@ -87,6 +88,7 @@ function App() {
         <Route path="/registrati/paziente" element={<Register key="parent" role="parent" />} />
         <Route path="/attiva" element={<Activate />} />
         <Route path="/reimposta-password" element={<ResetPassword />} />
+        <Route path="/verifica" element={<Verify />} />
         <Route path="/area-riservata" element={<AuthProvider><AccountGate /></AuthProvider>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

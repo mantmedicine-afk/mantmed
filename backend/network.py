@@ -10,6 +10,7 @@ from typing import Optional
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
+from signed_docs import archive_share
 from pydantic import BaseModel, Field, field_validator
 from auth import hash_password, require_role
 from crypto import seal_fields, unseal_fields
@@ -179,7 +180,7 @@ def build_network(db, current_user, Consultation, pdf_for):
         return await db.users.find_one({"_id": ObjectId(user["id"])})
 
     @parent.post("/sharing")
-    async def create_share(body: ShareIn, user: dict = Depends(current_user)):
+    async def create_share(body: ShareIn, request: Request, user: dict = Depends(current_user)):
         if not body.accepted:
             raise HTTPException(400, "Per condividere i referti serve il consenso esplicito")
         if not body.signature.startswith("data:image/png;base64,"):
@@ -203,16 +204,23 @@ def build_network(db, current_user, Consultation, pdf_for):
         doc = {"parent_id": user["id"], "cf_hash": cf, "members": members, "version": SHARE_VERSION, "signed_at": now, "revoked_at": None,
                **seal_fields({"signer_name": body.signer_name.strip(), "signature": body.signature, "text": SHARE_TEXT}, ("signer_name", "signature", "text"))}
         doc["_id"] = (await db.share_consents.insert_one(doc)).inserted_id
+        await db.signed_docs.update_many({"kind": "consenso_condivisione", "parent_id": user["id"], "revoked_at": None,
+                                          "patient_ids": {"$in": [m["patient_id"] for m in members]}}, {"$set": {"revoked_at": now, "superseded": True}})
+        archived = await archive_share(db, share=doc, signer_name=body.signer_name.strip(), signature=body.signature, request=request, parent=u,
+                                       text=SHARE_TEXT, version=SHARE_VERSION)
+        if archived:
+            await db.share_consents.update_one({"_id": doc["_id"]}, {"$set": {"document_id": archived["id"]}})
         for m in members:
             await db.audit.insert_one({"action": "consenso_condivisione_rete_firmato", "subject": seal_fields({"s": body.signer_name.strip()}, ("s",))["s"],
                                        "at": now, "owner_id": m["owner_id"]})
-        return {"id": str(doc["_id"]), "signed_at": now, "members": members}
+        return {"id": str(doc["_id"]), "signed_at": now, "members": members, "document": archived}
 
     @parent.get("/sharing")
     async def list_shares(user: dict = Depends(current_user)):
         out = []
         async for s in db.share_consents.find({"parent_id": user["id"], "superseded": {"$ne": True}}).sort("signed_at", -1):
-            out.append({"id": str(s["_id"]), "members": s["members"], "signed_at": s["signed_at"], "revoked_at": s["revoked_at"], "version": s["version"]})
+            out.append({"id": str(s["_id"]), "members": s["members"], "signed_at": s["signed_at"], "revoked_at": s["revoked_at"], "version": s["version"],
+                        "document_id": s.get("document_id")})
         return {"items": out, "text": SHARE_TEXT, "version": SHARE_VERSION}
 
     @parent.post("/sharing/{sid}/revoke")
@@ -222,6 +230,7 @@ def build_network(db, current_user, Consultation, pdf_for):
             raise HTTPException(404, "Consenso non trovato o già revocato")
         now = _now().isoformat()
         await db.share_consents.update_one({"_id": s["_id"]}, {"$set": {"revoked_at": now}})
+        await db.signed_docs.update_many({"ref_id": sid, "revoked_at": None}, {"$set": {"revoked_at": now}})
         for m in s["members"]:
             await db.audit.insert_one({"action": "consenso_condivisione_rete_revocato", "subject": None, "at": now, "owner_id": m["owner_id"]})
         return {"revoked": True}

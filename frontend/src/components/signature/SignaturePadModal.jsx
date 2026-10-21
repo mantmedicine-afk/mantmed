@@ -254,7 +254,7 @@ export const SignaturePadModal = ({
     setNow(new Date());
     const id = setInterval(() => setNow(new Date()), 15000);
     return () => clearInterval(id);
-  }, [open]);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const clear = () => { padApi.current?.clear(); setHasInk(false); setError(""); };
 

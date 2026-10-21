@@ -8,6 +8,8 @@ import { Messages } from "@/components/portal/Messages";
 import { NotificationBell, useNotifications } from "@/components/portal/NotificationBell";
 import { ReminderBanner } from "@/components/portal/ReminderBanner";
 import { PortalBodychart } from "@/components/portal/PortalBodychart";
+import { ConsentBanner } from "@/components/portal/ConsentSign";
+import { SignedDocsList } from "@/components/signature/SignedDocs";
 import { ProfileMenu, Caret } from "@/components/auth/ProfileMenu";
 import { useSearchParams, useParams, useNavigate, Navigate } from "react-router-dom";
 import { LayoutGrid, MessagesSquare, Settings } from "lucide-react";
@@ -93,11 +95,20 @@ const Appointments = ({ items, requests = [], focus, onChange }) => (
   </>
 );
 
-const Consents = ({ items }) => (items.length ? items.map((c) => (
+const Consents = ({ items, docs = [] }) => (
+  <>
+    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600">Documenti firmati (PDF)</div>
+    <SignedDocsList docs={docs} download={api.portalDocumentPdf} testId="portal-docs" empty="Nessun documento firmato elettronicamente. I consensi firmati dal Portale o su tablet in studio compaiono qui come PDF." />
+    <div className="pt-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600">Storico consensi</div>
+    <ConsentHistory items={items} />
+  </>
+);
+
+const ConsentHistory = ({ items }) => (items.length ? items.map((c) => (
   <div key={c.id} className="rounded-2xl border border-slate-200 bg-white p-4" data-testid={`portal-consent-${c.id}`}>
     <div className="flex flex-wrap items-center justify-between gap-2"><div className="font-medium text-night">{c.version}</div>
       <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${c.revoked_at ? "bg-slate-200 text-slate-700" : "bg-emerald-100 text-emerald-900"}`}>{c.revoked_at ? `Revocato il ${day(c.revoked_at)}` : "Attivo"}</span></div>
-    <div className="mt-1 text-sm text-slate-600">Firmato il {day(c.signed_at)} da {c.signer_name} ({c.signer_relation}) · {c.method === "firma_tablet" ? "firma su tablet" : "modulo cartaceo"}{c.email_reports ? " · referti via email" : ""}</div>
+    <div className="mt-1 text-sm text-slate-600">Firmato il {day(c.signed_at)} da {c.signer_name} ({c.signer_relation}) · {c.channel === "portale" ? "firma dal Portale" : c.method === "firma_tablet" ? "firma su tablet" : "modulo cartaceo"}{c.email_reports ? " · referti via email" : ""}</div>
   </div>
 )) : <Empty text="Nessun consenso registrato dallo studio." />);
 
@@ -125,10 +136,11 @@ const Child = ({ c, onRequest, focus, onChange, jump, only }) => {
         </div>}
       </div>
       <div className="mt-5 space-y-2">
+        <ConsentBanner child={c} onSigned={onChange} />
         {tab === "reports" && <Reports items={c.reports} checkpoints={c.checkpoints ?? []} />}
         {tab === "appointments" && <Appointments items={c.appointments} requests={c.requests ?? []} focus={focus} onChange={onChange} />}
         {tab === "receipts" && <Receipts items={c.receipts ?? []} />}
-        {tab === "consents" && <Consents items={c.consents} />}
+        {tab === "consents" && <Consents items={c.consents} docs={c.documents ?? []} />}
       </div>
     </section>
   );

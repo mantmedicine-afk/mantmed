@@ -268,7 +268,10 @@ def build_registration(db, current_user, start_session, models, pdf_for):
             res = unseal_fields(k, ("result",)).get("result") or {}
             checkpoints.append({"id": str(k["_id"]), "band_label": k["band_label"], "created_at": k["created_at"], "clinic": k.get("clinic", ""),
                                 "status": res.get("status", ""), "next": res.get("next") or ""})
+        from signed_docs import docs_for_patient
+        documents = await docs_for_patient(db, pid)
         return {"patient": {"id": pid, "name": pt["name"], "birth_date": pt["birth_date"], "sex": pt["sex"]},
+                "consent_at": pt.get("consent_at"), "documents": documents,
                 "checkpoints": checkpoints,
                 "doctor": {"id": owner, "name": (doc or {}).get("name", ""), "clinics": (doc or {}).get("clinics", []),
                            "specialty": ((doc or {}).get("profile") or {}).get("specialty") or "Pediatria"},
@@ -278,7 +281,8 @@ def build_registration(db, current_user, start_session, models, pdf_for):
                 "receipts": [{k: x.get(k) for k in ("id", "receipt_no", "date", "service", "amount", "visit_date", "visit_time", "clinic", "refunded_at")} for x in receipts],
                 "requests": [{k: r[k] for k in ("id", "clinic", "service", "date", "time", "status", "reason", "confirmed_date", "confirmed_time", "created_at")} for r in requests],
                 "consents": [{"id": c["id"], "version": c["version"], "signer_name": c["signer_name"], "signer_relation": c["signer_relation"],
-                              "method": c["method"], "email_reports": c["email_reports"], "signed_at": c["signed_at"], "revoked_at": c["revoked_at"]} for c in consents],
+                              "method": c["method"], "email_reports": c["email_reports"], "signed_at": c["signed_at"], "revoked_at": c["revoked_at"],
+                              "channel": c.get("channel"), "document_id": c.get("document_id")} for c in consents],
                 "reports": [{"id": r["id"], "created_at": r["created_at"], "clinic": r["clinic"], "motivo": (r["note"] or {}).get("motivo_visita", ""),
                              "diagnosi": (r["note"] or {}).get("diagnosi", ""), "bodychart": r["id"] in charts} for r in reports]}
 

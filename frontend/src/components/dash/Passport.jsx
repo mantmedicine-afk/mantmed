@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { X, RefreshCw, Cloud, FileDown, Sparkles, AlertCircle, Pencil, ShieldCheck, ShieldAlert, Globe, Send, Loader2 } from "lucide-react";
 import { ConsentDialog } from "./ConsentDialog";
+import { SignedDocsList } from "@/components/signature/SignedDocs";
 import { http } from "@/lib/api";
 import { api, CLINICS, errMsg, eur } from "@/lib/api";
 import { methodLabel } from "./CashPanel";
@@ -161,6 +162,9 @@ const Visits = ({ items, payments = [] }) => {
 
 const ConsentsTab = ({ patient, items, onChange }) => {
   const [open, setOpen] = useState(false);
+  const [docs, setDocs] = useState([]);
+  const loadDocs = useCallback(() => { api.patientDocuments(patient.id).then(setDocs).catch(() => setDocs([])); }, [patient.id]);
+  useEffect(() => { loadDocs(); }, [loadDocs, items]);
   const revoke = async (id) => {
     try { await http.post(`/consents/${id}/revoke`); toast.success("Consenso revocato"); onChange(); } catch (e) { toast.error(errMsg(e)); }
   };
@@ -185,6 +189,16 @@ const ConsentsTab = ({ patient, items, onChange }) => {
             : <button onClick={() => revoke(c.id)} className="text-xs font-medium text-red-600 hover:underline" data-testid={`consent-revoke-${c.id}`}>Revoca</button>}
         </div>
       ))}
+      <div className="pt-3">
+        <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Consensi / Documenti</div>
+            <div className="font-display text-2xl text-night">Documenti firmati elettronicamente</div>
+          </div>
+          <a href="/verifica" target="_blank" rel="noreferrer" className="text-xs font-medium text-night underline-offset-4 hover:underline" data-testid="passport-verify-link">Verifica integrità di un PDF</a>
+        </div>
+        <SignedDocsList docs={docs} download={api.documentPdf} testId="passport-docs" empty="Nessun documento firmato: i consensi firmati su tablet o dal Portale compaiono qui come PDF protetti." />
+      </div>
       <ConsentDialog patient={patient} open={open} onClose={() => setOpen(false)} onSaved={onChange} />
     </div>
   );
