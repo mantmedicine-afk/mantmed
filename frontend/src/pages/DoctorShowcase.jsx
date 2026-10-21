@@ -21,7 +21,7 @@ export default function DoctorShowcase() {
         {d === undefined && <Loader2 className="mx-auto mt-20 animate-spin text-night" />}
         {d === null && <p className="mt-20 text-center text-[#0A192F]/70" data-testid="public-showcase-missing">Vetrina non disponibile.</p>}
         {d && <ShowcaseView d={d} onBook={() => { window.location.href = `/portale/trova-specialista?medico=${d.slug}`; }} bookLabel="Prenota dal Portale"
-          extra={<Availability slug={d.slug} onPick={() => { window.location.href = `/portale/trova-specialista?medico=${d.slug}`; }} />} />}
+          extra={<Availability slug={d.slug} onPick={(s) => { window.location.href = `/portale/trova-specialista?medico=${d.slug}&slot=${encodeURIComponent([s.date, s.time, s.clinic, s.service].join("|"))}`; }} />} />}
         {d && <p className="mt-6 text-center text-xs text-[#0A192F]/50">La prenotazione avviene nel Portale Paziente MantMed: se non ha un account può registrarsi in un minuto.</p>}
       </main>
     </div>

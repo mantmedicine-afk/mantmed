@@ -31,7 +31,17 @@ export const SpecialistsDirectory = ({ onBook }) => {
   const [open, setOpen] = useState(null);
   const slug = params.get("medico");
   useEffect(() => { api.publicDoctors().then(setList).catch(() => setList([])); }, []);
-  useEffect(() => { if (slug) api.publicDoctor(slug).then(setOpen).catch(() => setOpen(null)); else setOpen(null); }, [slug]);
+  const slotParam = params.get("slot");
+  useEffect(() => {
+    if (!slug) { setOpen(null); return; }
+    api.publicDoctor(slug).then((doc) => {
+      if (slotParam) {  // arrivo dalla pagina pubblica con un orario scelto: prenotazione già compilata
+        const [date, time, clinic, service] = slotParam.split("|");
+        setParams({});
+        onBook(doc.id, { date, time, clinic, service });
+      } else setOpen(doc);
+    }).catch(() => setOpen(null));
+  }, [slug]); // eslint-disable-line react-hooks/exhaustive-deps
   const show = (s) => setParams(s ? { medico: s } : {});
   const [spec, setSpec] = useState("");
   const specs = [...new Set((list ?? []).map((d) => d.specialty))].sort();

@@ -1,0 +1,36 @@
+{
+  "summary": "Tested Area Riservata (5 tabs), Bilanci di salute, Famiglia e Consensi, profile menu, Trova Specialista availability with prefilled booking, public /medico/tiziana-foti availability, and GET /api/public/doctors/{slug}/availability. Backend: 9/9 new pytest pass (test_availability.py) and 27/27 regression pass (test_showcase.py, test_portal_docs.py). The response has the right shape; the default is at most 6 slots, sorted; limit is capped at 12; an invalid service falls back to the first service ('Prima visita'); the clinic filter works, and an unknown clinic returns []; an unknown slug returns 404; slots fall within 14 days; every public slot also appears in /api/portal/slots for Aurora. Note: the slug in the review request ('app-archive-zip') is not a doctor and correctly returns 404. I tested with tiziana-foti. Frontend (genitore.demo) passes end to end. The sidebar 'Area Riservata' link goes to /portale/documenti with the title 'Area Riservata'. All 5 tabs set ?tab= and aria-selected, and deep links work. Bilanci: docs-bilanci-next ('Bilancio di salute dei 5-6 anni'), the PrevisitCard button opens the checkpoint wizard, 2 docs-bilancio-visit rows show, the bilancio PDF downloads, and 5 checkpoints show. Famiglia: the Aurora card shows birth date and sex, doctor Foti, 7 consent rows (1 Attivo, 6 Revocato), the studio revocation note, signed docs with PDF buttons, the NetworkSharing block (share-need-two) and the AddChild form at the bottom. There is no revoke button. Visite still lists 3 visits and the Referto PDF downloads; Prescrizioni shows 2 rows; Ricevute shows the empty state. Profile menu: profile-documents reads 'Area Riservata · documenti e famiglia' and goes to /portale/documenti; profile-account reads 'Impostazioni account' and goes to /portale/impostazioni. Trova Specialista: the dialog shows showcase-availability, 4 services and a clinic select (Tutti/Centro/Provincia), and slots update when filters change. Choosing the 'Bilancio di salute' service, Studio Provincia and the 15:00 slot on 2026-10-22 closed the dialog and opened the booking dialog with Aurora, Dott.ssa Foti, Studio Provincia, Bilancio di salute, 2026-10-22 and 15:00 already selected; submit was enabled. I did not submit. availability-empty renders with mocked empty data. Public page (no login): 6 slots show, and clicking one goes to /portale/trova-specialista?medico=tiziana-foti; after login that URL is kept and the dialog opens. Mobile 390: no horizontal page overflow, and the tablist scrolls (902px of content in 358px). No page errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "DocumentsArea tablist (mobile)", "issue": "At 390px, a deep link like ?tab=famiglia leaves the active tab off-screen (x=726 in a 390px viewport), so the user cannot see which tab is active. Fix: call scrollIntoView({inline:'nearest'}) on the active tab when tab changes.", "selector": "[data-testid=docs-tab-famiglia]", "priority": "LOW"},
+      {"component": "BilanciTab Referto PDF", "issue": "docs-bilancio-pdf-* calls api.portalReport directly, without the DlBtn loading state or success/error toast (Visite uses DlBtn). An error would be an unhandled promise rejection.", "selector": "[data-testid^=docs-bilancio-pdf-]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Public /medico/:slug slot click", "issue": "The chosen slot is dropped: the redirect only passes ?medico=, so after login the user sees the profile dialog and has to pick the slot again. Suggestion: also pass &slot=date|time|clinic|service and open RequestDialog with that preset.", "affected_selectors": ["[data-testid^=availability-slot-]"]}
+    ],
+    "design_issues": [
+      {"screen": "Famiglia e Consensi", "issues": ["The consent list shows every historical version (7 rows, 6 revoked), and the signed docs list is just as long. Suggest showing the active consent first and collapsing revoked history ('Mostra storico').", "Text is gender-neutral but awkward: 'Nato/a', 'Medici che lo seguono' (Aurora is female; sex is known, so the wording could adapt)."]},
+      {"screen": "RequestDialog", "issue_note": "Already there before this work", "issues": ["'Data desiderata' uses the browser's native date input rather than the shadcn Calendar."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_availability.py", "/app/test_reports/pytest/pytest_availability.xml"],
+  "action_items": [
+    "(Low) Scroll the active tab into view in the mobile tablist when it is set from ?tab=",
+    "(Low) Use DlBtn (loading and toast) for the Bilanci Referto PDF button",
+    "(Optional) Keep the chosen slot through the public page to portal redirect",
+    "(Optional) Collapse revoked consent and document history in Famiglia"
+  ],
+  "critical_code_review_comments": [
+    "showcase.availability takes at most 3 slots per clinic per day (times[:3]). The 6 returned are sorted but are not strictly the 6 earliest free slots: 09:45 on the first day is skipped in favour of slots at the other clinic. This spreads slots across clinics, which is fine if intended, but the docstring should say so.",
+    "showcase.availability runs up to 15 days × N clinics sequential free_slots calls, each making 2 Mongo queries. It is unauthenticated, so consider light caching or rate limiting.",
+    "Availability.jsx shows the 'empty' message on fetch errors too, so a network error is presented as 'no availability'.",
+    "Availability service select shows only once a.services loads; when the doctor has a single clinic the clinic select is hidden by design (verified with mocked data)."
+  ],
+  "updated_files": ["/app/backend/tests/test_availability.py"],
+  "success_rate": {"backend": "100%", "frontend": "100% (core flows); 2 low-priority UX issues"},
+  "seed_data_creation": "None. No booking requests were submitted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest with -n 0. Doctor slug is tiziana-foti, with clinics Studio Centro and Studio Provincia and services Prima visita, Bilancio di salute, Visita di controllo, Visita urgente. Aurora 6ad86e64c06e50ff4cd67d1e has 2 bilancio reports (6ad8b0f07b044c3a9c2b992f, 6ad86e64c06e50ff4cd67d23), 5 checkpoints, 7 consents (1 active) and 0 receipts. The container clock date is 2026-10-21."
+}

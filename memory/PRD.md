@@ -281,3 +281,8 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Trova Specialista: card con bio breve, 3 prestazioni, Visualizza profilo / Richiedi visita, filtri per specialita
 - Demo: pubblicati nel Portale 2 referti di Aurora (otite + bilancio 5 anni)
 - Test: iteration_29 OK
+
+## 2026-06 Area Riservata completa + disponibilita
+- Portale /portale/documenti = "Area Riservata": tab Visite, Bilanci di salute (prossimo bilancio, questionario pre-visita, bilanci, check-point), Prescrizioni, Ricevute, Famiglia e Consensi (dati figlio, medici, consensi attivi + storico, documenti firmati, condivisione, collega figlio; revoca solo tramite studio)
+- /api/public/doctors/{slug}/availability: primi 6 orari liberi in 14 giorni per prestazione/studio; Availability in Vetrina (Portale e pagina pubblica); clic -> RequestDialog precompilato (preset), anche dalla pagina pubblica via ?slot=
+- Test: iteration_30 OK + fix (scroll tab attivo, DlBtn, slot preservato, storico consensi, testi per genere)
