@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { Loader2, Send, ArrowLeft, Check, CheckCheck, Reply, Lock, Hourglass, Sparkles } from "lucide-react";
 import { MantAIButton } from "@/components/mantai/MantAI";
+import { UrgencyNotice } from "./UrgencyNotice";
 
 export const STATUS = {
   inviato: ["Ricevuto", "bg-slate-200 text-slate-700", Check],
@@ -80,6 +81,7 @@ export const Conversation = ({ data, side, onSend, onBack, header }) => {
         {msgs.map((m) => <Bubble key={m.id} m={m} mine={m.from === side} side={side} />)}
         <div ref={end} />
       </div>
+      {side === "parent" && <UrgencyNotice ownerId={data.thread.owner_id} patientId={data.thread.patient_id} className="mx-3 mt-3" />}
       <form onSubmit={send} className="flex items-end gap-2 border-t border-slate-200 p-3">
         <textarea rows={2} maxLength={4000} value={text} onChange={(e) => setText(e.target.value)} placeholder={side === "doctor" ? "Scriva la risposta al genitore…" : "Scriva un messaggio allo studio…"}
           className="min-h-[48px] flex-1 resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-night outline-none focus:border-night" data-testid="conversation-input" />

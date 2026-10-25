@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
-import { MessagesSquare, Inbox, AlertTriangle } from "lucide-react";
+import { MessagesSquare, Inbox } from "lucide-react";
 import { api, errMsg } from "@/lib/api";
 import { usePoll } from "@/hooks/usePoll";
 import { Conversation, StatusChip, when } from "@/components/portal/Conversation";
@@ -9,7 +9,7 @@ import { ReplyQueue } from "./ReplyQueue";
 const FILTERS = [{ id: "all", label: "Tutte" }, { id: "todo", label: "Da rispondere" }, { id: "done", label: "Risposte" }];
 
 const Row = ({ t, active, onOpen }) => (
-  <button onClick={() => onOpen(t.id)} className={`w-full rounded-2xl border p-3 text-left transition-colors ${active ? "border-night bg-white ring-2 ring-night/10" : t.ai_urgent ? "border-rose-400 bg-rose-50 hover:border-rose-600" : t.unread ? "border-amber-200 bg-amber-50/60 hover:border-night" : "border-slate-200 bg-white hover:border-night"}`} data-testid={`doc-thread-row-${t.id}`}>
+  <button onClick={() => onOpen(t.id)} className={`w-full rounded-2xl border p-3 text-left transition-colors ${active ? "border-night bg-white ring-2 ring-night/10" : t.unread ? "border-amber-200 bg-amber-50/60 hover:border-night" : "border-slate-200 bg-white hover:border-night"}`} data-testid={`doc-thread-row-${t.id}`}>
     <div className="flex items-start justify-between gap-2">
       <div className="min-w-0"><div className="truncate text-sm font-semibold text-night">{t.patient_name}</div><div className="truncate text-xs text-slate-600">{t.subject} · da {t.parent_name}</div></div>
       {t.unread > 0 ? <span className="grid h-6 min-w-6 place-items-center rounded-full bg-rose-600 px-1.5 text-[11px] font-bold text-white" data-testid={`doc-thread-unread-${t.id}`}>{t.unread}</span>
@@ -36,7 +36,7 @@ export const DoctorMessages = ({ onRead }) => {
     catch (e) { toast.error(errMsg(e)); return false; }
   };
   const all = Array.isArray(threads) ? threads : [];
-  const list = all.filter((t) => filter === "all" || (filter === "todo" ? t.last_from === "parent" : t.last_from === "doctor")).sort((a, b) => (b.ai_urgent ? 1 : 0) - (a.ai_urgent ? 1 : 0));
+  const list = all.filter((t) => filter === "all" || (filter === "todo" ? t.last_from === "parent" : t.last_from === "doctor"));
   const t = data?.thread;
   return (
     <section id="doctor-messages" className="mx-auto max-w-[1440px] scroll-mt-24 px-5 pb-10 lg:px-8" data-testid="doctor-messages">
@@ -48,7 +48,7 @@ export const DoctorMessages = ({ onRead }) => {
             <div className="flex gap-1 rounded-full bg-white p-1 ring-1 ring-slate-200" role="tablist">
               <button role="tab" aria-selected={view === "threads"} onClick={() => setView("threads")} className={`h-8 rounded-full px-3 text-xs font-medium transition-colors ${view === "threads" ? "bg-night text-white" : "text-slate-600 hover:text-night"}`} data-testid="doc-messages-view-threads">Conversazioni</button>
               <button role="tab" aria-selected={view === "queue"} onClick={() => { setView("queue"); loadQueue(); }} className={`flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors ${view === "queue" ? "bg-night text-white" : "text-slate-600 hover:text-night"}`} data-testid="doc-messages-view-queue">
-                Coda risposte {queue?.count > 0 && <span className={`grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[10px] font-bold text-white ${queue.urgent ? "bg-rose-600" : "bg-[#3B6CF6]"}`} data-testid="ai-queue-badge">{queue.count}</span>}
+                Coda risposte {queue?.count > 0 && <span className={`grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[10px] font-bold text-white bg-[#3B6CF6]`} data-testid="ai-queue-badge">{queue.count}</span>}
               </button>
             </div>
             {view === "threads" && <div className="flex gap-1 rounded-full bg-white p-1 ring-1 ring-slate-200" role="tablist">
@@ -56,7 +56,6 @@ export const DoctorMessages = ({ onRead }) => {
             </div>}
           </div>
         </div>
-        {queue?.urgent > 0 && <button onClick={() => setView("queue")} className="mt-4 flex w-full items-center gap-2 rounded-2xl bg-rose-600 px-4 py-3 text-left text-sm font-medium text-white" data-testid="ai-urgent-alert"><AlertTriangle size={16} /> {queue.urgent === 1 ? "1 messaggio segnalato come possibile urgenza" : `${queue.urgent} messaggi segnalati come possibile urgenza`}: apra la Coda risposte</button>}
         {view === "queue" ? <ReplyQueue queue={queue} reload={() => { loadQueue(); api.msgThreads().then(setThreads).catch(() => {}); }} onOpenThread={openThread} /> :
         <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[360px_1fr]">
           <div className={`${active ? "hidden lg:block" : ""} max-h-[560px] space-y-2 overflow-y-auto`} data-testid="doc-thread-list">

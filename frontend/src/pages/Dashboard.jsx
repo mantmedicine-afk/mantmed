@@ -61,11 +61,8 @@ export default function Dashboard() {
   const [unread, setUnread] = useState(0);
   const loadUnread = useCallback(() => api.msgSummary().then(setUnread).catch(() => {}), []);
   usePoll(loadUnread, []);
-  const [aiUrgent, setAiUrgent] = useState(null);
-  usePoll(() => api.aiQueue().then((q) => setAiUrgent((prev) => {
-    if (prev !== null && q.urgent > prev) toast.error("Messaggio segnalato come possibile urgenza", { description: "Apra Messaggi › Coda risposte", duration: 10000 });
-    return q.urgent;
-  })).catch(() => {}), []);
+  const [aiQueued, setAiQueued] = useState(0);
+  usePoll(() => api.aiQueue().then((q) => setAiQueued(q.count)).catch(() => {}), []);
 
   const load = useCallback(() => {
     api.payments().then((r) => setIncome(r.summary?.total ?? 0)).catch(() => {});
@@ -109,7 +106,7 @@ export default function Dashboard() {
   const items = [
     { id: "agenda", to: "/app", end: true, label: "Dashboard / Agenda", icon: LayoutDashboard },
     { id: "pazienti", to: "/app/pazienti", label: "Pazienti & Cartelle", icon: Users },
-    { id: "messaggi", to: "/app/messaggi", label: "Messaggi / Chat", icon: MessagesSquare, badge: unread + (aiUrgent || 0) },
+    { id: "messaggi", to: "/app/messaggi", label: "Messaggi / Chat", icon: MessagesSquare, badge: unread + aiQueued },
     { id: "visite", to: "/app/visite", label: "Bodychart / Visite", icon: PersonStanding },
     { id: "cassa", to: "/app/cassa", label: "Fatturazione & Tessera Sanitaria", icon: ReceiptText },
     { id: "impostazioni", to: "/app/impostazioni", label: "Impostazioni Account", icon: Settings },

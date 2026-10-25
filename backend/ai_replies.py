@@ -1,4 +1,4 @@
-"""MantAI Risposte: classificazione dei messaggi del portale, bozze di risposta con revisione del medico, risposte amministrative automatiche e messaggio fisso di urgenza."""
+"""MantAI Risposte: classificazione (clinico/amministrativo) dei messaggi del portale, bozze con revisione del medico, risposte amministrative automatiche, avviso fisso urgenze."""
 import asyncio
 import json
 import logging
@@ -14,21 +14,21 @@ from pydantic import BaseModel, Field
 from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
 from auth import require_role
 from crypto import seal_fields, unseal_fields
-from mailer import send_email
-from registration import mail_shell
 from messaging import HOOKS, T_SEALED, M_SEALED, add_message, notify_parents, KIND_LABEL
 
 log = logging.getLogger(__name__)
 LLM_KEY = os.environ["EMERGENT_LLM_KEY"]
 MODEL = ("anthropic", "claude-opus-5-5")
-CATS = ("urgenza", "clinico", "amministrativo")
+CATS = ("clinico", "amministrativo")
 PRUDENCE = {c: i for i, c in enumerate(CATS)}
-DEFAULT_URGENT = ("Se il bambino ha difficoltà a respirare, perde conoscenza, ha convulsioni o sta molto male, chiama subito il 112/118. "
-                  "Fuori dagli orari dello studio puoi rivolgerti alla Guardia Medica. Il tuo messaggio è stato segnalato al medico.")
-ACK = "Il tuo messaggio è stato ricevuto. Il medico ti risponderà appena possibile."
+PHONE_TAG = "[telefono studio]"
+DEFAULT_NOTICE = ("I messaggi non sono un canale per le urgenze e potrebbero essere letti dopo alcune ore. Per situazioni urgenti telefona allo studio al numero [telefono studio]. "
+                  "In caso di emergenza chiama il 112/118; fuori dagli orari dello studio rivolgiti alla Guardia Medica.")
+ACK = ("Il tuo messaggio è stato ricevuto. Il medico ti risponderà appena possibile. Per situazioni urgenti telefona allo studio al numero [telefono studio]; "
+       "in emergenza chiama il 112/118.")
 LABEL_AUTO = "Risposta automatica di MantAI"
 LABEL_SYSTEM = "Messaggio automatico di MantAI"
-KB_FIELDS = ("hours", "address", "booking", "fees", "cancellation", "signature")
+KB_FIELDS = ("hours", "address", "phone", "booking", "fees", "cancellation", "signature")
 DISCARD_TTL_DAYS = 30
 
 URGENT_RE = re.compile("|".join([
@@ -47,22 +47,24 @@ PHONE_RE = re.compile(r"\+?\d[\d \-]{7,}\d")
 SYSTEM_DRAFT = ("Sei l'assistente di segreteria di uno studio medico pediatrico/specialistico italiano. Prepari BOZZE di risposta che il medico rivedrà. "
                 "Scrivi in italiano, con un tono {tone}, in modo breve e chiaro. Non formulare diagnosi, non indicare farmaci o dosaggi, non rassicurare sull'assenza di gravità "
                 "e non sconsigliare mai una visita. Per le domande cliniche, scrivi una bozza che il medico possa completare: riconosci la domanda, poni eventuali domande utili "
-                "(da quanti giorni, febbre, come sta mangiando…) e, se opportuno, proponi di fissare una visita. Se compaiono segnali di urgenza, invita a chiamare il 112/118. "
+                "(da quanti giorni, febbre, come sta mangiando…) e, se opportuno, proponi di fissare una visita. Se il messaggio descrive una situazione che potrebbe essere urgente, "
+                "la bozza invita a telefonare subito allo studio al numero indicato o, in emergenza, a chiamare il 112/118, ricordando che i messaggi non sono un canale per le urgenze. "
                 "Per le domande amministrative usa SOLO le informazioni fornite nella base di conoscenza; se mancano, scrivi che lo studio risponderà a breve. Non inventare mai informazioni. "
-                "I segnaposto tra parentesi quadre come [BAMBINO] e [GENITORE] vanno lasciati invariati. Non dedurre il sesso del bambino: usa forme neutre (es. 'il/la bambino/a' o il segnaposto). Restituisci solo il testo della bozza in testo semplice (niente markdown, asterischi o titoli), senza firma e senza commenti.")
-SYSTEM_CLASSIFY = ("Classifica il messaggio di una famiglia allo studio medico in UNA categoria: \"amministrativo\" (orari, indirizzo, prenotare/spostare/annullare, documenti e ricevute, "
-                   "costi delle prestazioni private, uso del portale), \"clinico\" (qualsiasi riferimento a salute, sintomi, farmaci, referti, crescita, vaccini, alimentazione del bambino), "
-                   "\"urgenza\" (difficoltà respiratoria, convulsioni, perdita di coscienza, febbre in neonato sotto 3 mesi, sangue, sospetta intossicazione o ingestione, reazione allergica grave, "
-                   "trauma cranico, pensieri di autolesionismo e simili). In caso di dubbio scegli la più prudente: urgenza > clinico > amministrativo. "
-                   "Usa \"urgenza\" solo se il messaggio descrive almeno uno dei segnali di allarme elencati. Una febbre anche alta in un bambino sopra i 3 mesi, una tosse, un raffreddore, "
-                   "un vomito isolato o una domanda su quale farmaco dare, senza altri segnali di allarme, sono \"clinico\". "
-                   "Rispondi solo con JSON: {\"categoria\": \"...\", \"segnale\": \"segnale di allarme citato oppure stringa vuota\"}")
+                "I segnaposto tra parentesi quadre come [BAMBINO] e [GENITORE] vanno lasciati invariati. Non dedurre il sesso del bambino: usa forme neutre. "
+                "Restituisci solo il testo della bozza in testo semplice (niente markdown, asterischi o titoli), senza firma e senza commenti.")
+SYSTEM_CLASSIFY = ("Classifica il messaggio di una famiglia allo studio medico in UNA categoria: \"amministrativo\" (orari, indirizzo, prenotare/spostare/annullare, documenti e ricevute "
+                   "disponibili, costi delle prestazioni private, uso del portale) oppure \"clinico\" (qualsiasi riferimento a salute, sintomi, farmaci, referti, crescita, vaccini, "
+                   "alimentazione del bambino). In caso di dubbio scegli sempre \"clinico\". Rispondi solo con JSON: {\"categoria\": \"...\"}")
 SYSTEM_ADMIN = SYSTEM_DRAFT + (" Questa è una domanda amministrativa. Rispondi solo con JSON: {\"risposta_possibile\": true|false, \"testo\": \"...\"}. "
                                "risposta_possibile è true SOLO se tutte le informazioni necessarie sono scritte esplicitamente nella base di conoscenza; altrimenti false.")
 
 
 def _now():
     return datetime.now(timezone.utc).isoformat()
+
+
+def with_phone(text: str, phone: str) -> str:
+    return text.replace(f"al numero {PHONE_TAG}", f"al numero {phone}" if phone else "").replace(PHONE_TAG, phone or "dello studio").replace(" .", ".").replace(" ;", ";")
 
 
 def prudent(*cats) -> str:
@@ -137,7 +139,7 @@ EMPTY_KB = "(base di conoscenza vuota)"
 
 
 def kb_text(kb: dict) -> str:
-    rows = [("Orari", kb.get("hours")), ("Indirizzo", kb.get("address")), ("Prenotazioni", kb.get("booking")), ("Tariffe prestazioni private", kb.get("fees")),
+    rows = [("Orari", kb.get("hours")), ("Indirizzo", kb.get("address")), ("Telefono per le urgenze negli orari dello studio", kb.get("phone")), ("Prenotazioni", kb.get("booking")), ("Tariffe prestazioni private", kb.get("fees")),
             ("Politica di cancellazione", kb.get("cancellation"))]
     rows += [(f"FAQ: {f.get('q', '')}", f.get("a")) for f in kb.get("faqs") or []]
     filled = [f"- {k}: {v.strip()}" for k, v in rows if (v or "").strip()]
@@ -148,7 +150,7 @@ class SettingsIn(BaseModel):
     clinic: str = Field(min_length=1, max_length=120)
     enabled: bool = False
     auto_admin: bool = False
-    urgent_text: str = Field(default=DEFAULT_URGENT, min_length=20, max_length=800)
+    notice_text: str = Field(default=DEFAULT_NOTICE, min_length=20, max_length=800)
 
 
 class FaqIn(BaseModel):
@@ -160,6 +162,7 @@ class KbIn(BaseModel):
     clinic: str = Field(min_length=1, max_length=120)
     hours: str = Field(default="", max_length=1500)
     address: str = Field(default="", max_length=500)
+    phone: str = Field(default="", max_length=40)
     booking: str = Field(default="", max_length=1500)
     fees: str = Field(default="", max_length=1500)
     cancellation: str = Field(default="", max_length=1500)
@@ -174,7 +177,7 @@ class ApproveIn(BaseModel):
 
 
 class CategoryIn(BaseModel):
-    category: Literal["urgenza", "clinico", "amministrativo"]
+    category: Literal["clinico", "amministrativo"]
 
 
 class ClinicIn(BaseModel):
@@ -183,6 +186,7 @@ class ClinicIn(BaseModel):
 
 def build_ai_replies(db, current_user):
     r = APIRouter(prefix="/ai-replies", dependencies=[Depends(require_role(current_user, "doctor"))])
+    parent = APIRouter(prefix="/portal", dependencies=[Depends(require_role(current_user, "parent"))])
 
     async def audit(owner: str, action: str, message_id: str, actor: Optional[str] = None, **extra):
         label = f"Messaggio {message_id}" if message_id != "-" else f"Impostazioni {extra.get('clinic', '')}".strip()
@@ -195,7 +199,7 @@ def build_ai_replies(db, current_user):
 
     async def settings_of(owner: str, clinic: str) -> dict:
         s = await db.ai_reply_settings.find_one({"owner_id": owner, "clinic": clinic}) or {}
-        return {"clinic": clinic, "enabled": bool(s.get("enabled")), "auto_admin": bool(s.get("auto_admin")), "urgent_text": s.get("urgent_text") or DEFAULT_URGENT}
+        return {"clinic": clinic, "enabled": bool(s.get("enabled")), "auto_admin": bool(s.get("auto_admin")), "notice_text": s.get("notice_text") or DEFAULT_NOTICE}
 
     async def kb_of(owner: str, clinic: str) -> dict:
         k = unseal_fields(await db.ai_knowledge_base.find_one({"owner_id": owner, "clinic": clinic}) or {}, (*KB_FIELDS, "faqs"))
@@ -211,17 +215,14 @@ def build_ai_replies(db, current_user):
 
     async def refresh_thread(tid: str):
         pending = await db.ai_reply_drafts.find({"thread_id": tid, "status": "in_attesa"}).to_list(50)
-        await db.threads.update_one({"_id": ObjectId(tid)}, {"$set": {"ai_pending": bool(pending), "ai_urgent": any(d["category"] == "urgenza" for d in pending)}})
+        await db.threads.update_one({"_id": ObjectId(tid)}, {"$set": {"ai_pending": bool(pending), "ai_urgent": False}})
 
-    async def urgent_alert(t: dict):
-        d = await db.users.find_one({"_id": ObjectId(t["owner_id"])}) or {}
-        if d.get("email"):
-            try:
-                await send_email(to=d["email"], subject="MantMed · messaggio da gestire con priorità", html=mail_shell("AVVISO PRIORITARIO",
-                    "<p>Un messaggio ricevuto nel Portale Paziente è stato segnalato come <strong>possibile urgenza</strong>.</p>"
-                    "<p>Acceda a MantMed › Messaggi › Coda risposte. Per riservatezza questa email non contiene dati clinici.</p>"))
-            except Exception:  # noqa: BLE001
-                log.exception("Email urgenza non inviata")
+    async def phone_of(owner: str, clinic: str) -> str:
+        kb = await kb_of(owner, clinic)
+        if kb["phone"].strip():
+            return kb["phone"].strip()
+        d = await db.users.find_one({"_id": ObjectId(owner)}, {"profile": 1}) or {}
+        return (unseal_fields(d.get("profile") or {}, ("phone",)).get("phone") or "").strip()
 
     async def generate(system: str, ps: Pseudo, kb: dict, age: str, history: list, current: str) -> str:
         hist = "\n".join(f"{'Famiglia' if m['from'] == 'parent' else 'Studio'}: {ps.hide(m['body'])}" for m in history)
@@ -249,23 +250,25 @@ def build_ai_replies(db, current_user):
             kb = await kb_of(t["owner_id"], clinic)
             kb_all = kb_all_text([await kb_of(t["owner_id"], c) for c in await clinics_of(t["owner_id"])])
             ps = Pseudo(names["patient_name"], names["parent_name"])
-            keyword = "urgenza" if URGENT_RE.search(current) else None
+            hint = bool(URGENT_RE.search(current))
+            phone = await phone_of(t["owner_id"], clinic)
+            ack = with_phone(ACK, phone)
             try:
                 ai_cat = _json(await llm(SYSTEM_CLASSIFY, f"Età del bambino: {age}\nMessaggio:\n{ps.hide(current)}")).get("categoria")
             except Exception:  # noqa: BLE001
                 log.exception("Classificazione MantAI non riuscita")
                 ai_cat = None
-            if ai_cat is None and not keyword:
-                return
-            cat = prudent(ai_cat, keyword or "amministrativo") if ai_cat else "urgenza"
+            cat = "clinico" if hint or ai_cat not in PRUDENCE else ai_cat
             await db.threads.update_one({"_id": t["_id"]}, {"$set": {"ai_category": cat}})
-            await audit(t["owner_id"], "mantai_classificazione", mid, category=cat, keyword_hit=bool(keyword))
-            base = {"message_id": mid, "thread_id": tid, "doctor_id": t["owner_id"], "studio_id": clinic, "category": cat, "created_at": m["created_at"], "updated_at": _now(), "editor_id": None}
-            if cat == "urgenza":
-                await add_message(db, t, "system", "MantAI", st["urgent_text"], ai_label=LABEL_SYSTEM)
-                await audit(t["owner_id"], "mantai_messaggio_urgenza_inviato", mid)
-                await db.threads.update_one({"_id": t["_id"]}, {"$set": {"ai_urgent": True, "ai_pending": True}})
-                asyncio.create_task(urgent_alert(t))
+            await audit(t["owner_id"], "mantai_classificazione", mid, category=cat, ai_ok=ai_cat is not None, possible_urgency=hint)
+            if ai_cat is None:
+                await add_message(db, t, "system", "MantAI", ack, ai_label=LABEL_SYSTEM)
+                await audit(t["owner_id"], "mantai_conferma_ricezione_inviata", mid)
+                return
+            base = {"message_id": mid, "thread_id": tid, "doctor_id": t["owner_id"], "studio_id": clinic, "category": cat, "urgent_hint": hint,
+                    "created_at": m["created_at"], "updated_at": _now(), "editor_id": None}
+            if phone and phone not in kb_all:
+                kb_all += f"\n- Telefono dello studio: {phone}"
             if cat == "amministrativo" and st["auto_admin"] and kb_all != EMPTY_KB:
                 try:
                     res = _json(await generate(SYSTEM_ADMIN.replace("{tone}", tone_text({"tone": kb["tone"], "address": kb["address_form"]})), ps, kb_all, age, history, current))
@@ -280,17 +283,17 @@ def build_ai_replies(db, current_user):
                     await notify_parents(db, t["patient_id"], t["owner_id"], "reply", f"{t.get('doctor_name', 'Lo studio')} ha risposto", KIND_LABEL[t["kind"]], ref=tid, only=t["parent_id"])
                     await audit(t["owner_id"], "mantai_invio_automatico", mid)
                     return
+            extra = "\nNota: il messaggio potrebbe descrivere una situazione urgente." if hint else ""
             try:
-                draft = await generate(SYSTEM_DRAFT.replace("{tone}", tone_text({"tone": kb["tone"], "address": kb["address_form"]})), ps, kb_all, age, history, current)
+                draft = await generate(SYSTEM_DRAFT.replace("{tone}", tone_text({"tone": kb["tone"], "address": kb["address_form"]})), ps, kb_all + extra, age, history, current)
                 draft = ps.show(draft.replace("**", "")) + (f"\n\n{kb['signature']}" if kb["signature"] else "")
-                failed = False
+                await db.ai_reply_drafts.insert_one({**base, "status": "in_attesa", **seal_fields({"text": draft}, ("text",))})
+                await audit(t["owner_id"], "mantai_bozza_generata", mid, category=cat)
             except Exception:  # noqa: BLE001
                 log.exception("Bozza MantAI non generata")
-                draft, failed = "", True
-            await db.ai_reply_drafts.insert_one({**base, "status": "in_attesa", "ai_failed": failed, **seal_fields({"text": draft}, ("text",))})
-            await audit(t["owner_id"], "mantai_bozza_generata" if not failed else "mantai_bozza_non_generata", mid, category=cat)
-            if cat != "urgenza":
-                await add_message(db, t, "system", "MantAI", ACK, ai_label=LABEL_SYSTEM)
+                await audit(t["owner_id"], "mantai_bozza_non_generata", mid, category=cat)
+            await add_message(db, t, "system", "MantAI", ack, ai_label=LABEL_SYSTEM)
+            await audit(t["owner_id"], "mantai_conferma_ricezione_inviata", mid)
             await refresh_thread(tid)
         except Exception:  # noqa: BLE001
             log.exception("Elaborazione MantAI Risposte non riuscita")
@@ -316,7 +319,7 @@ def build_ai_replies(db, current_user):
         m = await db.messages.find_one({"_id": ObjectId(d["message_id"])}) or {}
         mu = unseal_fields(m, M_SEALED) if m else {}
         out = {"id": str(d["_id"]), "message_id": d["message_id"], "thread_id": d["thread_id"], "clinic": d["studio_id"], "category": d["category"], "status": d["status"],
-               "created_at": d["created_at"], "ai_failed": bool(d.get("ai_failed")), "patient_name": names.get("patient_name", ""), "parent_name": names.get("parent_name", ""),
+               "created_at": d["created_at"], "ai_failed": bool(d.get("ai_failed")), "urgent_hint": bool(d.get("urgent_hint")), "patient_name": names.get("patient_name", ""), "parent_name": names.get("parent_name", ""),
                "subject": names.get("subject", ""), "original": mu.get("body", ""), "fields": mu.get("fields") or []}
         if full:
             hist = await db.messages.find({"thread_id": d["thread_id"], "created_at": {"$lt": d["created_at"]}}).sort("created_at", -1).limit(5).to_list(5)
@@ -335,11 +338,11 @@ def build_ai_replies(db, current_user):
         await db.ai_reply_drafts.delete_many({"status": "scartata", "discarded_at": {"$lt": (datetime.now(timezone.utc) - timedelta(days=DISCARD_TTL_DAYS)).isoformat()}})
         items = [await draft_out(d) async for d in db.ai_reply_drafts.find({"doctor_id": user["id"], "status": "in_attesa"})]
         items.sort(key=lambda x: (PRUDENCE[x["category"]], x["created_at"]))
-        return {"items": items, "count": len(items), "urgent": sum(1 for x in items if x["category"] == "urgenza")}
+        return {"items": items, "count": len(items)}
 
     @r.get("/settings")
     async def get_settings(user: dict = Depends(current_user)):
-        return {"clinics": [await settings_of(user["id"], c) for c in await clinics_of(user["id"])], "default_urgent": DEFAULT_URGENT}
+        return {"clinics": [await settings_of(user["id"], c) for c in await clinics_of(user["id"])], "default_notice": DEFAULT_NOTICE}
 
     @r.put("/settings")
     async def put_settings(body: SettingsIn, user: dict = Depends(current_user)):
@@ -418,4 +421,19 @@ def build_ai_replies(db, current_user):
         await audit(user["id"], "mantai_studio_corretto", d["message_id"], user["id"], clinic=body.clinic)
         return {"clinic": body.clinic}
 
-    return r
+    @parent.get("/ai-notice")
+    async def notice(owner_id: str, patient_id: Optional[str] = None, user: dict = Depends(current_user)):
+        u = await db.users.find_one({"_id": ObjectId(user["id"])}, {"children": 1}) or {}
+        kids = [c for c in u.get("children", []) if c["owner_id"] == owner_id and (not patient_id or c["patient_id"] == patient_id)]
+        if not kids:
+            raise HTTPException(404, "Studio non collegato")
+        t = {"owner_id": owner_id, "patient_id": kids[0]["patient_id"]}
+        clinic = await clinic_for(t)
+        st = await settings_of(owner_id, clinic)
+        return {"text": with_phone(st["notice_text"], await phone_of(owner_id, clinic)), "clinic": clinic}
+
+    async def migrate():
+        await db.ai_reply_drafts.update_many({"category": "urgenza"}, {"$set": {"category": "clinico", "urgent_hint": True}})
+        await db.threads.update_many({"$or": [{"ai_urgent": True}, {"ai_category": "urgenza"}]}, {"$set": {"ai_urgent": False, "ai_category": "clinico"}})
+
+    return r, parent, migrate

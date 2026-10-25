@@ -182,6 +182,7 @@ export const api = {
   msgThreads: () => http.get("/messages/threads").then(list),
   msgThread: (id) => http.get(`/messages/threads/${id}`).then((r) => r.data),
   aiQueue: () => http.get("/ai-replies/queue").then((r) => r.data),
+  portalAiNotice: (owner_id, patient_id) => http.get("/portal/ai-notice", { params: { owner_id, patient_id } }).then((r) => r.data),
   aiDraft: (id) => http.get(`/ai-replies/${id}`).then((r) => r.data),
   aiApprove: (id, text) => http.post(`/ai-replies/${id}/approve`, { text }).then((r) => r.data),
   aiDiscard: (id) => http.post(`/ai-replies/${id}/discard`).then((r) => r.data),

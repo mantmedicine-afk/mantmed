@@ -521,6 +521,7 @@ async def resume_consult_jobs():
             await db.consultations.update_one({"_id": d["_id"]}, {"$set": {"status": "failed", "ai_error": "Elaborazione interrotta: incolli la trascrizione o compili la cartella a mano"}})
     asyncio.ensure_future(sweep_audio_loop())
     asyncio.ensure_future(team_migrate())
+    asyncio.ensure_future(ai_migrate())
 
 
 async def sweep_audio():
@@ -1693,7 +1694,9 @@ public_api.include_router(net_parent)
 api.include_router(net_doctor)
 team_doctor, team_parent, team_migrate = build_team(db, current_user, Consultation, portal_pdf_for)
 api.include_router(team_doctor)
-api.include_router(build_ai_replies(db, current_user))
+ai_doctor, ai_parent, ai_migrate = build_ai_replies(db, current_user)
+api.include_router(ai_doctor)
+public_api.include_router(ai_parent)
 public_api.include_router(team_parent)
 api.include_router(flow_doctor)
 msg_parent, msg_doctor = build_messaging(db, current_user)

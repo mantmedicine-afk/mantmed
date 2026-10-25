@@ -9,7 +9,7 @@ const ACTION = { accesso_passaporto: "Accesso al passaporto", referto_pdf: "Refe
   medicina_squadra_nota: "Medicina di squadra · nota di squadra di", medicina_squadra_richiesta: "Medicina di squadra · richiesta di accesso da",
   medicina_squadra_delega_firmata: "Medicina di squadra · delega firmata per", medicina_squadra_delega_revocata: "Medicina di squadra · delega revocata",
   medicina_squadra_delega_rifiutata: "Medicina di squadra · richiesta rifiutata",
-  mantai_classificazione: "MantAI Risposte · messaggio classificato", mantai_messaggio_urgenza_inviato: "MantAI Risposte · messaggio di urgenza inviato",
+  mantai_classificazione: "MantAI Risposte · messaggio classificato", mantai_conferma_ricezione_inviata: "MantAI Risposte · conferma di ricezione inviata",
   mantai_bozza_generata: "MantAI Risposte · bozza generata", mantai_bozza_non_generata: "MantAI Risposte · bozza non generata (errore AI)",
   mantai_bozza_modificata: "MantAI Risposte · bozza modificata", mantai_bozza_approvata_inviata: "MantAI Risposte · bozza approvata e inviata",
   mantai_bozza_scartata: "MantAI Risposte · bozza scartata", mantai_bozza_gestita_senza_risposta: "MantAI Risposte · gestito senza risposta",
