@@ -49,12 +49,14 @@ SYSTEM_DRAFT = ("Sei l'assistente di segreteria di uno studio medico pediatrico/
                 "e non sconsigliare mai una visita. Per le domande cliniche, scrivi una bozza che il medico possa completare: riconosci la domanda, poni eventuali domande utili "
                 "(da quanti giorni, febbre, come sta mangiando…) e, se opportuno, proponi di fissare una visita. Se compaiono segnali di urgenza, invita a chiamare il 112/118. "
                 "Per le domande amministrative usa SOLO le informazioni fornite nella base di conoscenza; se mancano, scrivi che lo studio risponderà a breve. Non inventare mai informazioni. "
-                "I segnaposto come [BAMBINO] e [GENITORE] vanno lasciati invariati. Restituisci solo il testo della bozza in testo semplice (niente markdown, asterischi o titoli), senza firma e senza commenti.")
+                "I segnaposto tra parentesi quadre come [BAMBINO] e [GENITORE] vanno lasciati invariati. Non dedurre il sesso del bambino: usa forme neutre (es. 'il/la bambino/a' o il segnaposto). Restituisci solo il testo della bozza in testo semplice (niente markdown, asterischi o titoli), senza firma e senza commenti.")
 SYSTEM_CLASSIFY = ("Classifica il messaggio di una famiglia allo studio medico in UNA categoria: \"amministrativo\" (orari, indirizzo, prenotare/spostare/annullare, documenti e ricevute, "
                    "costi delle prestazioni private, uso del portale), \"clinico\" (qualsiasi riferimento a salute, sintomi, farmaci, referti, crescita, vaccini, alimentazione del bambino), "
                    "\"urgenza\" (difficoltà respiratoria, convulsioni, perdita di coscienza, febbre in neonato sotto 3 mesi, sangue, sospetta intossicazione o ingestione, reazione allergica grave, "
                    "trauma cranico, pensieri di autolesionismo e simili). In caso di dubbio scegli la più prudente: urgenza > clinico > amministrativo. "
-                   "Rispondi solo con JSON: {\"categoria\": \"...\"}")
+                   "Usa \"urgenza\" solo se il messaggio descrive almeno uno dei segnali di allarme elencati. Una febbre anche alta in un bambino sopra i 3 mesi, una tosse, un raffreddore, "
+                   "un vomito isolato o una domanda su quale farmaco dare, senza altri segnali di allarme, sono \"clinico\". "
+                   "Rispondi solo con JSON: {\"categoria\": \"...\", \"segnale\": \"segnale di allarme citato oppure stringa vuota\"}")
 SYSTEM_ADMIN = SYSTEM_DRAFT + (" Questa è una domanda amministrativa. Rispondi solo con JSON: {\"risposta_possibile\": true|false, \"testo\": \"...\"}. "
                                "risposta_possibile è true SOLO se tutte le informazioni necessarie sono scritte esplicitamente nella base di conoscenza; altrimenti false.")
 
@@ -91,22 +93,28 @@ async def llm(system: str, text: str) -> str:
 
 class Pseudo:
     def __init__(self, child: str, parent: str):
-        self.map = []
-        for full, tag in ((child, "[BAMBINO]"), (parent, "[GENITORE]")):
-            parts = [p for p in (full or "").split() if len(p) > 2]
-            for token in sorted({full.strip(), *parts}, key=len, reverse=True):
-                if token:
-                    self.map.append((re.compile(rf"\b{re.escape(token)}\b", re.I), tag, full.split()[0] if full else ""))
+        c, g = (child or "").split(), (parent or "").split()
+        self.back = {"[BAMBINO]": c[0] if c else "", "[GENITORE]": g[0] if g else ""}
+        tokens = []
+        for parts, first_tag, sur_tag in ((c, "[BAMBINO]", "[COGNOME BAMBINO]"), (g, "[GENITORE]", "[COGNOME GENITORE]")):
+            if parts:
+                tokens.append((parts[0], first_tag))
+                for sur in parts[1:]:
+                    tag = "[COGNOME]" if sur.lower() in {x.lower() for x in (c[1:] if parts is g else g[1:])} else sur_tag
+                    tokens.append((sur, tag))
+                    self.back[tag] = sur
+        self.map = [(re.compile(rf"\b{re.escape(t)}\b", re.I), tag) for t, tag in sorted(tokens, key=lambda x: len(x[0]), reverse=True) if len(t) > 1]
 
     def hide(self, text: str) -> str:
-        for rx, tag, _ in self.map:
+        text = PHONE_RE.sub("[TELEFONO]", EMAIL_RE.sub("[EMAIL]", CF_RE.sub("[CODICE FISCALE]", text)))
+        for rx, tag in self.map:
             text = rx.sub(tag, text)
-        return PHONE_RE.sub("[TELEFONO]", EMAIL_RE.sub("[EMAIL]", CF_RE.sub("[CODICE FISCALE]", text)))
+        return text
 
     def show(self, text: str) -> str:
-        for _, tag, first in self.map:
-            if first:
-                text = text.replace(tag, first)
+        for tag, val in self.back.items():
+            if val:
+                text = text.replace(tag, val)
         return text
 
 
@@ -120,12 +128,20 @@ def age_text(birth: Optional[str]) -> str:
     return f"{months} mesi" if months < 24 else f"{months // 12} anni"
 
 
+def kb_all_text(kbs: list) -> str:
+    parts = [f"[{k['clinic']}]\n{kb_text(k)}" for k in kbs if kb_text(k) != EMPTY_KB]
+    return "\n\n".join(parts) if parts else EMPTY_KB
+
+
+EMPTY_KB = "(base di conoscenza vuota)"
+
+
 def kb_text(kb: dict) -> str:
     rows = [("Orari", kb.get("hours")), ("Indirizzo", kb.get("address")), ("Prenotazioni", kb.get("booking")), ("Tariffe prestazioni private", kb.get("fees")),
             ("Politica di cancellazione", kb.get("cancellation"))]
     rows += [(f"FAQ: {f.get('q', '')}", f.get("a")) for f in kb.get("faqs") or []]
     filled = [f"- {k}: {v.strip()}" for k, v in rows if (v or "").strip()]
-    return "\n".join(filled) if filled else "(base di conoscenza vuota)"
+    return "\n".join(filled) if filled else EMPTY_KB
 
 
 class SettingsIn(BaseModel):
@@ -169,7 +185,8 @@ def build_ai_replies(db, current_user):
     r = APIRouter(prefix="/ai-replies", dependencies=[Depends(require_role(current_user, "doctor"))])
 
     async def audit(owner: str, action: str, message_id: str, actor: Optional[str] = None, **extra):
-        await db.audit.insert_one({"action": action, "subject": seal_fields({"s": f"Messaggio {message_id}"}, ("s",))["s"], "at": _now(), "owner_id": owner,
+        label = f"Messaggio {message_id}" if message_id != "-" else f"Impostazioni {extra.get('clinic', '')}".strip()
+        await db.audit.insert_one({"action": action, "subject": seal_fields({"s": label}, ("s",))["s"], "at": _now(), "owner_id": owner,
                                    "actor_id": actor or "mantai", "message_id": message_id, **extra})
 
     async def clinics_of(owner: str) -> list:
@@ -208,7 +225,7 @@ def build_ai_replies(db, current_user):
 
     async def generate(system: str, ps: Pseudo, kb: dict, age: str, history: list, current: str) -> str:
         hist = "\n".join(f"{'Famiglia' if m['from'] == 'parent' else 'Studio'}: {ps.hide(m['body'])}" for m in history)
-        return await llm(system, f"Base di conoscenza dello studio:\n{kb_text(kb)}\n\nEtà del bambino: {age}\n\nUltimi messaggi:\n{hist or '(nessuno)'}\n\nMessaggio da gestire:\n{ps.hide(current)}")
+        return await llm(system, f"Base di conoscenza (per ogni studio/sede):\n{kb}\n\nEtà del bambino: {age}\n\nUltimi messaggi:\n{hist or '(nessuno)'}\n\nMessaggio da gestire:\n{ps.hide(current)}")
 
     async def process(tid: str, mid: str):
         try:
@@ -230,10 +247,11 @@ def build_ai_replies(db, current_user):
             p = await db.patients.find_one({"_id": ObjectId(t["patient_id"])}, {"birth_date": 1}) or {}
             age = age_text(unseal_fields(p, ("birth_date",)).get("birth_date"))
             kb = await kb_of(t["owner_id"], clinic)
+            kb_all = kb_all_text([await kb_of(t["owner_id"], c) for c in await clinics_of(t["owner_id"])])
             ps = Pseudo(names["patient_name"], names["parent_name"])
             keyword = "urgenza" if URGENT_RE.search(current) else None
             try:
-                ai_cat = _json(await llm(SYSTEM_CLASSIFY, ps.hide(current))).get("categoria")
+                ai_cat = _json(await llm(SYSTEM_CLASSIFY, f"Età del bambino: {age}\nMessaggio:\n{ps.hide(current)}")).get("categoria")
             except Exception:  # noqa: BLE001
                 log.exception("Classificazione MantAI non riuscita")
                 ai_cat = None
@@ -248,9 +266,9 @@ def build_ai_replies(db, current_user):
                 await audit(t["owner_id"], "mantai_messaggio_urgenza_inviato", mid)
                 await db.threads.update_one({"_id": t["_id"]}, {"$set": {"ai_urgent": True, "ai_pending": True}})
                 asyncio.create_task(urgent_alert(t))
-            if cat == "amministrativo" and st["auto_admin"] and kb_text(kb) != "(base di conoscenza vuota)":
+            if cat == "amministrativo" and st["auto_admin"] and kb_all != EMPTY_KB:
                 try:
-                    res = _json(await generate(SYSTEM_ADMIN.replace("{tone}", tone_text({"tone": kb["tone"], "address": kb["address_form"]})), ps, kb, age, history, current))
+                    res = _json(await generate(SYSTEM_ADMIN.replace("{tone}", tone_text({"tone": kb["tone"], "address": kb["address_form"]})), ps, kb_all, age, history, current))
                 except Exception:  # noqa: BLE001
                     log.exception("Risposta amministrativa MantAI non riuscita")
                     res = {}
@@ -263,7 +281,7 @@ def build_ai_replies(db, current_user):
                     await audit(t["owner_id"], "mantai_invio_automatico", mid)
                     return
             try:
-                draft = await generate(SYSTEM_DRAFT.replace("{tone}", tone_text({"tone": kb["tone"], "address": kb["address_form"]})), ps, kb, age, history, current)
+                draft = await generate(SYSTEM_DRAFT.replace("{tone}", tone_text({"tone": kb["tone"], "address": kb["address_form"]})), ps, kb_all, age, history, current)
                 draft = ps.show(draft.replace("**", "")) + (f"\n\n{kb['signature']}" if kb["signature"] else "")
                 failed = False
             except Exception:  # noqa: BLE001

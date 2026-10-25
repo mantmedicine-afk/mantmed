@@ -9,7 +9,7 @@ export const CAT = {
   clinico: ["Clinico", "bg-amber-100 text-amber-900"],
   amministrativo: ["Amministrativo", "bg-sky-100 text-sky-900"],
 };
-const VISIT_RE = /(fissare|prenotare|programmare|organizzare)[^.?!]*\b(visita|appuntamento|controllo)|\b(visita|appuntamento|controllo) in studio/i;
+const VISIT_RE = /\b(fiss|prenot|programm|organizz|propon|consigli|vedere|valut)\w*[^.?!]*\b(visita|appuntamento|controllo)|\b(visita|appuntamento|controllo) in studio|\bvenire in studio/i;
 
 const CatChip = ({ c, testId }) => <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${CAT[c][1]}`} data-testid={testId}>{CAT[c][0]}</span>;
 
@@ -30,15 +30,15 @@ const QueueRow = ({ d, onOpen }) => (
   </button>
 );
 
-const DraftEditor = ({ id, onDone, onBack, onOpenThread }) => {
+const DraftEditor = ({ id, onDone, onBack, onOpenThread, onChanged }) => {
   const [d, setD] = useState(null);
   const [text, setText] = useState("");
   const [edit, setEdit] = useState(false);
   const [busy, setBusy] = useState("");
   useEffect(() => { setD(null); setEdit(false); api.aiDraft(id).then((x) => { setD(x); setText(x.text); setEdit(!x.text); }).catch((e) => toast.error(errMsg(e))); }, [id]);
   if (!d) return <div className="grid min-h-[300px] place-items-center"><Loader2 className="animate-spin text-night" /></div>;
-  const run = async (key, fn, msg) => { setBusy(key); try { const r = await fn(); toast.success(msg); onDone(r); } catch (e) { toast.error(errMsg(e)); } setBusy(""); };
-  const patch = async (fn, val, msg) => { try { await fn(id, val); setD((x) => ({ ...x, ...(fn === api.aiCategory ? { category: val } : { clinic: val }) })); toast.success(msg); } catch (e) { toast.error(errMsg(e)); } };
+  const run = async (key, fn, msg) => { setBusy(key); try { const r = await fn(); toast.success(msg); onDone(r); setBusy(""); return true; } catch (e) { toast.error(errMsg(e)); setBusy(""); return false; } };
+  const patch = async (fn, val, msg) => { try { await fn(id, val); setD((x) => ({ ...x, ...(fn === api.aiCategory ? { category: val } : { clinic: val }) })); toast.success(msg); onChanged(); } catch (e) { toast.error(errMsg(e)); } };
   const sel = "h-9 rounded-full border border-slate-200 bg-white px-3 text-xs text-night outline-none focus:border-night";
   return (
     <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 sm:p-5" data-testid="ai-draft-editor">
@@ -67,7 +67,7 @@ const DraftEditor = ({ id, onDone, onBack, onOpenThread }) => {
         {!edit && <button onClick={() => run("ok", () => api.aiApprove(id, text), "Risposta approvata e inviata")} disabled={!!busy || text.trim().length < 2} className="flex h-11 items-center gap-2 rounded-full bg-night px-5 text-sm font-semibold text-white disabled:opacity-50" data-testid="ai-draft-approve">{busy === "ok" ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} Approva e invia</button>}
         {edit ? <button onClick={() => run("ok", () => api.aiApprove(id, text), "Risposta modificata e inviata")} disabled={!!busy || text.trim().length < 2} className="flex h-11 items-center gap-2 rounded-full bg-night px-5 text-sm font-semibold text-white disabled:opacity-50" data-testid="ai-draft-edit-send">{busy === "ok" ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} Invia la versione modificata</button>
           : <button onClick={() => setEdit(true)} className="flex h-11 items-center gap-2 rounded-full border border-slate-200 px-5 text-sm text-night hover:border-night" data-testid="ai-draft-edit"><PencilLine size={15} /> Modifica e invia</button>}
-        <button onClick={() => run("x", () => api.aiDiscard(id), "Bozza scartata").then(() => onOpenThread(d.thread_id))} disabled={!!busy} className="flex h-11 items-center gap-2 rounded-full border border-slate-200 px-5 text-sm text-night hover:border-night" data-testid="ai-draft-discard"><Trash2 size={15} /> Scarta e rispondi da zero</button>
+        <button onClick={() => run("x", () => api.aiDiscard(id), "Bozza scartata").then((ok) => ok && onOpenThread(d.thread_id))} disabled={!!busy} className="flex h-11 items-center gap-2 rounded-full border border-slate-200 px-5 text-sm text-night hover:border-night" data-testid="ai-draft-discard"><Trash2 size={15} /> Scarta e rispondi da zero</button>
         <button onClick={() => run("h", () => api.aiHandled(id), "Segnato come gestito")} disabled={!!busy} className="flex h-11 items-center gap-2 rounded-full border border-slate-200 px-5 text-sm text-slate-600 hover:border-night" data-testid="ai-draft-handled"><CheckCheck size={15} /> Segna come gestito senza risposta</button>
       </div>
     </div>
@@ -86,7 +86,7 @@ export const ReplyQueue = ({ queue, reload, onOpenThread }) => {
         {items.map((d) => <QueueRow key={d.id} d={d} onOpen={setActive} />)}
       </div>
       <div className={`${active ? "flex" : "hidden lg:flex"} min-h-[300px] overflow-hidden rounded-2xl border border-slate-200 bg-white`}>
-        {active ? <DraftEditor key={active} id={active} onDone={done} onBack={() => setActive(null)} onOpenThread={onOpenThread} />
+        {active ? <DraftEditor key={active} id={active} onDone={done} onBack={() => setActive(null)} onOpenThread={onOpenThread} onChanged={reload} />
           : <div className="grid flex-1 place-items-center p-6 text-center text-sm text-slate-600">Selezioni una bozza: nessuna risposta clinica viene inviata senza la sua approvazione.</div>}
       </div>
     </div>

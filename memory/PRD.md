@@ -351,3 +351,9 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - 10 clip reali registrate con Playwright sull'app demo: /app/frontend/public/tour/{doctor,patient}-{1..5}.{webm,mp4,jpg} (~2.9 MB totali, 9-12s, senza audio)
 - Generatore: /app/scripts/record_tour_videos.py (venv /tmp/pwenv con playwright + imageio-ffmpeg; da rilanciare se cambia l'interfaccia)
 - components/tour/TourVideo.jsx: anteprima in loop nella scheda (≥640px), autoplay disattivato con saveData/rete cellulare; su telefono solo poster, il video si carica al tocco; schermo intero con controlli; frecce/Esc non muovono il tour mentre il video è a schermo intero
+
+## 2026-06 · MantAI Risposte (iteration_41 + fix verificati via curl)
+- backend/ai_replies.py (Claude Opus 5.5 via Emergent key): classificazione AI + regex urgenza (prudenza urgenza>clinico>amministrativo), bozze cifrate (ai_reply_drafts), ai_reply_settings/ai_knowledge_base per sede, messaggio urgenza fisso, invio automatico amministrativo solo da KB (tutte le sedi), pseudonimizzazione (CF/email/tel poi nomi, cognome condiviso), audit mantai_* con message_id/actor_id, scartate cancellate dopo 30gg
+- messaging.py: add_message a livello modulo, HOOKS parent_message/doctor_reply, messaggi from="system", ai_label, stato thread "in_attesa", campi ai_* nel thread lato medico
+- UI: DoctorMessages tab "Coda risposte" (ReplyQueue.jsx), banner urgenza, badge, toast; Impostazioni › MantAI Risposte (AiRepliesSection.jsx); portale etichette + "Come funziona"; MantAI dialog sezione; /privacy sezione + fornitore Anthropic
+- Stato demo: funzione DISATTIVATA su entrambe le sedi (default)

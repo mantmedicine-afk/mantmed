@@ -1,0 +1,50 @@
+{
+  "summary": "Tested MantAI Risposte end to end (backend and frontend). New pytest suite /app/backend/tests/test_ai_replies.py: 10/10 passed on the final run with -n 0. That run used one built-in retry for A1 because of LLM flakiness. Results by acceptance criterion: A2 auto admin reply OK. A3 missing KB gives an admin draft with no invented hours. A4 urgency OK: immediate fixed text, ai_urgent, urgent at top of the queue. A5 disabled: no system messages or drafts, status inviato->letto->risposto. A6 the cardiologist gets an empty queue and 404 on the medico's draft. A7 all 9 audit actions are present with message_id and actor_id. Draft actions work: category and clinic PATCH persist, approve (edited and unedited), discard (sets discarded_at), handled, and a manual reply supersedes the draft. KB and drafts are encrypted at rest. Frontend (Playwright, desktop and mobile) works: queue tab and badge, urgent alert banner, red rows, sorted queue, draft editor (original, history, category and clinic selects persist after reload, edit and send, approve, discard opens the conversation, handled), family label 'verificata da Dott.ssa Tiziana Foti' plus 'Come funziona' opening mantai-replies-info, settings tabs, toggles, urgent text and reset, KB and FAQ add/delete persisting after reload, privacy section and Anthropic provider. MAIN ISSUE: Acceptance 1 is unreliable. The LLM classifies 'mio figlio ha 38,5 di febbre da ieri, cosa gli do?' as URGENZA in about 4 of 6 in-app runs (keyword_hit=false, so this is the LLM, not the regex), so the family gets the 112/118 urgent message instead of the acknowledgement. Final state: enabled=false and auto_admin=false for both clinics, urgent text at default, Studio Centro KB restored, Studio Provincia KB empty.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "ai_replies.process / SYSTEM_CLASSIFY", "issue": "Acceptance 1 is flaky. A routine fever (38,5 since yesterday, 'cosa gli do?') is classified 'urgenza' by Claude in about 67% of in-app runs (audit mantai_classificazione category=urgenza, keyword_hit=false). Calling the classifier directly gave 1/4 urgenza. When this happens the family receives the 112/118 urgent text, the thread turns red and the doctor gets an alert email. The classifier does not receive the child's age, so the model leans on 'prudence'.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "ai_replies.Pseudo.hide", "issue": "Names are replaced BEFORE emails, CF and phone numbers. 'giulia.ricci@example.com' becomes '[GENITORE].[BAMBINO]@example.com': the domain leaks to the LLM and EMAIL_RE no longer matches. Apply the CF, EMAIL and PHONE masks first, then the names."},
+      {"endpoint": "ai_replies.Pseudo", "issue": "Child and parent share the surname (Ricci). 'Giulia Ricci' becomes '[GENITORE] [BAMBINO]', and show() turns it back into 'Giulia Aurora'. The child's mapping wins over the parent's full name."},
+      {"endpoint": "ai_replies clinic routing", "issue": "The KB is chosen by the thread's clinic (next or last appointment = Studio Centro). A question about the other studio ('via Pozzicello' = Studio Provincia) is answered only from Studio Centro's KB. In earlier drafts by the main agent, the LLM merged the two ('lo Studio Centro di via Pozzicello 59 ... 9:00-13:00'). Consider passing every clinic's KB with its name, or detecting the address or clinic name mentioned in the message."},
+      {"endpoint": "audit subject for settings/KB", "issue": "mantai_impostazioni_aggiornate and mantai_base_conoscenza_aggiornata are stored with subject 'Messaggio -', which looks odd in the compliance panel (/api/compliance/status shows only the last 15 entries, so MantAI events quickly push older ones out)."},
+      {"endpoint": "LLM drafts", "issue": "Drafts use the masculine for a girl (Aurora 'abbattuto', 'sonnolento') because the parent wrote 'mio figlio'. Drafts sometimes contain '- ' bullet lists. Older drafts contained '**' markdown, which the current code now strips. Cosmetic."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ReplyQueue Highlighted (VISIT_RE)", "issue": "A visit suggestion written as 'organizziamo una visita per Aurora questa settimana' is NOT highlighted. The regex only matches the infinitives fissare/prenotare/programmare/organizzare. Use stems such as (fiss|prenot|programm|organizz)\\w*.", "selector": "[data-testid='ai-draft-visit-highlight']", "priority": "LOW"},
+      {"component": "ReplyQueue row after category change", "issue": "After changing the category in the editor, the queue row chip on the left keeps the old category until reload, because the queue is not reloaded after a PATCH.", "selector": "[data-testid^='ai-queue-cat-']", "priority": "LOW"},
+      {"component": "Dashboard urgent toast", "issue": "The 'Messaggio segnalato come possibile urgenza' toast appears on every page load or navigation reload while urgent drafts exist: prev starts at 0, so any value of q.urgent above 0 triggers it. It shows up even on the Settings page.", "selector": "sonner toast", "priority": "LOW"},
+      {"component": "ReplyQueue discard", "issue": "run() swallows errors, so `.then(() => onOpenThread(...))` also runs when the discard API fails.", "selector": "[data-testid='ai-draft-discard']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Doctor conversation view", "issues": ["MantAI system messages (ack and urgent text) are drawn as right-aligned doctor-side bubbles. A distinct 'system' style would make clear the doctor did not write them."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_ai_replies.py", "/app/test_reports/pytest/pytest_ai_replies.xml"],
+  "action_items": [
+    "HIGH: make clinical-vs-urgent classification reliable for common fever messages. Add explicit examples to SYSTEM_CLASSIFY (for example, a fever of 38-39 in a child older than 3 months with no red flags is 'clinico') and/or pass the child's age to the classifier. Optionally require the keyword regex OR high model confidence before sending the urgent message.",
+    "Fix Pseudo.hide order (mask email, CF and phone before names) and handle a shared surname between parent and child.",
+    "Consider multi-clinic KB context or detecting which clinic the question mentions, so another studio's hours are never answered from the wrong KB.",
+    "Broaden VISIT_RE to verb stems; reload the queue after a category or clinic PATCH; show the urgent toast only for new urgent items (initialise prev from the first fetch).",
+    "Cosmetic: audit subject for settings/KB events; system-message bubble style on the doctor side."
+  ],
+  "critical_code_review_comments": [
+    "process(): the LLM classifier alone can escalate to urgenza (keyword_hit false). The prudent() rule with no confidence threshold produces frequent false urgencies.",
+    "CLINICAL_OUT_RE is checked only on auto admin replies. Clinical drafts are not scanned for drug or dose terms. That is acceptable because the doctor reviews them, but a warning chip in the editor would help. In the observed drafts, no drug names or doses appeared (DRUG_RE check passed).",
+    "Pseudo masks names before contact data, so the email domain leaks.",
+    "A thread can hold several pending drafts (one per parent message). Approving the first one leaves the others pending, which is intended, but the doctor may answer twice.",
+    "Queue GET runs the 30-day discard purge on every request. That works, but a scheduled job or a TTL index would be cleaner."
+  ],
+  "updated_files": ["/app/backend/tests/test_ai_replies.py"],
+  "success_rate": {"backend": "95% (10/10 tests pass; A1 needed one retry: LLM over-classifies as urgenza about 67% of the time)", "frontend": "95% (all flows work; minor highlight, toast and refresh issues)"},
+  "test_credentials": "medico@mantmed.it / Auscula-Studio-2026; cardiologo.demo@example.com / Cardio-Demo-2026; genitore.demo@example.com / Portale-Demo-2026 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Created test threads for the demo parent (fever, admin hours, convulsion, disabled-mode messages) with TEST_ replies. I deleted my threads from interrupted runs. The thread quota is 15 per 24h per parent, and about 11 were used today.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_ai_replies.py -v -s -n 0 (the pytest.ini default of -n 2 must be overridden because the tests share STATE sequentially). The suite enables both clinics, sets KB, runs about 2 minutes of LLM work, and its teardown restores the KB and sets enabled/auto_admin=false. Watch the parent's 15 threads/day limit (the suite creates 6-7 threads); delete db.threads for parent_id 6ad86e7a98db3a94a91c2895 created today if you get 429. The demo child's thread is assigned to Studio Centro. 2 urgent and 1 other pending drafts from the main agent remain in the medico's queue.",
+  "rca of the issue": "A1 flakiness: SYSTEM_CLASSIFY says 'In caso di dubbio scegli la più prudente' and lists 'febbre in neonato sotto 3 mesi' without giving the model the child's age, and the classifier input is only the pseudonymised message. Claude often treats 'febbre 38,5 + cosa gli do' as possible urgent. Reproduce by sending the A1 message 3-6 times with the feature enabled and checking db.audit mantai_classificazione (category=urgenza, keyword_hit=false). Mitigation: add the age and few-shot examples to the classifier prompt, and only escalate on the LLM alone with explicit red flags."
+}
