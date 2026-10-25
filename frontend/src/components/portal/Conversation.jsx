@@ -29,7 +29,7 @@ const AiLabel = ({ m, mine, side }) => (
 
 const SystemNote = ({ m, side }) => (
   <div className="flex justify-center" data-testid={`msg-${m.id}`}>
-    <div className={`max-w-[90%] rounded-2xl border px-4 py-3 text-sm ${/112/.test(m.body) ? "border-rose-200 bg-rose-50 text-rose-900" : "border-slate-200 bg-[#F4F5F7] text-slate-700"}`} data-testid={`msg-system-${m.id}`}>
+    <div className={`max-w-[90%] rounded-2xl border px-4 py-3 text-sm border-slate-200 bg-[#F4F5F7] text-slate-700`} data-testid={`msg-system-${m.id}`}>
       <p className="whitespace-pre-wrap break-words leading-relaxed">{m.body}</p>
       <div className="mt-1 text-right text-[11px] opacity-70">{when(m.created_at)}</div>
       {m.ai_label && <AiLabel m={m} side={side} />}
@@ -81,13 +81,13 @@ export const Conversation = ({ data, side, onSend, onBack, header }) => {
         {msgs.map((m) => <Bubble key={m.id} m={m} mine={m.from === side} side={side} />)}
         <div ref={end} />
       </div>
-      {side === "parent" && <UrgencyNotice ownerId={data.thread.owner_id} patientId={data.thread.patient_id} className="mx-3 mt-3" />}
+      {side === "parent" && <UrgencyNotice ownerId={data?.thread?.owner_id} patientId={data?.thread?.patient_id} className="mx-3 mt-3" />}
       <form onSubmit={send} className="flex items-end gap-2 border-t border-slate-200 p-3">
         <textarea rows={2} maxLength={4000} value={text} onChange={(e) => setText(e.target.value)} placeholder={side === "doctor" ? "Scriva la risposta al genitore…" : "Scriva un messaggio allo studio…"}
           className="min-h-[48px] flex-1 resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-night outline-none focus:border-night" data-testid="conversation-input" />
         <button disabled={busy || !text.trim()} className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-night text-white transition-transform hover:-translate-y-0.5 disabled:opacity-50" aria-label="Invia" data-testid="conversation-send-btn">{busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}</button>
       </form>
-      <p className="flex items-center gap-1.5 px-4 pb-3 text-[11px] text-slate-600"><Lock size={11} /> Messaggi cifrati AES-256 · {side === "doctor" ? "il genitore riceve una notifica nel portale" : "per urgenze chiami lo studio o il 112"}</p>
+      <p className="flex items-center gap-1.5 px-4 pb-3 text-[11px] text-slate-600"><Lock size={11} /> Messaggi cifrati AES-256 · {side === "doctor" ? "il genitore riceve una notifica nel portale" : "lo studio riceve una notifica"}</p>
     </div>
   );
 };

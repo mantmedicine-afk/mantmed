@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Send, AlertTriangle } from "lucide-react";
+import { Loader2, Send } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { api, errMsg } from "@/lib/api";
+import { UrgencyNotice } from "./UrgencyNotice";
 
 export const TEMPLATES = {
   certificato_sportivo: { title: "Certificato di idoneità sportiva", body: "Gentile dottore, vorrei richiedere il certificato di idoneità all'attività sportiva per mio figlio/a. Resto in attesa di indicazioni su eventuali visite o esami necessari.",
@@ -59,7 +60,6 @@ export const NewThreadDialog = ({ kind, kids, onClose, onSent }) => {
           {tpl.fields.length > 0 && <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{tpl.fields.map((f) => <FieldInput key={f.label} f={f} value={vals[f.label]} onChange={(v) => setVals({ ...vals, [f.label]: v })} />)}</div>}
           <UrgencyNotice ownerId={to.split("|")[1]} patientId={to.split("|")[0]} />
           <label className="block"><Label>Messaggio *</Label><textarea rows={4} required minLength={2} maxLength={4000} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Descriva la sua richiesta…" className={`${inp} h-auto resize-none py-2`} data-testid="new-thread-body" /></label>
-          <p className="flex gap-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-900 ring-1 ring-amber-200" data-testid="new-thread-urgent-note"><AlertTriangle size={14} className="mt-0.5 shrink-0" /> Solo richieste non urgenti. In caso di urgenza chiami lo studio, la guardia medica o il 112.</p>
           <button disabled={busy || !to || body.trim().length < 2} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-night text-sm font-semibold text-white disabled:opacity-60" data-testid="new-thread-submit">{busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} Invia allo studio</button>
         </form>
       </DialogContent>

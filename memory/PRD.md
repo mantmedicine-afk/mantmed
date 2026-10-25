@@ -357,3 +357,10 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - messaging.py: add_message a livello modulo, HOOKS parent_message/doctor_reply, messaggi from="system", ai_label, stato thread "in_attesa", campi ai_* nel thread lato medico
 - UI: DoctorMessages tab "Coda risposte" (ReplyQueue.jsx), banner urgenza, badge, toast; Impostazioni › MantAI Risposte (AiRepliesSection.jsx); portale etichette + "Come funziona"; MantAI dialog sezione; /privacy sezione + fornitore Anthropic
 - Stato demo: funzione DISATTIVATA su entrambe le sedi (default)
+
+## 2026-06 · MantAI Risposte v2 – messaggistica NON per urgenze (iteration_42 PASS + fix UI)
+- Solo 2 categorie (clinico/amministrativo; dubbio -> clinico; regex urgenza forza clinico + urgent_hint nella bozza)
+- Rimossi: messaggio automatico di urgenza, thread rossi, email urgenza, contatore urgent
+- Avviso fisso urgenze (notice_text per sede, [telefono studio] <- KB phone, fallback telefono profilo) sempre visibile sopra il campo di scrittura del portale (Conversation + NewThreadDialog) anche a funzione spenta: GET /api/portal/ai-notice
+- Conferma ricezione fissa con telefono e 112/118 (anche se l'AI fallisce); migrazione urgenza->clinico all'avvio
+- Stato demo: funzione disattivata, telefono KB vuoto. Nota: il portale demo contiene molte conversazioni TEST_ create dai test

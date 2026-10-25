@@ -1,0 +1,40 @@
+{
+  "summary": "Retested MantAI Risposte with the 2-category spec (clinico/amministrativo) on backend and frontend. I rewrote the backend suite /app/backend/tests/test_ai_replies.py for the new spec. It reuses existing parent threads to avoid the daily limit. Result: 9/9 passed in 83s, all acceptance criteria included. A1: clinico, one fixed system ack containing 0965 123456 and 112/118, no doctor message, draft without drug names. A2: auto reply labelled 'Risposta automatica di MantAI' with the correct Pozzicello hours (15:00-18:30). A3: with empty KB the same question becomes an amministrativo draft with no invented hours. A4: convulsion gives clinico with urgent_hint=true and the ack; the draft invites the family to call the studio or 112/118. Category PATCH with urgenza returns 422. The queue has no 'urgent' field and is ordered clinico first, oldest first. No urgenza or ai_urgent data remains in the DB. A5: GET /api/portal/ai-notice works for the parent, also with MantAI disabled, and returns 404 for an unrelated owner. A6 (disabled): no ack, no draft, status inviato->letto->risposto. A7: the cardiologist gets an empty queue and 404 on GET/approve. A8: all 9 audit actions are present with message_id and actor_id. Frontend: I found and FIXED 2 CRITICAL crashes in the family portal. (1) Conversation.jsx read data.thread while data was still null during loading, so opening any conversation crashed the portal. (2) NewThreadDialog.jsx used UrgencyNotice without importing it, so opening any new-request dialog crashed. After the fixes the urgency notice shows above the composer and in the new-thread dialog, on desktop and mobile, with the KB phone. Doctor UI: no ai-urgent-alert and no red rows, 2 options in the category select, amber ai-draft-urgent-hint shown, 2 ai-draft-visit-highlight sentences highlighted. Settings: notice text save, reset and persistence work, and ai-kb-phone persists. The privacy section and mantai-replies-info are updated. Final state is done: enabled=false and auto_admin=false for both clinics, KB phone '' for both, notice text at default.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "process() amministrativo draft path", "issue": "When an admin question becomes a draft (auto_admin off or KB missing), the family still gets the clinical-style ack ('Il medico ti risponderà... urgenze... 112/118'). The spec only describes the ack for CLINICO. Confirm this is intended."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Conversation (family portal)", "issue": "CRASH: 'Cannot read properties of null (reading thread)'. UrgencyNotice was rendered with data.thread.owner_id before data had loaded. FIXED with optional chaining.", "selector": "[data-testid=conversation]", "priority": "CRITICAL (fixed)"},
+      {"component": "NewThreadDialog", "issue": "CRASH: 'UrgencyNotice is not defined' (missing import), so every quick-request dialog crashed the portal. FIXED by adding the import.", "selector": "[data-testid=new-thread-dialog]", "priority": "CRITICAL (fixed)"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Family conversation", "issues": ["Every MantAI system ack is styled rose/red (Conversation.jsx line 32 uses /112/.test(body)), and the ack always contains 112/118. The routine 'message received' ack therefore looks like an alarm, which goes against the 'no red' intent. Use neutral or amber styling."]},
+      {"screen": "NewThreadDialog", "issues": ["The old note new-thread-urgent-note ('Solo richieste non urgenti... il 112') still appears under the new portal-urgency-notice: duplicated and inconsistent urgency messaging. Remove it or merge it."]},
+      {"screen": "Conversation footer", "issues": ["The footer text 'per urgenze chiami lo studio o il 112' duplicates the notice and leaves out 118. Minor."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_ai_replies.py", "/app/test_reports/pytest/pytest_ai_replies.xml"],
+  "action_items": [
+    "Review the 2 crash fixes I applied (Conversation.jsx optional chaining, NewThreadDialog.jsx import). Before these fixes the family portal messaging was completely broken.",
+    "Change the rose/red styling of system ack bubbles in Conversation.jsx to neutral or amber.",
+    "Remove the redundant new-thread-urgent-note from NewThreadDialog.",
+    "Decide whether amministrativo drafts should also send the ack to the family."
+  ],
+  "critical_code_review_comments": [
+    "Conversation.jsx: a component rendered while data was still loading dereferenced data without a null guard. Check other places for the same pattern.",
+    "URGENT_RE includes broad terms (e.g. 'sangue', 'non risponde', 'shock') that may often force clinico plus urgent_hint on benign messages ('il pediatra non risponde al telefono'). This is acceptable under the prudence principle, but expect false positives.",
+    "Classification still makes an LLM call even when the regex already forces clinico. This could be skipped to save latency and cost.",
+    "When the doctor profile has no phone and the KB phone is empty, the notice and ack fall back correctly to 'telefona allo studio' with no number (verified)."
+  ],
+  "updated_files": ["/app/backend/tests/test_ai_replies.py", "/app/frontend/src/components/portal/Conversation.jsx", "/app/frontend/src/components/portal/NewThreadDialog.jsx"],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "100% after the 2 crash fixes (0% of portal messaging flows worked before the fixes)"},
+  "seed_data_creation": "Added parent messages to existing demo threads: clinico 6ade4be4, info 6ade4bf5 and 6ade4c17, altro 6ade4bfe. Doctor TEST_ replies were added. No new threads were created.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_ai_replies.py -v -s -n 0. The suite enables MantAI, sets the KB phone to 0965 123456, and posts to existing threads (parent_threads helper picks them by kind). Its teardown restores the KB with phone '' and sets enabled/auto_admin=false. The parent has about 11 threads created in the last 24h (limit 15). 2 pending clinico drafts from the main agent remain in the medico's queue (one with urgent_hint, the convulsion). Final DB state: both clinics enabled=false and auto_admin=false, KB phone empty."
+}
