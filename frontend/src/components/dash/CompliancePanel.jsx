@@ -8,7 +8,14 @@ const ACTION = { accesso_passaporto: "Accesso al passaporto", referto_pdf: "Refe
   medicina_squadra_consultazione: "Medicina di squadra · cartella consultata da", medicina_squadra_referto_pdf: "Medicina di squadra · referto scaricato da",
   medicina_squadra_nota: "Medicina di squadra · nota di squadra di", medicina_squadra_richiesta: "Medicina di squadra · richiesta di accesso da",
   medicina_squadra_delega_firmata: "Medicina di squadra · delega firmata per", medicina_squadra_delega_revocata: "Medicina di squadra · delega revocata",
-  medicina_squadra_delega_rifiutata: "Medicina di squadra · richiesta rifiutata" };
+  medicina_squadra_delega_rifiutata: "Medicina di squadra · richiesta rifiutata",
+  mantai_classificazione: "MantAI Risposte · messaggio classificato", mantai_messaggio_urgenza_inviato: "MantAI Risposte · messaggio di urgenza inviato",
+  mantai_bozza_generata: "MantAI Risposte · bozza generata", mantai_bozza_non_generata: "MantAI Risposte · bozza non generata (errore AI)",
+  mantai_bozza_modificata: "MantAI Risposte · bozza modificata", mantai_bozza_approvata_inviata: "MantAI Risposte · bozza approvata e inviata",
+  mantai_bozza_scartata: "MantAI Risposte · bozza scartata", mantai_bozza_gestita_senza_risposta: "MantAI Risposte · gestito senza risposta",
+  mantai_bozza_superata_da_risposta_manuale: "MantAI Risposte · bozza superata da risposta manuale", mantai_invio_automatico: "MantAI Risposte · risposta automatica inviata",
+  mantai_categoria_corretta: "MantAI Risposte · categoria corretta", mantai_studio_corretto: "MantAI Risposte · studio corretto",
+  mantai_impostazioni_aggiornate: "MantAI Risposte · impostazioni aggiornate", mantai_base_conoscenza_aggiornata: "MantAI Risposte · base di conoscenza aggiornata" };
 const STEPS = [
   "Crea un cluster su MongoDB Atlas scegliendo la regione Francoforte (eu-central-1) o Milano (eu-south-1).",
   "Abilita la crittografia a riposo del cluster e, se disponibile, il backup in regione UE.",

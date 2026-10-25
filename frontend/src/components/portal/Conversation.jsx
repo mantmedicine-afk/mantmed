@@ -1,9 +1,11 @@
 import { Fragment, useEffect, useRef, useState } from "react";
-import { Loader2, Send, ArrowLeft, Check, CheckCheck, Reply, Lock } from "lucide-react";
+import { Loader2, Send, ArrowLeft, Check, CheckCheck, Reply, Lock, Hourglass, Sparkles } from "lucide-react";
+import { MantAIButton } from "@/components/mantai/MantAI";
 
 export const STATUS = {
-  inviato: ["Inviato", "bg-slate-200 text-slate-700", Check],
+  inviato: ["Ricevuto", "bg-slate-200 text-slate-700", Check],
   letto: ["Letto", "bg-sky-100 text-sky-900", CheckCheck],
+  in_attesa: ["In attesa del medico", "bg-amber-100 text-amber-900", Hourglass],
   risposto: ["Risposto", "bg-emerald-100 text-emerald-900", Reply],
 };
 
@@ -18,7 +20,23 @@ export const when = (iso) => {
   return today ? d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : d.toLocaleDateString("it-IT", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 };
 
-const Bubble = ({ m, mine }) => (
+const AiLabel = ({ m, mine, side }) => (
+  <div className={`mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 border-t pt-2 text-[11px] ${mine ? "border-white/15 text-slate-300" : "border-slate-200 text-slate-600"}`} data-testid={`msg-ai-label-${m.id}`}>
+    <Sparkles size={12} /> <span>{m.ai_label}</span>{side === "parent" && <MantAIButton variant="link" view="patient" />}
+  </div>
+);
+
+const SystemNote = ({ m, side }) => (
+  <div className="flex justify-center" data-testid={`msg-${m.id}`}>
+    <div className={`max-w-[90%] rounded-2xl border px-4 py-3 text-sm ${/112/.test(m.body) ? "border-rose-200 bg-rose-50 text-rose-900" : "border-slate-200 bg-[#F4F5F7] text-slate-700"}`} data-testid={`msg-system-${m.id}`}>
+      <p className="whitespace-pre-wrap break-words leading-relaxed">{m.body}</p>
+      <div className="mt-1 text-right text-[11px] opacity-70">{when(m.created_at)}</div>
+      {m.ai_label && <AiLabel m={m} side={side} />}
+    </div>
+  </div>
+);
+
+const Bubble = ({ m, mine, side }) => m.from === "system" ? <SystemNote m={m} side={side} /> : (
   <div className={`flex ${mine ? "justify-end" : "justify-start"}`} data-testid={`msg-${m.id}`}>
     <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm sm:max-w-[75%] ${mine ? "rounded-br-md bg-night text-white" : "rounded-bl-md border border-slate-200 bg-white text-night"}`}>
       <div className={`mb-1 text-[11px] font-semibold ${mine ? "text-slate-300" : "text-slate-600"}`}>{m.author || (m.from === "doctor" ? "Studio" : "Genitore")}</div>
@@ -32,6 +50,7 @@ const Bubble = ({ m, mine }) => (
         {when(m.created_at)}
         {m.status && mine && <StatusChip status={m.status} testId={`msg-status-${m.id}`} />}
       </div>
+      {m.ai_label && <AiLabel m={m} mine={mine} side={side} />}
     </div>
   </div>
 );
@@ -58,7 +77,7 @@ export const Conversation = ({ data, side, onSend, onBack, header }) => {
       </div>
       <div className="flex-1 space-y-3 overflow-y-auto bg-[#F4F5F7]/60 p-4" style={{ maxHeight: 460 }} data-testid="conversation-messages">
         {!data && <Loader2 className="animate-spin text-night" />}
-        {msgs.map((m) => <Bubble key={m.id} m={m} mine={m.from === side} />)}
+        {msgs.map((m) => <Bubble key={m.id} m={m} mine={m.from === side} side={side} />)}
         <div ref={end} />
       </div>
       <form onSubmit={send} className="flex items-end gap-2 border-t border-slate-200 p-3">

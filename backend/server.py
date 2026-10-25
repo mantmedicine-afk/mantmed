@@ -22,6 +22,7 @@ from scheduling import build_scheduling
 from billing import build_billing
 from network import build_network
 from team import build_team
+from ai_replies import build_ai_replies
 from messaging import build_messaging, notify_parents
 from password_reset import build_password_reset
 from account import build_account, notify_doctor
@@ -1692,6 +1693,7 @@ public_api.include_router(net_parent)
 api.include_router(net_doctor)
 team_doctor, team_parent, team_migrate = build_team(db, current_user, Consultation, portal_pdf_for)
 api.include_router(team_doctor)
+api.include_router(build_ai_replies(db, current_user))
 public_api.include_router(team_parent)
 api.include_router(flow_doctor)
 msg_parent, msg_doctor = build_messaging(db, current_user)

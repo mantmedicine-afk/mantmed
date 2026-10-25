@@ -23,6 +23,7 @@ MAX_THREADS_PER_DAY = 15
 T_SEALED = ("subject", "patient_name", "parent_name")
 M_SEALED = ("body", "fields")
 N_SEALED = ("title", "body")
+HOOKS: dict = {}
 
 
 def _now():
@@ -60,6 +61,8 @@ def _oid(v: str):
 def thread_status(t: dict) -> str:
     if t["last_from"] == "doctor":
         return "risposto"
+    if t.get("ai_pending"):
+        return "in_attesa"
     return "letto" if t.get("doctor_unread", 0) == 0 else "inviato"
 
 
@@ -68,7 +71,8 @@ def thread_out(t: dict, side: str) -> dict:
     return {"id": str(t["_id"]), "patient_id": t["patient_id"], "owner_id": t["owner_id"], "kind": t["kind"], "kind_label": KIND_LABEL[t["kind"]],
             "subject": u["subject"], "patient_name": u["patient_name"], "parent_name": u["parent_name"], "doctor_name": t.get("doctor_name", ""),
             "created_at": t["created_at"], "last_at": t["last_at"], "last_from": t["last_from"], "status": thread_status(t),
-            "unread": t.get("parent_unread" if side == "parent" else "doctor_unread", 0)}
+            "unread": t.get("parent_unread" if side == "parent" else "doctor_unread", 0),
+            **({"ai_urgent": bool(t.get("ai_urgent")), "ai_category": t.get("ai_category"), "ai_clinic": t.get("ai_clinic")} if side == "doctor" else {})}
 
 
 def messages_out(msgs: list) -> list:
@@ -81,7 +85,7 @@ def messages_out(msgs: list) -> list:
         else:
             replied = True
         out.append({"id": str(m["_id"]), "from": m["from"], "author": m.get("author", ""), "body": u["body"], "fields": u.get("fields") or [],
-                    "created_at": m["created_at"], "read_at": m.get("read_at"), "status": st})
+                    "created_at": m["created_at"], "read_at": m.get("read_at"), "status": st, "ai_label": m.get("ai_label")})
     return list(reversed(out))
 
 
@@ -111,6 +115,24 @@ async def notify_parents(db, pid: str, owner: str, kind: str, title: str, body: 
             await db.notifications.insert_one(doc)
 
 
+async def add_message(db, t: dict, side: str, author: str, body: str, fields=None, ai_label: Optional[str] = None) -> str:
+    now = _now().isoformat()
+    doc = {"thread_id": str(t["_id"]), "from": side, "author": author, "created_at": now, "read_at": None,
+           **seal_fields({"body": body.strip(), "fields": fields or []}, M_SEALED), **({"ai_label": ai_label} if ai_label else {})}
+    mid = str((await db.messages.insert_one(doc)).inserted_id)
+    if side == "system":
+        await db.threads.update_one({"_id": t["_id"]}, {"$inc": {"parent_unread": 1}})
+        return mid
+    inc = "doctor_unread" if side == "parent" else "parent_unread"
+    await db.threads.update_one({"_id": t["_id"]}, {"$set": {"last_at": now, "last_from": side}, "$inc": {inc: 1}})
+    if side == "parent":
+        asyncio.create_task(notify_doctor(db, t["owner_id"], "messages", f"MantMed · nuovo messaggio dal portale ({KIND_LABEL[t['kind']]})",
+                                          "<p>Ha ricevuto un nuovo messaggio da una famiglia nel Portale Paziente.</p>"))
+        if HOOKS.get("parent_message"):
+            asyncio.create_task(HOOKS["parent_message"](str(t["_id"]), mid))
+    return mid
+
+
 def build_messaging(db, current_user):
     parent = APIRouter(prefix="/portal", dependencies=[Depends(require_role(current_user, "parent"))])
     doctor = APIRouter(prefix="/messages")
@@ -121,16 +143,8 @@ def build_messaging(db, current_user):
             raise HTTPException(404, "Cartella non collegata al suo account")
         return u
 
-    async def add_message(t: dict, side: str, author: str, body: str, fields=None):
-        now = _now().isoformat()
-        await db.messages.insert_one({"thread_id": str(t["_id"]), "from": side, "author": author, "created_at": now, "read_at": None,
-                                      **seal_fields({"body": body.strip(), "fields": fields or []}, M_SEALED)})
-        inc = "doctor_unread" if side == "parent" else "parent_unread"
-        await db.threads.update_one({"_id": t["_id"]}, {"$set": {"last_at": now, "last_from": side}, "$inc": {inc: 1}})
-        if side == "parent":
-            asyncio.create_task(notify_doctor(db, t["owner_id"], "messages", f"MantMed · nuovo messaggio dal portale ({KIND_LABEL[t['kind']]})",
-                                              "<p>Ha ricevuto un nuovo messaggio da una famiglia nel Portale Paziente.</p>"))
-        return now
+    async def post(t: dict, side: str, author: str, body: str, fields=None):
+        return await add_message(db, t, side, author, body, fields)
 
     async def thread_messages(t: dict, reader: str) -> list:
         other = "doctor" if reader == "parent" else "parent"
@@ -160,7 +174,7 @@ def build_messaging(db, current_user):
              "created_at": now, "last_at": now, "last_from": "parent", "doctor_unread": 0, "parent_unread": 0,
              **seal_fields({"subject": body.subject.strip() or KIND_LABEL[body.kind], "patient_name": pname, "parent_name": u.get("name", "")}, T_SEALED)}
         t["_id"] = (await db.threads.insert_one(t)).inserted_id
-        await add_message(t, "parent", u.get("name", ""), body.body, [f.model_dump() for f in body.fields if f.value.strip()])
+        await post(t, "parent", u.get("name", ""), body.body, [f.model_dump() for f in body.fields if f.value.strip()])
         await db.audit.insert_one({"action": "messaggio_portale_ricevuto", "subject": seal_fields({"s": pname}, ("s",))["s"], "at": now, "owner_id": body.owner_id})
         return thread_out(await db.threads.find_one({"_id": t["_id"]}), "parent")
 
@@ -181,7 +195,7 @@ def build_messaging(db, current_user):
     async def p_reply(tid: str, body: MessageIn, user: dict = Depends(current_user)):
         t = await p_thread_doc(user, tid)
         await link_of(user, t["patient_id"], t["owner_id"])
-        await add_message(t, "parent", user.get("name", ""), body.body)
+        await post(t, "parent", user.get("name", ""), body.body)
         return await p_thread(tid, user)
 
     async def ensure_reminders(user: dict):
@@ -245,7 +259,9 @@ def build_messaging(db, current_user):
     @doctor.post("/threads/{tid}/messages")
     async def d_reply(tid: str, body: MessageIn, user: dict = Depends(current_user)):
         t = await d_thread_doc(user, tid)
-        await add_message(t, "doctor", user["name"], body.body)
+        await post(t, "doctor", user["name"], body.body)
+        if HOOKS.get("doctor_reply"):
+            await HOOKS["doctor_reply"](tid, user)
         pname = unseal_fields(t, T_SEALED)["patient_name"]
         await notify_parents(db, t["patient_id"], t["owner_id"], "reply", f"{user['name']} ha risposto", f"{KIND_LABEL[t['kind']]} · {pname}", ref=tid, only=t["parent_id"])
         await db.audit.insert_one({"action": "messaggio_portale_risposto", "subject": seal_fields({"s": pname}, ("s",))["s"], "at": _now().isoformat(), "owner_id": user["id"]})

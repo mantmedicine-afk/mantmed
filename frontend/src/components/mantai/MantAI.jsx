@@ -81,6 +81,10 @@ export const MantAIDialog = ({ open, onOpenChange, view = "doctor" }) => {
           ))}
         </div>
         <div className="mt-5"><RoleView role={role} /></div>
+        <section className="mt-6 rounded-[24px] border border-slate-200 bg-white p-5 sm:p-6" data-testid="mantai-replies-info">
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-[#3B6CF6]"><Sparkles size={13} /> MantAI Risposte</div>
+          <p className="mt-2 text-sm leading-relaxed text-slate-600">Se lo studio lo attiva, MantAI legge i messaggi inviati dal portale e prepara una bozza di risposta. Le risposte su temi di salute <strong className="text-night">non partono mai senza l'approvazione del medico</strong> e riportano "verificata dal Dott./Dott.ssa". Solo le informazioni pratiche (orari, prenotazioni, costi) possono ricevere una "Risposta automatica di MantAI", basata esclusivamente su quanto indicato dallo studio. Se il messaggio contiene possibili segnali di urgenza, ricevi subito un messaggio fisso scritto dal medico con l'invito a chiamare il 112/118. Prima dell'elaborazione nomi e recapiti vengono sostituiti da segnaposto.</p>
+        </section>
         <Safety />
         <p className="mt-5 flex items-start gap-2 text-xs leading-relaxed text-slate-500"><Eye size={13} className="mt-0.5 shrink-0" /> <span>Per esercitare i diritti previsti dal GDPR (accesso, rettifica, cancellazione) può rivolgersi allo studio medico, titolare del trattamento dei dati clinici. <a href="/privacy#fornitori" target="_blank" rel="noreferrer" className="font-medium text-[#3B6CF6] underline underline-offset-2" data-testid="mantai-privacy-link">Informativa privacy completa ed elenco dei fornitori AI</a></span></p>
       </DialogContent>
@@ -101,6 +105,9 @@ const TRIGGERS = {
       <span className="min-w-0 flex-1"><span className="block font-medium text-night">Chi scrive "In parole semplici"?</span><span className="block text-sm text-[#0A192F]/60">È MantAI, l'assistente di MantMed: scopra come funziona e come protegge i suoi dati.</span></span>
       <span className="hidden text-sm font-medium text-[#3B6CF6] group-hover:underline sm:block">Cos'è MantAI</span>
     </button>
+  ),
+  link: ({ onClick }) => (
+    <button onClick={onClick} className="font-medium underline underline-offset-2 hover:opacity-80" data-testid="mantai-link-btn">Come funziona</button>
   ),
   icon: ({ onClick }) => (
     <button onClick={onClick} data-testid="mantai-info-btn" className="inline-flex items-center gap-1.5 rounded-full border border-white/20 px-3 py-1.5 text-xs text-slate-200 transition-colors hover:border-white hover:text-white">

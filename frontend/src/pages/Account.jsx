@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, UserRound, Users, ShieldCheck, BellRing, FileLock2, Stethoscope, CalendarClock, Loader2, PenLine, LayoutTemplate, Store } from "lucide-react";
+import { ArrowLeft, UserRound, Users, ShieldCheck, BellRing, FileLock2, Stethoscope, CalendarClock, Loader2, PenLine, LayoutTemplate, Store, Sparkles } from "lucide-react";
+import { AiRepliesSection } from "@/components/account/AiRepliesSection";
 import { VisitTemplatesSection } from "@/components/account/VisitTemplatesSection";
 import { ShowcaseSection } from "@/components/account/ShowcaseSection";
 import { LogoMark } from "@/components/dash/Logo";
@@ -28,6 +29,7 @@ const SECTIONS = {
     { id: "vetrina", label: "Vetrina pubblica", icon: Store, C: ShowcaseSection },
     { id: "modelli", label: "Modelli Visita", icon: LayoutTemplate, C: VisitTemplatesSection },
     { id: "firma", label: "Firma per i referti", icon: PenLine, C: DoctorSignatureSection },
+    { id: "mantai-risposte", label: "MantAI Risposte", icon: Sparkles, C: AiRepliesSection },
     { id: "notifiche", label: "Notifiche e avvisi", icon: BellRing, C: NotificationsSection },
     { id: "sicurezza", label: "Sicurezza e accesso", icon: ShieldCheck, C: SecuritySection },
   ],

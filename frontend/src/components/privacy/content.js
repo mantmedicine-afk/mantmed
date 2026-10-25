@@ -5,6 +5,7 @@ export const PROVIDERS = [
   ["Emergent", "Gateway di accesso ai modelli AI, hosting dell'applicazione, database e archiviazione dei file", "Tutti i dati gestiti dalla piattaforma, in forma cifrata ove indicato", "Possibile trasferimento extra-UE con Clausole Contrattuali Standard"],
   ["Postmark", "Invio di email transazionali (codici di verifica, notifiche, promemoria)", "Indirizzo email, nome, contenuto del messaggio (senza dati clinici)", "Possibile trasferimento extra-UE con Clausole Contrattuali Standard"],
   ["Stripe", "Gestione dei pagamenti delle licenze e dei servizi", "Dati di fatturazione e di pagamento (i dati della carta sono trattati direttamente da Stripe)", "Possibile trasferimento extra-UE con Clausole Contrattuali Standard"],
+  ["Anthropic", "MantAI Risposte: classificazione dei messaggi del portale e preparazione di bozze di risposta (modelli Claude)", "Testo del messaggio e degli ultimi messaggi del thread, età del bambino e base di conoscenza dello studio, con nomi e recapiti sostituiti da segnaposto", "Possibile trasferimento extra-UE con Clausole Contrattuali Standard"],
 ];
 
 export const SECTIONS = [
@@ -27,6 +28,12 @@ export const SECTIONS = [
     "MantAI è il motore di MantMed, basato su modelli di AI avanzati di fornitori selezionati che agiscono come sub-responsabili del trattamento.",
     "MantAI trascrive le visite, propone una bozza di nota clinica e rielabora i referti in linguaggio semplice. Non prende decisioni: ogni contenuto è una bozza che il medico rivede, corregge e firma. Non avvengono decisioni basate unicamente su trattamenti automatizzati ai sensi dell'art. 22 GDPR.",
     "I dati inviati ai fornitori AI sono usati solo per fornire il servizio richiesto e non per addestrare i modelli, secondo i termini contrattuali dei fornitori.",
+  ]],
+  ["mantai-risposte", "MantAI Risposte (messaggi del portale)", [
+    "Se lo studio attiva la funzione, MantAI classifica i messaggi inviati dalle famiglie tramite il Portale Paziente (amministrativo, clinico, possibile urgenza) e prepara bozze di risposta. Finalità: supportare lo studio nella gestione tempestiva delle comunicazioni.",
+    "Le risposte su temi clinici sono sempre riviste e approvate dal medico prima dell'invio e riportano la dicitura \"Risposta preparata con l'assistenza di MantAI e verificata dal Dott./Dott.ssa\". Possono essere inviate automaticamente solo risposte amministrative basate esclusivamente sulle informazioni inserite dallo studio, con la dicitura \"Risposta automatica di MantAI\". In caso di possibile urgenza viene inviato un messaggio fisso scritto dal medico, non generato dall'AI.",
+    "Al fornitore AI, che agisce come sub-responsabile del trattamento ai sensi dell'art. 28 GDPR, vengono inviati solo il messaggio corrente, al massimo gli ultimi 5 messaggi della conversazione, l'età del bambino e la base di conoscenza dello studio; nomi, codice fiscale, email e telefono sono sostituiti da segnaposto. Le bozze sono cifrate e quelle scartate vengono cancellate dopo 30 giorni. Ogni azione è registrata nel registro attività dello studio.",
+    "Per informazioni o per opporsi a questo trattamento può rivolgersi allo studio medico titolare o scrivere a {{Email privacy}}.",
   ]],
   ["conservazione", "Conservazione", [
     "Registrazioni audio: cifrate all'arrivo e cancellate dopo la trascrizione; eventuali frammenti residui sono eliminati entro 24 ore.",
