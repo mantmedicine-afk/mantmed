@@ -2,6 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Clock3, FileDown, HeartPulse, Loader2, Lock, MessageSquarePlus, Send, ShieldCheck, Stethoscope, Users } from "lucide-react";
 import { api, errMsg } from "@/lib/api";
+import { AILabel } from "@/components/mantai/AILabel";
 
 const day = (iso) => (iso ? new Date(iso).toLocaleDateString("it-IT", { day: "numeric", month: "short", year: "numeric" }) : "");
 
@@ -63,7 +64,8 @@ const Specialist = ({ s, refId }) => {
         {s.reports.map((r) => (
           <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#F4F5F7] p-3" data-testid={`team-report-${r.id}`}>
             <div className="min-w-0 text-sm"><div className="font-medium text-night">{day(r.created_at)} · {r.motivo || "Visita"}</div>
-              {r.diagnosi && <div className="text-slate-600">Diagnosi: {r.diagnosi}</div>}{r.terapia && <div className="text-slate-600">Terapia: {r.terapia}</div>}</div>
+              {r.diagnosi && <div className="text-slate-600">Diagnosi: {r.diagnosi}</div>}{r.terapia && <div className="text-slate-600">Terapia: {r.terapia}</div>}
+              <AILabel provenance={r.ai_provenance} view="doctor" className="mt-1.5" testId={`team-report-ai-label-${r.id}`} /></div>
             {r.status === "ready" && <button onClick={() => dl(r.id)} disabled={busy === r.id} className="flex h-9 items-center gap-1.5 rounded-full bg-night px-3 text-xs font-medium text-white disabled:opacity-60" data-testid={`team-report-pdf-${r.id}`}>{busy === r.id ? <Loader2 size={13} className="animate-spin" /> : <FileDown size={13} />} PDF</button>}
           </div>
         ))}

@@ -45,6 +45,7 @@ from auth import build_auth, seed_doctor, seed_admin, require_role, TOUR_VERSION
 from cleanup import build_cleanup
 from visit_templates import build_visit_templates, fields_prompt, map_fields, parse_json
 from report import build_report
+import provenance as prov
 from signed_docs import build_signed_docs, record_privacy_consent, doctor_signature
 from mailer import send_email
 import base64
@@ -282,8 +283,15 @@ class Consultation(BaseDocument):
     template_name: str = ""
     template_fields: List[dict] = Field(default_factory=list)
     previsit: Optional[dict] = None
+    ai_provenance: Optional[dict] = Field(default_factory=lambda: {"ai_generated": False})
+    ai_snapshot: Optional[dict] = None
     created_at: str = Field(default_factory=now_iso)
-    __encrypted__: ClassVar[tuple] = ("transcript", "note", "report_sent_to", "previsit")
+    __encrypted__: ClassVar[tuple] = ("transcript", "note", "report_sent_to", "previsit", "ai_snapshot")
+
+    def out(self):
+        d = self.model_dump(by_alias=False, exclude={"ai_snapshot"})
+        d["ai_fields_pending"] = prov.pending_fields(self.ai_provenance, self.ai_snapshot, d["note"])
+        return d
 
 
 class ConsultationIn(BaseModel):
@@ -522,6 +530,14 @@ async def resume_consult_jobs():
     asyncio.ensure_future(sweep_audio_loop())
     asyncio.ensure_future(team_migrate())
     asyncio.ensure_future(ai_migrate())
+    asyncio.ensure_future(run_provenance_migration())
+
+
+async def run_provenance_migration():
+    try:
+        logger.info("Migrazione ai_provenance: %s", await prov.migrate(db))
+    except Exception:
+        logger.exception("Migrazione ai_provenance non riuscita")
 
 
 async def sweep_audio():
@@ -802,9 +818,11 @@ async def create_consultation(body: ConsultationIn, user: dict = Depends(current
         raise HTTPException(502, f"Generazione nota fallita: {e}")
     enrich_growth(note, patient, date.today())
     c = Consultation(**body.model_dump(exclude={"template_id"}), note=note, doctor_id=user["id"], ai_sec=round(time.monotonic() - t0, 1),
-                     template_id=tpl["id"], template_name=tpl["name"], template_fields=tpl["fields"], previsit=pv)
+                     template_id=tpl["id"], template_name=tpl["name"], template_fields=tpl["fields"], previsit=pv,
+                     ai_provenance=prov.make(prov.note_tipo(tpl["name"], tpl["fields"], tpl.get("bilancio")), prov.GPT), ai_snapshot=note.model_dump())
     res = await tdb.consultations.insert_one(c.to_mongo())
     c.id = str(res.inserted_id)
+    await prov.log(db, user["id"], f"visita {c.id}", None, prov.DRAFT, tipo=c.ai_provenance["tipo"])
     await sync_measurement(c.out())
     if body.waiting_id and ObjectId.is_valid(body.waiting_id):
         await tdb.waiting.delete_one({"_id": ObjectId(body.waiting_id)})
@@ -920,11 +938,15 @@ async def run_consult_job(cid: str, owner: str):
             await db.consultations.update_one({"_id": ObjectId(cid), "owner_id": owner, "status": "processing"},
                                               {"$set": Consultation.sealed_set({"transcript": transcript})})
         spec = await doctor_specialty(owner)
-        cur = unseal_fields(await db.consultations.find_one({"_id": ObjectId(cid)}, {"template_fields": 1, "previsit": 1}) or {}, ("previsit",))
+        cur = unseal_fields(await db.consultations.find_one({"_id": ObjectId(cid)}, {"template_fields": 1, "previsit": 1, "template_name": 1}) or {}, ("previsit",))
         pv = cur.get("previsit")
         ai, summary = await asyncio.gather(structure_note(transcript, f"consult-{cid}", spec, cur.get("template_fields") or None, previsit_prompt(pv) if pv else ""),
                                            _safe_summary(spec, transcript, f"sum-{cid}"))
         ai.riepilogo = summary
+        p = prov.make(prov.note_tipo(cur.get("template_name", ""), cur.get("template_fields"), bool(pv)), prov.GPT)
+        p["parti"] = {**({"trascrizione": prov.make("trascrizione", prov.WHISPER)} if files else {}),
+                      **({"riassunto_famiglia": prov.make("riassunto_famiglia", prov.GPT)} if summary else {})}
+        snap = ai.model_dump()
         for _ in range(5):  # concorrenza ottimistica con i salvataggi del medico (campo rev)
             doc = await db.consultations.find_one({"_id": ObjectId(cid), "owner_id": owner})
             if not doc or doc.get("status") != "processing":
@@ -934,9 +956,10 @@ async def run_consult_job(cid: str, owner: str):
             enrich_growth(note, await get_patient(doc.get("patient_id")), date.fromisoformat(doc["created_at"][:10]))
             upd = await db.consultations.find_one_and_update(
                 {"_id": ObjectId(cid), "owner_id": owner, "status": "processing", "rev": doc.get("rev", 0)},
-                {"$set": {**Consultation.sealed_set({"note": note.model_dump(), "transcript": transcript}), "status": "ready", "ai_error": "",
-                          "ai_sec": round(time.monotonic() - t0, 1)}, "$inc": {"rev": 1}}, return_document=True)
+                {"$set": {**Consultation.sealed_set({"note": note.model_dump(), "transcript": transcript, "ai_snapshot": snap}), "status": "ready", "ai_error": "",
+                          "ai_sec": round(time.monotonic() - t0, 1), "ai_provenance": p}, "$inc": {"rev": 1}}, return_document=True)
             if upd:
+                await prov.log(db, owner, f"visita {cid}", None, prov.DRAFT, tipo=p["tipo"])
                 await sync_measurement(Consultation.from_mongo(upd).out())
                 await _drop_job(cid)
                 logger.info("Referto %s pronto in %.1fs", cid, time.monotonic() - t0)
@@ -1101,7 +1124,48 @@ async def regenerate_summary(cid: str, user: dict = Depends(current_user)):
         raise HTTPException(502, "Il servizio IA non ha risposto: riprovi tra qualche istante")
     if not text:
         raise HTTPException(502, "Riepilogo vuoto: riprovi")
+    raw = unseal_fields(doc, ("ai_snapshot",))
+    snap = {**(raw.get("ai_snapshot") or {}), "riepilogo": text}
+    p = {**(doc.get("ai_provenance") or {"ai_generated": False})}
+    old = ((p.get("parti") or {}).get("riassunto_famiglia") or {}).get("stato_revisione")
+    p["parti"] = {**(p.get("parti") or {}), "riassunto_famiglia": prov.make("riassunto_famiglia", prov.GPT)}
+    await tdb.consultations.update_one({"_id": oid(cid)}, {"$set": {"ai_provenance": p, **Consultation.sealed_set({"ai_snapshot": snap})}})
+    await prov.log(db, user["id"], f"visita {cid}", old, prov.DRAFT, tipo="riassunto_famiglia")
     return {"riepilogo": text}
+
+
+def needs_signature(doc: dict) -> bool:
+    p = doc.get("ai_provenance") or {}
+    return prov.is_draft(p) or prov.is_draft((p.get("parti") or {}).get("riassunto_famiglia"))
+
+
+SIGN_FIRST = "Nota redatta con MantAI non ancora firmata: la verifichi e la firmi prima di inviarla o pubblicarla"
+
+
+@api.post("/consultations/{cid}/sign")
+async def sign_consultation(cid: str, user: dict = Depends(current_user)):
+    """Firma del medico: i contenuti MantAI in bozza diventano 'verificato_dal_medico' (unico punto di revisione)."""
+    await require_ready(cid)
+    doc = await tdb.consultations.find_one({"_id": oid(cid)})
+    if not doc:
+        raise HTTPException(404, "Consultazione non trovata")
+    raw = unseal_fields(doc, ("note", "ai_snapshot"))
+    p = {**(doc.get("ai_provenance") or {"ai_generated": False})}
+    name = await prov.reviewer_label(db, user["id"])
+    if prov.is_draft(p):
+        p = prov.reviewed(p, user["id"], prov.changed(raw.get("ai_snapshot"), raw.get("note")) if raw.get("ai_snapshot") else None, name)
+        await prov.log(db, user["id"], f"visita {cid}", prov.DRAFT, prov.VERIFIED, user["id"], p.get("tipo"))
+    parts = {**(p.get("parti") or {})}
+    rs = parts.get("riassunto_famiglia")
+    if prov.is_draft(rs):
+        snap = raw.get("ai_snapshot") or {}
+        parts["riassunto_famiglia"] = prov.reviewed(rs, user["id"], (snap.get("riepilogo") or "") != ((raw.get("note") or {}).get("riepilogo") or ""), name)
+        await prov.log(db, user["id"], f"visita {cid}", prov.DRAFT, prov.VERIFIED, user["id"], "riassunto_famiglia")
+    if parts:
+        p["parti"] = parts
+    upd = await tdb.consultations.find_one_and_update({"_id": oid(cid)}, {"$set": {"ai_provenance": p}}, return_document=True)
+    await audit("nota_firmata", doc["patient_name"])
+    return Consultation.from_mongo(upd).out()
 
 
 def _fold(t: str) -> str:
@@ -1196,6 +1260,8 @@ async def send_report(cid: str, user: dict = Depends(current_user)):
     doc = await tdb.consultations.find_one({"_id": oid(cid)})
     if not doc:
         raise HTTPException(404, "Consultazione non trovata")
+    if needs_signature(doc):
+        raise HTTPException(409, SIGN_FIRST)
     c = Consultation.from_mongo(doc).out()
     patient = await get_patient(c.get("patient_id"))
     to = (patient or {}).get("guardian_email", "").strip()
@@ -1210,7 +1276,9 @@ async def send_report(cid: str, user: dict = Depends(current_user)):
     ped_mail = is_pediatric(c["note"].get("specialita") or "")
     subject = f"Referto della visita {'pediatrica ' if ped_mail else ''}di {c['patient_name']} – {day}"
     summary_html = (f'<div style="margin:18px 0;padding:16px 18px;background:#F3F6FF;border-left:3px solid #0A192F;font-size:14px;line-height:1.6">'
-                    f'<div style="font-size:11px;letter-spacing:2px;color:#5B6478;margin-bottom:6px">IN PAROLE SEMPLICI</div>{hesc(c["note"]["riepilogo"]).replace(chr(10), "<br>")}</div>'
+                    f'<div style="font-size:11px;letter-spacing:2px;color:#5B6478;margin-bottom:6px">IN PAROLE SEMPLICI</div>{hesc(c["note"]["riepilogo"]).replace(chr(10), "<br>")}'
+                    + ('<div style="margin-top:8px;font-size:12px;color:#8A5A00">Contiene una spiegazione generata da MantAI, verificata dal medico. Non sostituisce il referto né il parere del medico.</div>'
+                       if ((c["ai_provenance"].get("parti") or {}).get("riassunto_famiglia") or {}).get("ai_generated") else "") + '</div>'
                     if (c["note"].get("riepilogo") or "").strip() else "")
     html = (
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F5F7;padding:24px 0"><tr><td align="center">'
@@ -1220,6 +1288,8 @@ async def send_report(cid: str, user: dict = Depends(current_user)):
         f'<tr><td style="padding:28px;font-size:15px;line-height:1.6"><p>Gentile {hesc(patient.get("guardian") or ("famiglia" if ped_mail else c["patient_name"]))},</p>'
         f'<p>in allegato trova il referto della visita di <strong>{hesc(c["patient_name"])}</strong> del {day}'
         f'{" presso lo " + hesc(c["clinic"]) if c.get("clinic") else ""}.</p>' + summary_html +
+        + ('<p style="font-size:13px;color:#5B6478">Il referto allegato è stato redatto con il supporto di MantAI e verificato e firmato dal medico.</p>'
+           if c["ai_provenance"].get("ai_generated") is True else '') +
         '<p>Per qualsiasi chiarimento può rispondere a questa email o contattare lo studio.</p>'
         f'<p style="margin-top:24px">Cordiali saluti,<br><strong>{hesc(user["name"])}</strong><br>'
         f'<span style="color:#5B6478;font-size:13px">{hesc(profile["specialty"] if profile else os.environ["DOCTOR_SPECIALTY"])}<br>Tel. {hesc(profile["phone"] if profile else os.environ["STUDIO_PHONE"])}</span></p></td></tr>'
@@ -1233,11 +1303,19 @@ async def send_report(cid: str, user: dict = Depends(current_user)):
     await tdb.consultations.update_one({"_id": oid(cid)}, {"$set": {**Consultation.sealed_set({"report_sent_at": sent_at, "report_sent_to": to}), "finalized_at": sent_at}, "$inc": {"pdf_exports": 1}})
     await audit("referto_email", c["patient_name"])
     if c.get("patient_id"):
-        await notify_parents(db, c["patient_id"], user["id"], "report", "Nuovo referto disponibile", f"{c['patient_name']} · visita del {day}", ref=cid, key=f"rep:{cid}")
+        await notify_parents(db, c["patient_id"], user["id"], "report", "Nuovo referto disponibile", f"{c['patient_name']} · visita del {day}", ref=cid, key=f"rep:{cid}",
+                             ai_line=report_ai_line(doc))
     return {"sent": True, "to": to, "sent_at": sent_at, "email_id": email_id}
 
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def report_ai_line(doc: dict) -> str:
+    p = doc.get("ai_provenance") or {}
+    if (p.get("parti") or {}).get("riassunto_famiglia", {}).get("ai_generated"):
+        return "Contiene una spiegazione generata da MantAI."
+    return "Contiene un referto redatto con il supporto di MantAI e verificato dal medico." if p.get("ai_generated") is True else ""
 
 
 class PortalPublishIn(BaseModel):
@@ -1248,13 +1326,17 @@ class PortalPublishIn(BaseModel):
 async def publish_to_portal(cid: str, body: PortalPublishIn):
     if body.published:
         await require_ready(cid)
+        cur = await tdb.consultations.find_one({"_id": oid(cid)}, {"ai_provenance": 1})
+        if cur and needs_signature(cur):
+            raise HTTPException(409, SIGN_FIRST)
     doc = await tdb.consultations.find_one_and_update({"_id": oid(cid)}, {"$set": {"portal_published": body.published}}, return_document=True)
     if not doc:
         raise HTTPException(404, "Consultazione non trovata")
     await audit("referto_portale" if body.published else "referto_portale_ritirato", doc["patient_name"])
     if body.published and doc.get("patient_id"):
         visit = datetime.fromisoformat(doc["created_at"]).strftime("%d/%m/%Y")
-        await notify_parents(db, doc["patient_id"], doc["owner_id"], "report", "Nuovo referto disponibile", f"{doc['patient_name']} · visita del {visit}", ref=cid, key=f"rep:{cid}")
+        await notify_parents(db, doc["patient_id"], doc["owner_id"], "report", "Nuovo referto disponibile", f"{doc['patient_name']} · visita del {visit}", ref=cid, key=f"rep:{cid}",
+                             ai_line=report_ai_line(doc))
     return Consultation.from_mongo(doc).out()
 
 
@@ -1735,9 +1817,13 @@ async def portal_simple(pid: str, user: dict = Depends(require_role(current_user
         return {"available": False}
     c = Consultation.from_mongo(raw).out()
     cached = unseal_fields(raw, ("simple",)).get("simple")
-    base = {"available": True, "consultation_id": c["id"], "created_at": c["created_at"], "clinic": c.get("clinic", ""), "riepilogo": c["note"].get("riepilogo", "")}
+    parts = (raw.get("ai_provenance") or {}).get("parti") or {}
+    cache = {}
+    base = {"available": True, "consultation_id": c["id"], "created_at": c["created_at"], "clinic": c.get("clinic", ""), "riepilogo": c["note"].get("riepilogo", ""),
+            "riepilogo_provenance": await prov.present(db, parts.get("riassunto_famiglia"), cache),
+            "report_provenance": await prov.present(db, {k: v for k, v in (raw.get("ai_provenance") or {}).items() if k != "parti"}, cache)}
     if cached:
-        return {**base, **cached}
+        return {**base, **cached, "ai_provenance": await prov.present(db, parts.get("spiegazione_semplice"), cache)}
     n = c["note"]
     spec = n.get("specialita") or "Pediatria"
     who = "ai genitori" if is_pediatric(spec) else "al paziente"
@@ -1755,8 +1841,11 @@ async def portal_simple(pid: str, user: dict = Depends(require_role(current_user
     except Exception:
         logger.exception("Spiegazione semplice non generata")
         return {**base, "diagnosi": n.get("diagnosi", ""), "cosa_fare": [], "quando_tornare": n.get("follow_up", ""), "glossario": []}
-    await db.consultations.update_one({"_id": raw["_id"]}, {"$set": seal_fields({"simple": simple}, ("simple",))})
-    return {**base, **simple}
+    sp = prov.make("riassunto_famiglia", prov.GPT, prov.AUTO)
+    await db.consultations.update_one({"_id": raw["_id"]}, {"$set": {**seal_fields({"simple": simple}, ("simple",)),
+                                                                    **({"ai_provenance.parti.spiegazione_semplice": sp} if raw.get("ai_provenance") else {"ai_provenance": {"ai_generated": False, "parti": {"spiegazione_semplice": sp}}})}})
+    await prov.log(db, link["owner_id"], f"visita {c['id']}", None, prov.AUTO, tipo="spiegazione_semplice")
+    return {**base, **simple, "ai_provenance": sp}
 public_api.include_router(inbox_admin)
 public_api.include_router(inbox_mine)
 public_api.include_router(auth_router)
@@ -1772,6 +1861,7 @@ api.include_router(tpl_router)
 public_api.include_router(bc_parent)
 app.include_router(public_api)
 app.include_router(api)
+app.add_middleware(prov.ProvenanceGuard)
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { AudioLines, BookOpenText, Eye, FileSignature, KeyRound, Lock, ShieldCheck, Sparkles, Trash2, UserCheck } from "lucide-react";
+import { AudioLines, BookOpenText, Eye, FileSignature, KeyRound, Lock, ShieldCheck, Sparkles, Tags, Trash2, UserCheck } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { LabelPill, VARIANTS } from "./aiLabels";
 
 const ROLE = {
   doctor: {
@@ -31,7 +32,7 @@ const SAFETY = [
   [KeyRound, "Cartelle cifrate e separate", "Note cliniche cifrate nel database e dati isolati per ogni studio: ciascun medico accede solo ai propri pazienti."],
   [UserCheck, "Fornitori selezionati", "MantAI si basa su modelli di AI avanzati di fornitori selezionati, che agiscono come responsabili del trattamento (art. 28 GDPR)."],
   [ShieldCheck, "GDPR e segreto professionale", "I dati sanitari sono trattati solo per la cura del paziente, con il consenso raccolto dallo studio e nel rispetto del segreto medico."],
-  [FileSignature, "Controllo umano", "Nessun contenuto generato arriva alla famiglia senza la revisione e la firma del medico."],
+  [FileSignature, "Controllo umano", "I contenuti clinici (note, referti, risposte su temi di salute) arrivano alla famiglia solo dopo la revisione e la firma del medico. Le risposte pratiche automatiche e le spiegazioni semplificate sono sempre etichettate."],
 ];
 
 const RoleView = ({ role }) => (
@@ -61,6 +62,22 @@ const Safety = () => (
   </section>
 );
 
+const Recognize = () => (
+  <section className="mt-6 rounded-[24px] border border-slate-200 bg-white p-5 sm:p-6" data-testid="mantai-labels-info">
+    <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-[#3B6CF6]"><Tags size={13} /> Come riconosci i contenuti AI</div>
+    <p className="mt-2 text-sm leading-relaxed text-slate-600">Ogni testo scritto o elaborato da MantAI porta un'etichetta con una frase sempre visibile, nell'area del medico, nel Portale, nei PDF e nelle email. Le etichette non si possono nascondere dalle impostazioni.</p>
+    <ul className="mt-4 grid gap-3">
+      {Object.entries(VARIANTS).map(([k, v]) => (
+        <li key={k} className="grid gap-1.5 rounded-2xl bg-[#F4F5F7] p-3 sm:grid-cols-[minmax(0,300px)_1fr] sm:items-center sm:gap-4" data-testid={`mantai-label-example-${k}`}>
+          <LabelPill variant={k} reviewer="Dott.ssa Rossi" />
+          <p className="text-sm leading-relaxed text-slate-600">{v.info}</p>
+        </li>
+      ))}
+    </ul>
+    <p className="mt-3 text-xs leading-relaxed text-slate-500">Nei referti PDF redatti con MantAI il piè di pagina lo indica e il file contiene una marcatura leggibile dai programmi (tipo di contenuto e medico revisore).</p>
+  </section>
+);
+
 export const MantAIDialog = ({ open, onOpenChange, view = "doctor" }) => {
   const [role, setRole] = useState(view);
   useEffect(() => { if (open) setRole(view); }, [open, view]);
@@ -85,6 +102,7 @@ export const MantAIDialog = ({ open, onOpenChange, view = "doctor" }) => {
           <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-[#3B6CF6]"><Sparkles size={13} /> MantAI Risposte</div>
           <p className="mt-2 text-sm leading-relaxed text-slate-600">Se lo studio lo attiva, MantAI legge i messaggi inviati dal portale e prepara una bozza di risposta. Le risposte su temi di salute <strong className="text-night">non partono mai senza l'approvazione del medico</strong> e riportano "verificata dal Dott./Dott.ssa". Solo le informazioni pratiche (orari, prenotazioni, costi) possono ricevere una "Risposta automatica di MantAI", basata esclusivamente su quanto indicato dallo studio. I messaggi non sono un canale per le urgenze: per situazioni urgenti telefoni allo studio e in emergenza chiami il 112/118. Prima dell'elaborazione nomi e recapiti vengono sostituiti da segnaposto.</p>
         </section>
+        <Recognize />
         <Safety />
         <p className="mt-5 flex items-start gap-2 text-xs leading-relaxed text-slate-500"><Eye size={13} className="mt-0.5 shrink-0" /> <span>Per esercitare i diritti previsti dal GDPR (accesso, rettifica, cancellazione) può rivolgersi allo studio medico, titolare del trattamento dei dati clinici. <a href="/privacy#fornitori" target="_blank" rel="noreferrer" className="font-medium text-[#3B6CF6] underline underline-offset-2" data-testid="mantai-privacy-link">Informativa privacy completa ed elenco dei fornitori AI</a></span></p>
       </DialogContent>

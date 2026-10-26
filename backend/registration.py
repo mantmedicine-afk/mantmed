@@ -15,6 +15,7 @@ from auth import hash_password, public, require_role
 from crypto import seal_fields, unseal_fields
 from mailer import send_email
 from tenancy import cf_hash
+import provenance as prov
 
 
 def in_network(u: dict) -> bool:
@@ -290,6 +291,7 @@ def build_registration(db, current_user, start_session, models, pdf_for):
         reports = [Consultation.from_mongo(c).out() async for c in db.consultations.find(
             {"patient_id": pid, "owner_id": owner, "$or": [{"report_sent_at": {"$ne": None}}, {"portal_published": True}]}).sort("created_at", -1)]
         charts = {d["consultation_id"] async for d in db.bodycharts.find({"consultation_id": {"$in": [r["id"] for r in reports]}, "owner_id": owner}, {"consultation_id": 1})}
+        pcache = {}
         checkpoints = []
         async for k in db.checkpoints.find({"patient_id": pid, "owner_id": owner}).sort("created_at", -1).limit(20):
             res = unseal_fields(k, ("result",)).get("result") or {}
@@ -314,7 +316,8 @@ def build_registration(db, current_user, start_session, models, pdf_for):
                               "channel": c.get("channel"), "document_id": c.get("document_id")} for c in consents],
                 "reports": [{"id": r["id"], "created_at": r["created_at"], "clinic": r["clinic"], "motivo": (r["note"] or {}).get("motivo_visita", ""),
                              "diagnosi": (r["note"] or {}).get("diagnosi", ""), "riepilogo": (r["note"] or {}).get("riepilogo", ""), "bodychart": r["id"] in charts,
-                             "template_name": r.get("template_name", ""), "follow_up": (r["note"] or {}).get("follow_up", "")} for r in reports]}
+                             "template_name": r.get("template_name", ""), "follow_up": (r["note"] or {}).get("follow_up", ""),
+                             "ai_provenance": await prov.present(db, r.get("ai_provenance"), pcache)} for r in reports]}
 
     @portal.get("/me")
     async def portal_me(user: dict = Depends(parent_user)):

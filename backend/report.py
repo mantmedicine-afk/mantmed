@@ -1,4 +1,5 @@
 import io
+from provenance import mark_pdf, pdf_footer
 import os
 import re
 from datetime import datetime
@@ -166,6 +167,8 @@ def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dic
     birth_s = datetime.fromisoformat(birth).strftime("%d/%m/%Y") if birth else blank
 
     HB = 50 * mm
+    aip = c.get("ai_provenance") or {}
+    ai_text = pdf_footer(aip)
 
     def on_page(cv, doc):
         cv.saveState()
@@ -204,10 +207,14 @@ def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dic
                                    "Uso esclusivo del paziente e dei suoi tutori legali.")
         cv.drawString(MX, 8.5 * mm, "Vietata la diffusione o la riproduzione non autorizzata. Se ricevuto per errore, distruggere e avvisare lo studio.")
         cv.drawRightString(W - MX, 8.5 * mm, f"{ref_no} · pag. {doc.page}")
+        if ai_text:
+            cv.setFont("Sans", 7.4)
+            cv.setFillColor(NIGHT)
+            cv.drawString(MX, 18.5 * mm, ai_text)
         cv.restoreState()
 
     buf = io.BytesIO()
-    doc = BaseDocTemplate(buf, pagesize=A4, title=f"Referto {c['patient_name']}", author=doctor,
+    doc = BaseDocTemplate(buf, pagesize=A4, title=f"Referto {c['patient_name']}", author=doctor, creator="MantMed", subject="Referto di visita",
                           leftMargin=MX, rightMargin=MX, topMargin=60 * mm, bottomMargin=24 * mm)
     doc.addPageTemplates([PageTemplate(frames=[Frame(MX, 24 * mm, W - 2 * MX, H - 84 * mm, id="f", leftPadding=0,
                                                      rightPadding=0, topPadding=0, bottomPadding=0)], onPage=on_page)])
@@ -298,12 +305,11 @@ def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dic
                               ("LINEABOVE", (0, 0), (-1, 0), 1.2, NIGHT),
                               ("LEFTPADDING", (0, 0), (-1, -1), 8), ("TOPPADDING", (0, 0), (-1, -1), 8),
                               ("BOTTOMPADDING", (0, 0), (-1, -1), 8)]))
-    story.append(KeepTogether([Spacer(1, 4 * mm), sign, Spacer(1, 3 * mm),
-                               P("Referto generato con il supporto di trascrizione AI e verificato dal medico firmatario.", "small")]))
+    story.append(KeepTogether([Spacer(1, 4 * mm), sign]))
     if bodychart:
         story += bodychart_page(bodychart)
     doc.build(story)
-    return buf.getvalue()
+    return mark_pdf(buf.getvalue(), aip)
 
 
 CAT_LABEL = {"lesione": "Lesione", "trauma": "Trauma / contusione", "dolore": "Dolore", "eruzione": "Eruzione cutanea / dermatite", "nevo": "Nevo / macchia", "controllo": "Controllo"}

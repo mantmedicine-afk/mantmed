@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { AlertTriangle, ArrowLeft, Check, CheckCheck, Inbox, Loader2, PencilLine, Send, Sparkles, Trash2 } from "lucide-react";
 import { api, errMsg } from "@/lib/api";
 import { when } from "@/components/portal/Conversation";
+import { AILabel } from "@/components/mantai/AILabel";
 
 export const CAT = {
   clinico: ["Clinico", "bg-amber-100 text-amber-900"],
@@ -58,10 +59,11 @@ const DraftEditor = ({ id, onDone, onBack, onOpenThread, onChanged }) => {
         <p className="mt-1 whitespace-pre-wrap rounded-2xl border border-slate-200 bg-white p-4 text-sm text-night" data-testid="ai-draft-original">{d.original}</p>
         {d.fields.length > 0 && <p className="mt-1 text-xs text-slate-600">{d.fields.map((f) => `${f.label}: ${f.value}`).join(" · ")}</p>}</div>
       <div><div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-[#3B6CF6]"><Sparkles size={12} /> Bozza MantAI {d.ai_failed && "· non disponibile, scriva la risposta"}</div>
+        {!d.ai_failed && <AILabel variant="bozza" view="doctor" className="mt-2" testId="ai-draft-label" />}
         <div className="mt-1">{edit
           ? <textarea value={text} onChange={(e) => setText(e.target.value)} rows={10} maxLength={4000} className="w-full rounded-2xl border border-slate-200 p-4 text-sm leading-relaxed outline-none focus:border-night" data-testid="ai-draft-textarea" />
           : <Highlighted text={text} />}</div>
-        <p className="mt-1 text-[11px] text-slate-500">In verde le frasi in cui MantAI propone di telefonare allo studio o di fissare una visita. La famiglia vedrà: "Risposta preparata con l'assistenza di MantAI e verificata da lei".</p></div>
+        <p className="mt-1 text-[11px] text-slate-500">In verde le frasi in cui MantAI propone di telefonare allo studio o di fissare una visita. La famiglia vedrà l'etichetta "Redatto con il supporto di MantAI, verificato" con il suo nome.</p></div>
       <div className="flex flex-wrap gap-2">
         {!edit && <button onClick={() => run("ok", () => api.aiApprove(id, text), "Risposta approvata e inviata")} disabled={!!busy || text.trim().length < 2} className="flex h-11 items-center gap-2 rounded-full bg-night px-5 text-sm font-semibold text-white disabled:opacity-50" data-testid="ai-draft-approve">{busy === "ok" ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} Approva e invia</button>}
         {edit ? <button onClick={() => run("ok", () => api.aiApprove(id, text), "Risposta modificata e inviata")} disabled={!!busy || text.trim().length < 2} className="flex h-11 items-center gap-2 rounded-full bg-night px-5 text-sm font-semibold text-white disabled:opacity-50" data-testid="ai-draft-edit-send">{busy === "ok" ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} Invia la versione modificata</button>

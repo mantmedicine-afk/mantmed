@@ -85,26 +85,28 @@ def messages_out(msgs: list) -> list:
         else:
             replied = True
         out.append({"id": str(m["_id"]), "from": m["from"], "author": m.get("author", ""), "body": u["body"], "fields": u.get("fields") or [],
-                    "created_at": m["created_at"], "read_at": m.get("read_at"), "status": st, "ai_label": m.get("ai_label")})
+                    "created_at": m["created_at"], "read_at": m.get("read_at"), "status": st, "ai_label": m.get("ai_label"), "ai_provenance": m.get("ai_provenance")})
     return list(reversed(out))
 
 
-async def _mail_parent(p: dict, title: str):
+async def _mail_parent(p: dict, title: str, ai_line: str = ""):
     try:
         await send_email(to=p["email"], subject=f"MantMed · {title}", html=mail_shell("PORTALE PAZIENTE",
             f"<p>Gentile {hesc(p.get('name', ''))},</p><p>{hesc(title)}: acceda al Portale Paziente MantMed per leggerlo.</p>"
-            "<p style=\"color:#5B6478;font-size:13px\">Per riservatezza questa email non contiene dati clinici. Può gestire gli avvisi email dall'Area Riservata.</p>"))
+            + (f"<p style=\"color:#8A5A00;font-size:13px\">{hesc(ai_line)}</p>" if ai_line else "")
+            + "<p style=\"color:#5B6478;font-size:13px\">Per riservatezza questa email non contiene dati clinici. Può gestire gli avvisi email dall'Area Riservata.</p>"))
     except Exception:
         logging.getLogger(__name__).exception("Avviso email al genitore non inviato")
 
 
-async def notify_parents(db, pid: str, owner: str, kind: str, title: str, body: str, ref: str = "", key: Optional[str] = None, only: Optional[str] = None):
+async def notify_parents(db, pid: str, owner: str, kind: str, title: str, body: str, ref: str = "", key: Optional[str] = None, only: Optional[str] = None,
+                         ai_line: str = ""):
     q = {"_id": ObjectId(only)} if only else {"role": "parent", "children": {"$elemMatch": {"patient_id": pid, "owner_id": owner}}}
     cat = NOTIF_CAT[kind]
     async for p in db.users.find(q):
         prefs = prefs_of(p)[cat]
         if prefs["email"] and kind != "reminder" and p.get("status", "active") == "active" and not (key and await db.notifications.find_one({"parent_id": str(p["_id"]), "key": key})):
-            asyncio.create_task(_mail_parent(p, title))
+            asyncio.create_task(_mail_parent(p, title, ai_line))
         if not prefs["inapp"]:
             continue
         doc = {"parent_id": str(p["_id"]), "kind": kind, "patient_id": pid, "owner_id": owner, "ref": ref, "created_at": _now().isoformat(), "read_at": None,
@@ -115,10 +117,11 @@ async def notify_parents(db, pid: str, owner: str, kind: str, title: str, body: 
             await db.notifications.insert_one(doc)
 
 
-async def add_message(db, t: dict, side: str, author: str, body: str, fields=None, ai_label: Optional[str] = None) -> str:
+async def add_message(db, t: dict, side: str, author: str, body: str, fields=None, ai_label: Optional[str] = None, ai_provenance: Optional[dict] = None) -> str:
     now = _now().isoformat()
     doc = {"thread_id": str(t["_id"]), "from": side, "author": author, "created_at": now, "read_at": None,
-           **seal_fields({"body": body.strip(), "fields": fields or []}, M_SEALED), **({"ai_label": ai_label} if ai_label else {})}
+           **seal_fields({"body": body.strip(), "fields": fields or []}, M_SEALED), **({"ai_label": ai_label} if ai_label else {}),
+           **({"ai_provenance": ai_provenance} if ai_provenance else {})}
     mid = str((await db.messages.insert_one(doc)).inserted_id)
     if side == "system":
         await db.threads.update_one({"_id": t["_id"]}, {"$inc": {"parent_unread": 1}})

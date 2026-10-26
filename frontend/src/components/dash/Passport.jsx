@@ -10,6 +10,7 @@ import { methodLabel } from "./CashPanel";
 import { GrowthChart } from "./GrowthChart";
 import { CheckpointWizard, CheckpointResult } from "./CheckpointWizard";
 import { TeamPanel } from "@/components/team/TeamPanel";
+import { AILabel } from "@/components/mantai/AILabel";
 
 const TABS = [["crescita", "Crescita"], ["visite", "Visite"], ["checkpoint", "Check-point benessere"], ["rete", "Medicina di squadra"], ["privacy", "Privacy e consensi"]];
 
@@ -145,6 +146,7 @@ const Visits = ({ items, payments = [] }) => {
               <div className="flex items-center gap-2 text-xs text-slate-500"><span className="font-mono">{new Date(c.created_at).toLocaleDateString("it-IT")}</span><span className="rounded-full bg-slate-100 px-2 py-0.5 text-night">{c.clinic || "Consultazione libera"}</span></div>
               <div className="mt-1 font-display text-2xl text-night">{c.note?.motivo_visita || "Visita"}</div>
               <div className="text-sm text-slate-600"><span className="font-semibold text-night">Diagnosi:</span> {c.note?.diagnosi || "—"}</div>
+              <AILabel provenance={c.ai_provenance} view="doctor" className="mt-2" testId={`passport-visit-ai-label-${c.id}`} />
               {payments.filter((x) => x.consultation_id === c.id).map((x) => (
                 <span key={x.id} className="mt-2 mr-2 inline-flex items-center gap-1.5 rounded-full bg-[#ECEDEF] px-3 py-1 text-xs font-medium text-night" data-testid={`passport-payment-${x.id}`}>{eur(x.amount)} · {methodLabel(x.method)}</span>
               ))}

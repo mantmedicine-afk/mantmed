@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { Loader2, Send, ArrowLeft, Check, CheckCheck, Reply, Lock, Hourglass, Sparkles } from "lucide-react";
 import { MantAIButton } from "@/components/mantai/MantAI";
+import { AILabel } from "@/components/mantai/AILabel";
 import { UrgencyNotice } from "./UrgencyNotice";
 
 export const STATUS = {
@@ -21,7 +22,11 @@ export const when = (iso) => {
   return today ? d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : d.toLocaleDateString("it-IT", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 };
 
-const AiLabel = ({ m, mine, side }) => (
+const AiLabel = ({ m, mine, side }) => m.ai_provenance?.ai_generated ? (
+  <div className={`mt-2 border-t pt-2 ${mine ? "border-white/15" : "border-slate-200"}`} data-testid={`msg-ai-label-${m.id}`}>
+    <AILabel provenance={m.ai_provenance} reviewer={m.ai_provenance.reviewer_name || m.author} view={side === "parent" ? "patient" : "doctor"} testId={`msg-ai-pill-${m.id}`} />
+  </div>
+) : (
   <div className={`mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 border-t pt-2 text-[11px] ${mine ? "border-white/15 text-slate-300" : "border-slate-200 text-slate-600"}`} data-testid={`msg-ai-label-${m.id}`}>
     <Sparkles size={12} /> <span>{m.ai_label}</span>{side === "parent" && <MantAIButton variant="link" view="patient" />}
   </div>

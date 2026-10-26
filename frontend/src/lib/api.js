@@ -117,6 +117,7 @@ export const api = {
   portalMe: () => http.get("/portal/me").then((r) => r.data),
   portalAddChild: (fiscal_code) => http.post("/portal/children", { fiscal_code }).then((r) => r.data),
   publishToPortal: (id, published) => http.post(`/consultations/${id}/portal`, { published }).then((r) => r.data),
+  signConsultation: (id) => http.post(`/consultations/${id}/sign`).then((r) => r.data),
   upcoming: () => http.get("/appointments/upcoming").then(list),
   apptRequests: () => http.get("/appointment-requests").then(list),
   confirmRequest: (id, b) => http.post(`/appointment-requests/${id}/confirm`, b).then((r) => r.data),

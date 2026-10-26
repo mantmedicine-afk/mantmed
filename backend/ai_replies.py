@@ -11,6 +11,7 @@ from typing import Literal, Optional
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+import provenance as prov
 from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
 from auth import require_role
 from crypto import seal_fields, unseal_fields
@@ -278,16 +279,20 @@ def build_ai_replies(db, current_user):
                 text = ps.show((res.get("testo") or "").replace("**", "")).strip()
                 if res.get("risposta_possibile") is True and text and not CLINICAL_OUT_RE.search(text) and not re.search(r"\[[A-Z ]+\]", text):
                     final = text + (f"\n\n{kb['signature']}" if kb["signature"] else "")
-                    await add_message(db, t, "doctor", t.get("doctor_name", "Studio"), final, ai_label=LABEL_AUTO)
-                    await db.ai_reply_drafts.insert_one({**base, "status": "inviata", "auto": True, **seal_fields({"text": final}, ("text",))})
-                    await notify_parents(db, t["patient_id"], t["owner_id"], "reply", f"{t.get('doctor_name', 'Lo studio')} ha risposto", KIND_LABEL[t["kind"]], ref=tid, only=t["parent_id"])
+                    pa = prov.make("risposta_messaggio", prov.CLAUDE, prov.AUTO)
+                    await add_message(db, t, "doctor", t.get("doctor_name", "Studio"), final, ai_label=LABEL_AUTO, ai_provenance=pa)
+                    await db.ai_reply_drafts.insert_one({**base, "status": "inviata", "auto": True, "ai_provenance": pa, **seal_fields({"text": final}, ("text",))})
+                    await prov.log(db, t["owner_id"], f"messaggio {mid}", None, prov.AUTO, tipo="risposta_messaggio")
+                    await notify_parents(db, t["patient_id"], t["owner_id"], "reply", f"{t.get('doctor_name', 'Lo studio')} ha risposto", KIND_LABEL[t["kind"]], ref=tid, only=t["parent_id"],
+                                         ai_line="Contiene una risposta automatica di MantAI.")
                     await audit(t["owner_id"], "mantai_invio_automatico", mid)
                     return
             extra = "\nNota: il messaggio potrebbe descrivere una situazione urgente." if hint else ""
             try:
                 draft = await generate(SYSTEM_DRAFT.replace("{tone}", tone_text({"tone": kb["tone"], "address": kb["address_form"]})), ps, kb_all + extra, age, history, current)
                 draft = ps.show(draft.replace("**", "")) + (f"\n\n{kb['signature']}" if kb["signature"] else "")
-                await db.ai_reply_drafts.insert_one({**base, "status": "in_attesa", **seal_fields({"text": draft}, ("text",))})
+                await db.ai_reply_drafts.insert_one({**base, "status": "in_attesa", "ai_provenance": prov.make("risposta_messaggio", prov.CLAUDE), **seal_fields({"text": draft}, ("text",))})
+                await prov.log(db, t["owner_id"], f"messaggio {mid}", None, prov.DRAFT, tipo="risposta_messaggio")
                 await audit(t["owner_id"], "mantai_bozza_generata", mid, category=cat)
             except Exception:  # noqa: BLE001
                 log.exception("Bozza MantAI non generata")
@@ -320,10 +325,11 @@ def build_ai_replies(db, current_user):
         mu = unseal_fields(m, M_SEALED) if m else {}
         out = {"id": str(d["_id"]), "message_id": d["message_id"], "thread_id": d["thread_id"], "clinic": d["studio_id"], "category": d["category"], "status": d["status"],
                "created_at": d["created_at"], "ai_failed": bool(d.get("ai_failed")), "urgent_hint": bool(d.get("urgent_hint")), "patient_name": names.get("patient_name", ""), "parent_name": names.get("parent_name", ""),
-               "subject": names.get("subject", ""), "original": mu.get("body", ""), "fields": mu.get("fields") or []}
+               "subject": names.get("subject", ""), "original": mu.get("body", ""), "fields": mu.get("fields") or [], "ai_provenance": d.get("ai_provenance")}
         if full:
             hist = await db.messages.find({"thread_id": d["thread_id"], "created_at": {"$lt": d["created_at"]}}).sort("created_at", -1).limit(5).to_list(5)
-            out["history"] = [{"from": x["from"], "author": x.get("author", ""), "created_at": x["created_at"], "body": unseal_fields(x, M_SEALED)["body"], "ai_label": x.get("ai_label")} for x in reversed(hist)]
+            out["history"] = [{"from": x["from"], "author": x.get("author", ""), "created_at": x["created_at"], "body": unseal_fields(x, M_SEALED)["body"], "ai_label": x.get("ai_label"),
+                               "ai_provenance": x.get("ai_provenance")} for x in reversed(hist)]
             out["text"] = unseal_fields(d, ("text",))["text"]
             out["clinics"] = await clinics_of(d["doctor_id"])
         return out
@@ -380,13 +386,17 @@ def build_ai_replies(db, current_user):
         if not t:
             raise HTTPException(404, "Conversazione non trovata")
         edited = body.text.strip() != unseal_fields(d, ("text",))["text"].strip()
-        await add_message(db, t, "doctor", user["name"], body.text, ai_label=f"Risposta preparata con l'assistenza di MantAI e verificata da {user['name']}")
-        await db.ai_reply_drafts.update_one({"_id": d["_id"]}, {"$set": {"status": "inviata", "edited": edited, "updated_at": _now(), "editor_id": user["id"], **seal_fields({"text": body.text.strip()}, ("text",))}})
+        name = await prov.reviewer_label(db, user["id"])
+        pv = prov.reviewed(d.get("ai_provenance") or prov.make("risposta_messaggio", prov.CLAUDE, at=d["created_at"]), user["id"], edited, name)
+        await add_message(db, t, "doctor", user["name"], body.text, ai_label=f"Risposta preparata con l'assistenza di MantAI e verificata da {name}", ai_provenance=pv)
+        await db.ai_reply_drafts.update_one({"_id": d["_id"]}, {"$set": {"status": "inviata", "edited": edited, "updated_at": _now(), "editor_id": user["id"], "ai_provenance": pv, **seal_fields({"text": body.text.strip()}, ("text",))}})
+        await prov.log(db, user["id"], f"messaggio {d['message_id']}", prov.DRAFT, prov.VERIFIED, user["id"], "risposta_messaggio")
         if edited:
             await audit(user["id"], "mantai_bozza_modificata", d["message_id"], user["id"])
         await audit(user["id"], "mantai_bozza_approvata_inviata", d["message_id"], user["id"])
         pname = unseal_fields(t, T_SEALED)["patient_name"]
-        await notify_parents(db, t["patient_id"], t["owner_id"], "reply", f"{user['name']} ha risposto", f"{KIND_LABEL[t['kind']]} · {pname}", ref=d["thread_id"], only=t["parent_id"])
+        await notify_parents(db, t["patient_id"], t["owner_id"], "reply", f"{user['name']} ha risposto", f"{KIND_LABEL[t['kind']]} · {pname}", ref=d["thread_id"], only=t["parent_id"],
+                             ai_line="Contiene una risposta preparata con il supporto di MantAI e verificata dal medico.")
         await refresh_thread(d["thread_id"])
         return {"status": "inviata", "edited": edited}
 

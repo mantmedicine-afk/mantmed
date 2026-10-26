@@ -5,6 +5,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { MantAIButton } from "@/components/mantai/MantAI";
 import { api } from "@/lib/api";
 import { Avatar } from "@/components/showcase/ShowcaseView";
+import { AILabel } from "@/components/mantai/AILabel";
 
 const greet = () => { const h = new Date().getHours(); return h < 13 ? "Buongiorno" : h < 18 ? "Buon pomeriggio" : "Buonasera"; };
 const longDay = (d) => new Date(`${d}T12:00:00`).toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" });
@@ -50,6 +51,7 @@ export const SimpleBox = ({ kid }) => {
       {s?.available && (
         <TooltipProvider delayDuration={100}>
           <div className="mt-1 text-sm text-[#0A192F]/60">{new Date(s.created_at).toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" })}{s.clinic ? ` · ${s.clinic}` : ""}</div>
+          {(s.ai_provenance?.ai_generated || s.riepilogo_provenance?.ai_generated) && <AILabel variant="riassunto" className="mt-3" testId="portal-simple-ai-label" />}
           <p className="mt-5 text-lg leading-relaxed text-night" data-testid="portal-simple-diagnosi">{s.diagnosi || s.riepilogo}</p>
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             {s.cosa_fare?.length > 0 && <div className="rounded-2xl bg-white/70 p-5"><div className="flex items-center gap-2 text-sm font-semibold text-night"><ListChecks size={16} strokeWidth={1.5} /> Cosa fare</div><ul className="mt-3 space-y-2 text-sm text-[#0A192F]/80" data-testid="portal-simple-todo">{s.cosa_fare.map((x) => <li key={x} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#B7791F]" />{x}</li>)}</ul></div>}

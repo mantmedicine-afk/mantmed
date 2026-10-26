@@ -12,6 +12,8 @@ import { SendToParents } from "./SendToParents";
 import { CashPanel } from "./CashPanel";
 import { PrevisitPanel } from "./PrevisitPanel";
 import { BodychartEditor } from "@/components/bodychart/BodychartEditor";
+import { AILabel, AIFieldMark } from "@/components/mantai/AILabel";
+import { SignNote, needsSignature } from "./SignNote";
 
 const BR = { position: "bottom-right" };
 const motivo = (n) => (n.motivo_visita && n.motivo_visita !== "Non riportato" ? n.motivo_visita : "");
@@ -22,7 +24,7 @@ const visitLabel = (n) => {
 };
 // Parametri per le specializzazioni dell'adulto: solo peso, altezza e BMI (niente percentili OMS)
 // Riepilogo in parole semplici per genitori / paziente (generato dall'IA insieme alla cartella, modificabile)
-const SummaryCard = ({ note, setNote, consultation, processing, glow, flash }) => {
+const SummaryCard = ({ note, setNote, consultation, processing, glow, flash, marked, touch }) => {
   const [busy, setBusy] = useState(false);
   const ped = isPediatric(note);
   const regen = async () => {
@@ -35,7 +37,7 @@ const SummaryCard = ({ note, setNote, consultation, processing, glow, flash }) =
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="text-[11px] uppercase tracking-[0.22em] text-[#3B6CF6]">In parole semplici</div>
-          <div className="font-display text-2xl text-night">{ped ? "Riepilogo per i genitori" : "Riepilogo per il paziente"}</div>
+          <div className="font-display text-2xl text-night">{ped ? "Riepilogo per i genitori" : "Riepilogo per il paziente"}{marked && <AIFieldMark testId="note-ai-mark-riepilogo" />}</div>
         </div>
         {!processing && (
           <div className="flex gap-2">
@@ -48,7 +50,7 @@ const SummaryCard = ({ note, setNote, consultation, processing, glow, flash }) =
         <div className="mt-3 space-y-2" data-testid="note-summary-loading">{[95, 88, 70].map((w) => <div key={w} className="ai-shimmer h-3 rounded-full" style={{ width: `${w}%` }} />)}</div>
       ) : (
         <motion.textarea key={`sum-${flash}`} initial={glow ? { opacity: 0, y: 6 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
-          value={note.riepilogo ?? ""} onChange={(e) => setNote((n) => ({ ...n, riepilogo: e.target.value }))} rows={5}
+          value={note.riepilogo ?? ""} onChange={(e) => { touch("riepilogo"); setNote((n) => ({ ...n, riepilogo: e.target.value })); }} rows={5}
           placeholder={`Spiegazione della visita per ${ped ? "i genitori" : "il paziente"}: viene allegata all'email del referto e mostrata nel Portale.`}
           className={`mt-3 w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[15px] leading-relaxed outline-none focus:border-night ${glow ? "ai-filled" : ""}`} data-testid="note-summary-text" />
       )}
@@ -93,6 +95,11 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
   const [pdfBusy, setPdfBusy] = useState(false);
   const [chart, setChart] = useState(false);
   const [pins, setPins] = useState(null);
+  const [touched, setTouched] = useState(() => new Set());
+  const touch = (k) => setTouched((t) => (t.has(k) ? t : new Set(t).add(k)));
+  const pending = new Set(consultation.ai_fields_pending ?? []);
+  const marked = (k) => ready && pending.has(k) && !touched.has(k);
+  const secKey = (x) => `sez:${(x.titolo ?? "").trim().toLowerCase()}`;
   useEffect(() => {
     let alive = true;
     api.getBodychart(consultation.id).then((b) => { if (alive) setPins(b ? (b.markers ?? []).length : null); }).catch(() => {});
@@ -101,6 +108,7 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
   useEffect(() => {
     setC(initialC);
     setNote(initialC.note ?? {});
+    setTouched(new Set());
     edited.current = false;
     track(initialC);
   }, [initialC, track]);
@@ -151,10 +159,11 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
               {sections.map((x) => (
                 <div key={x.i} className="block" data-testid={`note-sezione-${x.i}`}>
                   <div className="flex items-center gap-2">
+                    {marked(secKey(x)) && <AIFieldMark testId={`note-ai-mark-sezione-${x.i}`} />}
                     <input value={x.titolo} onChange={(e) => setSection(x.i, { titolo: e.target.value })} disabled={processing} className="min-w-0 flex-1 bg-transparent text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 outline-none focus:text-night" aria-label="Titolo della voce" data-testid={`note-sezione-title-${x.i}`} />
                     {!processing && <button onClick={() => delSection(x.i)} className="grid h-7 w-7 place-items-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-rose-700" aria-label="Rimuovi voce" data-testid={`note-sezione-del-${x.i}`}><X size={14} /></button>}
                   </div>
-                  {processing ? <div className="mt-1.5 flex h-[64px] flex-col justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4" data-testid={`note-sezione-loading-${x.i}`}><div className="ai-shimmer h-3 w-11/12 rounded-full" /><div className="ai-shimmer h-3 w-2/3 rounded-full" /></div> : <motion.textarea key={`s${x.i}-${flash}`} initial={glow ? { opacity: 0, y: 6 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} value={x.testo} onChange={(e) => setSection(x.i, { testo: e.target.value })} rows={2}
+                  {processing ? <div className="mt-1.5 flex h-[64px] flex-col justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4" data-testid={`note-sezione-loading-${x.i}`}><div className="ai-shimmer h-3 w-11/12 rounded-full" /><div className="ai-shimmer h-3 w-2/3 rounded-full" /></div> : <motion.textarea key={`s${x.i}-${flash}`} initial={glow ? { opacity: 0, y: 6 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} value={x.testo} onChange={(e) => { touch(secKey(x)); setSection(x.i, { testo: e.target.value }); }} rows={2}
                     className={`mt-1.5 w-full resize-y rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[15px] leading-relaxed outline-none transition-colors focus:border-night focus:bg-white ${glow ? "ai-filled" : ""}`} data-testid={`note-sezione-text-${x.i}`} />}
                 </div>
               ))}
@@ -198,6 +207,7 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[0.75fr_1.6fr]" data-testid="note-editor">
       <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
         <div className="text-[11px] uppercase tracking-[0.22em] text-slate-300">Trascrizione · Whisper</div>
+        {consultation.ai_provenance?.parti?.trascrizione && <AILabel variant="trascrizione" view="doctor" className="mt-2" testId="note-ai-label-transcript" />}
         {processing && !consultation.transcript ? (
           <div className="mt-4 space-y-2.5" data-testid="note-transcript-loading">
             {[92, 78, 88, 64, 82, 55].map((w, i) => <div key={i} className="ai-shimmer-dark h-3 rounded-full" style={{ width: `${w}%` }} />)}
@@ -230,6 +240,7 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
             <span><span className="font-semibold">L’IA sta compilando la cartella.</span> <span className="text-slate-600">Nel frattempo può usare Bodychart, Cassa, Crescita e Dati anagrafici: i campi si riempiranno da soli.</span></span>
           </div>
         )}
+        <SignNote consultation={consultation} beforeSign={() => api.updateConsultation(consultation.id, note)} onSigned={(r) => { setC(r); setNote(r.note); setTouched(new Set()); onSaved?.(); }} />
         {failed && (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900" data-testid="note-failed-banner">
             <span className="flex items-center gap-2"><AlertTriangle size={16} className="shrink-0" /> {consultation.ai_error || "Elaborazione IA non riuscita"}</span>
@@ -258,7 +269,7 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
           <span className="text-[11px] uppercase tracking-[0.2em] text-[#A9C2FF] transition-transform group-hover:translate-x-1">A4 · PDF</span>
         </button>
         <SignatureSlot onLeave={onLeave} />
-        <SendToParents consultation={consultation} disabled={!ready} beforeSend={() => api.updateConsultation(consultation.id, note)} />
+        <SendToParents consultation={consultation} disabled={!ready} needsSign={needsSignature(consultation)} beforeSend={() => api.updateConsultation(consultation.id, note)} />
         </div>
         <CashPanel consultation={consultation} service={visitLabel(note)} onChange={onSaved} />
 
@@ -286,9 +297,10 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
                 <label key={k} className="block">
                   <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{l}</span>
                   {hint && <span className="ml-2 text-xs text-slate-500">· {hint}</span>}
+                  {marked(k) && <AIFieldMark testId={`note-ai-mark-${k}`} />}
                   {!processing ? (
                     <motion.textarea key={`${k}-${flash}`} initial={glow ? { opacity: 0, y: 6 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                      value={note[k] ?? ""} onChange={(e) => setNote((n) => ({ ...n, [k]: e.target.value }))} rows={k === "terapia" || k === "sintomi" || k === "anamnesi_fisiologica" ? 3 : 2}
+                      value={note[k] ?? ""} onChange={(e) => { touch(k); setNote((n) => ({ ...n, [k]: e.target.value })); }} rows={k === "terapia" || k === "sintomi" || k === "anamnesi_fisiologica" ? 3 : 2}
                       className={`mt-1.5 w-full resize-y rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[15px] leading-relaxed outline-none transition-colors focus:border-night focus:bg-white ${glow ? "ai-filled" : ""}`} data-testid={`note-section-${k}`} />
                   ) : (
                     <div className={`mt-1.5 flex flex-col justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 ${k === "terapia" || k === "sintomi" || k === "anamnesi_fisiologica" ? "h-[88px]" : "h-[64px]"}`} aria-busy={processing} data-testid={`note-section-${k}-loading`}>
@@ -303,7 +315,7 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
           )}
         </div>
         <PrevisitPanel pv={consultation.previsit} />
-        <SummaryCard note={note} setNote={setNote} consultation={consultation} processing={processing} glow={glow} flash={flash} />
+        <SummaryCard note={note} setNote={setNote} consultation={consultation} processing={processing} glow={glow} flash={flash} marked={marked("riepilogo")} touch={touch} />
       </div>
       {chart && <BodychartEditor consultation={consultation} defaultKind={(g.eta_mesi ?? 0) >= 168 ? "adult" : "child"} onClose={() => setChart(false)} onSaved={(n) => { setPins(n); setChart(false); onSaved?.(); }} />}
     </div>

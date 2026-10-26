@@ -7,6 +7,8 @@ import { TeamSharing } from "@/components/portal/TeamSharing";
 import { api, errMsg, eur } from "@/lib/api";
 import { PortalBodychart } from "@/components/portal/PortalBodychart";
 import { SignedDocsList } from "@/components/signature/SignedDocs";
+import { AILabel } from "@/components/mantai/AILabel";
+import { SimpleSummary } from "@/components/mantai/SimpleSummary";
 
 const day = (iso) => new Date(iso.length === 10 ? `${iso}T12:00:00` : iso).toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" });
 const year = (iso) => new Date(iso.length === 10 ? `${iso}T12:00:00` : iso).getFullYear();
@@ -22,10 +24,11 @@ const Visit = ({ r }) => (
         <div className="text-xs text-[#0A192F]/60">{[day(r.created_at), r.clinic, r.doctor].filter(Boolean).join(" · ")}</div>
         <div className="mt-1 flex flex-wrap items-center gap-2"><span className="font-display text-xl text-night">{r.motivo || "Visita"}</span>{/bilancio/i.test(`${r.template_name} ${r.motivo}`) && <span className="rounded-full bg-[#FFF9E6] px-2.5 py-0.5 text-[11px] font-semibold text-[#B7791F] ring-1 ring-[#FFE5B4]">Bilancio di salute</span>}</div>
         {r.diagnosi && <div className="mt-1 text-sm text-[#0A192F]/70">{r.diagnosi}</div>}
+        <AILabel provenance={r.ai_provenance} className="mt-2" testId={`docs-visit-ai-label-${r.id}`} />
       </div>
       <div className="flex flex-wrap gap-2">{r.bodychart && <PortalBodychart cid={r.id} />}<DlBtn onClick={() => api.portalReport(r.id)} label="Referto PDF" testid={`docs-visit-pdf-${r.id}`} /></div>
     </div>
-    {r.riepilogo && <details className="mt-3 rounded-2xl bg-[#FFF9E6] px-4 py-3 text-sm" data-testid={`docs-visit-simple-${r.id}`}><summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.16em] text-[#B7791F]">In parole semplici</summary><p className="mt-2 whitespace-pre-line leading-relaxed text-[#0A192F]/80">{r.riepilogo}</p></details>}
+    {r.riepilogo && <SimpleSummary text={r.riepilogo} ai={r.ai_provenance?.parti?.riassunto_famiglia?.ai_generated === true} testId={`docs-visit-simple-${r.id}`} />}
   </div>
 );
 

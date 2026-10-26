@@ -8,6 +8,8 @@ import { NotificationBell, useNotifications } from "@/components/portal/Notifica
 import { ReminderBanner } from "@/components/portal/ReminderBanner";
 import { SupportReplies } from "@/components/support/SupportReplies";
 import { PrevisitCard } from "@/components/portal/PrevisitCard";
+import { AILabel } from "@/components/mantai/AILabel";
+import { SimpleSummary } from "@/components/mantai/SimpleSummary";
 import { PortalOverview } from "@/components/portal/PortalOverview";
 import { SpecialistsDirectory } from "@/components/portal/SpecialistsDirectory";
 import { DocumentsArea } from "@/components/portal/DocumentsArea";
@@ -56,12 +58,8 @@ const Reports = ({ items, checkpoints = [] }) => {
   return [...items.map((r) => (
     <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4" data-testid={`portal-report-${r.id}`}>
       <div className="min-w-0"><div className="text-xs text-slate-600">{day(r.created_at)} · {r.clinic || "Studio"}</div><div className="font-medium text-night">{r.motivo || "Visita"}</div>{r.diagnosi && <div className="text-sm text-slate-600">{r.diagnosi}</div>}
-        {r.riepilogo && (
-          <details className="mt-2 rounded-xl bg-[#F3F6FF] px-3 py-2 text-sm text-night" data-testid={`portal-report-summary-${r.id}`}>
-            <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.16em] text-[#3B6CF6]">In parole semplici</summary>
-            <p className="mt-1.5 whitespace-pre-line leading-relaxed text-slate-700">{r.riepilogo}</p>
-          </details>
-        )}</div>
+        <AILabel provenance={r.ai_provenance} className="mt-2" testId={`portal-report-ai-label-${r.id}`} />
+        {r.riepilogo && <SimpleSummary text={r.riepilogo} tone="cool" ai={r.ai_provenance?.parti?.riassunto_famiglia?.ai_generated === true} testId={`portal-report-summary-${r.id}`} />}</div>
       <div className="flex flex-wrap gap-2">{r.bodychart && <PortalBodychart cid={r.id} />}<button onClick={() => dl(r.id)} disabled={busy === r.id} className="flex h-10 items-center gap-2 rounded-full bg-night px-4 text-sm font-medium text-white disabled:opacity-60" data-testid={`portal-report-pdf-${r.id}`}>{busy === r.id ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />} PDF</button></div>
     </div>
   )), <Checkpoints key="cp" items={checkpoints} />];

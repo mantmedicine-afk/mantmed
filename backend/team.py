@@ -10,6 +10,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from auth import require_role
 from crypto import seal_fields, unseal_fields
+import provenance as prov
 from account import notify_doctor
 from messaging import notify_parents
 from registration import cf_valid, in_network
@@ -100,7 +101,8 @@ def build_team(db, current_user, Consultation, pdf_for):
             note = out.get("note") or {}
             name = name or out.get("patient_name", "")
             reports.append({"id": str(c["_id"]), "created_at": c["created_at"], "clinic": c.get("clinic", ""), "motivo": note.get("motivo_visita", ""),
-                            "diagnosi": note.get("diagnosi", ""), "terapia": note.get("terapia", ""), "status": c.get("status", "")})
+                            "diagnosi": note.get("diagnosi", ""), "terapia": note.get("terapia", ""), "status": c.get("status", ""),
+                            "ai_provenance": await prov.present(db, {k: v for k, v in (c.get("ai_provenance") or {}).items() if k != "parti"})})
         checkpoints = []
         async for k in db.checkpoints.find({"patient_id": pid, "owner_id": owner}).sort("created_at", -1).limit(20):
             res = unseal_fields(k, ("result",)).get("result") or {}
