@@ -38,7 +38,7 @@ export const SendToParents = ({ consultation, beforeSend, disabled = false, need
       <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-night text-white">{busy ? <Loader2 size={18} className="animate-spin" /> : sent ? <CheckCircle2 size={18} /> : <Mail size={18} />}</span>
       <span className="min-w-0">
         <span className="block font-display text-2xl leading-none">{busy ? "Invio in corso…" : `${sent ? "Invia di nuovo" : "Invia"} ${ped ? "ai genitori" : "al paziente"}`}</span>
-        <span className="mt-1 block truncate text-xs text-slate-600" data-testid="send-parents-hint">{hint}</span>
+        <span className="mt-1 block text-xs text-slate-600" data-testid="send-parents-hint">{hint}</span>
       </span>
     </button>
   );

@@ -364,3 +364,19 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Avviso fisso urgenze (notice_text per sede, [telefono studio] <- KB phone, fallback telefono profilo) sempre visibile sopra il campo di scrittura del portale (Conversation + NewThreadDialog) anche a funzione spenta: GET /api/portal/ai-notice
 - Conferma ricezione fissa con telefono e 112/118 (anche se l'AI fallisce); migrazione urgenza->clinico all'avvio
 - Stato demo: funzione disattivata, telefono KB vuoto. Nota: il portale demo contiene molte conversazioni TEST_ create dai test
+
+## Implemented (2026-10-26, Etichettatura e tracciabilità contenuti AI — ai_provenance)
+- backend/provenance.py: make/reviewed/log (registro GDPR, etichette italiane)/present (nome revisore Dott./Dott.ssa dal profilo)/pending_fields (indicatori per campo da ai_snapshot cifrato)/mark_pdf (Keywords + XMP mantai:*)/ProvenanceGuard (403 se il body JSON/form contiene la chiave ai_provenance o ai_snapshot)/migrate (idempotente all'avvio)
+- Consultations: ai_provenance {ai_generated, tipo nota_clinica|bilancio, modello, generated_at, stato_revisione, reviewed_by, reviewed_at, modificato_dal_medico, parti:{trascrizione, riassunto_famiglia, spiegazione_semplice}}; ai_snapshot cifrato; out() espone ai_fields_pending
+- POST /api/consultations/{id}/sign = unico punto di revisione; invio email e pubblicazione nel portale bloccati (409) finché una nota MantAI è in bozza
+- PDF referto: piè di pagina AI solo per note AI (verificata o BOZZA), metadati ai_assisted/tipo/reviewed_by; nessuna dicitura per note non AI/non determinabili
+- MantAI Risposte: provenance su bozze (bozza), approvate (verificato, modificato=edited), automatiche (invio_automatico); messaggi con ai_provenance
+- Email/notifiche: riga "Contiene una spiegazione generata da MantAI" / "risposta automatica di MantAI" ecc.
+- Frontend: components/mantai/AILabel.jsx (+aiLabels.jsx, SimpleSummary.jsx), SignNote.jsx in NoteEditor (banner bozza, firma con responsabilità, indicatori per campo e pallino sulle schede), etichette in Passaporto, Coda risposte, Conversazioni, Portale (Documenti, Referti, In parole semplici sempre aperto), Medicina di squadra; "Cos'è MantAI" sezione "Come riconosci i contenuti AI"; privacy aggiornata; CompliancePanel etichette nuove azioni
+- Migrazione: 22 consultazioni AI certe (ai_sec>0), 15 non determinabili, 9 messaggi, 19 bozze, 2 spiegazioni semplici
+- Traduzioni: solo variante etichetta (funzione non esistente)
+- Test: iteration_43 (backend 15/15, frontend A–G ok), tests in backend/tests/test_ai_provenance.py
+
+## Backlog
+- P2: copia di contenuti AI in note di squadra con provenienza (oggi non esiste un flusso di copia)
+- P2: funzione traduzione referto (etichetta già pronta)

@@ -4,6 +4,7 @@ import json
 import re
 from datetime import datetime, timezone
 from typing import Optional
+from urllib.parse import parse_qs
 
 import fitz
 from bson import ObjectId
@@ -47,9 +48,14 @@ def is_draft(p: Optional[dict]) -> bool:
     return bool(p and p.get("ai_generated") is True and p.get("stato_revisione") == DRAFT)
 
 
+TIPO_IT = {"nota_clinica": "Nota clinica", "bilancio": "Bilancio di salute", "riassunto_famiglia": "Riepilogo per la famiglia", "spiegazione_semplice": "In parole semplici",
+           "risposta_messaggio": "Risposta a un messaggio", "trascrizione": "Trascrizione", "traduzione": "Traduzione"}
+STATO_IT = {DRAFT: "bozza da verificare", VERIFIED: "verificato dal medico", AUTO: "inviato automaticamente", UNKNOWN: "provenienza non determinabile"}
+
+
 async def log(db, owner: str, target: str, old: Optional[str], new: str, actor: Optional[str] = None, tipo: str = ""):
     """Ogni cambio di stato_revisione va nel registro attività GDPR."""
-    label = f"{tipo or 'contenuto AI'} · {target} · {old or 'creato'} → {new}"
+    label = f"{TIPO_IT.get(tipo, 'Contenuto MantAI')} · {target} · {STATO_IT.get(old, 'creato')} → {STATO_IT.get(new, new)}"
     await db.audit.insert_one({"action": f"ai_provenance_{new}", "subject": seal_fields({"s": label}, ("s",))["s"], "at": _now(),
                                "owner_id": owner, "actor_id": actor})
 
@@ -147,6 +153,24 @@ def mark_pdf(pdf: bytes, p: Optional[dict]) -> bytes:
 
 
 # ---------- Protezione: ai_provenance non è scrivibile dal frontend ----------
+def _keys(x) -> set:
+    if isinstance(x, dict):
+        return set(x) | {k for v in x.values() for k in _keys(v)}
+    if isinstance(x, list):
+        return {k for v in x for k in _keys(v)}
+    return set()
+
+
+def _has_protected(body: bytes, ctype: bytes) -> bool:
+    if not any(k.strip(b'"') in body for k in PROTECTED):
+        return False
+    try:
+        keys = set(parse_qs(body.decode())) if b"x-www-form-urlencoded" in ctype else _keys(json.loads(body or b"null"))
+    except ValueError:
+        return False
+    return bool(keys & {"ai_provenance", "ai_snapshot"})
+
+
 class ProvenanceGuard:
     def __init__(self, app):
         self.app = app
@@ -165,7 +189,7 @@ class ProvenanceGuard:
             chunks.append(m.get("body", b""))
             more = m.get("more_body", False)
         body = b"".join(chunks)
-        if any(k in body for k in PROTECTED) or b"ai_provenance=" in body:
+        if _has_protected(body, ctype):
             return await JSONResponse({"detail": "La provenienza dei contenuti AI (ai_provenance) non è modificabile: la aggiornano solo la revisione e la firma del medico."},
                                       status_code=403)(scope, receive, send)
         done = False

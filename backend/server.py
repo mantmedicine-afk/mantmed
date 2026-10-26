@@ -822,7 +822,7 @@ async def create_consultation(body: ConsultationIn, user: dict = Depends(current
                      ai_provenance=prov.make(prov.note_tipo(tpl["name"], tpl["fields"], tpl.get("bilancio")), prov.GPT), ai_snapshot=note.model_dump())
     res = await tdb.consultations.insert_one(c.to_mongo())
     c.id = str(res.inserted_id)
-    await prov.log(db, user["id"], f"visita {c.id}", None, prov.DRAFT, tipo=c.ai_provenance["tipo"])
+    await prov.log(db, user["id"], f"visita di {c.patient_name}", None, prov.DRAFT, tipo=c.ai_provenance["tipo"])
     await sync_measurement(c.out())
     if body.waiting_id and ObjectId.is_valid(body.waiting_id):
         await tdb.waiting.delete_one({"_id": ObjectId(body.waiting_id)})
@@ -959,7 +959,7 @@ async def run_consult_job(cid: str, owner: str):
                 {"$set": {**Consultation.sealed_set({"note": note.model_dump(), "transcript": transcript, "ai_snapshot": snap}), "status": "ready", "ai_error": "",
                           "ai_sec": round(time.monotonic() - t0, 1), "ai_provenance": p}, "$inc": {"rev": 1}}, return_document=True)
             if upd:
-                await prov.log(db, owner, f"visita {cid}", None, prov.DRAFT, tipo=p["tipo"])
+                await prov.log(db, owner, f"visita di {upd['patient_name']}", None, prov.DRAFT, tipo=p["tipo"])
                 await sync_measurement(Consultation.from_mongo(upd).out())
                 await _drop_job(cid)
                 logger.info("Referto %s pronto in %.1fs", cid, time.monotonic() - t0)
@@ -1130,7 +1130,7 @@ async def regenerate_summary(cid: str, user: dict = Depends(current_user)):
     old = ((p.get("parti") or {}).get("riassunto_famiglia") or {}).get("stato_revisione")
     p["parti"] = {**(p.get("parti") or {}), "riassunto_famiglia": prov.make("riassunto_famiglia", prov.GPT)}
     await tdb.consultations.update_one({"_id": oid(cid)}, {"$set": {"ai_provenance": p, **Consultation.sealed_set({"ai_snapshot": snap})}})
-    await prov.log(db, user["id"], f"visita {cid}", old, prov.DRAFT, tipo="riassunto_famiglia")
+    await prov.log(db, user["id"], f"visita di {c['patient_name']}", old, prov.DRAFT, tipo="riassunto_famiglia")
     return {"riepilogo": text}
 
 
@@ -1154,13 +1154,13 @@ async def sign_consultation(cid: str, user: dict = Depends(current_user)):
     name = await prov.reviewer_label(db, user["id"])
     if prov.is_draft(p):
         p = prov.reviewed(p, user["id"], prov.changed(raw.get("ai_snapshot"), raw.get("note")) if raw.get("ai_snapshot") else None, name)
-        await prov.log(db, user["id"], f"visita {cid}", prov.DRAFT, prov.VERIFIED, user["id"], p.get("tipo"))
+        await prov.log(db, user["id"], f"visita di {doc['patient_name']}", prov.DRAFT, prov.VERIFIED, user["id"], p.get("tipo"))
     parts = {**(p.get("parti") or {})}
     rs = parts.get("riassunto_famiglia")
     if prov.is_draft(rs):
         snap = raw.get("ai_snapshot") or {}
         parts["riassunto_famiglia"] = prov.reviewed(rs, user["id"], (snap.get("riepilogo") or "") != ((raw.get("note") or {}).get("riepilogo") or ""), name)
-        await prov.log(db, user["id"], f"visita {cid}", prov.DRAFT, prov.VERIFIED, user["id"], "riassunto_famiglia")
+        await prov.log(db, user["id"], f"visita di {doc['patient_name']}", prov.DRAFT, prov.VERIFIED, user["id"], "riassunto_famiglia")
     if parts:
         p["parti"] = parts
     upd = await tdb.consultations.find_one_and_update({"_id": oid(cid)}, {"$set": {"ai_provenance": p}}, return_document=True)
@@ -1844,7 +1844,7 @@ async def portal_simple(pid: str, user: dict = Depends(require_role(current_user
     sp = prov.make("riassunto_famiglia", prov.GPT, prov.AUTO)
     await db.consultations.update_one({"_id": raw["_id"]}, {"$set": {**seal_fields({"simple": simple}, ("simple",)),
                                                                     **({"ai_provenance.parti.spiegazione_semplice": sp} if raw.get("ai_provenance") else {"ai_provenance": {"ai_generated": False, "parti": {"spiegazione_semplice": sp}}})}})
-    await prov.log(db, link["owner_id"], f"visita {c['id']}", None, prov.AUTO, tipo="spiegazione_semplice")
+    await prov.log(db, link["owner_id"], f"visita di {c['patient_name']}", None, prov.AUTO, tipo="spiegazione_semplice")
     return {**base, **simple, "ai_provenance": sp}
 public_api.include_router(inbox_admin)
 public_api.include_router(inbox_mine)

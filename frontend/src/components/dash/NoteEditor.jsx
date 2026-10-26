@@ -277,12 +277,14 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
           {tabs.map((t) => {
             const active = t.id === tab;
             const done = ready && tabDone(t, note);
+            const toCheck = (t.fields ?? []).some(([k]) => marked(k)) || (note.sezioni ?? []).some((x) => (x.gruppo === t.group || (t.id === "esame" && x.gruppo === "esame_obiettivo")) && marked(secKey(x)));
             return (
               <button key={t.id} role="tab" aria-selected={active} onClick={() => setTab(t.id)} className={`relative flex shrink-0 items-center gap-2 rounded-2xl px-3.5 py-2.5 text-left text-sm font-medium leading-tight transition-colors md:shrink md:px-2.5 ${active ? "text-white" : "text-slate-600 hover:bg-white hover:text-night"}`} data-testid={`note-tab-${t.id}`}>
                 {active && <motion.span layoutId="note-tab-pill" className="absolute inset-0 -z-0 rounded-2xl bg-night" transition={{ type: "spring", stiffness: 380, damping: 32 }} />}
                 <span className={`relative font-mono text-xs ${active ? "text-[#A9C2FF]" : "text-[#3B6CF6]"}`}>{t.n}</span>
                 <span className="relative">{t.label}</span>
                 {done && <Check size={13} className={`relative ${active ? "text-emerald-300" : "text-emerald-600"}`} />}
+                {toCheck && <span className="relative h-2 w-2 shrink-0 rounded-full bg-[#E3A92B]" role="img" aria-label="Contiene campi compilati da MantAI da verificare" title="Campi MantAI da verificare" data-testid={`note-tab-ai-dot-${t.id}`} />}
               </button>
             );
           })}

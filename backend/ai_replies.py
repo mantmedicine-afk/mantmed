@@ -282,7 +282,7 @@ def build_ai_replies(db, current_user):
                     pa = prov.make("risposta_messaggio", prov.CLAUDE, prov.AUTO)
                     await add_message(db, t, "doctor", t.get("doctor_name", "Studio"), final, ai_label=LABEL_AUTO, ai_provenance=pa)
                     await db.ai_reply_drafts.insert_one({**base, "status": "inviata", "auto": True, "ai_provenance": pa, **seal_fields({"text": final}, ("text",))})
-                    await prov.log(db, t["owner_id"], f"messaggio {mid}", None, prov.AUTO, tipo="risposta_messaggio")
+                    await prov.log(db, t["owner_id"], f"messaggio su {names['patient_name']}", None, prov.AUTO, tipo="risposta_messaggio")
                     await notify_parents(db, t["patient_id"], t["owner_id"], "reply", f"{t.get('doctor_name', 'Lo studio')} ha risposto", KIND_LABEL[t["kind"]], ref=tid, only=t["parent_id"],
                                          ai_line="Contiene una risposta automatica di MantAI.")
                     await audit(t["owner_id"], "mantai_invio_automatico", mid)
@@ -292,7 +292,7 @@ def build_ai_replies(db, current_user):
                 draft = await generate(SYSTEM_DRAFT.replace("{tone}", tone_text({"tone": kb["tone"], "address": kb["address_form"]})), ps, kb_all + extra, age, history, current)
                 draft = ps.show(draft.replace("**", "")) + (f"\n\n{kb['signature']}" if kb["signature"] else "")
                 await db.ai_reply_drafts.insert_one({**base, "status": "in_attesa", "ai_provenance": prov.make("risposta_messaggio", prov.CLAUDE), **seal_fields({"text": draft}, ("text",))})
-                await prov.log(db, t["owner_id"], f"messaggio {mid}", None, prov.DRAFT, tipo="risposta_messaggio")
+                await prov.log(db, t["owner_id"], f"messaggio su {names['patient_name']}", None, prov.DRAFT, tipo="risposta_messaggio")
                 await audit(t["owner_id"], "mantai_bozza_generata", mid, category=cat)
             except Exception:  # noqa: BLE001
                 log.exception("Bozza MantAI non generata")
@@ -390,7 +390,7 @@ def build_ai_replies(db, current_user):
         pv = prov.reviewed(d.get("ai_provenance") or prov.make("risposta_messaggio", prov.CLAUDE, at=d["created_at"]), user["id"], edited, name)
         await add_message(db, t, "doctor", user["name"], body.text, ai_label=f"Risposta preparata con l'assistenza di MantAI e verificata da {name}", ai_provenance=pv)
         await db.ai_reply_drafts.update_one({"_id": d["_id"]}, {"$set": {"status": "inviata", "edited": edited, "updated_at": _now(), "editor_id": user["id"], "ai_provenance": pv, **seal_fields({"text": body.text.strip()}, ("text",))}})
-        await prov.log(db, user["id"], f"messaggio {d['message_id']}", prov.DRAFT, prov.VERIFIED, user["id"], "risposta_messaggio")
+        await prov.log(db, user["id"], f"messaggio su {unseal_fields(t, T_SEALED)['patient_name']}", prov.DRAFT, prov.VERIFIED, user["id"], "risposta_messaggio")
         if edited:
             await audit(user["id"], "mantai_bozza_modificata", d["message_id"], user["id"])
         await audit(user["id"], "mantai_bozza_approvata_inviata", d["message_id"], user["id"])

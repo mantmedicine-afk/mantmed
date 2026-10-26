@@ -1,0 +1,39 @@
+{
+  "summary": "Iteration 43 - AI provenance (ai_provenance) labelling & traceability. Backend: new pytest suite tests/test_ai_provenance.py (15 tests, all PASS) covering AI note creation (real LLM), ai_fields_pending, PATCH removing 'diagnosi' indicator, ProvenanceGuard 403 (PATCH consultations, POST ai-replies approve, nested key), 409 on portal publish + send-report before signing, parent cannot sign, sign -> verificato_dal_medico/reviewed_by/reviewed_at/modificato_dal_medico=true/reviewer_name 'Dott.ssa Tiziana Foti', ai_fields_pending=[] with provenance+snapshot kept in DB, idempotent re-sign, publish 200 after sign, PDF footer phrase + keywords + XMP mantai:ai_assisted=\"true\", undetermined PDF (no MantAI text, ai_assisted=undetermined), audit actions, portal/me reports provenance, portal simple (riassunto_famiglia/invio_automatico + report_provenance), AI replies queue bozza + approve -> verified message with reviewer_name + audit, migration stats 22/15/9/19/2 and all consultations have ai_provenance. Also verified parent portal PDF endpoint marks. Frontend (Playwright): A NoteEditor draft banner/label, per-field marks per tab (motivo_visita, torl, diagnosi, terapia, follow_up), typing removes mark, send-parents disabled with hint, sign dialog with responsibility text -> verified label 'Redatto con il supporto di MantAI, verificato dalla Dott.ssa Tiziana Foti', marks gone, send enabled. B label click opens mantai-dialog with mantai-labels-info and all 6 examples. C portal simple label (no close btn), docs-visit-ai-label verified for 5 AI reports, docs-visit-simple always open (no <details>), portal-report-ai-label present. D seed report 6ad86e64c06e50ff4cd67d23 shows no AI label (UI + PDF). E parent messages: verified pill + 'Risposta automatica di MantAI' pill; doctor queue editor shows ai-draft-label. F mobile 390x800: labels wrap (no horizontal overflow) in portal, docs, messages, NoteEditor. G CompliancePanel shows 'Contenuto MantAI · verificato dal medico', 'Nota firmata dal medico', 'creato come bozza'. All requested features work; only minor issues found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "ProvenanceGuard middleware (all POST/PUT/PATCH/DELETE /api)", "issue": "Raw substring match: any body containing the plain text 'ai_provenance=' (e.g. a note diagnosi value 'ai_provenance=test') is rejected with 403 (false positive). Low impact; could parse JSON keys instead of byte search."},
+      {"endpoint": "audit subject for ai_provenance_* actions", "issue": "Subject shows technical strings ('nota_clinica · visita 6adf... · creato → bozza_non_verificata') in the GDPR register UI; consider human-readable Italian labels (e.g. 'Nota clinica · Aurora Ricci · bozza → verificato')."},
+      {"endpoint": "messages 'Messaggio automatico di MantAI' (fixed ack system messages)", "issue": "17 system messages have ai_label but no ai_provenance (fixed template, rendered via legacy text label, not AILabel pill). Acceptable if intended as non-generated; otherwise inconsistent with unified label system."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "SendToParents hint (mobile 390px)", "issue": "send-parents-hint uses 'truncate' so 'Firmi prima la nota redatta con MantAI' is cut to 'Firmi prima la nota redatta con Man…' (scrollWidth 218 > 212). Criterion 8 asks AI-related text to wrap; remove truncate or allow wrap.", "selector": "[data-testid='send-parents-hint']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "NoteEditor tabs", "issues": ["Per-field 'MantAI · da verificare' marks live inside tabs (Motivo, Esame, Diagnosi e terapia) but the tab buttons give no hint which tabs still contain unverified fields; a small dot/count on tabs would help the doctor review before signing."]},
+      {"screen": "Portal Documenti > Visite (migrated bilancio 6ad8b0f07b044c3a9c2b992f)", "issues": ["'In parole semplici' box of migrated notes has no 'Spiegazione semplificata' AI label because migration does not create parti.riassunto_famiglia; consistent with 'non determinabile' rule, but the report-level verified label above covers it only implicitly."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_ai_provenance.py", "/app/test_reports/pytest/ai_provenance.xml"],
+  "action_items": [
+    "(Low) Remove 'truncate' from send-parents-hint (or wrap) so the 'Firmi prima…' hint is fully readable on mobile",
+    "(Low) Make ProvenanceGuard match JSON keys instead of raw substring 'ai_provenance=' to avoid false-positive 403 on free text",
+    "(Optional) Human-readable subjects for ai_provenance_* audit entries; indicator on NoteEditor tabs with pending AI fields"
+  ],
+  "critical_code_review_comments": [
+    "provenance.reviewer_label infers 'Dott.ssa' vs 'Dott.' only from a name prefix; a female doctor whose stored name lacks 'Dott.ssa' gets 'Dott.' - consider an explicit title field.",
+    "server.py is ~1880 lines (>700) - consider splitting consultations/provenance routes into modules.",
+    "portal_simple caches 'simple' forever: if the doctor edits/re-signs the latest published note, the parent's 'In parole semplici' is not regenerated (pre-existing, but now labelled as AI content tied to a specific report version)."
+  ],
+  "updated_files": ["/app/backend/tests/test_ai_provenance.py"],
+  "success_rate": {"backend": "100% (15/15)", "frontend": "100% of requested flows A-G (1 minor mobile truncation)"},
+  "seed_data_creation": "Created AI notes for Aurora Ricci: test-suite notes (2 runs, signed+published, diagnosi '(rivista dal medico)'), 6adf23bd0db91584be4641e4 (signed via UI, not published), 6adf246e0db91584be4641fb (unsigned draft, left as draft). Approved 2 existing MantAI drafts (6ade4ec5aea93ce1a097ea69, 6ade50e0cdf74b88f54a655d) via test; created new pending draft 6adf23b60db91584be4641dd (parent message 'TEST_ mia figlia tossisce...' in thread 6ade4be4188e309146a920f8). AI replies settings were restored to disabled.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "tests/test_ai_provenance.py creates a new AI note (real LLM ~5s) each run, signs+publishes it and approves the FIRST pending ai-replies draft (test_ai_replies_queue_and_approve needs >=1 pending draft; create one by enabling AI replies settings and posting a parent message, then disable). Portal /portal/me children use child['patient']['id']. Draft note left for UI: 6adf246e0db91584be4641fb (open via recent-note-<id> on /app). Per-field marks are rendered only in the active NoteEditor tab.",
+  "rca of the issue": "No functional bugs. Mobile hint truncation is caused by Tailwind 'truncate' class on [data-testid=send-parents-hint] in SendToParents.jsx line 41."
+}
