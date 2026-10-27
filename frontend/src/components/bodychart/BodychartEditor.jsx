@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { X, Save, Loader2, Baby, User, Map as MapIcon, History, ZoomIn, CopyPlus, Sparkles, Check } from "lucide-react";
 import { api, errMsg } from "@/lib/api";
-import { VIEWS, ZOOMS, CAT, uid, isBodyView } from "@/lib/bodychart";
+import { VIEWS, ZOOMS, CAT, uid, isBodyView, isIntimate } from "@/lib/bodychart";
 import { BodyCanvas } from "./BodyCanvas";
 import { Tools, MarkerList } from "./Tools";
 import { BodychartHistory } from "./BodychartHistory";
 import { makeSnapshot } from "./snapshot";
 import { PinSheet } from "./PinSheet";
+import { IntimateConfirm } from "./PinPhotos";
 
 const seg = (on) => `flex h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition-colors ${on ? "bg-night text-white" : "text-slate-600 hover:text-night"}`;
 
@@ -50,6 +51,7 @@ export const BodychartEditor = ({ consultation, defaultKind = "child", onClose, 
   const [meta, setMeta] = useState({});
   const [lesions, setLesions] = useState({});
   const [proposals, setProposals] = useState([]);
+  const [pendingMove, setPendingMove] = useState(null);
   const dirty = useRef(false);
   const latest = useRef({ doc, kind, include });
   latest.current = { doc, kind, include };
@@ -82,7 +84,7 @@ export const BodychartEditor = ({ consultation, defaultKind = "child", onClose, 
   }, [consultation.id, consultation.created_at, consultation.patient_name, onSaved]);
   useEffect(() => {
     if (!dirty.current) return undefined;
-    const t = setTimeout(() => persist(true).catch((e) => toast.error(e?.response ? errMsg(e) : "Salvataggio automatico non riuscito")), 900);
+    const t = setTimeout(() => persist(true).catch((e) => toast.error(e?.response ? errMsg(e) : "Salvataggio automatico non riuscito")), 600);
     return () => clearTimeout(t);
   }, [doc, include, kind, persist]);
 
@@ -101,14 +103,20 @@ export const BodychartEditor = ({ consultation, defaultKind = "child", onClose, 
     const m = { ...sheet.m, lesion_id: sheet.m.lesion_id || sheet.m.id };
     setCat(m.cat);
     commit({ ...doc, markers: sheet.isNew ? [...doc.markers, m] : doc.markers.map((x) => (x.id === m.id ? m : x)) });
-    if (sheet.fromProposal) setProposals((ps) => ps.filter((p) => p.id !== sheet.fromProposal));
+    if (sheet.fromProposal) { handled(proposals.find((p) => p.id === sheet.fromProposal)); setProposals((ps) => ps.filter((p) => p.id !== sheet.fromProposal)); }
     setSheet(null);
   };
   const move = (id, pos) => {
     if (proposals.some((p) => p.id === id)) { setProposals((ps) => ps.map((p) => (p.id === id ? { ...p, ...pos } : p))); return; }
+    const m = doc.markers.find((x) => x.id === id);
+    if (m?.photos?.length && isIntimate(m.view, pos.x, pos.y) && !isIntimate(m.view, m.x, m.y)) { setPendingMove({ id, pos }); return; }
+    applyMove(id, pos);
+  };
+  const applyMove = (id, pos) => {
     commit({ ...doc, markers: doc.markers.map((x) => (x.id === id ? { ...x, ...pos } : x)) });
     toast.success("Reperto spostato");
   };
+  const handled = (p) => p?.regione_id && api.bodychartSuggestionHandled(consultation.id, p.regione_id).catch(() => {});
   const remove = (id) => { commit({ ...doc, markers: doc.markers.filter((x) => x.id !== id) }); setSheet(null); };
   const undo = () => { if (!past.length) return; dirty.current = true; setDoc(past[past.length - 1]); setPast((p) => p.slice(0, -1)); setSheet(null); };
   const clearView = () => commit({ markers: doc.markers.filter((m) => m.view !== view), strokes: doc.strokes.filter((s) => s.view !== view) });
@@ -162,7 +170,9 @@ export const BodychartEditor = ({ consultation, defaultKind = "child", onClose, 
             <aside className="space-y-4">
               {sheet && <PinSheet key={sheet.m.id} m={sheet.m} n={numbers[sheet.m.id]} isNew={sheet.isNew} cid={consultation.id} photoMeta={meta} onMeta={(id, v) => setMeta((x) => ({ ...x, [id]: v }))}
                 history={lesions[sheet.m.lesion_id || sheet.m.id]} onChange={(m) => setSheet((s) => ({ ...s, m }))} onSave={saveSheet} onCancel={() => setSheet(null)} onDelete={() => remove(sheet.m.id)} />}
-              <Proposals items={proposals} onOpen={(p) => openPin(p.id)} onDrop={(id) => setProposals((ps) => ps.filter((p) => p.id !== id))} />
+              <Proposals items={proposals} onOpen={(p) => openPin(p.id)} onDrop={(id) => { handled(proposals.find((p) => p.id === id)); setProposals((ps) => ps.filter((p) => p.id !== id)); }} />
+              <IntimateConfirm open={!!pendingMove} onOpenChange={(o) => !o && setPendingMove(null)} action="Sposta e rendi riservate le foto"
+                onConfirm={() => { applyMove(pendingMove.id, pendingMove.pos); setPendingMove(null); }} />
               {prev && !carried && <button onClick={carryOver} className="flex w-full items-center gap-3 rounded-3xl bg-[#F0FDF4] p-4 text-left text-sm text-night ring-1 ring-emerald-200 transition-colors hover:ring-emerald-400" data-testid="bodychart-carry-over"><CopyPlus size={18} className="shrink-0 text-emerald-700" /><span><span className="block font-medium">Riporta i reperti della visita precedente</span><span className="text-xs text-slate-600">{prev.markers.length} reperti del {new Date(`${prev.visit_date}T12:00:00`).toLocaleDateString("it-IT")}, con la loro storia (esclusi i risolti)</span></span></button>}
               <div className="rounded-3xl bg-white p-4 ring-1 ring-slate-200"><Tools {...{ tool, cat, pen, setTool, setCat, setPen }} onUndo={undo} onClear={clearView} canUndo={past.length > 0} /></div>
               <div className="rounded-3xl bg-white p-4 ring-1 ring-slate-200">

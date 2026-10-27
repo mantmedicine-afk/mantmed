@@ -1,0 +1,47 @@
+{
+  "summary": "Tested the bodychart improvements end to end on backend and frontend. Backend: 12 of 13 new pytest tests pass (test_bodychart_v3.py). They cover EXIF/GPS stripping, the 360px thumbnail, encrypted storage, 428 for intimate zones unless both confirmations are sent, reserved:true, parent blocked with 403, proposed pins dropped on PUT, new marker fields, lesion history across visits, MantAI suggest saving nothing, report flag plus the PDF Bodychart page (size, descrittore and stato in the rows), all audit actions, and legacy chart normalization. The 1 failure is a real privacy gap: a photo's riservata flag is decided only at upload from the coordinates the client sends. Frontend (doctor, Aurora Ricci, fresh AI consultation 6ae113e80a4226bae532c310): editor opens; all 11 view tabs work; front and back hotspots open detail drawings; Esc closes the sheet and Enter saves; mobile 390x800 bottom sheet works for category, photo and save; a short tap or a quick drag never moves a pin; long-press drag sets data-dragging, shows 'Reperto spostato' toast and persists. MantAI panel shows 4 proposals drawn dashed with '?'; Verifica shows the MantAI label and saves origin 'mantai'; the drop button works; nothing proposed is saved. The intimate dialog keeps confirm disabled until both boxes are checked and shows the Riservata badge. Confronta date selectors, live SVG panels, stato badges, gallery and two-photo pairing all work. The sign dialog checkbox sets include_in_report=true. Thumbnails use ?size=thumb and loading=lazy.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "PUT /api/consultations/{cid}/bodychart (+ POST /bodychart/photos)", "issue": "Photo 'reserved' flag is computed only at upload from client-supplied view/x/y. If a photo is uploaded on a non-intimate pin and the pin is then long-press-dragged into the genital/perianal zone (or the client simply sends x=0.2 at upload), the photo stays reserved:false. This skips the necessity+consent confirmation and the riservata marking (criterion 7). Repro: tests/test_bodychart_v3.py::test_photo_reserved_after_pin_moved_into_intimate_zone. Fix: in put_chart, for every marker with is_intimate(view,x,y), any linked photo with reserved:false should either be rejected (428) or force the confirmation flow; or set reserved:true and log it.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/consultations/{cid}/bodychart/photos", "issue": "Form defaults view=front,x=0.5,y=0.5 fall inside the INTIMATE box, so any upload without coordinates returns 428. Old tests/test_bodychart_v2.py (6 tests) now fail because of this, because PNG files are now re-encoded and the content differs, and because the PDF includes the bodychart only when the flag is set. These are expected behavior changes, not regressions, but test_bodychart_v2.py needs updating or retiring."},
+      {"endpoint": "POST /api/consultations/{cid}/bodychart/suggest", "issue": "Called on every editor open with no caching: an LLM call each time (twice in dev because of StrictMode). Proposals the doctor dropped come back on the next open. Results are not deterministic: 'Faringe / tonsille' was proposed on the first open and missing on the second."},
+      {"endpoint": "audit", "issue": "bodychart_visualizzato is very noisy: 24 entries in about 5 editor opens. The editor GET runs twice under StrictMode, and each Confronta panel GET /bodycharts/{id} logs too. Consider deduplicating."},
+      {"endpoint": "bodychart_media.py", "issue": "A comment points to frontend/src/lib/bodychartZones.js, which does not exist; the zones are in lib/bodychart.js."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Details (mouth view)", "issue": "Mouth detail drawing has no data-testid bodychart-detail-mouth, while the other detail drawings have one. Detail testids also use dashes (bodychart-detail-hand-palm), not the view ids.", "selector": "[data-testid^=bodychart-detail-]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Autosave", "issue": "Works, but the first save after a new pin took about 3s (900ms debounce plus snapshot render) instead of about 1s; later saves took about 1.4-1.5s.", "affected_selectors": ["bodychart-sheet-save"]}
+    ],
+    "design_issues": [
+      {"screen": "Bodychart front view", "issues": ["The 'mouth' magnifier hotspot sits on the neck/right shoulder, away from the face, so it reads as a neck hotspot. Consider moving it onto the mouth or grouping it near the head.", "Mobile bottom sheet covers about 70% of the canvas; acceptable, but the pin being edited is hidden behind it."]},
+      {"screen": "Category labels", "issues": ["Category names differ between screens: id 'lesione' is 'Trauma / Lesione' in the UI and 'Lesione' in the PDF; id 'trauma' is 'Contusione / Ecchimosi' in the UI and 'Trauma / contusione' in the PDF."]},
+      {"screen": "Confronta", "issues": ["Two visits on the same day show identical options ('21 ott 2026 · 3 reperti'); add the time or the visit type to tell them apart."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_bodychart_v3.py", "/app/backend/tests/mk_bc_consult.py", "/app/test_reports/pytest/bodychart_v3.xml"],
+  "action_items": [
+    "HIGH: re-check intimate zones on PUT /bodychart. Photos linked to pins in INTIMATE boxes must be reserved (or the save rejected until confirmed), and the frontend PinPhotos should trigger the confirmation dialog when a pin carrying photos is moved into the zone.",
+    "Update or retire tests/test_bodychart_v2.py; its 6 failures come from the intended behavior changes.",
+    "Cache or limit MantAI suggest per consultation (for example, store dismissed proposal regions) so it does not call the LLM on every open and dropped proposals stay dropped.",
+    "Optional: add data-testid bodychart-detail-mouth; move the mouth hotspot; make category labels match between UI and PDF; deduplicate the bodychart_visualizzato audit."
+  ],
+  "critical_code_review_comments": [
+    "bodychart.py put_chart: no server-side re-check of is_intimate on the markers whose photos it accepts, so the riservata guarantee relies on the client.",
+    "bodychart.py suggest: the LLM runs on every request with no rate limit or cache.",
+    "BodychartEditor: dropped proposals live only in local state and return on reopen.",
+    "Team Medicine: team.py contains no bodychart references (verified with grep). Parent gets 403 on /api/bodychart-photos/* (full and thumb), and portal_chart returns no photo ids."
+  ],
+  "updated_files": ["/app/backend/tests/test_bodychart_v3.py", "/app/backend/tests/mk_bc_consult.py"],
+  "success_rate": {"backend": "92% (12/13 new tests)", "frontend": "97%"},
+  "test_credentials": "medico@mantmed.it / Auscula-Studio-2026; genitore.demo@example.com / Portale-Demo-2026 (from /app/memory/test_credentials.md). Auth checks: bcrypt $2b$, httpOnly Secure cookies.",
+  "seed_data_creation": "Created AI consultation 6ae113e80a4226bae532c310 for Aurora Ricci (transcript starts with 'TEST_BC3'). It now has 4 pins, 3 photos (1 riservata), is signed, and has include_in_report=true. The pytest module creates and deletes its own TEST_Bodychart v3 consultations.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest tests/test_bodychart_v3.py; the last test is the intimate-zone reserved gap and should pass after the fix. Open the bodychart from /app/visite, then visit-row-<cid>, then note-bodychart-btn. The canvas viewBox is 200x460; to tap normalized coordinates, map them with svg.getScreenCTM(). Proposals appear only for consultations with status 'ready'. The legacy png with migration_error (69 bytes) is corrupt test data."
+}

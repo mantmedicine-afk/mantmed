@@ -122,7 +122,7 @@ export const hotspots = (kind, view) => {
   return [
     { id: "head", label: "Testa / viso", x: C + p.headR + 4, y: p.headY - p.headR + 4 },
     { id: "ears", label: "Orecchie", x: C - p.headR - 4, y: p.headY - p.headR + 4 },
-    ...(view === "front" ? [{ id: "mouth", label: "Cavo orale", x: C + p.headR + 4, y: p.headY + p.headR - 2 }] : []),
+    ...(view === "front" ? [{ id: "mouth", label: "Cavo orale", x: C + p.headR + 4, y: p.headY + p.headR * 0.45 }] : []),
     { id: hand, label: "Mani", x: C - hx, y: p.wristY + 30 }, { id: hand, label: "Mani", x: C + hx, y: p.wristY + 30 },
     { id: foot, label: "Piedi", x: C - fx - 14, y: p.ankle + 24 }, { id: foot, label: "Piedi", x: C + fx + 14, y: p.ankle + 24 },
   ];

@@ -1,8 +1,9 @@
 """Interactive bodychart (mappa corporea) per visit: markers, freehand strokes and PNG snapshot, all sealed with AES-256-GCM."""
 import base64
+import hashlib
 import json
 import math
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Literal, Optional
 from bson import ObjectId
 import asyncio
@@ -116,7 +117,12 @@ def build_bodychart(db, current_user, llm_json=None):
             raise HTTPException(404, "Consultazione non trovata")
         return c
 
-    async def log(action: str, subject: str, owner: str):
+    async def log(action: str, subject: str, owner: str, dedupe_min: int = 0):
+        if dedupe_min:  # visualizzazioni ripetute ravvicinate: una sola voce
+            since = (datetime.now(timezone.utc) - timedelta(minutes=dedupe_min)).isoformat()
+            async for a in db.audit.find({"action": action, "owner_id": owner, "at": {"$gte": since}}, {"subject": 1}):
+                if unseal_fields(a, ("subject",)).get("subject") == subject:
+                    return
         await db.audit.insert_one({"action": action, "subject": seal_fields({"s": subject}, ("s",))["s"], "at": _now(), "owner_id": owner, "actor_id": owner})
 
     async def photo_meta(owner: str, ids) -> dict:
@@ -135,7 +141,7 @@ def build_bodychart(db, current_user, llm_json=None):
         if summary:
             return {"markers": [{"id": m["id"]} for m in out(doc, full=False)["markers"]]} if doc else None
         if doc:
-            await log("bodychart_visualizzato", c["patient_name"], user["id"])
+            await log("bodychart_visualizzato", c["patient_name"], user["id"], dedupe_min=10)
         return await with_meta(out(doc), user["id"]) if doc else None
 
     @doctor.put("/consultations/{cid}/bodychart")
@@ -154,6 +160,11 @@ def build_bodychart(db, current_user, llm_json=None):
         prev = await db.bodycharts.find_one({"consultation_id": cid, "owner_id": user["id"]}, {"markers": 1})
         old = unseal_fields(prev, ("markers",)).get("markers") or [] if prev else []
         new = [m.model_dump() for m in body.markers]
+        must = [ObjectId(p) for m in body.markers if is_intimate(m.view, m.x, m.y) for p in m.photos]
+        if must:  # foto finite in una zona intima (es. pin spostato): sempre riservate
+            r = await db.files.update_many({"_id": {"$in": must}, "reserved": {"$ne": True}}, {"$set": {"reserved": True}})
+            if r.modified_count:
+                await log("bodychart_foto_riservata_marcata", f"{c['patient_name']} · {r.modified_count}", user["id"])
         sealed = seal_fields({"markers": new, "strokes": [s.model_dump() for s in body.strokes], "snapshot": body.snapshot}, SEALED)
         await db.bodycharts.update_one({"consultation_id": cid, "owner_id": user["id"]},
                                        {"$set": {**sealed, "silhouette": body.silhouette, "include_in_report": body.include_in_report, "updated_at": now,
@@ -200,7 +211,7 @@ def build_bodychart(db, current_user, llm_json=None):
         meta = await photo_meta(user["id"], {p for es in acc.values() for e in es for p in e.get("photos") or []})
         if docs:
             p = await db.patients.find_one({"_id": ObjectId(pid)}, {"name": 1}) if ObjectId.is_valid(pid) else None
-            await log("bodychart_storia_visualizzata", (p or {}).get("name", "paziente"), user["id"])
+            await log("bodychart_storia_visualizzata", (p or {}).get("name", "paziente"), user["id"], dedupe_min=10)
         return {"lesions": [{"lesion_id": k, "entries": v} for k, v in acc.items()], "photo_meta": meta}
 
     @doctor.get("/bodycharts/{bid}")
@@ -208,7 +219,7 @@ def build_bodychart(db, current_user, llm_json=None):
         doc = await db.bodycharts.find_one({"_id": ObjectId(bid), "owner_id": user["id"]}) if ObjectId.is_valid(bid) else None
         if not doc:
             raise HTTPException(404, "Bodychart non trovato")
-        await log("bodychart_visualizzato", f"confronto visita del {doc['visit_date']}", user["id"])
+        await log("bodychart_visualizzato", f"confronto visita del {doc['visit_date']}", user["id"], dedupe_min=10)
         o = await with_meta(out(doc), user["id"])
         if light:
             o.pop("snapshot", None)
@@ -223,33 +234,52 @@ def build_bodychart(db, current_user, llm_json=None):
                          [f"{s.get('titolo', '')}: {s.get('testo', '')}" for s in note.get("sezioni") or []]).strip()
         if len(text) < 10 or not llm_json:
             return {"proposals": []}
-        vocab = "\n".join(f"- {k}: {v[0]}" for k, v in REGIONS.items())
-        prompt = (f"Dal testo clinico estrai SOLO le sedi corporee esplicitamente citate con un reperto (lesione, dolore, eruzione, trauma, nevo). "
-                  f"Usa unicamente questi identificativi:\n{vocab}\nCategorie ammesse: {', '.join(CAT_IDS)}. Lato destro/sinistro solo se scritto nel testo; "
-                  f"se il lato non è indicato scegli il destro. Non inventare sedi.\nRispondi con JSON {{\"sedi\": [{{\"regione\": id, \"categoria\": cat, \"estratto\": breve citazione}}]}}.\n\nTESTO:\n{text[:6000]}")
-        try:
-            data = await llm_json(prompt)
-        except Exception:
-            raise HTTPException(502, "MantAI non ha risposto: riprovi tra poco")
+        digest = hashlib.sha256(text.encode()).hexdigest()
+        cache = await db.bodychart_suggestions.find_one({"consultation_id": cid, "owner_id": user["id"]}) or {}
+        if cache.get("hash") == digest:
+            sedi = json.loads(unseal_fields(cache, ("sedi",))["sedi"])
+        else:
+            vocab = "\n".join(f"- {k}: {v[0]}" for k, v in REGIONS.items())
+            prompt = (f"Dal testo clinico estrai SOLO le sedi corporee esplicitamente citate con un reperto (lesione, dolore, eruzione, trauma, nevo). "
+                      f"Usa unicamente questi identificativi:\n{vocab}\nCategorie ammesse: {', '.join(CAT_IDS)}. Lato destro/sinistro solo se scritto nel testo; "
+                      f"se il lato non è indicato scegli il destro. Non inventare sedi.\nRispondi con JSON {{\"sedi\": [{{\"regione\": id, \"categoria\": cat, \"estratto\": breve citazione}}]}}.\n\nTESTO:\n{text[:6000]}")
+            try:
+                sedi = (await llm_json(prompt) or {}).get("sedi") or []
+            except Exception:
+                raise HTTPException(502, "MantAI non ha risposto: riprovi tra poco")
+            await db.bodychart_suggestions.update_one({"consultation_id": cid, "owner_id": user["id"]},
+                                                      {"$set": {"hash": digest, **seal_fields({"sedi": json.dumps(sedi)}, ("sedi",)), "at": _now()}, "$setOnInsert": {"handled": []}}, upsert=True)
+            cache = await db.bodychart_suggestions.find_one({"consultation_id": cid, "owner_id": user["id"]})
+            await log("bodychart_proposte_mantai", f"{c['patient_name']} · {len(sedi)}", user["id"])
+        handled = set(cache.get("handled") or [])
         chart = await db.bodycharts.find_one({"consultation_id": cid, "owner_id": user["id"]}, {"markers": 1})
         existing = unseal_fields(chart, ("markers",)).get("markers") or [] if chart else []
         out_, seen = [], set()
-        for s in (data or {}).get("sedi") or []:
+        for s in sedi:
             r = REGIONS.get(s.get("regione"))
-            if not r or s["regione"] in seen:
+            if not r or s["regione"] in seen or s["regione"] in handled:
                 continue
             seen.add(s["regione"])
             label, view, x, y = r
             if any(m["view"] == view and math.hypot(m["x"] - x, m["y"] - y) < 0.05 for m in existing):
                 continue
             cat = s.get("categoria") if s.get("categoria") in CAT_IDS else "lesione"
-            out_.append({"id": f"ai{uuid.uuid4().hex[:8]}", "view": view, "x": x, "y": y, "cat": cat, "note": (s.get("estratto") or label)[:140],
+            out_.append({"id": f"ai-{s['regione']}", "regione_id": s["regione"], "view": view, "x": x, "y": y, "cat": cat, "note": (s.get("estratto") or label)[:140],
                          "regione": label, "origin": "mantai", "proposed": True, "photos": [], "stato": "attivo"})
-        await log("bodychart_proposte_mantai", f"{c['patient_name']} · {len(out_)}", user["id"])
         return {"proposals": out_[:12]}
 
+    @doctor.post("/consultations/{cid}/bodychart/suggest/{regione}/handled")
+    async def suggestion_handled(cid: str, regione: str, user: dict = Depends(current_user)):
+        """Proposta confermata o scartata dal medico: non viene più riproposta per questa nota."""
+        c = await consultation(cid, user["id"])
+        if regione not in REGIONS:
+            raise HTTPException(404, "Proposta non trovata")
+        await db.bodychart_suggestions.update_one({"consultation_id": cid, "owner_id": user["id"]}, {"$addToSet": {"handled": regione}})
+        await log("bodychart_proposta_gestita", f"{c['patient_name']} · {REGIONS[regione][0]}", user["id"])
+        return {"ok": True}
+
     @doctor.post("/consultations/{cid}/bodychart/photos")
-    async def add_photo(cid: str, file: UploadFile = File(...), view: str = Form("front"), x: float = Form(0.5), y: float = Form(0.5),
+    async def add_photo(cid: str, file: UploadFile = File(...), view: str = Form(...), x: float = Form(...), y: float = Form(...),
                         conferma_necessita: bool = Form(False), conferma_consenso: bool = Form(False), user: dict = Depends(current_user)):
         """Foto reale ancorata a un pin: metadati rimossi, compressa, cifrata; zone intime marcate 'riservate' dopo doppia conferma."""
         c = await consultation(cid, user["id"])

@@ -222,6 +222,7 @@ export const api = {
   bodychartLesions: (pid) => http.get(`/patients/${pid}/bodychart-lesions`).then((r) => r.data),
   suggestBodychart: (cid) => http.post(`/consultations/${cid}/bodychart/suggest`).then((r) => r.data),
   setBodychartInReport: (cid, include) => http.put(`/consultations/${cid}/bodychart/report`, { include }).then((r) => r.data),
+  bodychartSuggestionHandled: (cid, regione) => http.post(`/consultations/${cid}/bodychart/suggest/${regione}/handled`).then((r) => r.data),
   portalBodychart: (cid) => http.get(`/portal/reports/${cid}/bodychart`).then((r) => r.data),
   sendPortalFeedback: (b) => http.post("/portal/feedback", b).then((r) => r.data),
 };

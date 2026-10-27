@@ -24,7 +24,7 @@ export const Thumb = ({ id, reserved, onClick, size = "h-16 w-16", testId }) => 
 );
 
 /** Conferma obbligatoria prima di fotografare le zone intime. */
-const IntimateConfirm = ({ open, onOpenChange, onConfirm }) => {
+export const IntimateConfirm = ({ open, onOpenChange, onConfirm, action = "Continua e scatta" }) => {
   const [a, setA] = useState(false);
   const [b, setB] = useState(false);
   return (
@@ -38,7 +38,7 @@ const IntimateConfirm = ({ open, onOpenChange, onConfirm }) => {
         <label className="flex items-start gap-3 text-sm text-night"><input type="checkbox" checked={b} onChange={(e) => setB(e.target.checked)} className="mt-0.5 h-5 w-5 accent-[#0A192F]" data-testid="bodychart-intimate-consent" /> Confermo di aver raccolto il consenso del genitore o tutore.</label>
         <AlertDialogFooter>
           <AlertDialogCancel className="rounded-full" data-testid="bodychart-intimate-cancel">Annulla</AlertDialogCancel>
-          <AlertDialogAction disabled={!a || !b} onClick={onConfirm} className="rounded-full bg-night" data-testid="bodychart-intimate-confirm">Continua e scatta</AlertDialogAction>
+          <AlertDialogAction disabled={!a || !b} onClick={onConfirm} className="rounded-full bg-night" data-testid="bodychart-intimate-confirm">{action}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

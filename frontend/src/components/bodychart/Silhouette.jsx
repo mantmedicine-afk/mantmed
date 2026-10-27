@@ -20,7 +20,7 @@ const Mouth = ({ kind }) => {
   const r = kind === "child" ? 8 : 6.2;
   const txt = { fontFamily: "Arial, sans-serif", fontSize: 10, fill: "#5B6478", textAnchor: "middle" };
   return (
-    <g data-testid="bodychart-mouth">
+    <g data-testid="bodychart-detail-mouth">
       <ellipse cx={100} cy={230} rx={96} ry={200} fill="#F8E1DE" stroke={OUT} strokeWidth={3} />
       <ellipse cx={100} cy={230} rx={82} ry={180} fill="#7F1D1D" opacity={0.12} />
       <ellipse cx={100} cy={150} rx={46} ry={58} fill="#F3C6C0" />

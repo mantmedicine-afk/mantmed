@@ -312,7 +312,7 @@ def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dic
     return mark_pdf(buf.getvalue(), aip)
 
 
-CAT_LABEL = {"lesione": "Lesione", "trauma": "Trauma / contusione", "dolore": "Dolore", "eruzione": "Eruzione cutanea / dermatite", "nevo": "Nevo / macchia", "controllo": "Controllo"}
+CAT_LABEL = {"lesione": "Trauma / Lesione", "trauma": "Contusione / Ecchimosi", "dolore": "Dolore", "eruzione": "Dermatite / Eruzione", "nevo": "Nevo / Macchia", "controllo": "Controllo"}
 VIEW_LABEL = {"front": "Frontale", "back": "Posteriore", "left": "Laterale sinistra", "right": "Laterale destra", "mouth": "Cavo orale", "head": "Testa / viso",
               "ears": "Orecchie", "hand_palm": "Mani · palmo", "hand_back": "Mani · dorso", "foot_back": "Piedi · dorso", "foot_sole": "Piedi · pianta"}
 STATO_LABEL = {"attivo": "attivo", "in_miglioramento": "in miglioramento", "risolto": "risolto"}

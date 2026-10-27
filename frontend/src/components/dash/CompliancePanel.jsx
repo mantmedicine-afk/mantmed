@@ -23,7 +23,8 @@ const ACTION = { accesso_passaporto: "Accesso al passaporto", referto_pdf: "Refe
   bodychart_pin_aggiunti: "Bodychart · reperti aggiunti", bodychart_pin_modificati: "Bodychart · reperti modificati", bodychart_pin_eliminati: "Bodychart · reperti eliminati",
   bodychart_foto_collegate: "Bodychart · foto collegate ai reperti", bodychart_foto_eliminate: "Bodychart · foto rimosse", bodychart_foto_aggiunta: "Bodychart · foto caricata (metadati rimossi, cifrata)",
   bodychart_foto_riservata_aggiunta: "Bodychart · foto RISERVATA caricata (zona intima, conferme registrate)", bodychart_foto_visualizzata: "Bodychart · foto aperta",
-  bodychart_proposte_mantai: "Bodychart · sedi proposte da MantAI", bodychart_nel_referto: "Bodychart · inclusa nel referto", bodychart_tolta_dal_referto: "Bodychart · tolta dal referto" };
+  bodychart_proposte_mantai: "Bodychart · sedi proposte da MantAI", bodychart_proposta_gestita: "Bodychart · proposta MantAI confermata o scartata",
+  bodychart_foto_riservata_marcata: "Bodychart · foto rese riservate (reperto in zona intima)", bodychart_nel_referto: "Bodychart · inclusa nel referto", bodychart_tolta_dal_referto: "Bodychart · tolta dal referto" };
 const STEPS = [
   "Crea un cluster su MongoDB Atlas scegliendo la regione Francoforte (eu-central-1) o Milano (eu-south-1).",
   "Abilita la crittografia a riposo del cluster e, se disponibile, il backup in regione UE.",

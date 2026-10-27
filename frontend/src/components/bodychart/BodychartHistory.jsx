@@ -55,7 +55,7 @@ export const BodychartHistory = ({ patientId }) => {
   if (items === null) return <Loader2 className="animate-spin text-night" />;
   if (!items.length) return <div className="rounded-3xl bg-white p-6 ring-1 ring-slate-200" data-testid="bodychart-history"><p className="text-sm text-slate-600" data-testid="bodychart-history-empty">{patientId ? "Nessun bodychart salvato nelle visite precedenti." : "Paziente non collegato a una cartella: lo storico non è disponibile."}</p></div>;
   const used = VIEWS.filter((v) => items.filter((x) => x.id === a || x.id === b).some((x) => x.markers.some((m) => m.view === v.id)) || v.id === "front");
-  const opt = (x) => <option key={x.id} value={x.id}>{day(x.visit_date)} · {x.markers.length} reperti</option>;
+  const opt = (x) => <option key={x.id} value={x.id}>{day(x.visit_date)} · {new Date(x.created_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })} · {x.markers.length} reperti</option>;
   const multi = (les?.lesions ?? []).filter((l) => l.entries.length > 1 || l.entries.some((e) => e.photos?.length));
   return (
     <div className="space-y-5" data-testid="bodychart-history">

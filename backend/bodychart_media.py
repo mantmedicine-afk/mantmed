@@ -9,7 +9,7 @@ from crypto import seal_bytes, unseal_bytes
 register_heif_opener()
 MAX_SIDE, THUMB_SIDE = 2048, 360
 
-# Zone intime (genitale/perianale) in coordinate normalizzate: stesso elenco in frontend/src/lib/bodychartZones.js
+# Zone intime (genitale/perianale) in coordinate normalizzate: stesso elenco in frontend/src/lib/bodychart.js (isIntimate)
 INTIMATE = {"front": (0.39, 0.42, 0.61, 0.56), "back": (0.39, 0.42, 0.61, 0.56), "left": (0.36, 0.45, 0.64, 0.55), "right": (0.36, 0.45, 0.64, 0.55)}
 
 
