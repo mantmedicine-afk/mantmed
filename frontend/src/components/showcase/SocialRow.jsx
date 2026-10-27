@@ -30,7 +30,7 @@ export const SocialRow = ({ links = [], name, compact = false }) => {
               data-testid={`showcase-social-${l.piattaforma}`}>
               <Icon size={compact ? 16 : 18} strokeWidth={1.75} className="h-[18px] w-[18px]" />
             </a>
-            <span role="tooltip" className="pointer-events-none absolute left-1/2 top-full z-10 mt-1.5 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#0A192F] px-2.5 py-1 text-[11px] font-medium text-white opacity-0 shadow transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">{l.label}</span>
+            <span role="tooltip" className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#0A192F] px-2.5 py-1 text-[11px] font-medium text-white opacity-0 shadow transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">{l.label}</span>
           </li>
         );
       })}

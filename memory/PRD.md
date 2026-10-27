@@ -380,3 +380,10 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 ## Backlog
 - P2: copia di contenuti AI in note di squadra con provenienza (oggi non esiste un flusso di copia)
 - P2: funzione traduzione referto (etichetta già pronta)
+
+## Implemented (2026-10-27, Profili social in vetrina)
+- backend/social_links.py: normalize() (https obbligatorio, domini ufficiali, max 300, no javascript:/data:/credenziali/porte, @nomeutente -> URL; LinkedIn -> /in/), public_links()
+- backend/showcase.py: users.showcase.social_links [{piattaforma,url,visibile,ordine}], GET/PUT /api/showcase/social-links (solo utente loggato, 422 {message, errors}), full() espone solo visibili ordinati; audit 'vetrina_social_aggiornati'
+- frontend: lib/socialLinks.js (stessa validazione), account/SocialLinksEditor.jsx (validazione live, anteprima, Apri per verificare, Mostra in vetrina, frecce ordine, avviso modifiche non salvate, nota deontologica), showcase/SocialRow.jsx (icone tonde navy/argento, link diretti target _blank rel noopener noreferrer nofollow, tooltip; TikTok e X SVG inline)
+- Rotta pubblica esistente: /medico/:slug
+- Test: iteration_44 backend+frontend 100%

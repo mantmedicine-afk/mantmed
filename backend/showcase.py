@@ -145,7 +145,7 @@ def build_showcase(db, current_user, doctor_user):
     async def save_links(body: SocialLinksIn, user: dict = Depends(doctor_user)):
         u = await me(user)
         if len({x.piattaforma for x in body.links}) != len(body.links):
-            raise HTTPException(422, "Ogni piattaforma può comparire una sola volta")
+            raise HTTPException(422, {"message": "Ogni piattaforma può comparire una sola volta", "errors": {}})
         clean, errors = [], {}
         for i, x in enumerate(body.links):
             try:

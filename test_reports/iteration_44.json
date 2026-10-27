@@ -1,0 +1,38 @@
+{
+  "summary": "Vetrina social links feature tested end-to-end. Backend: 33/33 pytest pass (GET/PUT /api/showcase/social-links, normalization, 14 rejection cases incl. javascript:/data:/http/userinfo/evil subdomain/>300 chars/bare domain/<script>, duplicate/unknown platform 422, visibility, ordering, empty/hidden -> no public links, auth 401/403 for anon+parent, 2nd doctor (cardiologo) isolation, GDPR audit entry 'vetrina_social_aggiornati' created on change and not on no-op save). Frontend: editor (preview, 'Apri per verificare' _blank, disclaimer, live showcase-preview icons, all FE rejection cases with errors + save disabled, valid normalizations), save with up arrow + switch hide -> public order/visibility correct, public /medico/tiziana-foti icons have exact href, target _blank, rel 'noopener noreferrer nofollow', aria-label 'Profilo Instagram della Dott.ssa Tiziana Foti'; zero network requests to any social domain, no social cookies; 390px: 7 icons wrap to 2 lines, no horizontal scroll, tooltip shows on hover; all-hidden -> no showcase-social-row. Final state restored: website + instagram visible, facebook hidden.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/showcase/social-links", "issue": "Duplicate platform 422 returns detail as plain string (not {message, errors}); url > 2000 chars returns Pydantic list detail. Inconsistent with documented detail.message/detail.errors shape (frontend errMsg probably handles both)."},
+      {"endpoint": "PUT /api/showcase/social-links", "issue": "Partial payload (only some platforms) silently deletes the omitted platforms (replace semantics). Fine for UI which always sends 7 rows, but undocumented."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Impostazioni > Vetrina pubblica (desktop 1920)", "issues": ["Normalized preview text (social-preview-<p>) is squeezed into ~65px column because it shares one row with 'Apri per verificare' and the switch; URLs wrap every ~10 chars (very tall rows for long URLs). Put the preview on its own line, or move switch/link to a second row like on mobile.", "'Nessun link' placeholder uses text-slate-400 on #F8FAFC: low contrast."]},
+      {"screen": "Impostazioni > Vetrina pubblica", "issues": ["Two save buttons ('Salva profili social' and 'Salva e pubblica'): editing social links and clicking only 'Salva e pubblica' silently drops the social changes. Consider unsaved-changes hint or saving both."]},
+      {"screen": "/medico/:slug mobile 390", "issues": ["Tooltip of the wrapped (second line) icon overlaps top of 'Prenota dal Portale' button on hover/focus - cosmetic."]},
+      {"screen": "Editor input", "issues": ["maxLength=300 on input silently truncates a pasted URL >300 chars, which may then validate as a different (truncated) URL instead of showing the 'troppo lungo' error."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_social_links.py", "/app/test_reports/pytest/pytest_social_links.xml"],
+  "action_items": [
+    "Optional: fix cramped preview layout in SocialLinksEditor row on desktop",
+    "Optional: unify 422 detail shape for duplicate platform",
+    "Optional: warn about unsaved social changes when using 'Salva e pubblica'",
+    "Optional: drop maxLength truncation (or show error) for >300-char pastes"
+  ],
+  "critical_code_review_comments": [
+    "social_links.py and socialLinks.js are logically identical (verified same results for all tested inputs).",
+    "Audit compares ordine too, so a pure reorder creates an audit entry (acceptable).",
+    "/api/compliance/status audit returns only the last 15 entries (to_list(15)) - tests must not rely on counts."
+  ],
+  "updated_files": ["/app/backend/tests/test_social_links.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Cardiologo demo got a temporary tiktok link then cleared (empty). Dott.ssa Foti restored to website https://studiofoti.it (visible), instagram @dott.rossi (visible), facebook https://facebook.com/studiofoti (hidden).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run social tests with: cd /app/backend && python -m pytest tests/test_social_links.py -o addopts='' (pytest.ini uses xdist loadscope; module fixture restores Foti state on teardown). Account page: /area-riservata?sezione=vetrina; public: /medico/tiziana-foti."
+}
