@@ -18,7 +18,7 @@ const ACTION = { accesso_passaporto: "Accesso al passaporto", referto_pdf: "Refe
   mantai_impostazioni_aggiornate: "MantAI Risposte · impostazioni aggiornate", mantai_base_conoscenza_aggiornata: "MantAI Risposte · base di conoscenza aggiornata",
   ai_provenance_bozza_non_verificata: "Contenuto MantAI · creato come bozza da verificare", ai_provenance_verificato_dal_medico: "Contenuto MantAI · verificato dal medico",
   ai_provenance_invio_automatico: "Contenuto MantAI · inviato automaticamente", ai_provenance_migrazione: "Contenuti MantAI · provenienza ricostruita sui dati esistenti",
-  nota_firmata: "Nota firmata dal medico" };
+  nota_firmata: "Nota firmata dal medico", vetrina_social_aggiornati: "Vetrina · profili social aggiornati" };
 const STEPS = [
   "Crea un cluster su MongoDB Atlas scegliendo la regione Francoforte (eu-central-1) o Milano (eu-south-1).",
   "Abilita la crittografia a riposo del cluster e, se disponibile, il backup in regione UE.",

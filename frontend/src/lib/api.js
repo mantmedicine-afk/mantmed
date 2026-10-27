@@ -83,6 +83,8 @@ export const api = {
   saveShowcase: (b) => http.put("/showcase", b).then((r) => r.data),
   uploadShowcaseImage: (kind, file) => { const fd = new FormData(); fd.append("file", file); return http.post(`/showcase/image/${kind}`, fd).then((r) => r.data); },
   deleteShowcaseImage: (kind) => http.delete(`/showcase/image/${kind}`).then((r) => r.data),
+  socialLinks: () => http.get("/showcase/social-links").then((r) => r.data),
+  saveSocialLinks: (links) => http.put("/showcase/social-links", { links }).then((r) => r.data),
   publicDoctors: () => http.get("/public/doctors").then(list),
   publicAvailability: (slug, p = {}) => http.get(`/public/doctors/${slug}/availability`, { params: p }).then((r) => r.data),
   publicWeek: (slug, p = {}) => http.get(`/public/doctors/${slug}/week`, { params: p }).then((r) => r.data),
@@ -248,6 +250,7 @@ export const errMsg = (e) => {
   if (e && !e.response) return e.code === "ECONNABORTED" ? "Il server non risponde: riprovi tra qualche istante" : "Connessione non riuscita: verifichi la rete e riprovi";
   const d = e?.response?.data?.detail;
   if (typeof d === "string") return d;
+  if (typeof d?.message === "string") return d.message;
   if (Array.isArray(d)) return d.map((x) => x?.msg).filter(Boolean).join(" ") || "Dati non validi";
   return "Operazione non riuscita";
 };

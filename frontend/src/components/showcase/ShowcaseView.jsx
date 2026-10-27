@@ -1,4 +1,5 @@
 import { Clock, MapPin, Stethoscope, Mail, Phone, CalendarPlus } from "lucide-react";
+import { SocialRow } from "./SocialRow";
 
 const BACKEND = process.env.REACT_APP_BACKEND_URL;
 export const imgSrc = (u) => (u ? (u.startsWith("http") || u.startsWith("blob:") ? u : `${BACKEND}${u}`) : null);
@@ -37,6 +38,7 @@ export const ShowcaseView = ({ d, onBook, bookLabel = "Prenota una visita", comp
             <span className="flex items-center gap-1.5 font-medium text-[#3B6CF6]"><Stethoscope size={14} strokeWidth={1.5} /> {d.specialty}</span>
             {d.city && <span className="flex items-center gap-1.5"><MapPin size={14} strokeWidth={1.5} /> {d.city}</span>}
           </div>
+          <SocialRow links={d.social_links} name={d.name} compact={compact} />
         </div>
         {onBook && <button onClick={onBook} className="flex h-12 items-center justify-center gap-2 rounded-full bg-night px-6 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5" data-testid="showcase-book-btn"><CalendarPlus size={16} strokeWidth={1.5} /> {bookLabel}</button>}
       </div>

@@ -6,7 +6,7 @@ import re
 import unicodedata
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 import requests
 from bson import ObjectId
@@ -14,8 +14,10 @@ from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFil
 from pydantic import BaseModel, Field
 
 from beta import TITLES
+from crypto import seal_fields
 from registration import in_network
 from scheduling import ROME, free_slots, schedule_of
+from social_links import PLATFORMS, normalize, public_links
 
 logger = logging.getLogger(__name__)
 STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
@@ -67,6 +69,15 @@ class ShowcaseIn(BaseModel):
     published: bool = True
 
 
+class SocialLinkIn(BaseModel):
+    piattaforma: Literal["instagram", "facebook", "linkedin", "youtube", "tiktok", "x", "website"]
+    url: str = Field(default="", max_length=2000)
+    visibile: bool = True
+
+
+class SocialLinksIn(BaseModel):
+    links: List[SocialLinkIn] = Field(max_length=7)
+
 def slugify(text: str) -> str:
     t = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
     return re.sub(r"[^a-z0-9]+", "-", t).strip("-")[:60] or "medico"
@@ -112,13 +123,48 @@ def build_showcase(db, current_user, doctor_user):
         if services is None:  # prima apertura: prestazioni dell'agenda
             services = [{"id": uuid.uuid4().hex[:10], "name": s["name"], "duration_min": s.get("duration"), "price": s.get("price") or None, "description": ""}
                         for s in schedule_of(u)["services"]]
-        return {**card(u), "bio": sc.get("bio", ""), "services": services,
+        return {**card(u), "bio": sc.get("bio", ""), "services": services, "social_links": public_links(sc.get("social_links")),
                 "contact_email": (u.get("profile") or {}).get("contact_email", ""), "phone": (u.get("profile") or {}).get("phone", "")}
 
     async def me(user):
         u = await db.users.find_one({"_id": ObjectId(user["id"])})
         await ensure_slug(u)
         return await db.users.find_one({"_id": u["_id"]})
+
+    def links_out(u: dict) -> dict:
+        saved = {x["piattaforma"]: x for x in (u.get("showcase") or {}).get("social_links") or []}
+        rows = [{"piattaforma": p, "label": PLATFORMS[p]["label"], "url": saved.get(p, {}).get("url", ""), "visibile": saved.get(p, {}).get("visibile", True),
+                 "ordine": saved.get(p, {}).get("ordine", 100 + i)} for i, p in enumerate(PLATFORMS)]
+        return {"links": sorted(rows, key=lambda x: x["ordine"])}
+
+    @doctor.get("/social-links")
+    async def get_links(user: dict = Depends(doctor_user)):
+        return links_out(await me(user))
+
+    @doctor.put("/social-links")
+    async def save_links(body: SocialLinksIn, user: dict = Depends(doctor_user)):
+        u = await me(user)
+        if len({x.piattaforma for x in body.links}) != len(body.links):
+            raise HTTPException(422, "Ogni piattaforma può comparire una sola volta")
+        clean, errors = [], {}
+        for i, x in enumerate(body.links):
+            try:
+                url = normalize(x.piattaforma, x.url)
+            except ValueError as e:
+                errors[x.piattaforma] = str(e)
+                continue
+            if url:
+                clean.append({"piattaforma": x.piattaforma, "url": url, "visibile": x.visibile, "ordine": i})
+        if errors:
+            raise HTTPException(422, {"message": " · ".join(f"{PLATFORMS[k]['label']}: {v}" for k, v in errors.items()), "errors": errors})
+        before = {x["piattaforma"]: x for x in (u.get("showcase") or {}).get("social_links") or []}
+        await db.users.update_one({"_id": u["_id"]}, {"$set": {"showcase.social_links": clean, "showcase.updated_at": datetime.now(timezone.utc).isoformat()}})
+        after = {x["piattaforma"]: x for x in clean}
+        changed = [PLATFORMS[p]["label"] for p in PLATFORMS if before.get(p) != after.get(p)]
+        if changed:
+            await db.audit.insert_one({"action": "vetrina_social_aggiornati", "subject": seal_fields({"s": ", ".join(changed)}, ("s",))["s"],
+                                       "at": datetime.now(timezone.utc).isoformat(), "owner_id": user.get("owner_id") or user["id"], "actor_id": user["id"]})
+        return links_out(await db.users.find_one({"_id": u["_id"]}))
 
     @doctor.get("")
     async def get_mine(user: dict = Depends(doctor_user)):

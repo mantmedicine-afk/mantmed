@@ -4,6 +4,7 @@ import { Store, Loader2, ImagePlus, Trash2, Copy, ExternalLink, Plus, X, Eye } f
 import { api, errMsg } from "@/lib/api";
 import { Card, inp } from "./ui";
 import { ShowcaseView } from "@/components/showcase/ShowcaseView";
+import { SocialLinksEditor } from "./SocialLinksEditor";
 
 const Upload = ({ kind, label, url, onDone, onRemove, testid }) => {
   const ref = useRef(null);
@@ -74,6 +75,7 @@ export const ShowcaseSection = () => {
             <div className="space-y-2">{d.services.map((s, i) => <ServiceRow key={s.id ?? i} s={s} i={i} set={(p) => setSvc(i, p)} del={() => set({ services: d.services.filter((_, j) => j !== i) })} />)}</div>
             <button type="button" onClick={() => set({ services: [...d.services, { id: Math.random().toString(36).slice(2, 12), name: "", duration_min: 30, price: null, description: "" }] })} className="mt-2 flex items-center gap-1.5 rounded-full border border-dashed border-slate-300 px-4 py-2 text-sm text-slate-600 hover:border-night hover:text-night" data-testid="showcase-service-add"><Plus size={14} /> Aggiungi prestazione</button>
           </div>
+          <SocialLinksEditor onPreview={(social_links) => set({ social_links })} />
           <label className="flex items-center gap-3 text-sm text-night"><input type="checkbox" checked={d.published} onChange={(e) => set({ published: e.target.checked })} className="h-5 w-5 accent-[#0A192F]" data-testid="showcase-published-toggle" /> Vetrina visibile ai pazienti</label>
           <div className="flex flex-wrap gap-2">
             <button onClick={save} disabled={busy} className="flex h-11 items-center gap-2 rounded-full bg-night px-6 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 disabled:opacity-50" data-testid="showcase-save-btn">{busy && <Loader2 size={15} className="animate-spin" />} Salva e pubblica</button>
