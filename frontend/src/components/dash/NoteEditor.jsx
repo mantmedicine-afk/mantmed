@@ -102,7 +102,7 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
   const secKey = (x) => `sez:${(x.titolo ?? "").trim().toLowerCase()}`;
   useEffect(() => {
     let alive = true;
-    api.getBodychart(consultation.id).then((b) => { if (alive) setPins(b ? (b.markers ?? []).length : null); }).catch(() => {});
+    api.getBodychart(consultation.id, true).then((b) => { if (alive) setPins(b ? (b.markers ?? []).length : null); }).catch(() => {});
     return () => { alive = false; };
   }, [consultation.id]);
   useEffect(() => {
@@ -240,7 +240,7 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
             <span><span className="font-semibold">L’IA sta compilando la cartella.</span> <span className="text-slate-600">Nel frattempo può usare Bodychart, Cassa, Crescita e Dati anagrafici: i campi si riempiranno da soli.</span></span>
           </div>
         )}
-        <SignNote consultation={consultation} beforeSign={() => api.updateConsultation(consultation.id, note)} onSigned={(r) => { setC(r); setNote(r.note); setTouched(new Set()); onSaved?.(); }} />
+        <SignNote consultation={consultation} hasChart={!!pins} beforeSign={() => api.updateConsultation(consultation.id, note)} onSigned={(r) => { setC(r); setNote(r.note); setTouched(new Set()); onSaved?.(); }} />
         {failed && (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900" data-testid="note-failed-banner">
             <span className="flex items-center gap-2"><AlertTriangle size={16} className="shrink-0" /> {consultation.ai_error || "Elaborazione IA non riuscita"}</span>

@@ -313,7 +313,9 @@ def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dic
 
 
 CAT_LABEL = {"lesione": "Lesione", "trauma": "Trauma / contusione", "dolore": "Dolore", "eruzione": "Eruzione cutanea / dermatite", "nevo": "Nevo / macchia", "controllo": "Controllo"}
-VIEW_LABEL = {"front": "Frontale", "back": "Posteriore", "left": "Laterale sinistra", "right": "Laterale destra", "mouth": "Cavo orale"}
+VIEW_LABEL = {"front": "Frontale", "back": "Posteriore", "left": "Laterale sinistra", "right": "Laterale destra", "mouth": "Cavo orale", "head": "Testa / viso",
+              "ears": "Orecchie", "hand_palm": "Mani · palmo", "hand_back": "Mani · dorso", "foot_back": "Piedi · dorso", "foot_sole": "Piedi · pianta"}
+STATO_LABEL = {"attivo": "attivo", "in_miglioramento": "in miglioramento", "risolto": "risolto"}
 
 
 def bodychart_page(b: dict) -> list:
@@ -323,7 +325,9 @@ def bodychart_page(b: dict) -> list:
     k = min(maxw / iw, maxh / ih)
     out = [PageBreak(), Paragraph("Bodychart", S["title"]), Paragraph("mappa corporea della visita", S["titleIt"]), Spacer(1, 5 * mm),
            RLImage(io.BytesIO(png), width=iw * k, height=ih * k), Spacer(1, 5 * mm)]
-    rows = [[str(i + 1), CAT_LABEL.get(m.get("cat"), m.get("cat", "")), VIEW_LABEL.get(m.get("view"), ""), m.get("note") or "—"] for i, m in enumerate(b.get("markers") or [])]
+    rows = [[str(i + 1), CAT_LABEL.get(m.get("cat"), m.get("cat", "")), VIEW_LABEL.get(m.get("view"), ""),
+             " · ".join(x for x in [m.get("note") or "—", f"{fmt(m['size_cm'])} cm" if m.get("size_cm") else "", m.get("descrittore") or "",
+                                    STATO_LABEL.get(m.get("stato") or "attivo", "")] if x)] for i, m in enumerate(b.get("markers") or [])]
     if rows:
         tw = W - 2 * MX
         out.append(grid(["N.", "Tipo", "Vista", "Nota"], rows, [tw * 0.07, tw * 0.3, tw * 0.18, tw * 0.45]))

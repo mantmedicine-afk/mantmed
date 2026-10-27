@@ -10,9 +10,10 @@ const isDraft = (p) => p?.ai_generated === true && p.stato_revisione === "bozza_
 export const needsSignature = (c) => isDraft(c?.ai_provenance) || isDraft(c?.ai_provenance?.parti?.riassunto_famiglia);
 
 /** Testata della nota MantAI: etichetta "bozza" + firma con assunzione di responsabilità, poi etichetta "verificato". */
-export const SignNote = ({ consultation, beforeSign, onSigned }) => {
+export const SignNote = ({ consultation, beforeSign, onSigned, hasChart = false }) => {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [withChart, setWithChart] = useState(false);
   const p = consultation.ai_provenance;
   if (consultation.status !== "ready" || p?.ai_generated !== true && !p?.parti?.riassunto_famiglia) return null;
   if (!needsSignature(consultation)) {
@@ -21,7 +22,7 @@ export const SignNote = ({ consultation, beforeSign, onSigned }) => {
   }
   const sign = async () => {
     setBusy(true);
-    try { await beforeSign(); const r = await api.signConsultation(consultation.id); onSigned(r); toast.success("Nota firmata: ora può inviarla o pubblicarla", BR); setOpen(false); }
+    try { await beforeSign(); if (hasChart) await api.setBodychartInReport(consultation.id, withChart); const r = await api.signConsultation(consultation.id); onSigned(r); toast.success("Nota firmata: ora può inviarla o pubblicarla", BR); setOpen(false); }
     catch (e) { toast.error(errMsg(e), BR); }
     setBusy(false);
   };
@@ -42,6 +43,12 @@ export const SignNote = ({ consultation, beforeSign, onSigned }) => {
               Firmando dichiara di aver verificato il contenuto proposto da MantAI e se ne assume la responsabilità professionale. Le etichette diventeranno "verificato" con il suo nome, e il cambio sarà annotato nel registro attività.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {hasChart && (
+            <label className="flex items-start gap-3 rounded-2xl bg-[#F4F5F7] p-3 text-sm text-night">
+              <input type="checkbox" checked={withChart} onChange={(e) => setWithChart(e.target.checked)} className="mt-0.5 h-5 w-5 accent-[#0A192F]" data-testid="note-sign-include-bodychart" />
+              <span><span className="block font-medium">Includi la bodychart nel referto PDF</span><span className="text-xs text-slate-600">Aggiunge l'immagine della mappa con i reperti della visita (senza foto).</span></span>
+            </label>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel className="rounded-full" data-testid="note-sign-cancel">Rileggo ancora</AlertDialogCancel>
             <AlertDialogAction onClick={(e) => { e.preventDefault(); sign(); }} disabled={busy} className="rounded-full bg-night" data-testid="note-sign-confirm">

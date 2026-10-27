@@ -18,7 +18,12 @@ const ACTION = { accesso_passaporto: "Accesso al passaporto", referto_pdf: "Refe
   mantai_impostazioni_aggiornate: "MantAI Risposte · impostazioni aggiornate", mantai_base_conoscenza_aggiornata: "MantAI Risposte · base di conoscenza aggiornata",
   ai_provenance_bozza_non_verificata: "Contenuto MantAI · creato come bozza da verificare", ai_provenance_verificato_dal_medico: "Contenuto MantAI · verificato dal medico",
   ai_provenance_invio_automatico: "Contenuto MantAI · inviato automaticamente", ai_provenance_migrazione: "Contenuti MantAI · provenienza ricostruita sui dati esistenti",
-  nota_firmata: "Nota firmata dal medico", vetrina_social_aggiornati: "Vetrina · profili social aggiornati" };
+  nota_firmata: "Nota firmata dal medico", vetrina_social_aggiornati: "Vetrina · profili social aggiornati",
+  bodychart_visualizzato: "Bodychart · consultata", bodychart_storia_visualizzata: "Bodychart · storia dei reperti consultata", bodychart_eliminato: "Bodychart · eliminata",
+  bodychart_pin_aggiunti: "Bodychart · reperti aggiunti", bodychart_pin_modificati: "Bodychart · reperti modificati", bodychart_pin_eliminati: "Bodychart · reperti eliminati",
+  bodychart_foto_collegate: "Bodychart · foto collegate ai reperti", bodychart_foto_eliminate: "Bodychart · foto rimosse", bodychart_foto_aggiunta: "Bodychart · foto caricata (metadati rimossi, cifrata)",
+  bodychart_foto_riservata_aggiunta: "Bodychart · foto RISERVATA caricata (zona intima, conferme registrate)", bodychart_foto_visualizzata: "Bodychart · foto aperta",
+  bodychart_proposte_mantai: "Bodychart · sedi proposte da MantAI", bodychart_nel_referto: "Bodychart · inclusa nel referto", bodychart_tolta_dal_referto: "Bodychart · tolta dal referto" };
 const STEPS = [
   "Crea un cluster su MongoDB Atlas scegliendo la regione Francoforte (eu-central-1) o Milano (eu-south-1).",
   "Abilita la crittografia a riposo del cluster e, se disponibile, il backup in regione UE.",

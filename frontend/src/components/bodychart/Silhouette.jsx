@@ -1,4 +1,5 @@
 import { silhouette, sideLabels, pathOf, CAT, VB_W, VB_H } from "@/lib/bodychart";
+import { DETAIL_DRAWINGS } from "./Details";
 
 const OUT = "#0A192F";
 const FILL = "#F1F4F9";
@@ -36,6 +37,8 @@ const Mouth = ({ kind }) => {
 
 export const Silhouette = ({ kind, view }) => {
   if (view === "mouth") return <Mouth kind={kind} />;
+  const D = DETAIL_DRAWINGS[view];
+  if (D) return <D />;
   const { layers, details, mirror } = silhouette(kind, view);
   const labels = sideLabels(view);
   return (
@@ -58,15 +61,20 @@ export const Strokes = ({ items }) => items.map((s, i) => (
   <path key={i} d={pathOf(s.points)} fill="none" stroke={s.color} strokeWidth={s.width} strokeLinecap="round" strokeLinejoin="round" opacity={s.tool === "highlighter" ? 0.35 : 1} />
 ));
 
-export const Pins = ({ items, numbers, selected, onPick, k = 1 }) => items.map((m) => {
+export const Pins = ({ items, numbers, selected, onPinDown, k = 1 }) => items.map((m) => {
   const c = CAT[m.cat]?.color ?? "#0A192F";
   const x = m.x * VB_W, y = m.y * VB_H;
   const sel = selected === m.id;
+  const resolved = m.stato === "risolto";
   return (
-    <g key={m.id} onPointerDown={onPick ? (e) => { e.stopPropagation(); onPick(m.id); } : undefined} style={onPick ? { cursor: "pointer" } : undefined} data-testid={`bodychart-pin-${m.id}`}>
+    <g key={m.id} onPointerDown={onPinDown ? (e) => { e.stopPropagation(); onPinDown(e, m); } : undefined} style={onPinDown ? { cursor: "pointer", touchAction: "none" } : undefined}
+      data-testid={`bodychart-pin-${m.id}`} data-stato={m.stato ?? "attivo"} data-proposed={m.proposed ? "true" : undefined}>
+      <circle cx={x} cy={y} r={16 * k} fill="transparent" />
       {sel && <circle cx={x} cy={y} r={11 * k} fill="none" stroke={c} strokeWidth={2 * k} opacity={0.5} />}
-      <circle cx={x} cy={y} r={7.5 * k} fill={c} stroke="#fff" strokeWidth={1.8 * k} />
-      <text x={x} y={y + 3.2 * k} textAnchor="middle" fontFamily="Arial, sans-serif" fontSize={8.5 * k} fontWeight={700} fill="#fff">{numbers[m.id]}</text>
+      {m.proposed
+        ? <circle cx={x} cy={y} r={7.5 * k} fill="#FFF1CC" stroke="#B7791F" strokeWidth={1.8 * k} strokeDasharray={`${2.5 * k} ${1.8 * k}`} />
+        : <circle cx={x} cy={y} r={7.5 * k} fill={resolved ? "#fff" : c} stroke={resolved ? c : "#fff"} strokeWidth={1.8 * k} />}
+      <text x={x} y={y + 3.2 * k} textAnchor="middle" fontFamily="Arial, sans-serif" fontSize={8.5 * k} fontWeight={700} fill={m.proposed ? "#7A4B00" : resolved ? c : "#fff"}>{m.proposed ? "?" : numbers[m.id]}</text>
       {m.photos?.length > 0 && <g data-testid={`bodychart-pin-photo-${m.id}`}><circle cx={x + 6.5 * k} cy={y - 6.5 * k} r={4 * k} fill="#0A192F" stroke="#fff" strokeWidth={1 * k} /><rect x={x + 4.6 * k} y={y - 8 * k} width={3.8 * k} height={2.8 * k} rx={0.6 * k} fill="#fff" /></g>}
     </g>
   );

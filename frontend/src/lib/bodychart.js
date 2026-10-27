@@ -12,12 +12,31 @@ export const CATS = [
 export const CAT = Object.fromEntries(CATS.map((c) => [c.id, c]));
 
 export const VIEWS = [
-  { id: "front", label: "Frontale" },
-  { id: "back", label: "Posteriore" },
-  { id: "left", label: "Lat. sinistra" },
-  { id: "right", label: "Lat. destra" },
-  { id: "mouth", label: "Cavo orale" },
+  { id: "front", label: "Frontale", group: "body" },
+  { id: "back", label: "Posteriore", group: "body" },
+  { id: "left", label: "Lat. sinistra", group: "body" },
+  { id: "right", label: "Lat. destra", group: "body" },
+  { id: "head", label: "Testa / viso", group: "detail" },
+  { id: "ears", label: "Orecchie", group: "detail" },
+  { id: "mouth", label: "Cavo orale", group: "detail" },
+  { id: "hand_palm", label: "Mani · palmo", group: "detail" },
+  { id: "hand_back", label: "Mani · dorso", group: "detail" },
+  { id: "foot_back", label: "Piedi · dorso", group: "detail" },
+  { id: "foot_sole", label: "Piedi · pianta", group: "detail" },
 ];
+export const isBodyView = (v) => ["front", "back", "left", "right"].includes(v);
+
+export const DESCRITTORI = ["macula", "papula", "placca", "nodulo", "vescicola", "bolla", "pustola", "pomfo", "crosta", "squama", "erosione", "ulcera", "petecchia", "ecchimosi", "cicatrice", "lichenificazione"];
+export const STATI = [
+  { id: "attivo", label: "Attivo", cls: "bg-rose-50 text-rose-800 ring-rose-200" },
+  { id: "in_miglioramento", label: "In miglioramento", cls: "bg-amber-50 text-amber-900 ring-amber-200" },
+  { id: "risolto", label: "Risolto", cls: "bg-emerald-50 text-emerald-800 ring-emerald-200" },
+];
+export const STATO = Object.fromEntries(STATI.map((s) => [s.id, s]));
+
+// Zone intime (genitale/perianale): stesso elenco di backend/bodychart_media.py
+const INTIMATE = { front: [0.39, 0.42, 0.61, 0.56], back: [0.39, 0.42, 0.61, 0.56], left: [0.36, 0.45, 0.64, 0.55], right: [0.36, 0.45, 0.64, 0.55] };
+export const isIntimate = (view, x, y) => { const b = INTIMATE[view]; return !!b && x >= b[0] && x <= b[2] && y >= b[1] && y <= b[3]; };
 
 // Zoom anatomici (viewBox) sulle viste del corpo; i pin restano in coordinate normalizzate
 export const ZOOMS = [
@@ -92,6 +111,22 @@ export const silhouette = (kind, view) => {
 };
 
 export const sideLabels = (view) => (view === "front" ? ["D", "S"] : view === "back" ? ["S", "D"] : null);
+
+/** Zone sensibili sulla figura intera che aprono le viste di dettaglio. */
+export const hotspots = (kind, view) => {
+  const p = P[kind] ?? P.child;
+  if (view !== "front" && view !== "back") return [];
+  const hand = view === "front" ? "hand_palm" : "hand_back";
+  const foot = view === "front" ? "foot_back" : "foot_sole";
+  const hx = p.sh + 26, fx = p.shinW / 2 + 13;
+  return [
+    { id: "head", label: "Testa / viso", x: C + p.headR + 4, y: p.headY - p.headR + 4 },
+    { id: "ears", label: "Orecchie", x: C - p.headR - 4, y: p.headY - p.headR + 4 },
+    ...(view === "front" ? [{ id: "mouth", label: "Cavo orale", x: C + p.headR + 4, y: p.headY + p.headR - 2 }] : []),
+    { id: hand, label: "Mani", x: C - hx, y: p.wristY + 30 }, { id: hand, label: "Mani", x: C + hx, y: p.wristY + 30 },
+    { id: foot, label: "Piedi", x: C - fx - 14, y: p.ankle + 24 }, { id: foot, label: "Piedi", x: C + fx + 14, y: p.ankle + 24 },
+  ];
+};
 
 export const pathOf = (pts) => (pts.length === 1 ? `M ${pts[0][0]} ${pts[0][1]} l 0.01 0` : `M ${pts.map((q) => q.join(" ")).join(" L ")}`);
 

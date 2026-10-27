@@ -1,86 +1,88 @@
-import { useEffect, useState } from "react";
-import { Loader2, History, Columns2, Images } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Loader2, Columns2, Images } from "lucide-react";
 import { api } from "@/lib/api";
-import { CATS, CAT, VIEWS } from "@/lib/bodychart";
-import { PhotoLightbox } from "./PinPhotos";
+import { CAT, VIEWS, VB_W, VB_H } from "@/lib/bodychart";
+import { Silhouette, Strokes, Pins } from "./Silhouette";
+import { LesionHistory, StatoBadge, day } from "./LesionHistory";
 
-const day = (s) => new Date(`${s}T12:00:00`).toLocaleDateString("it-IT", { day: "numeric", month: "short", year: "numeric" });
+const sel = "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-night";
 
-const Panel = ({ id, label }) => {
+/** Una visita del confronto: figura disegnata dal vivo (niente immagini pesanti) + elenco dei reperti con stato. */
+const Panel = ({ id, side, view, items }) => {
   const [d, setD] = useState(null);
-  useEffect(() => { setD(null); if (id) api.bodychart(id).then(setD).catch(() => setD({ markers: [] })); }, [id]);
+  useEffect(() => { setD(null); if (id) api.bodychart(id, true).then(setD).catch(() => setD({ markers: [], strokes: [] })); }, [id]);
+  const info = items.find((x) => x.id === id);
+  const nums = useMemo(() => Object.fromEntries((d?.markers ?? []).map((m, i) => [m.id, i + 1])), [d]);
   return (
-    <div className="min-w-0 rounded-3xl bg-white p-3 ring-1 ring-slate-200 sm:p-4" data-testid={`bodychart-compare-${label}`}>
-      <div className="flex items-center justify-between gap-2"><span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{label === "a" ? "Prima" : "Dopo"}</span><span className="font-display text-lg text-night">{d?.visit_date ? day(d.visit_date) : "…"}</span></div>
+    <div className="min-w-0 rounded-3xl bg-white p-3 ring-1 ring-slate-200 sm:p-4" data-testid={`bodychart-compare-${side}`}>
+      <div className="flex items-center justify-between gap-2"><span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{side === "a" ? "Prima" : "Dopo"}</span><span className="font-display text-lg text-night">{info ? day(info.visit_date) : "…"}</span></div>
       {!d ? <Loader2 className="mt-4 animate-spin text-night" /> : (
         <>
-          {d.snapshot && <div className="mt-3 overflow-x-auto rounded-2xl ring-1 ring-slate-100"><img src={d.snapshot} alt={`Bodychart del ${day(d.visit_date)}`} className="w-full min-w-[520px]" /></div>}
-          <ol className="mt-3 space-y-1">{d.markers.map((m, i) => <li key={m.id} className="flex items-center gap-2 text-sm text-night"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold text-white" style={{ background: CAT[m.cat]?.color }}>{i + 1}</span><span className="truncate">{m.note || CAT[m.cat]?.label} · <span className="text-slate-500">{VIEWS.find((v) => v.id === m.view)?.label}</span></span></li>)}</ol>
+          <svg viewBox={`0 0 ${VB_W} ${VB_H}`} className="mx-auto mt-2 h-[46vh] max-h-[480px] min-h-[300px] w-full" role="img" aria-label={`Bodychart del ${day(d.visit_date)}`}>
+            <Silhouette kind={d.silhouette} view={view} /><Strokes items={(d.strokes ?? []).filter((s) => s.view === view)} />
+            <Pins items={d.markers.filter((m) => m.view === view)} numbers={nums} />
+          </svg>
+          <ol className="mt-3 space-y-1.5">{d.markers.map((m) => (
+            <li key={m.id} className="flex items-center gap-2 text-sm text-night" data-testid={`bodychart-compare-${side}-pin-${m.id}`}>
+              <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold text-white" style={{ background: CAT[m.cat]?.color }}>{nums[m.id]}</span>
+              <span className="min-w-0 flex-1 truncate">{m.note || CAT[m.cat]?.label}{m.size_cm ? ` · ${m.size_cm} cm` : ""} · <span className="text-slate-500">{VIEWS.find((v) => v.id === m.view)?.label}</span></span>
+              <StatoBadge stato={m.stato} testId={`bodychart-compare-${side}-stato-${m.id}`} />
+            </li>))}
+            {!d.markers.length && <li className="text-sm text-slate-500">Nessun reperto in questa visita.</li>}
+          </ol>
         </>
       )}
     </div>
   );
 };
 
-/** Galleria cronologica delle foto dei reperti, per seguire guarigione ed evoluzione. */
-const Gallery = ({ items }) => {
-  const [open, setOpen] = useState(null);
-  const shots = items.flatMap((b) => b.markers.filter((m) => m.photos?.length).flatMap((m) => m.photos.map((p) => ({ p, m, date: b.visit_date })))).sort((a, b) => a.date.localeCompare(b.date));
-  if (!shots.length) return <p className="text-sm text-slate-600" data-testid="bodychart-gallery-empty">Nessuna foto ancorata ai marcatori: le foto scattate sui pin compaiono qui in ordine di data.</p>;
-  return (
-    <div className="flex gap-3 overflow-x-auto pb-2" data-testid="bodychart-gallery">
-      {shots.map((s) => (
-        <button key={s.p} onClick={() => setOpen(s)} className="w-36 shrink-0 text-left" data-testid={`bodychart-gallery-${s.p}`}>
-          <img src={api.bodychartPhotoUrl(s.p)} alt={s.m.note || "Foto reperto"} className="h-36 w-36 rounded-2xl object-cover ring-1 ring-slate-200" />
-          <div className="mt-1.5 flex items-center gap-1.5 text-xs text-night"><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: CAT[s.m.cat]?.color }} /><span className="truncate">{s.m.note || CAT[s.m.cat]?.label}</span></div>
-          <div className="text-[11px] text-slate-500">{day(s.date)}</div>
-        </button>
-      ))}
-      <PhotoLightbox src={open && api.bodychartPhotoUrl(open.p)} caption={open && `${open.m.note || CAT[open.m.cat]?.label} · ${day(open.date)}`} onClose={() => setOpen(null)} />
-    </div>
-  );
-};
-
-/** Timeline di evoluzione: visite in ordine, confronto affiancato di due bodychart e galleria foto. */
-export const BodychartHistory = ({ patientId, currentId }) => {
+/** Confronta: due visite affiancate scelte per data, e storia/foto di ogni reperto. */
+export const BodychartHistory = ({ patientId }) => {
   const [items, setItems] = useState(null);
-  const [pair, setPair] = useState([]);
+  const [a, setA] = useState("");
+  const [b, setB] = useState("");
+  const [view, setView] = useState("front");
+  const [les, setLes] = useState(null);
   useEffect(() => {
     if (!patientId) { setItems([]); return; }
     api.patientBodycharts(patientId).then((r) => {
-      const asc = [...r].sort((a, b) => a.visit_date.localeCompare(b.visit_date));
-      setItems(asc);
-      setPair(asc.length > 1 ? [asc[asc.length - 2].id, asc[asc.length - 1].id] : asc.map((x) => x.id));
+      const asc = [...r].sort((x, y) => x.visit_date.localeCompare(y.visit_date));
+      setItems(asc); setA(asc.length > 1 ? asc[asc.length - 2].id : asc[0]?.id ?? ""); setB(asc[asc.length - 1]?.id ?? "");
+      const v = asc[asc.length - 1]?.markers[0]?.view; if (v) setView(v);
     }).catch(() => setItems([]));
+    api.bodychartLesions(patientId).then(setLes).catch(() => setLes({ lesions: [], photo_meta: {} }));
   }, [patientId]);
-  const toggle = (id) => setPair((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p.slice(-1), id].sort((a, b) => items.findIndex((x) => x.id === a) - items.findIndex((x) => x.id === b))));
   if (items === null) return <Loader2 className="animate-spin text-night" />;
   if (!items.length) return <div className="rounded-3xl bg-white p-6 ring-1 ring-slate-200" data-testid="bodychart-history"><p className="text-sm text-slate-600" data-testid="bodychart-history-empty">{patientId ? "Nessun bodychart salvato nelle visite precedenti." : "Paziente non collegato a una cartella: lo storico non è disponibile."}</p></div>;
+  const used = VIEWS.filter((v) => items.filter((x) => x.id === a || x.id === b).some((x) => x.markers.some((m) => m.view === v.id)) || v.id === "front");
+  const opt = (x) => <option key={x.id} value={x.id}>{day(x.visit_date)} · {x.markers.length} reperti</option>;
+  const multi = (les?.lesions ?? []).filter((l) => l.entries.length > 1 || l.entries.some((e) => e.photos?.length));
   return (
     <div className="space-y-5" data-testid="bodychart-history">
       <div className="rounded-3xl bg-white p-4 ring-1 ring-slate-200 sm:p-6">
-        <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600"><History size={14} /> Timeline · scelga due visite da confrontare</div>
-        <div className="relative mt-5 overflow-x-auto pb-2">
-          <div className="absolute left-4 right-4 top-[22px] h-0.5 bg-slate-200" />
-          <ol className="relative flex min-w-max gap-3 px-1">
-            {items.map((b) => {
-              const on = pair.includes(b.id);
-              return (
-                <li key={b.id}>
-                  <button onClick={() => toggle(b.id)} className="flex w-40 flex-col items-center gap-2 text-center" aria-pressed={on} data-testid={`bodychart-history-${b.id}`}>
-                    <span className={`grid h-11 w-11 place-items-center rounded-full text-xs font-bold transition-colors ${on ? "bg-night text-white" : "bg-white text-night ring-2 ring-slate-200"}`}>{b.markers.length}</span>
-                    <span className="text-sm font-medium text-night">{day(b.visit_date)}{b.consultation_id === currentId && <span className="ml-1 rounded-full bg-[#3B6CF6] px-1.5 py-0.5 text-[10px] text-white">oggi</span>}</span>
-                    <span className="flex flex-wrap justify-center gap-1">{CATS.filter((c) => b.counts[c.id]).map((c) => <span key={c.id} className="rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white" style={{ background: c.color }} title={c.label}>{b.counts[c.id]}</span>)}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
+        <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600"><Columns2 size={14} /> Confronta due visite</div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <label className="text-xs text-slate-600">Prima<select value={a} onChange={(e) => setA(e.target.value)} className={`${sel} mt-1`} data-testid="bodychart-compare-date-a">{items.map(opt)}</select></label>
+          <label className="text-xs text-slate-600">Dopo<select value={b} onChange={(e) => setB(e.target.value)} className={`${sel} mt-1`} data-testid="bodychart-compare-date-b">{items.map(opt)}</select></label>
+        </div>
+        <div className="-mx-1 mt-3 flex gap-1 overflow-x-auto px-1" role="tablist" data-testid="bodychart-compare-views">
+          {used.map((v) => <button key={v.id} role="tab" aria-selected={view === v.id} onClick={() => setView(v.id)} className={`h-9 shrink-0 rounded-full px-3.5 text-[13px] font-medium ${view === v.id ? "bg-night text-white" : "bg-[#F4F5F7] text-night"}`} data-testid={`bodychart-compare-view-${v.id}`}>{v.label}</button>)}
         </div>
       </div>
-      <div><div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600"><Columns2 size={14} /> Confronto affiancato</div>
-        <div className={`grid gap-4 ${pair.length > 1 ? "xl:grid-cols-2" : ""}`}>{pair.map((id, i) => <Panel key={id} id={id} label={i === 0 && pair.length > 1 ? "a" : "b"} />)}</div></div>
-      <div className="rounded-3xl bg-white p-4 ring-1 ring-slate-200 sm:p-6"><div className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600"><Images size={14} /> Evoluzione fotografica dei reperti</div><Gallery items={items} /></div>
+      <div className="grid gap-4 md:grid-cols-2"><Panel id={a} side="a" view={view} items={items} /><Panel id={b} side="b" view={view} items={items} /></div>
+      <div className="rounded-3xl bg-white p-4 ring-1 ring-slate-200 sm:p-6" data-testid="bodychart-gallery">
+        <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600"><Images size={14} /> Evoluzione dei reperti</div>
+        {!les ? <Loader2 className="animate-spin text-night" /> : multi.length === 0 ? <p className="text-sm text-slate-600" data-testid="bodychart-gallery-empty">Nessun reperto seguito in più visite o con foto.</p>
+          : <div className="grid gap-4 lg:grid-cols-2">{multi.map((l) => {
+            const last = l.entries[l.entries.length - 1];
+            return (
+              <div key={l.lesion_id} className="rounded-2xl bg-[#F8FAFC] p-4 ring-1 ring-slate-100" data-testid={`bodychart-lesion-${l.lesion_id}`}>
+                <div className="mb-2 flex items-center gap-2 text-sm font-medium text-night"><span className="h-3 w-3 rounded-full" style={{ background: CAT[last.cat]?.color }} />{last.note || CAT[last.cat]?.label}<span className="text-xs font-normal text-slate-500">· {VIEWS.find((v) => v.id === last.view)?.label}</span></div>
+                <LesionHistory entries={l.entries} meta={les.photo_meta} />
+              </div>
+            );
+          })}</div>}
+      </div>
     </div>
   );
 };

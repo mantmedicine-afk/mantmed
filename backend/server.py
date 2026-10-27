@@ -531,6 +531,14 @@ async def resume_consult_jobs():
     asyncio.ensure_future(team_migrate())
     asyncio.ensure_future(ai_migrate())
     asyncio.ensure_future(run_provenance_migration())
+    asyncio.ensure_future(run_bodychart_photo_migration())
+
+
+async def run_bodychart_photo_migration():
+    try:
+        logger.info("Foto bodychart ripulite e cifrate: %s", await bc_migrate_photos())
+    except Exception:
+        logger.exception("Migrazione foto bodychart non riuscita")
 
 
 async def run_provenance_migration():
@@ -1851,7 +1859,7 @@ public_api.include_router(inbox_mine)
 public_api.include_router(auth_router)
 public_api.include_router(build_password_reset(db, current_user))
 public_api.include_router(build_account(db, current_user))
-bc_doctor, bc_parent = build_bodychart(db, current_user)
+bc_doctor, bc_parent, bc_migrate_photos = build_bodychart(db, current_user, llm_json)
 sd_doctor, sd_parent, sd_public = build_signed_docs(db, current_user, CONSENT_VERSION)
 api.include_router(sd_doctor)
 public_api.include_router(sd_parent)
