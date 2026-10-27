@@ -47,23 +47,35 @@ def ctx():
         DB.consultations.delete_one({"_id": i})
 
 
-def _upload(s, cid, name="a.png", ctype="image/png", data=PNG_BYTES):
-    return s.post(f"{BASE_URL}/api/consultations/{cid}/bodychart/photos", files={"file": (name, data, ctype)})
+def _real_png():
+    import io
+    from PIL import Image
+    b = io.BytesIO()
+    Image.new("RGB", (64, 64), (10, 200, 30)).save(b, "PNG")
+    return b.getvalue()
+
+
+# view/x/y are now required form fields (outside the intimate box by default here)
+def _upload(s, cid, name="a.png", ctype="image/png", data=None, view="front", x=0.3, y=0.3):
+    return s.post(f"{BASE_URL}/api/consultations/{cid}/bodychart/photos", files={"file": (name, data if data is not None else _real_png(), ctype)},
+                  data={"view": view, "x": str(x), "y": str(y)})
 
 
 def test_photo_upload_and_serve(ctx):
+    # photos are now re-encoded to JPEG (EXIF stripped, encrypted) -> bytes differ from upload
     r = _upload(ctx["doc"], ctx["cid"])
     assert r.status_code == 200, r.text
     fid = r.json()["id"]
-    assert isinstance(fid, str) and len(fid) == 24
+    assert isinstance(fid, str) and len(fid) == 24 and r.json()["reserved"] is False
     g = ctx["doc"].get(f"{BASE_URL}/api/bodychart-photos/{fid}")
-    assert g.status_code == 200 and g.content == PNG_BYTES and g.headers["content-type"].startswith("image/png")
+    assert g.status_code == 200 and g.content[:3] == b"\xff\xd8\xff" and g.headers["content-type"].startswith("image/jpeg")
     ctx["fid"] = fid
 
 
-def test_photo_upload_jpeg(ctx):
+def test_photo_upload_fake_jpeg_400(ctx):
+    # unreadable image bytes are now rejected (re-encoding pipeline)
     r = _upload(ctx["doc"], ctx["cid"], "x.jpg", "image/jpeg", b"\xff\xd8\xff\xe0fakejpeg")
-    assert r.status_code == 200
+    assert r.status_code == 400
 
 
 def test_photo_upload_non_image_400(ctx):

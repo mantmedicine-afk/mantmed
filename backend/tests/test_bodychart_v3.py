@@ -17,6 +17,8 @@ _env = dotenv_values(Path(__file__).resolve().parents[2] / "frontend" / ".env")
 _benv = dotenv_values(Path(__file__).resolve().parents[1] / ".env")
 BASE_URL = (os.environ.get("REACT_APP_BACKEND_URL") or _env.get("REACT_APP_BACKEND_URL")).rstrip("/")
 DB = MongoClient(_benv["MONGO_URL"])[_benv["DB_NAME"]]
+import uuid as _uuid
+NAME = f"TEST_Bodychart v3 {_uuid.uuid4().hex[:6]}"
 PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNg+M/wHwAEAQH/7yMK/wAAAABJRU5ErkJggg=="
 
 
@@ -70,7 +72,7 @@ def ctx():
             "diagnosi": "Dermatite atopica"}
     ids = []
     for d in (14, 0):
-        ids.append(DB.consultations.insert_one({"patient_name": "TEST_Bodychart v3", "patient_id": pid, "clinic": "Studio Centro", "owner_id": str(doc["_id"]),
+        ids.append(DB.consultations.insert_one({"patient_name": NAME, "patient_id": pid, "clinic": "Studio Centro", "owner_id": str(doc["_id"]),
                                                 "doctor_id": str(doc["_id"]),
                                                 "created_at": (datetime.now(timezone.utc) - timedelta(days=d)).isoformat(), "portal_published": False, "report_sent_at": None,
                                                 **seal_fields({"transcript": "TEST", "note": note, "report_sent_to": None}, ("transcript", "note", "report_sent_to"))}).inserted_id)
@@ -89,6 +91,17 @@ def _upload(s, cid, view="front", x=0.3, y=0.3, extra=None):
 
 def _actions(owner, since):
     return [a["action"] for a in DB.audit.find({"owner_id": owner, "at": {"$gte": since}})]
+
+
+def _base_chart(ctx):
+    """Puts the canonical cid chart (p1 nevo/L1 with photo, size 0.4 macula) so tests don't depend on order."""
+    if "photo" not in ctx:
+        ctx["photo"] = _upload(ctx["doc"], ctx["cid"]).json()["id"]
+    m = [{"id": "p1", "view": "front", "x": 0.3, "y": 0.3, "cat": "nevo", "note": "TEST nevo", "size_cm": 0.4, "descrittore": "macula",
+          "stato": "attivo", "lesion_id": "L1", "origin": "medico", "photos": [ctx["photo"]]}]
+    r = ctx["doc"].put(f"{BASE_URL}/api/consultations/{ctx['cid']}/bodychart", json={"silhouette": "child", "markers": m, "strokes": [], "snapshot": PNG})
+    assert r.status_code == 200, r.text
+    return r.json()
 
 
 # --- Photo pipeline
@@ -127,6 +140,8 @@ def test_intimate_requires_double_confirmation(ctx):
 
 
 def test_parent_cannot_access_photo(ctx):
+    ctx.setdefault("photo", _upload(ctx["doc"], ctx["cid"]).json()["id"])
+    ctx.setdefault("reserved", _upload(ctx["doc"], ctx["cid"], x=0.5, y=0.48, extra={"conferma_necessita": "true", "conferma_consenso": "true"}).json()["id"])
     for fid in (ctx["photo"], ctx["reserved"]):
         r = ctx["parent"].get(f"{BASE_URL}/api/bodychart-photos/{fid}")
         assert r.status_code in (401, 403, 404), r.status_code
@@ -168,6 +183,7 @@ def test_put_invalid_stato_422(ctx):
 
 # --- Lesion history across visits
 def test_lesion_history(ctx):
+    _base_chart(ctx)
     m = [{"id": "o1", "lesion_id": "L1", "view": "front", "x": 0.3, "y": 0.3, "cat": "nevo", "note": "TEST old", "stato": "attivo"}]
     r = ctx["doc"].put(f"{BASE_URL}/api/consultations/{ctx['old']}/bodychart", json={"silhouette": "child", "markers": m, "strokes": [], "snapshot": PNG})
     assert r.status_code == 200
@@ -180,12 +196,14 @@ def test_lesion_history(ctx):
     assert [e["consultation_id"] for e in mine] == [ctx["old"], ctx["cid"]]
     assert mine[1]["photos"] == [ctx["photo"]] and "stato" in mine[0]
     assert ctx["photo"] in j["photo_meta"]
-    assert "bodychart_storia_visualizzata" in _actions(ctx["owner"], since)
+    recent = (datetime.now(timezone.utc) - timedelta(minutes=10, seconds=-5)).isoformat()
+    assert "bodychart_storia_visualizzata" in _actions(ctx["owner"], recent)  # deduped: present within 10 min window
 
 
 # --- MantAI suggest
 def test_suggest_returns_proposals_not_saved(ctx):
     before = ctx["doc"].get(f"{BASE_URL}/api/consultations/{ctx['cid']}/bodychart").json()
+    since = datetime.now(timezone.utc).isoformat()
     r = ctx["doc"].post(f"{BASE_URL}/api/consultations/{ctx['cid']}/bodychart/suggest", timeout=90)
     assert r.status_code == 200, r.text
     props = r.json()["proposals"]
@@ -193,12 +211,14 @@ def test_suggest_returns_proposals_not_saved(ctx):
     assert len(props) >= 1
     for p in props:
         assert p["proposed"] is True and p["origin"] == "mantai" and {"view", "x", "y", "cat", "note", "regione"} <= p.keys()
+    assert "bodychart_proposte_mantai" in _actions(ctx["owner"], since)  # first (uncached) call
     after = ctx["doc"].get(f"{BASE_URL}/api/consultations/{ctx['cid']}/bodychart").json()
     assert [m["id"] for m in after["markers"]] == [m["id"] for m in before["markers"]]
 
 
 # --- Report flag + PDF
 def test_report_flag_and_pdf(ctx):
+    _base_chart(ctx)
     r = ctx["doc"].put(f"{BASE_URL}/api/consultations/{ctx['cid']}/bodychart/report", json={"include": True})
     assert r.status_code == 200 and r.json()["include_in_report"] is True
     assert DB.bodycharts.find_one({"consultation_id": ctx["cid"]})["include_in_report"] is True
@@ -208,11 +228,12 @@ def test_report_flag_and_pdf(ctx):
     assert "Bodychart" in txt
     assert "0,4 cm" in txt or "0.4 cm" in txt
     assert "macula" in txt
+    assert "Nevo / Macchia" in txt, "PDF category label must match UI"
 
 
 def test_report_flag_no_chart_404(ctx):
     DB.bodycharts.delete_many({"consultation_id": "nonexistent"})
-    cid = str(DB.consultations.find_one({"patient_name": {"$ne": "TEST_Bodychart v3"}, "owner_id": ctx["owner"]}, {"_id": 1})["_id"])
+    cid = str(DB.consultations.find_one({"patient_name": {"$not": {"$regex": "^TEST_Bodychart"}}, "owner_id": ctx["owner"]}, {"_id": 1})["_id"])
     if DB.bodycharts.find_one({"consultation_id": cid}):
         pytest.skip("consultation has chart")
     r = ctx["doc"].put(f"{BASE_URL}/api/consultations/{cid}/bodychart/report", json={"include": True})
@@ -223,13 +244,16 @@ def test_report_flag_no_chart_404(ctx):
 def test_audit_actions(ctx):
     since = datetime.now(timezone.utc).isoformat()
     s = ctx["doc"]
+    _base_chart(ctx)
     s.get(f"{BASE_URL}/api/consultations/{ctx['cid']}/bodychart")
     s.get(f"{BASE_URL}/api/consultations/{ctx['cid']}/bodychart?summary=true")
     s.get(f"{BASE_URL}/api/bodychart-photos/{ctx['photo']}?size=thumb")
     acts = _actions(ctx["owner"], since)
-    assert acts.count("bodychart_visualizzato") == 1, acts
+    assert acts.count("bodychart_visualizzato") <= 1, acts  # dedupe 10 min per subject
     assert "bodychart_foto_visualizzata" not in acts
     s.get(f"{BASE_URL}/api/bodychart-photos/{ctx['photo']}")
+    s.get(f"{BASE_URL}/api/bodychart-photos/{ctx['photo']}")
+    assert _actions(ctx["owner"], since).count("bodychart_foto_visualizzata") == 2  # full views logged every time
     base = {"silhouette": "child", "strokes": [], "snapshot": PNG}
     s.put(f"{BASE_URL}/api/consultations/{ctx['old']}/bodychart", json={**base, "markers": [
         {"id": "o1", "lesion_id": "L1", "view": "front", "x": 0.31, "y": 0.3, "cat": "nevo", "stato": "risolto"},
@@ -240,8 +264,8 @@ def test_audit_actions(ctx):
     s.post(f"{BASE_URL}/api/consultations/{ctx['cid']}/bodychart/suggest", timeout=90)
     s.delete(f"{BASE_URL}/api/consultations/{ctx['old']}/bodychart")
     acts = _actions(ctx["owner"], since)
-    for a in ("bodychart_visualizzato", "bodychart_foto_visualizzata", "bodychart_pin_aggiunti", "bodychart_pin_modificati", "bodychart_pin_eliminati",
-              "bodychart_nel_referto", "bodychart_proposte_mantai", "bodychart_eliminato"):
+    for a in ("bodychart_foto_visualizzata", "bodychart_pin_aggiunti", "bodychart_pin_modificati", "bodychart_pin_eliminati",
+              "bodychart_nel_referto", "bodychart_eliminato"):  # proposte_mantai: cached suggest -> logged only on first LLM call
         assert a in acts, (a, acts)
     st = s.get(f"{BASE_URL}/api/compliance/status").json()
     assert any(a["action"].startswith("bodychart_") for a in st["audit"])
@@ -264,10 +288,61 @@ def test_legacy_charts(ctx):
             assert 0 <= m["x"] <= 1 and 0 <= m["y"] <= 1
 
 
-# --- Known gap: pin moved into intimate zone after a normal photo upload keeps the photo non-reserved
+# --- Fix: pin moved into intimate zone -> photo forced reserved + audit
 def test_photo_reserved_after_pin_moved_into_intimate_zone(ctx):
+    since = datetime.now(timezone.utc).isoformat()
     r = _upload(ctx["doc"], ctx["cid"], x=0.2, y=0.2)
     fid = r.json()["id"]
+    assert r.json()["reserved"] is False
     m = [{"id": "mv1", "view": "front", "x": 0.5, "y": 0.48, "cat": "lesione", "photos": [fid]}]
     j = ctx["doc"].put(f"{BASE_URL}/api/consultations/{ctx['cid']}/bodychart", json={"silhouette": "child", "markers": m, "strokes": [], "snapshot": PNG}).json()
     assert j["photo_meta"][fid]["reserved"] is True, "photo attached to a pin in the genital zone is not marked riservata"
+    assert DB.files.find_one({"_id": ObjectId(fid)})["reserved"] is True
+    assert "bodychart_foto_riservata_marcata" in _actions(ctx["owner"], since)
+    # idempotent: re-save does not log again
+    since2 = datetime.now(timezone.utc).isoformat()
+    ctx["doc"].put(f"{BASE_URL}/api/consultations/{ctx['cid']}/bodychart", json={"silhouette": "child", "markers": m, "strokes": [], "snapshot": PNG})
+    assert "bodychart_foto_riservata_marcata" not in _actions(ctx["owner"], since2)
+
+
+# --- Fix: view/x/y required on upload
+@pytest.mark.parametrize("missing", ["view", "x", "y"])
+def test_upload_requires_view_xy(ctx, missing):
+    data = {k: v for k, v in {"view": "front", "x": "0.3", "y": "0.3"}.items() if k != missing}
+    r = ctx["doc"].post(f"{BASE_URL}/api/consultations/{ctx['cid']}/bodychart/photos", files={"file": ("g.jpg", gps_jpeg(200, 200), "image/jpeg")}, data=data)
+    assert r.status_code == 422, r.text
+
+
+# --- Fix: suggest cache + handled
+def test_suggest_cached_and_handled(ctx):
+    s = ctx["doc"]
+    _base_chart(ctx)
+    url = f"{BASE_URL}/api/consultations/{ctx['cid']}/bodychart/suggest"
+    a = s.post(url, timeout=90).json()["proposals"]
+    since = datetime.now(timezone.utc).isoformat()
+    b = s.post(url, timeout=90).json()["proposals"]
+    assert a == b and a, (a, b)
+    assert "bodychart_proposte_mantai" not in _actions(ctx["owner"], since), "second call should hit cache"
+    assert DB.bodychart_suggestions.find_one({"consultation_id": ctx["cid"]})["hash"]
+    for p in a:
+        assert p["id"] == f"ai-{p['regione_id']}"
+    rid = a[0]["regione_id"]
+    h = s.post(f"{url}/{rid}/handled")
+    assert h.status_code == 200 and h.json()["ok"] is True
+    c = s.post(url, timeout=90).json()["proposals"]
+    assert rid not in [p["regione_id"] for p in c] and len(c) == len(a) - 1
+    assert s.post(f"{url}/not_a_region/handled").status_code == 404
+    assert ctx["parent"].post(f"{url}/{rid}/handled").status_code in (401, 403)
+
+
+# --- Fix: view dedupe
+def test_view_dedupe(ctx):
+    _base_chart(ctx)
+    s = ctx["doc"]
+    s.get(f"{BASE_URL}/api/consultations/{ctx['cid']}/bodychart")
+    since = datetime.now(timezone.utc).isoformat()
+    for _ in range(3):
+        s.get(f"{BASE_URL}/api/consultations/{ctx['cid']}/bodychart")
+        s.get(f"{BASE_URL}/api/patients/{ctx['pid']}/bodychart-lesions")
+    acts = _actions(ctx["owner"], since)
+    assert "bodychart_visualizzato" not in acts and "bodychart_storia_visualizzata" not in acts, acts

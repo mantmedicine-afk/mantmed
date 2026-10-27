@@ -274,12 +274,13 @@ def build_bodychart(db, current_user, llm_json=None):
         c = await consultation(cid, user["id"])
         if regione not in REGIONS:
             raise HTTPException(404, "Proposta non trovata")
-        await db.bodychart_suggestions.update_one({"consultation_id": cid, "owner_id": user["id"]}, {"$addToSet": {"handled": regione}})
+        await db.bodychart_suggestions.update_one({"consultation_id": cid, "owner_id": user["id"]}, {"$addToSet": {"handled": regione}}, upsert=True)
         await log("bodychart_proposta_gestita", f"{c['patient_name']} · {REGIONS[regione][0]}", user["id"])
         return {"ok": True}
 
     @doctor.post("/consultations/{cid}/bodychart/photos")
-    async def add_photo(cid: str, file: UploadFile = File(...), view: str = Form(...), x: float = Form(...), y: float = Form(...),
+    async def add_photo(cid: str, file: UploadFile = File(...), view: Literal["front", "back", "left", "right", "mouth", "head", "ears", "hand_palm", "hand_back", "foot_back", "foot_sole"] = Form(...),
+                        x: float = Form(..., ge=0, le=1), y: float = Form(..., ge=0, le=1),
                         conferma_necessita: bool = Form(False), conferma_consenso: bool = Form(False), user: dict = Depends(current_user)):
         """Foto reale ancorata a un pin: metadati rimossi, compressa, cifrata; zone intime marcate 'riservate' dopo doppia conferma."""
         c = await consultation(cid, user["id"])

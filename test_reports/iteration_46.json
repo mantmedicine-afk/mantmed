@@ -1,0 +1,39 @@
+{
+  "summary": "Retest of the iteration-45 bodychart fixes. Backend: test_bodychart_v3.py was rewritten so its tests are independent, and new tests cover the fixes; all 18 pass. test_bodychart_v2.py was updated for the approved changes, and v2 plus v1 pass 13/13. Frontend at mobile 390 (Playwright, real seed visit 6ae113e80a4226bae532c310) also passes: a short tap or a short drag does not move a pin; a long-press drag of a pin with photos into the genital zone opens the intimate dialog; Cancel keeps the pin in place and Confirm moves it, after which the DB shows both photos reserved and a 'bodychart_foto_riservata_marcata' audit entry. The other checks passed too: tap figure -> Nevo -> photo -> save; dropping a proposal and Verifica+save both call /handled and the proposal never returns after reopening; Confronta shows dates with times and the lesion stati; the mouth detail testid and hotspot position are correct; the sheet is about 62vh.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/consultations/{cid}/bodychart/suggest/{regione}/handled", "issue": "If no bodychart_suggestions cache document exists yet, update_one runs without upsert, so the call silently does nothing but still returns ok:true and writes an audit entry."},
+      {"endpoint": "POST /api/consultations/{cid}/bodychart/suggest", "issue": "When the note changes (new hash), the 'handled' list is kept because of $setOnInsert. A region handled for an old note is therefore never proposed again, even if the new note mentions it. Confirm this is intended."},
+      {"endpoint": "POST /api/consultations/{cid}/bodychart/photos", "issue": "The 'view' form field is a free string, not validated against VIEWS. This is harmless, because PUT forces reserved for photos on pins in the intimate zone, but it should be Literal-validated."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Bodychart open", "issue": "POST /bodychart/suggest is called twice on every editor open (double effect). The second call is a cache hit, so it costs no LLM call, but it is a redundant request.", "affected_selectors": ["[data-testid='bodychart-proposals']"]}
+    ],
+    "design_issues": [
+      {"screen": "Confronta", "issues": ["Date option text says '1 reperti': it should be singular '1 reperto'.", "The compare date pickers are native <select> elements, not shadcn Select (minor and consistent with the descrittore select)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_bodychart_v3.py", "/app/backend/tests/test_bodychart_v2.py", "/app/test_reports/pytest/bodychart_v3.xml", "/app/test_reports/pytest/bodychart_v2.xml"],
+  "action_items": [
+    "Optional: upsert (or 404) in suggestion_handled when no cache document exists.",
+    "Optional: reset or scope 'handled' when the note hash changes, if re-proposal for an edited note is wanted.",
+    "Optional: deduplicate the double POST /suggest on editor mount.",
+    "Optional: pluralization '1 reperto' in the Confronta date options."
+  ],
+  "critical_code_review_comments": [
+    "put_chart reserved forcing is correct and idempotent: the audit is written only when modified_count > 0, which a test verifies. Moving a pin back out of the zone does not un-reserve the photo (conservative and fine).",
+    "Log dedupe scans every audit entry for the same action and owner within the 10-minute window and decrypts each subject. This is fine at the current scale; an indexed subject hash would scale better.",
+    "Frontend move() asks for confirmation only when the pin goes from outside the zone to inside it and has photos. Correct."
+  ],
+  "updated_files": ["/app/backend/tests/test_bodychart_v3.py", "/app/backend/tests/test_bodychart_v2.py"],
+  "success_rate": {"backend": "100% (31/31 bodychart tests)", "frontend": "100% of requested flows"},
+  "test_credentials": "medico@mantmed.it / Auscula-Studio-2026; genitore.demo@example.com / Portale-Demo-2026. Login sets httpOnly access_token and refresh_token cookies.",
+  "seed_data_creation": "The UI tests mutated seed visit 6ae113e80a4226bae532c310 (Aurora Ricci). Pin ts0prr2o was moved to (0.5, 0.5) and its 2 photos are now reserved. New pins were added: 0acpce8z (nevo with 1 photo) and ui2ts8p7 (confirmed MantAI proposal ginocchio_sx). Its bodychart_suggestions.handled list is ['gomito_dx', 'ginocchio_sx'], and only guancia_sx remains proposed. The pytest modules create and clean up their own TEST_ consultations; v3 uses a unique patient_name per run so dedupe does not interfere.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run with: cd /app/backend && python -m pytest tests/test_bodychart_v3.py tests/test_bodychart_v2.py tests/test_bodychart.py (pytest.ini adds xdist). In v3, _base_chart(ctx) makes the tests independent. Log in on the UI at /app/visite (the login form is there), then visit-row-<cid> -> note-bodychart-btn. Long-press is mouse.down + 700ms wait + move in steps; map SVG viewBox coordinates (200x460) with getScreenCTM. The intimate front box is x 0.39-0.61, y 0.42-0.56."
+}

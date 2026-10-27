@@ -387,3 +387,12 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - frontend: lib/socialLinks.js (stessa validazione), account/SocialLinksEditor.jsx (validazione live, anteprima, Apri per verificare, Mostra in vetrina, frecce ordine, avviso modifiche non salvate, nota deontologica), showcase/SocialRow.jsx (icone tonde navy/argento, link diretti target _blank rel noopener noreferrer nofollow, tooltip; TikTok e X SVG inline)
 - Rotta pubblica esistente: /medico/:slug
 - Test: iteration_44 backend+frontend 100%
+
+## Implemented (2026-10-27, Bodychart v3 — approvati punti 2,3,5,6,7,9)
+- Viste di dettaglio (head, ears, mouth, hand_palm, hand_back, foot_back, foot_sole) in components/bodychart/Details.jsx, lenti (hotspots) sulla figura intera
+- Inserimento rapido: PinSheet (categoria, descrizione, cm, descrittore, stato, foto, un solo Salva; Esc/Invio), spostamento solo con pressione prolungata 450 ms + trascinamento (BodyCanvas), autosalvataggio 600 ms
+- Stato per reperto + lesion_id persistente tra visite; GET /api/patients/{pid}/bodychart-lesions; Confronta con selettori data e pannelli SVG dal vivo; galleria foto per reperto affiancabile
+- MantAI: POST /consultations/{cid}/bodychart/suggest (LLM su vocabolario REGIONS, cache per hash nota), .../suggest/{regione}/handled; i pin proposed non vengono mai salvati; checkbox "Includi la bodychart nel referto PDF" alla firma (PUT /bodychart/report)
+- Foto: bodychart_media.process_photo (EXIF rimossi, JPEG 2048 + miniatura 360, AES-256-GCM), HEIC via pillow-heif; zone intime -> 428 senza doppia conferma, reserved=true; PUT forza reserved per pin spostati in zona intima; audit completo con dedupe 10 min sulle consultazioni
+- Non approvati: figure per età, aree, visibilità per pin alla famiglia, punto prestazioni. Medicina di Squadra invariata (nessun accesso alla bodychart)
+- Test: iteration_45/46 (31/31 backend), tests/test_bodychart_v3.py
