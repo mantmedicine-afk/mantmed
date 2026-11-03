@@ -6,13 +6,13 @@ export const Marquee = ({ items }) => {
       {items.map((t, i) => (
         <Fragment key={i}>
           <span className="whitespace-nowrap">{t}</span>
-          <span className="h-1 w-1 rounded-full bg-[#7FA6FF]" />
+          <span className="h-1 w-1 rounded-full bg-[var(--accent)]" />
         </Fragment>
       ))}
     </div>
   );
   return (
-    <div className="overflow-hidden bg-night py-2.5 font-mono text-xs uppercase tracking-[0.18em] text-slate-300" data-testid="status-marquee">
+    <div className="overflow-hidden bg-[var(--accent)] py-2.5 font-mono text-xs uppercase tracking-[0.18em] text-[var(--fg2)]" data-testid="status-marquee">
       <div className="marquee-track flex w-max">
         {row}
         {row}

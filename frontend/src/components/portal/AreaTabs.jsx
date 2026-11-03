@@ -9,15 +9,15 @@ import { ConsentBanner } from "@/components/portal/ConsentSign";
 import { SignedDocsList } from "@/components/signature/SignedDocs";
 
 const day = (iso) => new Date(iso.length === 10 ? `${iso}T12:00:00` : iso).toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" });
-const Label = ({ icon: I, children }) => <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#0A192F]/60"><I size={14} strokeWidth={1.5} /> {children}</div>;
+const Label = ({ icon: I, children }) => <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--fg2)]"><I size={14} strokeWidth={1.5} /> {children}</div>;
 export const DlBtn = ({ onClick, label, testid, dark = true }) => {
   const [busy, setBusy] = useState(false);
   const run = async () => { setBusy(true); try { await onClick(); toast.success(`${label} scaricato`); } catch (e) { toast.error(errMsg(e)); } setBusy(false); };
-  return <button onClick={run} disabled={busy} className={`flex h-10 items-center gap-2 rounded-full px-4 text-sm font-medium transition-transform hover:-translate-y-0.5 disabled:opacity-60 ${dark ? "bg-night text-white" : "bg-white text-night ring-1 ring-[#0A192F]/15"}`} data-testid={testid}>{busy ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} strokeWidth={1.5} />} {label}</button>;
+  return <button onClick={run} disabled={busy} className={`flex h-10 items-center gap-2 rounded-full px-4 text-sm font-medium transition-transform hover:-translate-y-0.5 disabled:opacity-60 ${dark ? "bg-[var(--accent)] text-[var(--ink)]" : "bg-[var(--surface)] text-[var(--fg)] ring-1 ring-[var(--sel)]"}`} data-testid={testid}>{busy ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} strokeWidth={1.5} />} {label}</button>;
 };
 
-const card = "rounded-3xl bg-white p-5 ring-1 ring-[#0A192F]/10";
-const CP = { ottimo: "bg-emerald-100 text-emerald-900", buono: "bg-sky-100 text-sky-900" };
+const card = "rounded-3xl bg-[var(--surface)] p-5 ring-1 ring-[var(--sel)]";
+const CP = { ottimo: "bg-[var(--sel)] text-[var(--ok)]", buono: "bg-sky-100 text-sky-900" };
 
 /** Scheda "Bilanci di salute": bilanci in studio, questionari dei genitori, prossimo bilancio e questionario pre-visita. */
 export const BilanciTab = ({ g, reports, onChange }) => {
@@ -28,34 +28,34 @@ export const BilanciTab = ({ g, reports, onChange }) => {
   return (
     <div className="space-y-5" data-testid="docs-bilanci">
       <div className="grid gap-3 md:grid-cols-2">
-        <div className="rounded-3xl border border-[#FFE5B4] bg-[#FFF9E6] p-5" data-testid="docs-bilanci-next"><Label icon={CalendarHeart}>Prossimo bilancio</Label><div className="mt-2 font-display text-2xl text-night">{next || "Lo indicherà la pediatra al prossimo controllo"}</div></div>
-        {ped ? <PrevisitCard child={ped} onDone={onChange} /> : <div className={card}><p className="text-sm text-[#0A192F]/60">I bilanci di salute sono seguiti dal pediatra.</p></div>}
+        <div className="rounded-3xl border border-[var(--hair)] bg-[var(--sel)] p-5" data-testid="docs-bilanci-next"><Label icon={CalendarHeart}>Prossimo bilancio</Label><div className="mt-2 font-display text-2xl text-[var(--fg)]">{next || "Lo indicherà la pediatra al prossimo controllo"}</div></div>
+        {ped ? <PrevisitCard child={ped} onDone={onChange} /> : <div className={card}><p className="text-sm text-[var(--fg2)]">I bilanci di salute sono seguiti dal pediatra.</p></div>}
       </div>
       <Label icon={HeartPulse}>Bilanci svolti in studio</Label>
       {visits.length ? visits.map((r) => (
         <div key={r.id} className={`${card} flex flex-wrap items-center justify-between gap-3`} data-testid={`docs-bilancio-visit-${r.id}`}>
-          <div><div className="text-xs text-[#0A192F]/60">{day(r.created_at)} · {r.doctor}</div><div className="font-display text-xl text-night">{r.template_name || r.motivo}</div>{r.follow_up && <div className="text-sm text-[#0A192F]/70">{r.follow_up}</div>}</div>
+          <div><div className="text-xs text-[var(--fg2)]">{day(r.created_at)} · {r.doctor}</div><div className="font-display text-xl text-[var(--fg)]">{r.template_name || r.motivo}</div>{r.follow_up && <div className="text-sm text-[var(--fg2)]">{r.follow_up}</div>}</div>
           <DlBtn onClick={() => api.portalReport(r.id)} label="Referto PDF" testid={`docs-bilancio-pdf-${r.id}`} />
         </div>
-      )) : <p className="text-sm text-[#0A192F]/60" data-testid="docs-bilanci-empty">Nessun bilancio di salute pubblicato.</p>}
+      )) : <p className="text-sm text-[var(--fg2)]" data-testid="docs-bilanci-empty">Nessun bilancio di salute pubblicato.</p>}
       <Label icon={ClipboardList}>Questionari e check-point</Label>
       <div className="grid gap-2 sm:grid-cols-2">
         {cps.map((k) => (
           <div key={k.id} className={card} data-testid={`docs-checkpoint-${k.id}`}>
-            <div className="flex items-start justify-between gap-2"><div className="text-xs text-[#0A192F]/60">{day(k.created_at)}{k.source === "portale" ? " · compilato da voi" : " · in studio"}</div>{k.status && <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize ${CP[k.status] ?? "bg-amber-100 text-amber-900"}`}>{k.status}</span>}</div>
-            <div className="mt-1 font-medium text-night">{k.source === "portale" ? "Questionario pre-visita" : "Bilancio"} {k.band_label}</div>
+            <div className="flex items-start justify-between gap-2"><div className="text-xs text-[var(--fg2)]">{day(k.created_at)}{k.source === "portale" ? " · compilato da voi" : " · in studio"}</div>{k.status && <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize ${CP[k.status] ?? "bg-[var(--sel)] text-[var(--fg)]"}`}>{k.status}</span>}</div>
+            <div className="mt-1 font-medium text-[var(--fg)]">{k.source === "portale" ? "Questionario pre-visita" : "Bilancio"} {k.band_label}</div>
           </div>
         ))}
-        {!cps.length && <p className="text-sm text-[#0A192F]/60">Nessun questionario compilato.</p>}
+        {!cps.length && <p className="text-sm text-[var(--fg2)]">Nessun questionario compilato.</p>}
       </div>
     </div>
   );
 };
 
 const ConsentRow = ({ c }) => (
-  <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-[#F2F2EF] px-4 py-3 text-sm" data-testid={`docs-consent-${c.id}`}>
-    <div><div className="font-medium text-night">{c.version}</div><div className="text-[#0A192F]/60">Firmato il {day(c.signed_at)} da {c.signer_name}{c.email_reports ? " · referti via email" : ""}</div></div>
-    <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${c.revoked_at ? "bg-slate-200 text-slate-700" : "bg-emerald-100 text-emerald-900"}`}>{c.revoked_at ? `Revocato il ${day(c.revoked_at)}` : "Attivo"}</span>
+  <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-[var(--raised)] px-4 py-3 text-sm" data-testid={`docs-consent-${c.id}`}>
+    <div><div className="font-medium text-[var(--fg)]">{c.version}</div><div className="text-[var(--fg2)]">Firmato il {day(c.signed_at)} da {c.signer_name}{c.email_reports ? " · referti via email" : ""}</div></div>
+    <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${c.revoked_at ? "bg-[var(--hair)] text-[var(--fg2)]" : "bg-[var(--sel)] text-[var(--ok)]"}`}>{c.revoked_at ? `Revocato il ${day(c.revoked_at)}` : "Attivo"}</span>
   </div>
 );
 
@@ -69,20 +69,20 @@ const FamilyMember = ({ g, onChange }) => {
   return (
     <article className={`${card} space-y-5 sm:p-7`} data-testid={`docs-family-${p.id}`}>
       <div className="flex flex-wrap items-center gap-4">
-        <span className="grid h-14 w-14 place-items-center rounded-full bg-[#E9E1D3] font-display text-2xl text-night">{p.name[0]}</span>
-        <div><div className="font-display text-3xl text-night">{p.name}</div><div className="text-sm text-[#0A192F]/60">{f ? "Nata" : "Nato"} il {day(p.birth_date)}</div></div>
+        <span className="grid h-14 w-14 place-items-center rounded-full bg-[var(--raised)] font-display text-2xl text-[var(--fg)]">{p.name[0]}</span>
+        <div><div className="font-display text-3xl text-[var(--fg)]">{p.name}</div><div className="text-sm text-[var(--fg2)]">{f ? "Nata" : "Nato"} il {day(p.birth_date)}</div></div>
       </div>
       <div><Label icon={Stethoscope}>{f ? "Medici che la seguono" : "Medici che lo seguono"}</Label>
-        <div className="mt-2 flex flex-wrap gap-2">{g.map((c) => <span key={c.doctor.id} className="rounded-full bg-[#F6F1E9] px-4 py-2 text-sm text-night" data-testid={`docs-family-doctor-${c.doctor.id}`}>{c.doctor.name} · <span className="text-[#3B6CF6]">{c.doctor.specialty}</span></span>)}</div></div>
+        <div className="mt-2 flex flex-wrap gap-2">{g.map((c) => <span key={c.doctor.id} className="rounded-full bg-[var(--bg)] px-4 py-2 text-sm text-[var(--fg)]" data-testid={`docs-family-doctor-${c.doctor.id}`}>{c.doctor.name} · <span className="text-[var(--accent)]">{c.doctor.specialty}</span></span>)}</div></div>
       {g.map((c) => <ConsentBanner key={`b-${c.doctor.id}`} child={c} onSigned={onChange} />)}
       <div className="space-y-2"><Label icon={ShieldCheck}>Consensi privacy</Label>
         {shown.map((c) => <ConsentRow key={c.id} c={c} />)}
-        {!shown.length && <p className="text-sm text-[#0A192F]/60">{consents.length ? "Nessun consenso attivo." : "Nessun consenso registrato."}</p>}
-        {consents.length > active.length && <button onClick={() => setHist((h) => !h)} className="text-sm font-medium text-[#3B6CF6] hover:underline" data-testid={`docs-consent-history-${p.id}`}>{hist ? "Mostra solo i consensi attivi" : `Mostra storico (${consents.length - active.length} revocati)`}</button>}
-        <p className="text-xs text-[#0A192F]/50">Per revocare o modificare un consenso contatti lo studio del medico: la revoca viene registrata in cartella.</p></div>
+        {!shown.length && <p className="text-sm text-[var(--fg2)]">{consents.length ? "Nessun consenso attivo." : "Nessun consenso registrato."}</p>}
+        {consents.length > active.length && <button onClick={() => setHist((h) => !h)} className="text-sm font-medium text-[var(--accent)] hover:underline" data-testid={`docs-consent-history-${p.id}`}>{hist ? "Mostra solo i consensi attivi" : `Mostra storico (${consents.length - active.length} revocati)`}</button>}
+        <p className="text-xs text-[var(--fg2)]">Per revocare o modificare un consenso contatti lo studio del medico: la revoca viene registrata in cartella.</p></div>
       <div className="space-y-2"><Label icon={FileSignature}>Documenti firmati</Label>
         <SignedDocsList docs={g.flatMap((c) => c.documents ?? [])} download={api.portalDocumentPdf} testId={`docs-family-signed-${p.id}`} empty="Nessun documento firmato." /></div>
-      <Link to="/portale/documenti?tab=condivisione" className="inline-flex items-center gap-1.5 text-sm font-medium text-[#3B6CF6] hover:underline" data-testid={`docs-family-team-link-${p.id}`}><ShieldCheck size={14} /> Gestisci condivisione e deleghe specialistiche</Link>
+      <Link to="/portale/documenti?tab=condivisione" className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--accent)] hover:underline" data-testid={`docs-family-team-link-${p.id}`}><ShieldCheck size={14} /> Gestisci condivisione e deleghe specialistiche</Link>
     </article>
   );
 };

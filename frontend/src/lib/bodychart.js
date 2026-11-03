@@ -28,9 +28,9 @@ export const isBodyView = (v) => ["front", "back", "left", "right"].includes(v);
 
 export const DESCRITTORI = ["macula", "papula", "placca", "nodulo", "vescicola", "bolla", "pustola", "pomfo", "crosta", "squama", "erosione", "ulcera", "petecchia", "ecchimosi", "cicatrice", "lichenificazione"];
 export const STATI = [
-  { id: "attivo", label: "Attivo", cls: "bg-rose-50 text-rose-800 ring-rose-200" },
-  { id: "in_miglioramento", label: "In miglioramento", cls: "bg-amber-50 text-amber-900 ring-amber-200" },
-  { id: "risolto", label: "Risolto", cls: "bg-emerald-50 text-emerald-800 ring-emerald-200" },
+  { id: "attivo", label: "Attivo", cls: "bg-[var(--alert-bg)] text-[var(--alert)] ring-rose-200" },
+  { id: "in_miglioramento", label: "In miglioramento", cls: "bg-[var(--sel)] text-[var(--fg)] ring-amber-200" },
+  { id: "risolto", label: "Risolto", cls: "bg-[var(--sel)] text-[var(--ok)] ring-emerald-200" },
 ];
 export const STATO = Object.fromEntries(STATI.map((s) => [s.id, s]));
 

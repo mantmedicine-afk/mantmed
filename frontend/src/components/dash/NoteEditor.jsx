@@ -33,16 +33,16 @@ const SummaryCard = ({ note, setNote, consultation, processing, glow, flash, mar
     setBusy(false);
   };
   return (
-    <div className="mt-6 rounded-3xl border border-[#C9D6FF] bg-[#F7F9FF] p-5" data-testid="note-summary-card">
+    <div className="mt-6 rounded-3xl border border-[var(--hair)] bg-[var(--raised)] p-5" data-testid="note-summary-card">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="text-[11px] uppercase tracking-[0.22em] text-[#3B6CF6]">In parole semplici</div>
-          <div className="font-display text-2xl text-night">{ped ? "Riepilogo per i genitori" : "Riepilogo per il paziente"}{marked && <AIFieldMark testId="note-ai-mark-riepilogo" />}</div>
+          <div className="text-[11px] uppercase tracking-[0.22em] text-[var(--accent)]">In parole semplici</div>
+          <div className="font-display text-2xl text-[var(--fg)]">{ped ? "Riepilogo per i genitori" : "Riepilogo per il paziente"}{marked && <AIFieldMark testId="note-ai-mark-riepilogo" />}</div>
         </div>
         {!processing && (
           <div className="flex gap-2">
-            <button onClick={() => { navigator.clipboard.writeText(note.riepilogo || ""); toast.success("Riepilogo copiato", BR); }} disabled={!note.riepilogo} className="flex h-9 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-sm text-night hover:border-night disabled:opacity-40" data-testid="note-summary-copy"><Copy size={14} /> Copia</button>
-            <button onClick={regen} disabled={busy || consultation.status !== "ready"} className="flex h-9 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-sm text-night hover:border-night disabled:opacity-40" data-testid="note-summary-regen">{busy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} {note.riepilogo ? "Rigenera" : "Genera"}</button>
+            <button onClick={() => { navigator.clipboard.writeText(note.riepilogo || ""); toast.success("Riepilogo copiato", BR); }} disabled={!note.riepilogo} className="flex h-9 items-center gap-1.5 rounded-full border border-[var(--hair)] bg-[var(--surface)] px-3 text-sm text-[var(--fg)] hover:border-[var(--accent)] disabled:opacity-40" data-testid="note-summary-copy"><Copy size={14} /> Copia</button>
+            <button onClick={regen} disabled={busy || consultation.status !== "ready"} className="flex h-9 items-center gap-1.5 rounded-full border border-[var(--hair)] bg-[var(--surface)] px-3 text-sm text-[var(--fg)] hover:border-[var(--accent)] disabled:opacity-40" data-testid="note-summary-regen">{busy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} {note.riepilogo ? "Rigenera" : "Genera"}</button>
           </div>
         )}
       </div>
@@ -52,9 +52,9 @@ const SummaryCard = ({ note, setNote, consultation, processing, glow, flash, mar
         <motion.textarea key={`sum-${flash}`} initial={glow ? { opacity: 0, y: 6 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
           value={note.riepilogo ?? ""} onChange={(e) => { touch("riepilogo"); setNote((n) => ({ ...n, riepilogo: e.target.value })); }} rows={5}
           placeholder={`Spiegazione della visita per ${ped ? "i genitori" : "il paziente"}: viene allegata all'email del referto e mostrata nel Portale.`}
-          className={`mt-3 w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[15px] leading-relaxed outline-none focus:border-night ${glow ? "ai-filled" : ""}`} data-testid="note-summary-text" />
+          className={`mt-3 w-full resize-y rounded-2xl border border-[var(--hair)] bg-[var(--surface)] px-4 py-3 text-[15px] leading-relaxed outline-none focus:border-[var(--accent)] ${glow ? "ai-filled" : ""}`} data-testid="note-summary-text" />
       )}
-      <p className="mt-2 text-xs text-slate-500">Viene inserito nell’email del referto e mostrato nel Portale. Lo verifichi prima dell’invio.</p>
+      <p className="mt-2 text-xs text-[var(--fg2)]">Viene inserito nell’email del referto e mostrato nel Portale. Lo verifichi prima dell’invio.</p>
     </div>
   );
 };
@@ -66,14 +66,14 @@ const AdultParams = ({ g, set }) => {
     <div className="grid gap-4 sm:grid-cols-3" data-testid="adult-params">
       {[["peso_kg", "Peso", "kg"], ["altezza_cm", "Altezza", "cm"]].map(([k, l, u]) => (
         <label key={k} className="block">
-          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{l}</span>
-          <div className="mt-1.5 flex items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 focus-within:border-night">
+          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--fg2)]">{l}</span>
+          <div className="mt-1.5 flex items-center rounded-2xl border border-[var(--hair)] bg-[var(--raised)] px-4 focus-within:border-[var(--accent)]">
             <input type="number" step="0.1" min="0" value={g[k] ?? ""} onChange={(e) => set({ ...g, [k]: num(e.target.value) })} className="h-12 w-full bg-transparent text-[15px] outline-none" data-testid={`adult-${k}`} />
-            <span className="text-sm text-slate-500">{u}</span>
+            <span className="text-sm text-[var(--fg2)]">{u}</span>
           </div>
         </label>
       ))}
-      <div className="rounded-2xl bg-night p-4 text-white"><div className="text-xs uppercase tracking-[0.18em] text-slate-300">BMI</div><div className="mt-1 font-display text-3xl" data-testid="adult-bmi">{bmiV ? bmiV.toFixed(1).replace(".", ",") : "—"}</div></div>
+      <div className="rounded-2xl bg-[var(--accent)] p-4 text-[var(--ink)]"><div className="text-xs uppercase tracking-[0.18em] text-[var(--fg2)]">BMI</div><div className="mt-1 font-display text-3xl" data-testid="adult-bmi">{bmiV ? bmiV.toFixed(1).replace(".", ",") : "—"}</div></div>
     </div>
   );
 };
@@ -160,18 +160,18 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
                 <div key={x.i} className="block" data-testid={`note-sezione-${x.i}`}>
                   <div className="flex items-center gap-2">
                     {marked(secKey(x)) && <AIFieldMark testId={`note-ai-mark-sezione-${x.i}`} />}
-                    <input value={x.titolo} onChange={(e) => setSection(x.i, { titolo: e.target.value })} disabled={processing} className="min-w-0 flex-1 bg-transparent text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 outline-none focus:text-night" aria-label="Titolo della voce" data-testid={`note-sezione-title-${x.i}`} />
-                    {!processing && <button onClick={() => delSection(x.i)} className="grid h-7 w-7 place-items-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-rose-700" aria-label="Rimuovi voce" data-testid={`note-sezione-del-${x.i}`}><X size={14} /></button>}
+                    <input value={x.titolo} onChange={(e) => setSection(x.i, { titolo: e.target.value })} disabled={processing} className="min-w-0 flex-1 bg-transparent text-xs font-semibold uppercase tracking-[0.18em] text-[var(--fg2)] outline-none focus:text-[var(--fg)]" aria-label="Titolo della voce" data-testid={`note-sezione-title-${x.i}`} />
+                    {!processing && <button onClick={() => delSection(x.i)} className="grid h-7 w-7 place-items-center rounded-full text-[var(--fg2)] hover:bg-[var(--raised)] hover:text-[var(--alert)]" aria-label="Rimuovi voce" data-testid={`note-sezione-del-${x.i}`}><X size={14} /></button>}
                   </div>
-                  {processing ? <div className="mt-1.5 flex h-[64px] flex-col justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4" data-testid={`note-sezione-loading-${x.i}`}><div className="ai-shimmer h-3 w-11/12 rounded-full" /><div className="ai-shimmer h-3 w-2/3 rounded-full" /></div> : <motion.textarea key={`s${x.i}-${flash}`} initial={glow ? { opacity: 0, y: 6 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} value={x.testo} onChange={(e) => { touch(secKey(x)); setSection(x.i, { testo: e.target.value }); }} rows={2}
-                    className={`mt-1.5 w-full resize-y rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[15px] leading-relaxed outline-none transition-colors focus:border-night focus:bg-white ${glow ? "ai-filled" : ""}`} data-testid={`note-sezione-text-${x.i}`} />}
+                  {processing ? <div className="mt-1.5 flex h-[64px] flex-col justify-center gap-2 rounded-2xl border border-[var(--hair)] bg-[var(--raised)] px-4" data-testid={`note-sezione-loading-${x.i}`}><div className="ai-shimmer h-3 w-11/12 rounded-full" /><div className="ai-shimmer h-3 w-2/3 rounded-full" /></div> : <motion.textarea key={`s${x.i}-${flash}`} initial={glow ? { opacity: 0, y: 6 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} value={x.testo} onChange={(e) => { touch(secKey(x)); setSection(x.i, { testo: e.target.value }); }} rows={2}
+                    className={`mt-1.5 w-full resize-y rounded-2xl border border-[var(--hair)] bg-[var(--raised)] px-4 py-3 text-[15px] leading-relaxed outline-none transition-colors focus:border-[var(--accent)] focus:bg-[var(--surface)] ${glow ? "ai-filled" : ""}`} data-testid={`note-sezione-text-${x.i}`} />}
                 </div>
               ))}
               {!isPediatric(note) && current.id === "esame" && processing && !sections.length && [1, 2, 3].map((k) => (
                 <div key={k} className="space-y-2"><div className="ai-shimmer h-3 w-40 rounded-full" /><div className="ai-shimmer h-14 w-full rounded-2xl" /></div>
               ))}
               {!processing && current.group && (
-                <button onClick={addSection} className="flex items-center gap-1.5 rounded-full border border-dashed border-slate-300 px-4 py-2 text-sm text-slate-600 hover:border-night hover:text-night" data-testid="note-sezione-add"><Plus size={14} /> Aggiungi voce</button>
+                <button onClick={addSection} className="flex items-center gap-1.5 rounded-full border border-dashed border-[var(--hair)] px-4 py-2 text-sm text-[var(--fg2)] hover:border-[var(--accent)] hover:text-[var(--fg)]" data-testid="note-sezione-add"><Plus size={14} /> Aggiungi voce</button>
               )}
     </div>
   );
@@ -205,86 +205,86 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[0.75fr_1.6fr]" data-testid="note-editor">
-      <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-        <div className="text-[11px] uppercase tracking-[0.22em] text-slate-300">Trascrizione · Whisper</div>
+      <div className="rounded-3xl border border-[var(--hair)] bg-[var(--sel)] p-5">
+        <div className="text-[11px] uppercase tracking-[0.22em] text-[var(--fg2)]">Trascrizione · Whisper</div>
         {consultation.ai_provenance?.parti?.trascrizione && <AILabel variant="trascrizione" view="doctor" className="mt-2" testId="note-ai-label-transcript" />}
         {processing && !consultation.transcript ? (
           <div className="mt-4 space-y-2.5" data-testid="note-transcript-loading">
             {[92, 78, 88, 64, 82, 55].map((w, i) => <div key={i} className="ai-shimmer-dark h-3 rounded-full" style={{ width: `${w}%` }} />)}
-            <p className="pt-2 text-xs text-slate-400">Trascrizione dell’audio in corso…</p>
+            <p className="pt-2 text-xs text-[var(--fg2)]">Trascrizione dell’audio in corso…</p>
           </div>
         ) : (
-          <motion.p key={`t-${flash}`} initial={glow ? { opacity: 0 } : false} animate={{ opacity: 1 }} transition={{ duration: 0.6 }} className="mt-3 max-h-[22vh] overflow-auto whitespace-pre-wrap text-[15px] leading-relaxed text-slate-200 lg:max-h-[60vh]" data-testid="note-transcript" data-lenis-prevent>{consultation.transcript || "—"}</motion.p>
+          <motion.p key={`t-${flash}`} initial={glow ? { opacity: 0 } : false} animate={{ opacity: 1 }} transition={{ duration: 0.6 }} className="mt-3 max-h-[22vh] overflow-auto whitespace-pre-wrap text-[15px] leading-relaxed text-[var(--fg2)] lg:max-h-[60vh]" data-testid="note-transcript" data-lenis-prevent>{consultation.transcript || "—"}</motion.p>
         )}
       </div>
-      <div className="min-w-0 rounded-3xl bg-white p-5 text-night lg:p-7">
+      <div className="min-w-0 rounded-3xl bg-[var(--surface)] p-5 text-[var(--fg)] lg:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500" data-testid="note-specialty">{isPediatric(note) ? "Cartella pediatrica · visita specialistica" : `Cartella clinica · ${note.specialita}`}</div>
+            <div className="text-[11px] uppercase tracking-[0.22em] text-[var(--fg2)]" data-testid="note-specialty">{isPediatric(note) ? "Cartella pediatrica · visita specialistica" : `Cartella clinica · ${note.specialita}`}</div>
             <div className="font-display text-3xl">{consultation.patient_name}</div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button onClick={() => setChart(true)} className="flex items-center gap-2 rounded-full border border-night bg-[#EAF0FF] px-4 py-2 text-sm font-semibold text-night transition-transform hover:-translate-y-0.5" data-testid="note-bodychart-btn">
-              <PersonStanding size={15} /> Bodychart{pins !== null && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-night px-1 text-[11px] text-white" data-testid="note-bodychart-count">{pins}</span>}
+            <button onClick={() => setChart(true)} className="flex items-center gap-2 rounded-full border border-[var(--accent)] bg-[var(--raised)] px-4 py-2 text-sm font-semibold text-[var(--fg)] transition-transform hover:-translate-y-0.5" data-testid="note-bodychart-btn">
+              <PersonStanding size={15} /> Bodychart{pins !== null && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[var(--accent)] px-1 text-[11px] text-[var(--ink)]" data-testid="note-bodychart-count">{pins}</span>}
             </button>
             {consultation.patient_id && onEditPatient && <ActionBtn onClick={() => onEditPatient(consultation.patient_id)} id="note-patient-btn"><IdCard size={15} /> Dati anagrafici</ActionBtn>}
             <ActionBtn onClick={copy} id="note-copy-btn" disabled={!ready}><Copy size={15} /> Copia</ActionBtn>
             <ActionBtn onClick={() => printNote(consultation, note)} id="note-print-btn" disabled={!ready}><Printer size={15} /> Stampa</ActionBtn>
-            <button onClick={save} disabled={saving} className="flex items-center gap-2 rounded-full bg-night px-4 py-2 text-sm font-medium text-white transition-transform hover:-translate-y-0.5 disabled:opacity-60" data-testid="note-save-btn"><Save size={15} /> {saving ? "Salvataggio…" : "Salva"}</button>
+            <button onClick={save} disabled={saving} className="flex items-center gap-2 rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--ink)] transition-transform hover:-translate-y-0.5 disabled:opacity-60" data-testid="note-save-btn"><Save size={15} /> {saving ? "Salvataggio…" : "Salva"}</button>
           </div>
         </div>
 
         {processing && (
-          <div className="mt-4 flex items-center gap-3 rounded-2xl border border-[#C9D6FF] bg-[#F3F6FF] px-4 py-3 text-sm text-night" data-testid="note-processing-banner">
-            <span className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full bg-night text-white"><Loader2 size={15} className="animate-spin" /><Sparkles size={9} className="absolute -right-0.5 -top-0.5 text-[#A9C2FF]" /></span>
-            <span><span className="font-semibold">L’IA sta compilando la cartella.</span> <span className="text-slate-600">Nel frattempo può usare Bodychart, Cassa, Crescita e Dati anagrafici: i campi si riempiranno da soli.</span></span>
+          <div className="mt-4 flex items-center gap-3 rounded-2xl border border-[var(--hair)] bg-[var(--raised)] px-4 py-3 text-sm text-[var(--fg)]" data-testid="note-processing-banner">
+            <span className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--accent)] text-[var(--ink)]"><Loader2 size={15} className="animate-spin" /><Sparkles size={9} className="absolute -right-0.5 -top-0.5 text-[var(--fg2)]" /></span>
+            <span><span className="font-semibold">L’IA sta compilando la cartella.</span> <span className="text-[var(--fg2)]">Nel frattempo può usare Bodychart, Cassa, Crescita e Dati anagrafici: i campi si riempiranno da soli.</span></span>
           </div>
         )}
         <SignNote consultation={consultation} hasChart={!!pins} beforeSign={() => api.updateConsultation(consultation.id, note)} onSigned={(r) => { setC(r); setNote(r.note); setTouched(new Set()); onSaved?.(); }} />
         {failed && (
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900" data-testid="note-failed-banner">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--alert)] bg-[var(--alert-bg)] px-4 py-3 text-sm text-[var(--alert)]" data-testid="note-failed-banner">
             <span className="flex items-center gap-2"><AlertTriangle size={16} className="shrink-0" /> {consultation.ai_error || "Elaborazione IA non riuscita"}</span>
             <span className="flex flex-wrap gap-2">
-              <button onClick={() => setPaste(paste === null ? "" : null)} className="flex h-9 items-center gap-1.5 rounded-full border border-rose-300 bg-white px-4 text-sm font-semibold text-rose-800" data-testid="note-paste-toggle">Incolla trascrizione</button>
-              <button onClick={() => retry(consultation.id)} className="flex h-9 items-center gap-1.5 rounded-full bg-rose-700 px-4 text-sm font-semibold text-white" data-testid="note-retry-btn"><RotateCcw size={14} /> Riprova</button>
+              <button onClick={() => setPaste(paste === null ? "" : null)} className="flex h-9 items-center gap-1.5 rounded-full border border-[var(--alert)] bg-[var(--surface)] px-4 text-sm font-semibold text-[var(--alert)]" data-testid="note-paste-toggle">Incolla trascrizione</button>
+              <button onClick={() => retry(consultation.id)} className="flex h-9 items-center gap-1.5 rounded-full bg-[var(--alert)] px-4 text-sm font-semibold text-[var(--ink)]" data-testid="note-retry-btn"><RotateCcw size={14} /> Riprova</button>
             </span>
             <span className="w-full text-xs text-rose-800/80">In alternativa compili i campi qui sotto e prema Salva: la cartella diventa definitiva.</span>
             {paste !== null && (
               <div className="w-full space-y-2">
-                <textarea value={paste} onChange={(e) => setPaste(e.target.value)} rows={4} placeholder="Medico: Buongiorno… Genitore: …" className="w-full rounded-xl border border-rose-200 bg-white px-3 py-2 text-sm text-night outline-none focus:border-night" data-testid="note-paste-textarea" />
-                <button onClick={async () => { if (paste.trim().length < 20) return toast.error("Trascrizione troppo breve", BR); const r = await retry(consultation.id, paste); if (r) setPaste(null); }} className="flex h-9 items-center gap-1.5 rounded-full bg-night px-4 text-sm font-semibold text-white" data-testid="note-paste-submit"><Sparkles size={14} /> Compila con l’IA</button>
+                <textarea value={paste} onChange={(e) => setPaste(e.target.value)} rows={4} placeholder="Medico: Buongiorno… Genitore: …" className="w-full rounded-xl border border-[var(--alert)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--fg)] outline-none focus:border-[var(--accent)]" data-testid="note-paste-textarea" />
+                <button onClick={async () => { if (paste.trim().length < 20) return toast.error("Trascrizione troppo breve", BR); const r = await retry(consultation.id, paste); if (r) setPaste(null); }} className="flex h-9 items-center gap-1.5 rounded-full bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--ink)]" data-testid="note-paste-submit"><Sparkles size={14} /> Compila con l’IA</button>
               </div>
             )}
           </div>
         )}
         <div className="mt-5 grid grid-cols-1 gap-3 xl:grid-cols-[1.25fr_1fr]">
-        <button onClick={generatePdf} disabled={pdfBusy || !ready} className="group flex w-full items-center justify-between gap-4 rounded-2xl bg-night px-5 py-4 text-left text-white transition-transform hover:-translate-y-0.5 active:scale-[0.99] disabled:opacity-70" data-testid="generate-pdf-btn">
+        <button onClick={generatePdf} disabled={pdfBusy || !ready} className="group flex w-full items-center justify-between gap-4 rounded-2xl bg-[var(--accent)] px-5 py-4 text-left text-[var(--ink)] transition-transform hover:-translate-y-0.5 active:scale-[0.99] disabled:opacity-70" data-testid="generate-pdf-btn">
           <span className="flex items-center gap-3">
-            <span className="grid h-11 w-11 place-items-center rounded-full bg-white text-night">{pdfBusy ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />}</span>
+            <span className="grid h-11 w-11 place-items-center rounded-full bg-[var(--surface)] text-[var(--fg)]">{pdfBusy ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />}</span>
             <span>
               <span className="block font-display text-2xl leading-none">{pdfBusy ? "Generazione in corso…" : "Genera & Scarica Referto PDF"}</span>
-              <span className="mt-1 block text-xs text-slate-300">{ready ? "Salva la visita e scarica subito il referto ufficiale, pronto per la firma" : "Disponibile appena l'IA completa la cartella"}</span>
+              <span className="mt-1 block text-xs text-[var(--fg2)]">{ready ? "Salva la visita e scarica subito il referto ufficiale, pronto per la firma" : "Disponibile appena l'IA completa la cartella"}</span>
             </span>
           </span>
-          <span className="text-[11px] uppercase tracking-[0.2em] text-[#A9C2FF] transition-transform group-hover:translate-x-1">A4 · PDF</span>
+          <span className="text-[11px] uppercase tracking-[0.2em] text-[var(--fg2)] transition-transform group-hover:translate-x-1">A4 · PDF</span>
         </button>
         <SignatureSlot onLeave={onLeave} />
         <SendToParents consultation={consultation} disabled={!ready} needsSign={needsSignature(consultation)} beforeSend={() => api.updateConsultation(consultation.id, note)} />
         </div>
         <CashPanel consultation={consultation} service={visitLabel(note)} onChange={onSaved} />
 
-        <div className="-mx-1 mt-5 flex gap-1 overflow-x-auto px-1 pb-1 md:mx-0 md:grid md:auto-cols-fr md:grid-flow-col md:overflow-visible md:rounded-2xl md:bg-slate-100 md:p-1" role="tablist" data-testid="note-tabs">
+        <div className="-mx-1 mt-5 flex gap-1 overflow-x-auto px-1 pb-1 md:mx-0 md:grid md:auto-cols-fr md:grid-flow-col md:overflow-visible md:rounded-2xl md:bg-[var(--raised)] md:p-1" role="tablist" data-testid="note-tabs">
           {tabs.map((t) => {
             const active = t.id === tab;
             const done = ready && tabDone(t, note);
             const toCheck = (t.fields ?? []).some(([k]) => marked(k)) || (note.sezioni ?? []).some((x) => (x.gruppo === t.group || (t.id === "esame" && x.gruppo === "esame_obiettivo")) && marked(secKey(x)));
             return (
-              <button key={t.id} role="tab" aria-selected={active} onClick={() => setTab(t.id)} className={`relative flex shrink-0 items-center gap-2 rounded-2xl px-3.5 py-2.5 text-left text-sm font-medium leading-tight transition-colors md:shrink md:px-2.5 ${active ? "text-white" : "text-slate-600 hover:bg-white hover:text-night"}`} data-testid={`note-tab-${t.id}`}>
-                {active && <motion.span layoutId="note-tab-pill" className="absolute inset-0 -z-0 rounded-2xl bg-night" transition={{ type: "spring", stiffness: 380, damping: 32 }} />}
-                <span className={`relative font-mono text-xs ${active ? "text-[#A9C2FF]" : "text-[#3B6CF6]"}`}>{t.n}</span>
+              <button key={t.id} role="tab" aria-selected={active} onClick={() => setTab(t.id)} className={`relative flex shrink-0 items-center gap-2 rounded-2xl px-3.5 py-2.5 text-left text-sm font-medium leading-tight transition-colors md:shrink md:px-2.5 ${active ? "text-[var(--ink)]" : "text-[var(--fg2)] hover:bg-[var(--surface)] hover:text-[var(--fg)]"}`} data-testid={`note-tab-${t.id}`}>
+                {active && <motion.span layoutId="note-tab-pill" className="absolute inset-0 -z-0 rounded-2xl bg-[var(--accent)]" transition={{ type: "spring", stiffness: 380, damping: 32 }} />}
+                <span className={`relative font-mono text-xs ${active ? "text-[var(--fg2)]" : "text-[var(--accent)]"}`}>{t.n}</span>
                 <span className="relative">{t.label}</span>
-                {done && <Check size={13} className={`relative ${active ? "text-emerald-300" : "text-emerald-600"}`} />}
-                {toCheck && <span className="relative h-2 w-2 shrink-0 rounded-full bg-[#E3A92B]" role="img" aria-label="Contiene campi compilati da MantAI da verificare" title="Campi MantAI da verificare" data-testid={`note-tab-ai-dot-${t.id}`} />}
+                {done && <Check size={13} className={`relative ${active ? "text-[var(--ok)]" : "text-[var(--ok)]"}`} />}
+                {toCheck && <span className="relative h-2 w-2 shrink-0 rounded-full bg-[var(--sel)]" role="img" aria-label="Contiene campi compilati da MantAI da verificare" title="Campi MantAI da verificare" data-testid={`note-tab-ai-dot-${t.id}`} />}
               </button>
             );
           })}
@@ -297,16 +297,16 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
             <div className="space-y-4">
               {current.fields.map(([k, l, hint]) => (
                 <label key={k} className="block">
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{l}</span>
-                  {hint && <span className="ml-2 text-xs text-slate-500">· {hint}</span>}
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--fg2)]">{l}</span>
+                  {hint && <span className="ml-2 text-xs text-[var(--fg2)]">· {hint}</span>}
                   {marked(k) && <AIFieldMark testId={`note-ai-mark-${k}`} />}
                   {!processing ? (
                     <motion.textarea key={`${k}-${flash}`} initial={glow ? { opacity: 0, y: 6 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
                       value={note[k] ?? ""} onChange={(e) => { touch(k); setNote((n) => ({ ...n, [k]: e.target.value })); }} rows={k === "terapia" || k === "sintomi" || k === "anamnesi_fisiologica" ? 3 : 2}
-                      className={`mt-1.5 w-full resize-y rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[15px] leading-relaxed outline-none transition-colors focus:border-night focus:bg-white ${glow ? "ai-filled" : ""}`} data-testid={`note-section-${k}`} />
+                      className={`mt-1.5 w-full resize-y rounded-2xl border border-[var(--hair)] bg-[var(--raised)] px-4 py-3 text-[15px] leading-relaxed outline-none transition-colors focus:border-[var(--accent)] focus:bg-[var(--surface)] ${glow ? "ai-filled" : ""}`} data-testid={`note-section-${k}`} />
                   ) : (
-                    <div className={`mt-1.5 flex flex-col justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 ${k === "terapia" || k === "sintomi" || k === "anamnesi_fisiologica" ? "h-[88px]" : "h-[64px]"}`} aria-busy={processing} data-testid={`note-section-${k}-loading`}>
-                      {processing ? <><div className="ai-shimmer h-3 w-11/12 rounded-full" /><div className="ai-shimmer h-3 w-2/3 rounded-full" /></> : <span className="text-sm text-slate-400">In attesa dell’elaborazione IA</span>}
+                    <div className={`mt-1.5 flex flex-col justify-center gap-2 rounded-2xl border border-[var(--hair)] bg-[var(--raised)] px-4 ${k === "terapia" || k === "sintomi" || k === "anamnesi_fisiologica" ? "h-[88px]" : "h-[64px]"}`} aria-busy={processing} data-testid={`note-section-${k}-loading`}>
+                      {processing ? <><div className="ai-shimmer h-3 w-11/12 rounded-full" /><div className="ai-shimmer h-3 w-2/3 rounded-full" /></> : <span className="text-sm text-[var(--fg2)]">In attesa dell’elaborazione IA</span>}
                     </div>
                   )}
                 </label>
@@ -334,5 +334,5 @@ const printNote = (c, note) => {
 };
 
 const ActionBtn = ({ children, onClick, id, disabled = false }) => (
-  <button onClick={onClick} disabled={disabled} className="flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-medium transition-colors hover:border-night disabled:cursor-not-allowed disabled:opacity-40" data-testid={id}>{children}</button>
+  <button onClick={onClick} disabled={disabled} className="flex items-center gap-2 rounded-full border border-[var(--hair)] px-4 py-2 text-sm font-medium transition-colors hover:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-40" data-testid={id}>{children}</button>
 );

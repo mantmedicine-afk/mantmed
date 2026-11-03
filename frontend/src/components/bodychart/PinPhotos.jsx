@@ -8,18 +8,18 @@ import { isIntimate } from "@/lib/bodychart";
 
 export const PhotoLightbox = ({ src, caption, onClose }) => (
   <Dialog open={!!src} onOpenChange={(o) => !o && onClose()}>
-    <DialogContent className="w-[calc(100%-1rem)] max-w-4xl border-0 bg-[#0A192F] p-2 sm:p-3 [&>button]:rounded-full [&>button]:bg-white [&>button]:p-1 [&>button]:text-night [&>button]:opacity-100" data-testid="bodychart-photo-lightbox">
+    <DialogContent className="w-[calc(100%-1rem)] max-w-4xl border-0 bg-[var(--accent)] p-2 sm:p-3 [&>button]:rounded-full [&>button]:bg-[var(--surface)] [&>button]:p-1 [&>button]:text-[var(--fg)] [&>button]:opacity-100" data-testid="bodychart-photo-lightbox">
       <DialogTitle className="sr-only">Foto del reperto</DialogTitle>
       {src && <img src={src} alt={caption} className="max-h-[80vh] w-full rounded-xl object-contain" />}
-      {caption && <p className="px-2 pb-1 text-sm text-[#C9CCD3]">{caption}</p>}
+      {caption && <p className="px-2 pb-1 text-sm text-[var(--fg2)]">{caption}</p>}
     </DialogContent>
   </Dialog>
 );
 
 export const Thumb = ({ id, reserved, onClick, size = "h-16 w-16", testId }) => (
-  <button onClick={onClick} className={`relative block ${size} overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200`} data-testid={testId}>
+  <button onClick={onClick} className={`relative block ${size} overflow-hidden rounded-xl bg-[var(--raised)] ring-1 ring-[var(--hair)]`} data-testid={testId}>
     <img src={api.bodychartPhotoUrl(id, "thumb")} alt="Miniatura del reperto" loading="lazy" decoding="async" className="h-full w-full object-cover" />
-    {reserved && <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-[#0A192F]/85 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white" data-testid={`${testId}-reserved`}><Lock size={9} /> Riservata</span>}
+    {reserved && <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-[var(--sel)] py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[var(--ink)]" data-testid={`${testId}-reserved`}><Lock size={9} /> Riservata</span>}
   </button>
 );
 
@@ -31,14 +31,14 @@ export const IntimateConfirm = ({ open, onOpenChange, onConfirm, action = "Conti
     <AlertDialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) { setA(false); setB(false); } }}>
       <AlertDialogContent className="rounded-[24px]" data-testid="bodychart-intimate-dialog">
         <AlertDialogHeader>
-          <AlertDialogTitle className="font-display text-2xl font-normal text-night">Foto di una zona intima</AlertDialogTitle>
-          <AlertDialogDescription className="text-sm leading-relaxed text-slate-600">La foto sarà marcata «riservata»: mai visibile nel Portale Famiglia ed esclusa da qualsiasi condivisione con altri medici.</AlertDialogDescription>
+          <AlertDialogTitle className="font-display text-2xl font-normal text-[var(--fg)]">Foto di una zona intima</AlertDialogTitle>
+          <AlertDialogDescription className="text-sm leading-relaxed text-[var(--fg2)]">La foto sarà marcata «riservata»: mai visibile nel Portale Famiglia ed esclusa da qualsiasi condivisione con altri medici.</AlertDialogDescription>
         </AlertDialogHeader>
-        <label className="flex items-start gap-3 text-sm text-night"><input type="checkbox" checked={a} onChange={(e) => setA(e.target.checked)} className="mt-0.5 h-5 w-5 accent-[#0A192F]" data-testid="bodychart-intimate-need" /> Confermo la necessità clinica della documentazione fotografica.</label>
-        <label className="flex items-start gap-3 text-sm text-night"><input type="checkbox" checked={b} onChange={(e) => setB(e.target.checked)} className="mt-0.5 h-5 w-5 accent-[#0A192F]" data-testid="bodychart-intimate-consent" /> Confermo di aver raccolto il consenso del genitore o tutore.</label>
+        <label className="flex items-start gap-3 text-sm text-[var(--fg)]"><input type="checkbox" checked={a} onChange={(e) => setA(e.target.checked)} className="mt-0.5 h-5 w-5 accent-[var(--accent)]" data-testid="bodychart-intimate-need" /> Confermo la necessità clinica della documentazione fotografica.</label>
+        <label className="flex items-start gap-3 text-sm text-[var(--fg)]"><input type="checkbox" checked={b} onChange={(e) => setB(e.target.checked)} className="mt-0.5 h-5 w-5 accent-[var(--accent)]" data-testid="bodychart-intimate-consent" /> Confermo di aver raccolto il consenso del genitore o tutore.</label>
         <AlertDialogFooter>
           <AlertDialogCancel className="rounded-full" data-testid="bodychart-intimate-cancel">Annulla</AlertDialogCancel>
-          <AlertDialogAction disabled={!a || !b} onClick={onConfirm} className="rounded-full bg-night" data-testid="bodychart-intimate-confirm">{action}</AlertDialogAction>
+          <AlertDialogAction disabled={!a || !b} onClick={onConfirm} className="rounded-full bg-[var(--accent)]" data-testid="bodychart-intimate-confirm">{action}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
@@ -74,11 +74,11 @@ export const PinPhotos = ({ cid, m, onChange, meta = {}, onMeta }) => {
         {photos.map((p) => (
           <div key={p} className="group relative">
             <Thumb id={p} reserved={meta[p]?.reserved} onClick={() => setOpen(p)} testId={`bodychart-photo-${p}`} />
-            <button onClick={() => onChange({ ...m, photos: photos.filter((x) => x !== p) })} className="absolute -right-1.5 -top-1.5 grid h-6 w-6 place-items-center rounded-full bg-white text-rose-700 shadow ring-1 ring-slate-200" aria-label="Rimuovi foto" data-testid={`bodychart-photo-remove-${p}`}><X size={12} /></button>
+            <button onClick={() => onChange({ ...m, photos: photos.filter((x) => x !== p) })} className="absolute -right-1.5 -top-1.5 grid h-6 w-6 place-items-center rounded-full bg-[var(--surface)] text-[var(--alert)] shadow ring-1 ring-[var(--hair)]" aria-label="Rimuovi foto" data-testid={`bodychart-photo-remove-${p}`}><X size={12} /></button>
           </div>
         ))}
         {photos.length < 4 && (
-          <button onClick={start} disabled={busy} className="flex h-16 min-w-[64px] flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-slate-300 px-3 text-[11px] font-medium text-night transition-colors hover:border-night" data-testid="bodychart-photo-add">
+          <button onClick={start} disabled={busy} className="flex h-16 min-w-[64px] flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-[var(--hair)] px-3 text-[11px] font-medium text-[var(--fg)] transition-colors hover:border-[var(--accent)]" data-testid="bodychart-photo-add">
             {busy ? <Loader2 size={18} className="animate-spin" /> : intimate ? <Lock size={18} strokeWidth={1.5} /> : <Camera size={18} strokeWidth={1.5} />} {photos.length ? "Altra foto" : intimate ? "Foto riservata" : "Scatta / allega foto"}
           </button>
         )}

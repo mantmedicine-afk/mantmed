@@ -62,18 +62,18 @@ const place = (rect, { h, min }) => {
 };
 
 const Spotlight = ({ rect }) => {
-  if (!rect) return <motion.div key="backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-[#0A192F]/80" data-testid="tour-backdrop" />;
+  if (!rect) return <motion.div key="backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-[var(--scrim)]" data-testid="tour-backdrop" />;
   const top = Math.max(rect.top - PAD, 2);
   const bottom = Math.min(rect.bottom + PAD, window.innerHeight - 2);
   return (
-    <motion.div key="spot" initial={{ opacity: 0 }} className="pointer-events-none fixed rounded-[32px] ring-2 ring-[#C9CCD3] shadow-[0_0_0_9999px_rgba(10,25,47,0.78)]"
+    <motion.div key="spot" initial={{ opacity: 0 }} className="pointer-events-none fixed rounded-[32px] ring-2 ring-[var(--hair)] shadow-[0_0_0_9999px_var(--scrim)]"
       animate={{ opacity: 1, top, left: rect.left - PAD, width: rect.width + PAD * 2, height: Math.max(0, bottom - top) }}
       transition={{ type: "spring", stiffness: 260, damping: 30 }} data-testid="tour-spotlight" />
   );
 };
 
 const Btn = ({ primary, children, ...p }) => (
-  <button className={`flex h-11 items-center gap-1.5 rounded-full px-4 text-sm transition-[transform,border-color,opacity] disabled:opacity-30 ${primary ? "bg-[#E5E4E2] px-5 font-semibold text-[#0A192F] hover:-translate-y-0.5" : "border border-[#C9CCD3]/40 text-white hover:border-white"}`} {...p}>{children}</button>
+  <button className={`flex h-11 items-center gap-1.5 rounded-full px-4 text-sm transition-[transform,border-color,opacity] disabled:opacity-30 ${primary ? "bg-[var(--raised)] px-5 font-semibold text-[var(--fg)] hover:-translate-y-0.5" : "border border-[var(--hair)] text-[var(--ink)] hover:border-[var(--ink)]"}`} {...p}>{children}</button>
 );
 
 const StepBody = ({ step, i, total }) => {
@@ -81,24 +81,24 @@ const StepBody = ({ step, i, total }) => {
   return (
   <>
     <div className="mt-4 flex items-start gap-3">
-      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-[#C9CCD3]/40 bg-white/5 text-[#E5E4E2]"><step.icon size={20} /></span>
+      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-[var(--hair)] bg-[var(--sel)] text-[var(--fg2)]"><step.icon size={20} /></span>
       <div>
-        <div className="font-mono text-xs text-[#C9CCD3]" data-testid="tour-progress">Passo {i + 1} di {total} · {step.kicker}</div>
-        <h2 id="tour-title" className="font-display text-2xl leading-tight text-white sm:text-3xl">{step.title}</h2>
+        <div className="font-mono text-xs text-[var(--fg2)]" data-testid="tour-progress">Passo {i + 1} di {total} · {step.kicker}</div>
+        <h2 id="tour-title" className="font-display text-2xl leading-tight text-[var(--ink)] sm:text-3xl">{step.title}</h2>
       </div>
     </div>
-    <p className="mt-3 text-sm leading-relaxed text-slate-200">{step.text}</p>
-    <button onClick={() => setMore((v) => !v)} className="mt-2 text-xs text-[#C9CCD3] underline underline-offset-4 sm:hidden" data-testid="tour-more-btn">{more ? "Meno dettagli" : "Più dettagli"}</button>
-    <ul className={`mt-3 space-y-2 ${more ? "" : "hidden sm:block"}`}>{step.points.map((p) => <li key={p} className="flex gap-2 text-sm text-slate-300"><span className="mt-2 h-1 w-3 shrink-0 rounded-full bg-[#C9CCD3]" />{p}</li>)}</ul>
+    <p className="mt-3 text-sm leading-relaxed text-[var(--fg2)]">{step.text}</p>
+    <button onClick={() => setMore((v) => !v)} className="mt-2 text-xs text-[var(--fg2)] underline underline-offset-4 sm:hidden" data-testid="tour-more-btn">{more ? "Meno dettagli" : "Più dettagli"}</button>
+    <ul className={`mt-3 space-y-2 ${more ? "" : "hidden sm:block"}`}>{step.points.map((p) => <li key={p} className="flex gap-2 text-sm text-[var(--fg2)]"><span className="mt-2 h-1 w-3 shrink-0 rounded-full bg-[var(--hair)]" />{p}</li>)}</ul>
   </>
   );
 };
 
 const DoneBody = ({ where }) => (
   <div className="mt-4 text-center" data-testid="tour-done">
-    <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-[#E5E4E2] text-[#0A192F]"><Check size={24} /></span>
-    <h2 id="tour-title" className="mt-4 font-display text-3xl text-white">Tutto pronto</h2>
-    <p className="mt-2 text-sm leading-relaxed text-slate-300">Può rivedere questa guida quando vuole da <span className="inline-flex items-center gap-1 text-white"><Compass size={13} /> Rivedi tour</span> {where}.</p>
+    <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-[var(--raised)] text-[var(--fg)]"><Check size={24} /></span>
+    <h2 id="tour-title" className="mt-4 font-display text-3xl text-[var(--ink)]">Tutto pronto</h2>
+    <p className="mt-2 text-sm leading-relaxed text-[var(--fg2)]">Può rivedere questa guida quando vuole da <span className="inline-flex items-center gap-1 text-[var(--ink)]"><Compass size={13} /> Rivedi tour</span> {where}.</p>
   </div>
 );
 
@@ -148,16 +148,16 @@ export const GuidedTour = ({ open, steps, name, where = "in Impostazioni", onDon
       <div ref={card} className="fixed flex flex-col overflow-hidden rounded-[28px] transition-[top,left] duration-300 ease-out" style={pos} data-testid="tour-card">
         <AnimatePresence mode="wait">
           <motion.div key={i} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}
-            className="grain relative flex max-h-full min-h-0 flex-col [&>*:not([data-testid=tour-body])]:shrink-0 rounded-[28px] border border-[#C9CCD3]/30 bg-[#0A192F] p-5 text-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.6)] sm:p-6" data-testid={done ? "tour-step-done" : `tour-step-${i + 1}`}>
+            className="grain relative flex max-h-full min-h-0 flex-col [&>*:not([data-testid=tour-body])]:shrink-0 rounded-[28px] border border-[var(--hair)] bg-[var(--accent)] p-5 text-[var(--ink)] shadow-[var(--shadow)] sm:p-6" data-testid={done ? "tour-step-done" : `tour-step-${i + 1}`}>
             <div className="flex items-center justify-between">
-              <span className="flex min-w-0 items-center gap-2 truncate text-[11px] uppercase tracking-[0.22em] text-[#C9CCD3]"><Sparkles size={13} className="shrink-0" /> <span className="truncate">{i === 0 ? `Benvenuto${name ? `, ${name}` : ""}` : "Guida MantMed"}</span></span>
-              {!done && <button onClick={onDone} className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-xs text-[#C9CCD3] transition-colors hover:text-white" data-testid="tour-skip-btn"><X size={13} /> Salta il tour</button>}
+              <span className="flex min-w-0 items-center gap-2 truncate text-[11px] uppercase tracking-[0.22em] text-[var(--fg2)]"><Sparkles size={13} className="shrink-0" /> <span className="truncate">{i === 0 ? `Benvenuto${name ? `, ${name}` : ""}` : "Guida MantMed"}</span></span>
+              {!done && <button onClick={onDone} className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-xs text-[var(--fg2)] transition-colors hover:text-[var(--ink)]" data-testid="tour-skip-btn"><X size={13} /> Salta il tour</button>}
             </div>
             {!done && <TourVideo id={step.video} title={step.title} />}
             <div className="max-h-[30vh] min-h-0 flex-1 overflow-y-auto overscroll-contain sm:max-h-[34vh]" data-testid="tour-body">{done ? <DoneBody where={where} /> : <StepBody step={step} i={i} total={steps.length} />}</div>
-            {!done && step.extra && <button onClick={() => go(step.extra.to)} className="mt-3 inline-flex items-center gap-1.5 text-sm text-[#C9CCD3] underline underline-offset-4 hover:text-white" data-testid="tour-extra-link"><ExternalLink size={13} /> {step.extra.label}</button>}
+            {!done && step.extra && <button onClick={() => go(step.extra.to)} className="mt-3 inline-flex items-center gap-1.5 text-sm text-[var(--fg2)] underline underline-offset-4 hover:text-[var(--ink)]" data-testid="tour-extra-link"><ExternalLink size={13} /> {step.extra.label}</button>}
             <div className="mt-5 flex gap-1.5" aria-hidden="true">
-              {steps.map((s, k) => <button key={s.title} tabIndex={-1} onClick={() => setI(k)} className={`h-1.5 flex-1 rounded-full transition-colors ${k <= i ? "bg-[#E5E4E2]" : "bg-white/15"}`} data-testid={`tour-dot-${k + 1}`} />)}
+              {steps.map((s, k) => <button key={s.title} tabIndex={-1} onClick={() => setI(k)} className={`h-1.5 flex-1 rounded-full transition-colors ${k <= i ? "bg-[var(--raised)]" : "bg-[var(--sel)]"}`} data-testid={`tour-dot-${k + 1}`} />)}
             </div>
             <div className="mt-5 flex items-center justify-between gap-2">
               <Btn onClick={() => setI((n) => n - 1)} disabled={i === 0} data-testid="tour-back-btn"><ArrowLeft size={15} /> Indietro</Btn>

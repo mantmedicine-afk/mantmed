@@ -19,7 +19,7 @@ export const AbsenceBanner = () => {
   if (!list.length) return null;
   return (
     <div className="mx-auto max-w-[1440px] px-5 pb-4 lg:px-8" data-testid="absence-banner">
-      <Link to="/app/impostazioni?sezione=orari" className="flex flex-wrap items-center gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-950 ring-1 ring-amber-200 transition-colors hover:bg-amber-100">
+      <Link to="/app/impostazioni?sezione=orari" className="flex flex-wrap items-center gap-3 rounded-2xl bg-[var(--sel)] p-4 text-sm text-[var(--fg)] ring-1 ring-amber-200 transition-colors hover:bg-[var(--sel)]">
         <Plane size={18} className="shrink-0" />
         {list.map((a) => (
           <span key={a.id} data-testid={`absence-banner-${a.id}`}><strong>{a.from <= today ? "Assente oggi" : "Assenza"}</strong> {a.from === a.to ? fmt(a.from) : `${fmt(a.from)} – ${fmt(a.to)}`}{a.reason ? ` · ${a.reason}` : ""} · prenotazioni online bloccate</span>

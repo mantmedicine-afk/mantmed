@@ -4,11 +4,11 @@ import { BookOpen, Plus, ShieldAlert, Sparkles, Trash2 } from "lucide-react";
 import { api, errMsg } from "@/lib/api";
 import { Card, Field, SaveBtn, inp } from "./ui";
 
-const area = "w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-night outline-none focus:border-night";
+const area = "w-full rounded-xl border border-[var(--hair)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--fg)] outline-none focus:border-[var(--accent)]";
 const Toggle = ({ on, onChange, label, hint, testId }) => (
-  <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl border border-slate-200 p-4">
-    <span><span className="block text-sm font-medium text-night">{label}</span><span className="block text-xs text-slate-600">{hint}</span></span>
-    <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} className="mt-1 h-5 w-5 shrink-0 accent-[#0A192F]" data-testid={testId} />
+  <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl border border-[var(--hair)] p-4">
+    <span><span className="block text-sm font-medium text-[var(--fg)]">{label}</span><span className="block text-xs text-[var(--fg2)]">{hint}</span></span>
+    <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} className="mt-1 h-5 w-5 shrink-0 accent-[var(--accent)]" data-testid={testId} />
   </label>
 );
 
@@ -31,9 +31,9 @@ const SettingsCard = ({ s, def, onSaved }) => {
         </Field>
         <div className="flex flex-wrap items-center gap-3">
           <SaveBtn busy={busy} testId="ai-settings-save" disabled={f.notice_text.trim().length < 20} />
-          <button type="button" onClick={() => setF({ ...f, notice_text: def })} className="text-sm text-slate-600 underline underline-offset-4" data-testid="ai-settings-notice-reset">Ripristina testo predefinito</button>
+          <button type="button" onClick={() => setF({ ...f, notice_text: def })} className="text-sm text-[var(--fg2)] underline underline-offset-4" data-testid="ai-settings-notice-reset">Ripristina testo predefinito</button>
         </div>
-        <p className="flex items-start gap-2 text-xs text-slate-500"><ShieldAlert size={13} className="mt-0.5 shrink-0" /> Al fornitore AI vengono inviati solo il messaggio, al massimo gli ultimi 5 del thread, l'età del bambino e questa base di conoscenza, con nomi e recapiti sostituiti da segnaposto.</p>
+        <p className="flex items-start gap-2 text-xs text-[var(--fg2)]"><ShieldAlert size={13} className="mt-0.5 shrink-0" /> Al fornitore AI vengono inviati solo il messaggio, al massimo gli ultimi 5 del thread, l'età del bambino e questa base di conoscenza, con nomi e recapiti sostituiti da segnaposto.</p>
       </form>
     </Card>
   );
@@ -60,15 +60,15 @@ const KbCard = ({ k, onSaved }) => {
         <Field label="Forma"><select value={f.address_form} onChange={set("address_form")} className={inp} data-testid="ai-kb-address-form"><option value="lei">Dare del Lei</option><option value="tu">Dare del tu</option></select></Field>
         <Field label="Firma in fondo alle risposte" wide><input value={f.signature} onChange={set("signature")} placeholder="Dott.ssa Rossi · Studio Pediatrico" className={inp} data-testid="ai-kb-signature" /></Field>
         <div className="space-y-2 sm:col-span-2">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">FAQ libere</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--fg2)]">FAQ libere</div>
           {f.faqs.map((x, i) => (
-            <div key={i} className="grid gap-2 rounded-2xl border border-slate-200 p-3 sm:grid-cols-[1fr_1fr_auto]" data-testid={`ai-kb-faq-${i}`}>
+            <div key={i} className="grid gap-2 rounded-2xl border border-[var(--hair)] p-3 sm:grid-cols-[1fr_1fr_auto]" data-testid={`ai-kb-faq-${i}`}>
               <input value={x.q} onChange={(e) => faq(i, "q", e.target.value)} placeholder="Domanda" className={inp} data-testid={`ai-kb-faq-q-${i}`} />
               <input value={x.a} onChange={(e) => faq(i, "a", e.target.value)} placeholder="Risposta" className={inp} data-testid={`ai-kb-faq-a-${i}`} />
-              <button type="button" onClick={() => setF({ ...f, faqs: f.faqs.filter((_, j) => j !== i) })} className="grid h-11 w-11 place-items-center rounded-full border border-slate-200 text-rose-700" aria-label="Rimuovi FAQ" data-testid={`ai-kb-faq-del-${i}`}><Trash2 size={15} /></button>
+              <button type="button" onClick={() => setF({ ...f, faqs: f.faqs.filter((_, j) => j !== i) })} className="grid h-11 w-11 place-items-center rounded-full border border-[var(--hair)] text-[var(--alert)]" aria-label="Rimuovi FAQ" data-testid={`ai-kb-faq-del-${i}`}><Trash2 size={15} /></button>
             </div>
           ))}
-          <button type="button" onClick={() => setF({ ...f, faqs: [...f.faqs, { q: "", a: "" }] })} className="flex h-10 items-center gap-1.5 rounded-full border border-slate-200 px-4 text-sm text-night hover:border-night" data-testid="ai-kb-faq-add"><Plus size={14} /> Aggiungi FAQ</button>
+          <button type="button" onClick={() => setF({ ...f, faqs: [...f.faqs, { q: "", a: "" }] })} className="flex h-10 items-center gap-1.5 rounded-full border border-[var(--hair)] px-4 text-sm text-[var(--fg)] hover:border-[var(--accent)]" data-testid="ai-kb-faq-add"><Plus size={14} /> Aggiungi FAQ</button>
         </div>
         <div className="sm:col-span-2"><SaveBtn busy={busy} testId="ai-kb-save">Salva base di conoscenza</SaveBtn></div>
       </form>
@@ -83,13 +83,13 @@ export const AiRepliesSection = () => {
   useEffect(() => {
     Promise.all([api.aiSettings(), api.aiKb()]).then(([s, k]) => { setSt(s); setKb(k.clinics); setClinic(s.clinics[0]?.clinic || ""); }).catch((e) => toast.error(errMsg(e)));
   }, []);
-  if (!st || !kb) return <div className="h-40 animate-pulse rounded-[28px] bg-slate-100" />;
+  if (!st || !kb) return <div className="h-40 animate-pulse rounded-[28px] bg-[var(--raised)]" />;
   const s = st.clinics.find((c) => c.clinic === clinic);
   const k = kb.find((c) => c.clinic === clinic);
   return (
     <div className="space-y-5" data-testid="ai-replies-section">
       {st.clinics.length > 1 && <div className="flex flex-wrap gap-2" role="tablist">{st.clinics.map((c) => (
-        <button key={c.clinic} role="tab" aria-selected={c.clinic === clinic} onClick={() => setClinic(c.clinic)} className={`h-10 rounded-full px-4 text-sm transition-colors ${c.clinic === clinic ? "bg-night text-white" : "border border-slate-200 bg-white text-night hover:border-night"}`} data-testid={`ai-clinic-tab-${c.clinic}`}>
+        <button key={c.clinic} role="tab" aria-selected={c.clinic === clinic} onClick={() => setClinic(c.clinic)} className={`h-10 rounded-full px-4 text-sm transition-colors ${c.clinic === clinic ? "bg-[var(--accent)] text-[var(--ink)]" : "border border-[var(--hair)] bg-[var(--surface)] text-[var(--fg)] hover:border-[var(--accent)]"}`} data-testid={`ai-clinic-tab-${c.clinic}`}>
           {c.clinic} {c.enabled ? "· attiva" : ""}</button>))}</div>}
       {s && <SettingsCard s={s} def={st.default_notice} onSaved={(x) => setSt({ ...st, clinics: st.clinics.map((c) => (c.clinic === x.clinic ? x : c)) })} />}
       {k && <KbCard k={k} onSaved={(x) => setKb(kb.map((c) => (c.clinic === x.clinic ? x : c)))} />}

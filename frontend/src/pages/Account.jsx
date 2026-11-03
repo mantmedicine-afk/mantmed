@@ -44,29 +44,29 @@ export default function Account({ role, embedded = false, extras = null }) {
   useEffect(() => { load(); }, [load]);
   const back = role === "doctor" ? "/app" : "/portale";
   return (
-    <div className={embedded ? "" : "min-h-screen bg-[#F4F5F7]"} data-testid="account-page">
-      {!embedded && <header className="sticky top-0 z-40 bg-[#0A192F]">
+    <div className={embedded ? "" : "min-h-screen bg-[var(--raised)]"} data-testid="account-page">
+      {!embedded && <header className="theme-bar sticky top-0 z-40">
         <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-3 px-5 py-3">
-          <div className="flex items-center gap-3"><LogoMark size={34} light /><div className="leading-none"><div className="font-display text-2xl text-white">MantMed</div><div className="mt-1 text-[10px] uppercase tracking-[0.22em] text-[#C9CCD3]">Area riservata</div></div></div>
-          <Link to={back} className="flex h-10 items-center gap-2 rounded-full border border-[#C9CCD3]/30 px-4 text-sm text-white transition-colors hover:border-white" data-testid="account-back-link"><ArrowLeft size={15} /> <span className="hidden sm:inline">{role === "doctor" ? "Torna alla dashboard" : "Torna al portale"}</span></Link>
+          <div className="flex items-center gap-3"><LogoMark size={34} light /><div className="leading-none"><div className="font-display text-2xl text-[var(--ink)]">MantMed</div><div className="mt-1 text-[10px] uppercase tracking-[0.22em] text-[var(--fg2)]">Area riservata</div></div></div>
+          <Link to={back} className="flex h-10 items-center gap-2 rounded-full border border-[var(--hair)] px-4 text-sm text-[var(--ink)] transition-colors hover:border-[var(--ink)]" data-testid="account-back-link"><ArrowLeft size={15} /> <span className="hidden sm:inline">{role === "doctor" ? "Torna alla dashboard" : "Torna al portale"}</span></Link>
         </div>
       </header>}
       <main className={`mx-auto max-w-[1200px] px-5 ${embedded ? "pb-12 pt-8" : "py-8 lg:py-12"}`}>
-        <div className="text-[11px] uppercase tracking-[0.22em] text-slate-600">{embedded ? "Impostazioni account" : "Gestione account"}</div>
-        <h1 className="mt-1 font-display text-4xl text-night sm:text-5xl">{data?.name || "Il mio profilo"}</h1>
-        <p className="mt-1 text-sm text-slate-600" data-testid="account-email">{data?.email}</p>
+        <div className="text-[11px] uppercase tracking-[0.22em] text-[var(--fg2)]">{embedded ? "Impostazioni account" : "Gestione account"}</div>
+        <h1 className="mt-1 font-display text-4xl text-[var(--fg)] sm:text-5xl">{data?.name || "Il mio profilo"}</h1>
+        <p className="mt-1 text-sm text-[var(--fg2)]" data-testid="account-email">{data?.email}</p>
         {extras && <div className="mt-5">{extras}</div>}
         <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr]">
           <nav className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0" aria-label="Sezioni" data-testid="account-nav">
             {list.map((s) => (
               <button key={s.id} ref={(el) => { if (el && cur.id === s.id) el.scrollIntoView({ block: "nearest", inline: "nearest" }); }} onClick={() => setParams({ sezione: s.id }, { replace: true })} aria-current={cur.id === s.id ? "page" : undefined}
-                className={`flex h-11 shrink-0 items-center gap-2.5 rounded-full px-4 text-sm font-medium transition-colors lg:w-full lg:rounded-2xl ${cur.id === s.id ? "bg-night text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:text-night"}`} data-testid={`account-nav-${s.id}`}>
+                className={`flex h-11 shrink-0 items-center gap-2.5 rounded-full px-4 text-sm font-medium transition-colors lg:w-full lg:rounded-2xl ${cur.id === s.id ? "bg-[var(--accent)] text-[var(--ink)]" : "bg-[var(--surface)] text-[var(--fg2)] ring-1 ring-[var(--hair)] hover:text-[var(--fg)]"}`} data-testid={`account-nav-${s.id}`}>
                 <s.icon size={16} /> {s.label}
               </button>
             ))}
           </nav>
           <div className="min-w-0" data-testid={`account-section-${cur.id}`}>
-            {data ? <cur.C key={cur.id} data={data} onSaved={setData} /> : <Loader2 className="animate-spin text-night" />}
+            {data ? <cur.C key={cur.id} data={data} onSaved={setData} /> : <Loader2 className="animate-spin text-[var(--fg)]" />}
           </div>
         </div>
       </main>

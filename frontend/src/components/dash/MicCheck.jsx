@@ -3,9 +3,9 @@ import { Loader2, Mic, X } from "lucide-react";
 import { MIC_KEY, micConstraints, micError, savedMic } from "@/lib/mic";
 
 const BARS = 24;
-const verdict = (lvl) => (lvl < 6 ? ["Troppo basso: si avvicini al microfono o alzi il volume", "text-amber-300", "low"]
-  : lvl > 85 ? ["Troppo alto: si allontani leggermente dal microfono", "text-rose-300", "high"]
-  : ["Livello buono: la voce viene captata correttamente", "text-emerald-300", "good"]);
+const verdict = (lvl) => (lvl < 6 ? ["Troppo basso: si avvicini al microfono o alzi il volume", "text-[var(--fg)]", "low"]
+  : lvl > 85 ? ["Troppo alto: si allontani leggermente dal microfono", "text-[var(--alert)]", "high"]
+  : ["Livello buono: la voce viene captata correttamente", "text-[var(--ok)]", "good"]);
 
 const useMicLevel = (active, deviceId) => {
   const [level, setLevel] = useState(0);
@@ -55,33 +55,33 @@ export const MicCheck = () => {
   const pick = (id) => { localStorage.setItem(MIC_KEY, id); setDeviceId(id); };
 
   if (!open) return (
-    <button type="button" onClick={() => { heard.current = 0; setOpen(true); }} className="flex items-center gap-2 text-sm text-slate-300 transition-colors hover:text-white" data-testid="mic-check-btn">
+    <button type="button" onClick={() => { heard.current = 0; setOpen(true); }} className="flex items-center gap-2 text-sm text-[var(--fg2)] transition-colors hover:text-[var(--ink)]" data-testid="mic-check-btn">
       <Mic size={15} /> Prova microfono e livello audio
     </button>
   );
   return (
-    <div className="rounded-2xl border border-white/15 bg-white/[0.04] p-4" data-testid="mic-check-panel">
-      <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.2em] text-slate-300">
+    <div className="rounded-2xl border border-[var(--hair)] bg-[var(--sel)] p-4" data-testid="mic-check-panel">
+      <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.2em] text-[var(--fg2)]">
         <span className="flex items-center gap-1.5"><Mic size={13} /> Prova microfono</span>
-        <button type="button" onClick={() => setOpen(false)} className="flex items-center gap-1 normal-case tracking-normal text-[#A9C2FF] hover:text-white" data-testid="mic-check-close"><X size={13} /> Fine prova</button>
+        <button type="button" onClick={() => setOpen(false)} className="flex items-center gap-1 normal-case tracking-normal text-[var(--fg2)] hover:text-[var(--ink)]" data-testid="mic-check-close"><X size={13} /> Fine prova</button>
       </div>
-      {error ? <p role="alert" className="mt-3 text-sm text-rose-200" data-testid="mic-check-error">{error}</p> : !ready ? (
-        <p className="mt-3 flex items-center gap-2 text-sm text-slate-300" data-testid="mic-check-waiting"><Loader2 size={14} className="animate-spin" /> Consenta l'accesso al microfono…</p>
+      {error ? <p role="alert" className="mt-3 text-sm text-[var(--alert)]" data-testid="mic-check-error">{error}</p> : !ready ? (
+        <p className="mt-3 flex items-center gap-2 text-sm text-[var(--fg2)]" data-testid="mic-check-waiting"><Loader2 size={14} className="animate-spin" /> Consenta l'accesso al microfono…</p>
       ) : (
         <>
           {devices.length > 1 && (
-            <select value={deviceId || devices[0]?.deviceId} onChange={(e) => pick(e.target.value)} className="mt-3 w-full rounded-xl border border-white/15 bg-night px-3 py-2 text-sm text-white outline-none [color-scheme:dark] [&>option]:bg-[#0B1736]" data-testid="mic-check-device">
+            <select value={deviceId || devices[0]?.deviceId} onChange={(e) => pick(e.target.value)} className="mt-3 w-full rounded-xl border border-[var(--hair)] bg-[var(--accent)] px-3 py-2 text-sm text-[var(--ink)] outline-none [color-scheme:dark] [&>option]:bg-[var(--accent)]" data-testid="mic-check-device">
               {devices.map((d, i) => <option key={d.deviceId || i} value={d.deviceId}>{d.label || `Microfono ${i + 1}`}</option>)}
             </select>
           )}
           <div className="mt-4 flex h-10 items-end gap-1" data-testid="mic-check-meter" data-level={level}>
             {Array.from({ length: BARS }, (_, i) => {
               const on = level >= ((i + 1) / BARS) * 100;
-              const color = i > BARS * 0.85 ? "bg-rose-400" : i > BARS * 0.6 ? "bg-amber-300" : "bg-emerald-400";
-              return <span key={i} className={`flex-1 rounded-sm transition-[height,opacity] duration-75 ${on ? color : "bg-white/10"}`} style={{ height: `${30 + (i / BARS) * 70}%` }} />;
+              const color = i > BARS * 0.85 ? "bg-[var(--alert)]" : i > BARS * 0.6 ? "bg-[var(--wait)]" : "bg-[var(--ok)]";
+              return <span key={i} className={`flex-1 rounded-sm transition-[height,opacity] duration-75 ${on ? color : "bg-[var(--sel)]"}`} style={{ height: `${30 + (i / BARS) * 70}%` }} />;
             })}
           </div>
-          <p className={`mt-3 text-sm ${heard.current < 6 ? "text-slate-300" : cls}`} data-testid="mic-check-verdict" data-verdict={heard.current < 6 ? "silent" : key}>
+          <p className={`mt-3 text-sm ${heard.current < 6 ? "text-[var(--fg2)]" : cls}`} data-testid="mic-check-verdict" data-verdict={heard.current < 6 ? "silent" : key}>
             {heard.current < 6 ? "Parli normalmente per qualche secondo: l'indicatore si muove con la sua voce" : text}
           </p>
         </>

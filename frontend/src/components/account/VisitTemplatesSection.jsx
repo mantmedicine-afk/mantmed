@@ -49,31 +49,31 @@ export const VisitTemplatesSection = ({ data }) => {
   return (
     <Card id="account-visit-templates" icon={LayoutTemplate} title="Modelli Visita"
       text="Crei più modelli (es. Prima visita, Controllo, Bilancio di salute) e scelga quale usare all'avvio di ogni consultazione: l'IA compila ogni campo del modello nell'ordine indicato.">
-      {!list || !draft ? <Loader2 className="animate-spin text-night" data-testid="templates-loading" /> : (
+      {!list || !draft ? <Loader2 className="animate-spin text-[var(--fg)]" data-testid="templates-loading" /> : (
         <div className="space-y-5">
           {[["Modelli", list.filter((t) => !t.bilancio)], ["Bilanci di salute", list.filter((t) => t.bilancio)]].filter(([, xs]) => xs.length).map(([title, xs]) => (
           <div key={title}>
-          <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{title}</div>
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--fg2)]">{title}</div>
           <div className="flex flex-wrap gap-2" data-testid={title === "Modelli" ? "templates-list" : "templates-bilanci-list"}>
             {xs.map((t) => (
-              <button key={t.id} onClick={() => t.id !== curId && leave() && pick(t)} className={`h-10 rounded-full px-4 text-sm font-medium transition-colors ${t.id === curId ? "bg-night text-white" : "border border-slate-200 text-night hover:border-night"}`} data-testid={`template-pill-${t.id}`}>{(t.id === curId ? draft.name || "Senza nome" : t.name).replace("Bilancio di salute · ", "")} <span className="opacity-60">· {t.id === curId ? draft.fields.length : t.fields.length}</span>{t.id === curId && dirty && <span className="ml-1 text-amber-300" data-testid="template-dirty-dot">•</span>}</button>
+              <button key={t.id} onClick={() => t.id !== curId && leave() && pick(t)} className={`h-10 rounded-full px-4 text-sm font-medium transition-colors ${t.id === curId ? "bg-[var(--accent)] text-[var(--ink)]" : "border border-[var(--hair)] text-[var(--fg)] hover:border-[var(--accent)]"}`} data-testid={`template-pill-${t.id}`}>{(t.id === curId ? draft.name || "Senza nome" : t.name).replace("Bilancio di salute · ", "")} <span className="opacity-60">· {t.id === curId ? draft.fields.length : t.fields.length}</span>{t.id === curId && dirty && <span className="ml-1 text-[var(--fg)]" data-testid="template-dirty-dot">•</span>}</button>
             ))}
-            {title === "Modelli" && <button onClick={() => leave() && create(false)} disabled={!!busy} className="flex h-10 items-center gap-1.5 rounded-full border border-dashed border-slate-300 px-4 text-sm text-slate-600 hover:border-night hover:text-night" data-testid="template-new-btn">{busy === "new" ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Nuovo modello</button>}
+            {title === "Modelli" && <button onClick={() => leave() && create(false)} disabled={!!busy} className="flex h-10 items-center gap-1.5 rounded-full border border-dashed border-[var(--hair)] px-4 text-sm text-[var(--fg2)] hover:border-[var(--accent)] hover:text-[var(--fg)]" data-testid="template-new-btn">{busy === "new" ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Nuovo modello</button>}
           </div>
           </div>
           ))}
           {(list.some((t) => t.bilancio) || /pediatr|neonatolog/i.test(data?.profile?.specialty ?? "")) && (
-            <button onClick={() => leave() && setBil(true)} className="flex h-10 items-center gap-1.5 rounded-full border border-[#C9D6FF] bg-[#F3F6FF] px-4 text-sm font-medium text-night hover:border-night" data-testid="template-bilanci-btn"><Baby size={14} /> Aggiungi bilanci di salute</button>
+            <button onClick={() => leave() && setBil(true)} className="flex h-10 items-center gap-1.5 rounded-full border border-[var(--hair)] bg-[var(--raised)] px-4 text-sm font-medium text-[var(--fg)] hover:border-[var(--accent)]" data-testid="template-bilanci-btn"><Baby size={14} /> Aggiungi bilanci di salute</button>
           )}
           <BilanciDialog open={bil} onClose={() => setBil(false)} onImported={(xs) => { setList(xs); }} />
           <div className="flex flex-wrap items-center gap-2">
             <input value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} className={`${inp} max-w-xs`} aria-label="Nome del modello" data-testid="template-name-input" />
-            <button onClick={() => create(true)} disabled={!!busy} className="flex h-11 items-center gap-1.5 rounded-full border border-slate-200 px-4 text-sm text-night hover:border-night" data-testid="template-duplicate-btn"><Copy size={14} /> Duplica</button>
-            <button onClick={reset} disabled={!!busy} className="flex h-11 items-center gap-1.5 rounded-full border border-slate-200 px-4 text-sm text-night hover:border-night" data-testid="template-reset-btn">{busy === "reset" ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />} Ripristina modello base</button>
-            <button onClick={remove} disabled={!!busy || list.length < 2} className="flex h-11 items-center gap-1.5 rounded-full border border-rose-200 px-4 text-sm text-rose-700 hover:border-rose-500 disabled:opacity-40" data-testid="template-delete-btn"><Trash2 size={14} /> Elimina</button>
+            <button onClick={() => create(true)} disabled={!!busy} className="flex h-11 items-center gap-1.5 rounded-full border border-[var(--hair)] px-4 text-sm text-[var(--fg)] hover:border-[var(--accent)]" data-testid="template-duplicate-btn"><Copy size={14} /> Duplica</button>
+            <button onClick={reset} disabled={!!busy} className="flex h-11 items-center gap-1.5 rounded-full border border-[var(--hair)] px-4 text-sm text-[var(--fg)] hover:border-[var(--accent)]" data-testid="template-reset-btn">{busy === "reset" ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />} Ripristina modello base</button>
+            <button onClick={remove} disabled={!!busy || list.length < 2} className="flex h-11 items-center gap-1.5 rounded-full border border-[var(--alert)] px-4 text-sm text-[var(--alert)] hover:border-[var(--alert)] disabled:opacity-40" data-testid="template-delete-btn"><Trash2 size={14} /> Elimina</button>
           </div>
           <TemplateFields fields={draft.fields} onChange={(fields) => setDraft((d) => ({ ...d, fields }))} />
-          <button onClick={save} disabled={!!busy || !draft.name.trim() || draft.fields.some((f) => !f.titolo.trim())} className="flex h-11 items-center gap-2 rounded-full bg-night px-6 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 disabled:opacity-50" data-testid="template-save-btn">
+          <button onClick={save} disabled={!!busy || !draft.name.trim() || draft.fields.some((f) => !f.titolo.trim())} className="flex h-11 items-center gap-2 rounded-full bg-[var(--accent)] px-6 text-sm font-semibold text-[var(--ink)] transition-transform hover:-translate-y-0.5 disabled:opacity-50" data-testid="template-save-btn">
             {busy === "save" && <Loader2 size={15} className="animate-spin" />} Salva modello
           </button>
         </div>

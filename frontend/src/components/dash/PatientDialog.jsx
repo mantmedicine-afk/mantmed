@@ -32,8 +32,8 @@ export const PatientDialog = ({ value, onClose, onSaved }) => {
 
   return (
     <Dialog open={Boolean(value)} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="z-[60] rounded-3xl bg-white sm:max-w-md" data-testid="patient-dialog">
-        <DialogHeader><DialogTitle className="font-display text-3xl font-normal text-night">{isEdit ? "Modifica paziente" : "Nuovo paziente"}</DialogTitle></DialogHeader>
+      <DialogContent className="z-[60] rounded-3xl bg-[var(--surface)] sm:max-w-md" data-testid="patient-dialog">
+        <DialogHeader><DialogTitle className="font-display text-3xl font-normal text-[var(--fg)]">{isEdit ? "Modifica paziente" : "Nuovo paziente"}</DialogTitle></DialogHeader>
         <div className="grid gap-4">
           <Field label="Nome e cognome"><Input value={f.name} onChange={set("name")} data-testid="patient-name-input" /></Field>
           <div className="grid grid-cols-2 gap-3">
@@ -41,7 +41,7 @@ export const PatientDialog = ({ value, onClose, onSaved }) => {
             <Field label="Sesso">
               <div className="flex gap-2">
                 {[["F", "F"], ["M", "M"]].map(([v, l]) => (
-                  <button key={v} onClick={() => setF((p) => ({ ...p, sex: v }))} className={`h-10 flex-1 rounded-xl text-sm font-medium ${f.sex === v ? "bg-night text-white" : "border border-slate-200 text-slate-600"}`} data-testid={`patient-sex-${v}`}>{l}</button>
+                  <button key={v} onClick={() => setF((p) => ({ ...p, sex: v }))} className={`h-10 flex-1 rounded-xl text-sm font-medium ${f.sex === v ? "bg-[var(--accent)] text-[var(--ink)]" : "border border-[var(--hair)] text-[var(--fg2)]"}`} data-testid={`patient-sex-${v}`}>{l}</button>
                 ))}
               </div>
             </Field>
@@ -53,7 +53,7 @@ export const PatientDialog = ({ value, onClose, onSaved }) => {
           <Field label="Note cliniche"><Input value={f.notes} onChange={set("notes")} data-testid="patient-notes-input" /></Field>
         </div>
         <div className="mt-2 flex justify-end">
-          <button onClick={save} className="rounded-full bg-night px-6 py-3 text-sm font-medium text-white transition-transform hover:-translate-y-0.5" data-testid="patient-save-btn">Salva</button>
+          <button onClick={save} className="rounded-full bg-[var(--accent)] px-6 py-3 text-sm font-medium text-[var(--ink)] transition-transform hover:-translate-y-0.5" data-testid="patient-save-btn">Salva</button>
         </div>
       </DialogContent>
     </Dialog>

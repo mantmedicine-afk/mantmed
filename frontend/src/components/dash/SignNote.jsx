@@ -27,31 +27,31 @@ export const SignNote = ({ consultation, beforeSign, onSigned, hasChart = false 
     setBusy(false);
   };
   return (
-    <div className="mt-4 flex flex-col gap-3 rounded-2xl border-2 border-[#E3A92B] bg-[#FFF8E6] p-4 sm:flex-row sm:items-center sm:justify-between" data-testid="note-ai-draft-banner">
+    <div className="mt-4 flex flex-col gap-3 rounded-2xl border-2 border-[var(--hair)] bg-[var(--sel)] p-4 sm:flex-row sm:items-center sm:justify-between" data-testid="note-ai-draft-banner">
       <div className="min-w-0 space-y-1.5">
         <AILabel variant="bozza" view="doctor" testId="note-ai-label-draft" />
-        <p className="text-xs leading-relaxed text-[#5C3A00]">Rilegga e corregga i campi segnati: alla firma la nota diventa un referto sotto la sua responsabilità e potrà essere inviata o pubblicata.</p>
+        <p className="text-xs leading-relaxed text-[var(--fg)]">Rilegga e corregga i campi segnati: alla firma la nota diventa un referto sotto la sua responsabilità e potrà essere inviata o pubblicata.</p>
       </div>
-      <button onClick={() => setOpen(true)} className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-night px-5 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5" data-testid="note-sign-btn">
+      <button onClick={() => setOpen(true)} className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-[var(--accent)] px-5 text-sm font-semibold text-[var(--ink)] transition-transform hover:-translate-y-0.5" data-testid="note-sign-btn">
         <PenLine size={15} /> Rivedi e firma
       </button>
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent className="rounded-[24px]" data-testid="note-sign-dialog">
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-display text-3xl font-normal text-night">Firma della nota</AlertDialogTitle>
-            <AlertDialogDescription className="text-sm leading-relaxed text-slate-600">
+            <AlertDialogTitle className="font-display text-3xl font-normal text-[var(--fg)]">Firma della nota</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm leading-relaxed text-[var(--fg2)]">
               Firmando dichiara di aver verificato il contenuto proposto da MantAI e se ne assume la responsabilità professionale. Le etichette diventeranno "verificato" con il suo nome, e il cambio sarà annotato nel registro attività.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {hasChart && (
-            <label className="flex items-start gap-3 rounded-2xl bg-[#F4F5F7] p-3 text-sm text-night">
-              <input type="checkbox" checked={withChart} onChange={(e) => setWithChart(e.target.checked)} className="mt-0.5 h-5 w-5 accent-[#0A192F]" data-testid="note-sign-include-bodychart" />
-              <span><span className="block font-medium">Includi la bodychart nel referto PDF</span><span className="text-xs text-slate-600">Aggiunge l'immagine della mappa con i reperti della visita (senza foto).</span></span>
+            <label className="flex items-start gap-3 rounded-2xl bg-[var(--raised)] p-3 text-sm text-[var(--fg)]">
+              <input type="checkbox" checked={withChart} onChange={(e) => setWithChart(e.target.checked)} className="mt-0.5 h-5 w-5 accent-[var(--accent)]" data-testid="note-sign-include-bodychart" />
+              <span><span className="block font-medium">Includi la bodychart nel referto PDF</span><span className="text-xs text-[var(--fg2)]">Aggiunge l'immagine della mappa con i reperti della visita (senza foto).</span></span>
             </label>
           )}
           <AlertDialogFooter>
             <AlertDialogCancel className="rounded-full" data-testid="note-sign-cancel">Rileggo ancora</AlertDialogCancel>
-            <AlertDialogAction onClick={(e) => { e.preventDefault(); sign(); }} disabled={busy} className="rounded-full bg-night" data-testid="note-sign-confirm">
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); sign(); }} disabled={busy} className="rounded-full bg-[var(--accent)]" data-testid="note-sign-confirm">
               {busy ? <Loader2 size={15} className="mr-2 animate-spin" /> : <PenLine size={15} className="mr-2" />} Ho verificato, firmo
             </AlertDialogAction>
           </AlertDialogFooter>

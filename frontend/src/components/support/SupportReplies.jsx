@@ -11,14 +11,14 @@ export const SupportReplies = () => {
   return (
     <div className="space-y-2" data-testid="support-replies">
       {items.map((x) => (
-        <div key={x.id} className="flex items-start gap-3 rounded-2xl border border-[#C9D6FF] bg-[#F3F6FF] p-4 text-sm text-night" data-testid={`support-reply-${x.id}`}>
-          <MailCheck size={18} className="mt-0.5 shrink-0 text-[#3B6CF6]" />
+        <div key={x.id} className="flex items-start gap-3 rounded-2xl border border-[var(--hair)] bg-[var(--raised)] p-4 text-sm text-[var(--fg)]" data-testid={`support-reply-${x.id}`}>
+          <MailCheck size={18} className="mt-0.5 shrink-0 text-[var(--accent)]" />
           <div className="min-w-0 flex-1">
             <div className="font-semibold">Il team MantMed ha risposto alla sua {x.kind_label.toLowerCase()}</div>
-            <p className="mt-1 whitespace-pre-wrap text-slate-700">{x.reply?.text}</p>
-            <p className="mt-1 truncate text-xs text-slate-500">Il suo messaggio: «{x.text}» · risposta inviata anche via email</p>
+            <p className="mt-1 whitespace-pre-wrap text-[var(--fg2)]">{x.reply?.text}</p>
+            <p className="mt-1 truncate text-xs text-[var(--fg2)]">Il suo messaggio: «{x.text}» · risposta inviata anche via email</p>
           </div>
-          <button onClick={() => dismiss(x.id)} className="grid h-8 w-8 shrink-0 place-items-center rounded-full hover:bg-white" aria-label="Segna come letto" data-testid={`support-reply-dismiss-${x.id}`}><X size={15} /></button>
+          <button onClick={() => dismiss(x.id)} className="grid h-8 w-8 shrink-0 place-items-center rounded-full hover:bg-[var(--surface)]" aria-label="Segna come letto" data-testid={`support-reply-dismiss-${x.id}`}><X size={15} /></button>
         </div>
       ))}
     </div>

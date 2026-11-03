@@ -1,0 +1,110 @@
+/* Tema MantMed: unica fonte dei colori (giorno predefinito, notte con data-theme="dark") */
+:root {
+    --bg: #C7D1D5;
+    --surface: #D8E0E3;
+    --raised: #E4EAEC;
+    --sel-base: rgba(23, 38, 43, 0.10);
+    --hair-base: rgba(31, 42, 51, 0.11);
+    --fg-base: #1F2A33;
+    --fg2-base: #44525E;
+    --accent-base: #17262B;
+    --ink-base: #F7F9FB;
+    --bar: #0F1A1E;
+    --onbar: #F7F9FB;
+    --onbar2: rgba(247, 249, 251, 0.76);
+    --ok: #3F7D5C;
+    --wait: #7A8494;
+    --alert: #A9452F;
+    --alert-bg: rgba(180, 83, 63, 0.11);
+    --shadow: 0 1px 2px rgba(31, 42, 51, 0.06), 0 6px 20px rgba(31, 42, 51, 0.07);
+    --scrim: rgba(15, 26, 30, 0.62);
+    --background: 197 15% 87%;
+    --foreground: 207 24% 16%;
+    --card: 197 15% 87%;
+    --card-foreground: 207 24% 16%;
+    --popover: 197 15% 87%;
+    --popover-foreground: 207 24% 16%;
+    --primary: 195 30% 13%;
+    --primary-foreground: 210 33% 98%;
+    --secondary: 195 14% 91%;
+    --secondary-foreground: 207 24% 16%;
+    --muted: 195 14% 91%;
+    --muted-foreground: 208 16% 32%;
+    --border: 200 10% 78%;
+    --input: 200 10% 78%;
+    --ring: 195 30% 13%;
+    color-scheme: light;
+}
+[data-theme="dark"] {
+    --bg: #0F1A1E;
+    --surface: #17252A;
+    --raised: #22343B;
+    --sel-base: rgba(110, 149, 161, 0.16);
+    --hair-base: rgba(238, 242, 244, 0.08);
+    --fg-base: #EEF2F4;
+    --fg2-base: #A3B1B8;
+    --accent-base: #6E95A1;
+    --ink-base: #0F1A1E;
+    --bar: #16282E;
+    --ok: #7FB89A;
+    --wait: #8D9AA6;
+    --alert: #EE9C89;
+    --alert-bg: rgba(238, 156, 137, 0.13);
+    --shadow: none;
+    --background: 196 29% 13%;
+    --foreground: 200 18% 95%;
+    --card: 196 29% 13%;
+    --card-foreground: 200 18% 95%;
+    --popover: 196 29% 13%;
+    --popover-foreground: 200 18% 95%;
+    --primary: 194 21% 53%;
+    --primary-foreground: 196 33% 9%;
+    --secondary: 197 27% 18%;
+    --secondary-foreground: 200 18% 95%;
+    --muted: 197 27% 18%;
+    --muted-foreground: 200 11% 68%;
+    --border: 197 20% 22%;
+    --input: 197 20% 22%;
+    --ring: 194 21% 53%;
+    color-scheme: dark;
+}
+
+/* Valori effettivi, ridefiniti localmente sopra le superfici scure */
+:root, .bg-\[var\(--surface\)\], .bg-\[var\(--raised\)\], .bg-\[var\(--bg\)\], .theme-page {
+    --fg: var(--fg-base);
+    --fg2: var(--fg2-base);
+    --hair: var(--hair-base);
+    --sel: var(--sel-base);
+    --ink: var(--ink-base);
+    --accent: var(--accent-base);
+}
+.theme-page { --ink: var(--fg-base); }
+.bg-\[var\(--accent\)\] {
+    --fg: var(--ink-base);
+    --fg2: color-mix(in srgb, var(--ink-base) 78%, transparent);
+    --ink: var(--ink-base);
+    --hair: color-mix(in srgb, var(--ink-base) 20%, transparent);
+    --sel: color-mix(in srgb, var(--ink-base) 12%, transparent);
+}
+.theme-bar {
+    background-color: var(--bar);
+    --fg: var(--onbar);
+    --fg2: var(--onbar2);
+    --ink: var(--onbar);
+    --accent: var(--onbar);
+    --hair: rgba(247, 249, 251, 0.16);
+    --sel: rgba(247, 249, 251, 0.10);
+    color: var(--onbar);
+}
+.theme-bar .bg-\[var\(--accent\)\] { --fg: #0F1A1E; --ink: #0F1A1E; --fg2: rgba(15, 26, 30, 0.72); }
+
+html, body { background-color: var(--bg); color: var(--fg); }
+.rounded-3xl.bg-\[var\(--surface\)\], .rounded-\[28px\].bg-\[var\(--surface\)\], .rounded-2xl.bg-\[var\(--surface\)\] { box-shadow: var(--shadow); }
+input, textarea, select { color: var(--fg); }
+input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea, select { background-color: var(--raised); }
+::placeholder { color: var(--fg2); opacity: 0.8; }
+[data-sonner-toaster] [data-sonner-toast] { background: var(--surface) !important; color: var(--fg) !important; border-color: var(--hair) !important; }
+[data-sonner-toaster] [data-sonner-toast] [data-description] { color: var(--fg2) !important; }
+::selection { background: var(--accent); color: var(--ink); }
+.recharts-cartesian-grid line { stroke: var(--hair); }
+.recharts-text { fill: var(--fg2); }

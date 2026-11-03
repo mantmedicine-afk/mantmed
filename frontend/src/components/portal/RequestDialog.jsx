@@ -17,29 +17,29 @@ const Slots = ({ q, value, onPick, bump, onQuote }) => {
     api.portalSlots(q).then((r) => { if (alive) { setRes(r); onQuote(r?.quote ?? null); } }).catch((e) => { if (alive) { setRes({ slots: [], error: errMsg(e) }); onQuote(null); } });
     return () => { alive = false; };
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (!res) return <Loader2 size={16} className="animate-spin text-night" />;
+  if (!res) return <Loader2 size={16} className="animate-spin text-[var(--fg)]" />;
   const slots = Array.isArray(res.slots) ? res.slots : [];
   const h = res.hours;
   return (
     <div data-testid="portal-request-slots">
-      {h && <p className="mb-2 flex items-center gap-1.5 text-xs text-slate-600"><Clock size={12} /> Aperto {h.days.map((d) => DAYS[d]).join(", ")} {h.start}-{h.end} · durata {res.duration} min</p>}
-      {slots.length === 0 ? <p className="rounded-xl bg-[#F4F5F7] p-3 text-sm text-slate-600" data-testid="portal-request-no-slots">{res.error || "Nessun orario libero in questa data: provi un altro giorno o un altro studio."}</p> : (
+      {h && <p className="mb-2 flex items-center gap-1.5 text-xs text-[var(--fg2)]"><Clock size={12} /> Aperto {h.days.map((d) => DAYS[d]).join(", ")} {h.start}-{h.end} · durata {res.duration} min</p>}
+      {slots.length === 0 ? <p className="rounded-xl bg-[var(--raised)] p-3 text-sm text-[var(--fg2)]" data-testid="portal-request-no-slots">{res.error || "Nessun orario libero in questa data: provi un altro giorno o un altro studio."}</p> : (
         <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
           {slots.map((s) => (
-            <button key={s} type="button" onClick={() => onPick(s)} aria-pressed={value === s} className={`h-10 rounded-xl font-mono text-sm transition-colors ${value === s ? "bg-night text-white" : "border border-slate-200 text-night hover:border-night"}`} data-testid={`portal-slot-${s.replace(":", "")}`}>{s}</button>
+            <button key={s} type="button" onClick={() => onPick(s)} aria-pressed={value === s} className={`h-10 rounded-xl font-mono text-sm transition-colors ${value === s ? "bg-[var(--accent)] text-[var(--ink)]" : "border border-[var(--hair)] text-[var(--fg)] hover:border-[var(--accent)]"}`} data-testid={`portal-slot-${s.replace(":", "")}`}>{s}</button>
           ))}
         </div>
       )}
     </div>
   );
 };
-const inp = "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-night outline-none focus:border-night";
-const Label = ({ children }) => <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">{children}</span>;
+const inp = "h-11 w-full rounded-xl border border-[var(--hair)] bg-[var(--surface)] px-3 text-sm text-[var(--fg)] outline-none focus:border-[var(--accent)]";
+const Label = ({ children }) => <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--fg2)]">{children}</span>;
 
 const PayOption = ({ id, active, disabled, onPick, icon: Icon, title, text }) => (
-  <button type="button" disabled={disabled} onClick={() => onPick(id)} aria-pressed={active} className={`flex w-full items-start gap-3 rounded-2xl border p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${active ? "border-night bg-night text-white" : "border-slate-200 bg-white text-night hover:border-night"}`} data-testid={`portal-pay-${id}`}>
+  <button type="button" disabled={disabled} onClick={() => onPick(id)} aria-pressed={active} className={`flex w-full items-start gap-3 rounded-2xl border p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${active ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--ink)]" : "border-[var(--hair)] bg-[var(--surface)] text-[var(--fg)] hover:border-[var(--accent)]"}`} data-testid={`portal-pay-${id}`}>
     <Icon size={18} className="mt-0.5 shrink-0" />
-    <span><span className="block text-sm font-semibold">{title}</span><span className={`block text-xs ${active ? "text-slate-200" : "text-slate-600"}`}>{text}</span></span>
+    <span><span className="block text-sm font-semibold">{title}</span><span className={`block text-xs ${active ? "text-[var(--fg2)]" : "text-[var(--fg2)]"}`}>{text}</span></span>
   </button>
 );
 
@@ -90,10 +90,10 @@ export const RequestDialog = ({ open, onClose, kids, initial, onSent, doctorId =
   };
   return (
     <Dialog open={open} onOpenChange={(o) => !o && close()}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl bg-white sm:max-w-lg" data-testid="portal-request-dialog">
+      <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl bg-[var(--surface)] sm:max-w-lg" data-testid="portal-request-dialog">
         <DialogHeader>
-          <DialogTitle className="font-display text-3xl font-normal text-night">Richiedi appuntamento</DialogTitle>
-          <DialogDescription className="text-sm text-slate-600">Pagando online l'appuntamento è confermato subito. Scegliendo di pagare in studio, la richiesta arriva come "in attesa di conferma" e data e ora possono essere adattate dal medico.</DialogDescription>
+          <DialogTitle className="font-display text-3xl font-normal text-[var(--fg)]">Richiedi appuntamento</DialogTitle>
+          <DialogDescription className="text-sm text-[var(--fg2)]">Pagando online l'appuntamento è confermato subito. Scegliendo di pagare in studio, la richiesta arriva come "in attesa di conferma" e data e ora possono essere adattate dal medico.</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <label className="block"><Label>Figlio</Label>
@@ -104,14 +104,14 @@ export const RequestDialog = ({ open, onClose, kids, initial, onSent, doctorId =
             <select value={clinic} onChange={set("clinic")} className={inp} data-testid="portal-request-clinic">{clinics.map((c) => <option key={c.name} value={c.name}>{c.name}{c.address ? ` · ${c.address}` : ""}</option>)}</select></label>
           <div><Label>Prestazione</Label>
             <div className="flex flex-wrap gap-2">{services.map((s, i) => (
-              <button key={s} type="button" onClick={() => setF({ ...cur, service: s, time: "" })} aria-pressed={service === s} className={`rounded-full px-4 py-2 text-sm transition-colors ${service === s ? "bg-night text-white" : "border border-slate-200 text-night hover:border-night"}`} data-testid={`portal-request-service-${i}`}>{s}</button>
+              <button key={s} type="button" onClick={() => setF({ ...cur, service: s, time: "" })} aria-pressed={service === s} className={`rounded-full px-4 py-2 text-sm transition-colors ${service === s ? "bg-[var(--accent)] text-[var(--ink)]" : "border border-[var(--hair)] text-[var(--fg)] hover:border-[var(--accent)]"}`} data-testid={`portal-request-service-${i}`}>{s}</button>
             ))}</div></div>
           <label className="block"><Label>Data desiderata</Label><input type="date" min={new Date().toISOString().slice(0, 10)} value={cur.date} onChange={set("date")} required className={inp} data-testid="portal-request-date" /></label>
           <div><Label>Orari liberi</Label><Slots q={{ patient_id: kid?.patient.id, doctor_id: doctor?.id ?? "", clinic, service, date: cur.date }} value={cur.time} bump={bump} onQuote={setQuote} onPick={(t) => setF({ ...cur, time: t })} /></div>
           <label className="block"><Label>Note per lo studio</Label><textarea rows={3} maxLength={1000} value={cur.note} onChange={set("note")} placeholder="Es. febbre da ieri, preferenza pomeriggio…" className={`${inp} h-auto resize-none py-2`} data-testid="portal-request-note" /></label>
           <div><Label>Pagamento</Label><PayChoice quote={quote} value={pay} onPick={setPayPick} /></div>
-          <button disabled={busy || !kid || !cur.time} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-night text-sm font-semibold text-white disabled:opacity-60" data-testid="portal-request-submit">{busy ? <Loader2 size={16} className="animate-spin" /> : pay === "online" ? <Lock size={16} /> : <Send size={16} />} {pay === "online" ? `Paga ${eur(quote?.total)} e conferma` : "Invia richiesta"}</button>
-          {pay === "online" && <p className="text-center text-xs text-slate-600" data-testid="portal-pay-note">Pagamento sicuro su Stripe. Annullando fino a 12 ore prima riceve il rimborso completo.</p>}
+          <button disabled={busy || !kid || !cur.time} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[var(--accent)] text-sm font-semibold text-[var(--ink)] disabled:opacity-60" data-testid="portal-request-submit">{busy ? <Loader2 size={16} className="animate-spin" /> : pay === "online" ? <Lock size={16} /> : <Send size={16} />} {pay === "online" ? `Paga ${eur(quote?.total)} e conferma` : "Invia richiesta"}</button>
+          {pay === "online" && <p className="text-center text-xs text-[var(--fg2)]" data-testid="portal-pay-note">Pagamento sicuro su Stripe. Annullando fino a 12 ore prima riceve il rimborso completo.</p>}
         </form>
       </DialogContent>
     </Dialog>

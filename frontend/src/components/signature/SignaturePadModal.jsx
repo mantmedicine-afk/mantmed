@@ -200,7 +200,7 @@ const SignatureCanvas = ({ strokesRef, onInk, apiRef }) => {
   }
 
   return (
-    <div className="relative select-none overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[inset_0_1px_3px_rgba(10,25,47,0.06)]">
+    <div className="relative select-none overflow-hidden rounded-2xl border border-[var(--hair)] bg-[var(--surface)] shadow-[var(--shadow)]">
       <canvas
         ref={ref}
         onPointerDown={down}
@@ -214,11 +214,11 @@ const SignatureCanvas = ({ strokesRef, onInk, apiRef }) => {
         aria-label="Area di firma"
       />
       <div className="pointer-events-none absolute inset-x-6 bottom-12 flex items-end gap-2 sm:inset-x-10">
-        <span className="font-display text-2xl leading-none text-slate-300">×</span>
-        <span className="mb-1 h-px flex-1 bg-slate-300" />
+        <span className="font-display text-2xl leading-none text-[var(--fg2)]">×</span>
+        <span className="mb-1 h-px flex-1 bg-[var(--hair)]" />
       </div>
       {empty && (
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 pb-10 text-slate-400" data-testid="signature-placeholder">
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 pb-10 text-[var(--fg2)]" data-testid="signature-placeholder">
           <PenLine size={22} strokeWidth={1.5} />
           <span className="text-sm">Firmi qui con il dito, il pennino o il mouse</span>
         </div>
@@ -271,26 +271,26 @@ export const SignaturePadModal = ({
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
-        className="w-[calc(100vw-1.5rem)] max-w-2xl gap-5 rounded-3xl border-0 bg-white p-5 sm:p-7"
+        className="w-[calc(100vw-1.5rem)] max-w-2xl gap-5 rounded-3xl border-0 bg-[var(--surface)] p-5 sm:p-7"
         onInteractOutside={(e) => e.preventDefault()}
         onOpenAutoFocus={(e) => e.preventDefault()}
         data-testid="signature-modal"
         data-lenis-prevent
       >
         <DialogHeader className="pr-8 text-left">
-          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-slate-500">Firma digitale</p>
-          <DialogTitle className="font-display text-3xl font-normal leading-tight text-night" data-testid="signature-modal-title">{title}</DialogTitle>
-          <DialogDescription className="text-sm text-slate-600">{description}</DialogDescription>
+          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--fg2)]">Firma digitale</p>
+          <DialogTitle className="font-display text-3xl font-normal leading-tight text-[var(--fg)]" data-testid="signature-modal-title">{title}</DialogTitle>
+          <DialogDescription className="text-sm text-[var(--fg2)]">{description}</DialogDescription>
         </DialogHeader>
 
         <label className="grid gap-1.5">
-          <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Nome e cognome del firmatario</span>
+          <span className="text-xs font-medium uppercase tracking-wider text-[var(--fg2)]">Nome e cognome del firmatario</span>
           <input
             value={name}
             onChange={(e) => { setName(e.target.value); setError(""); }}
             placeholder="Es. Giulia Ricci"
             autoComplete="name"
-            className="h-12 rounded-xl border border-slate-200 px-4 text-base text-night outline-none transition-colors focus:border-night"
+            className="h-12 rounded-xl border border-[var(--hair)] px-4 text-base text-[var(--fg)] outline-none transition-colors focus:border-[var(--accent)]"
             data-testid="signature-signer-input"
           />
         </label>
@@ -298,13 +298,13 @@ export const SignaturePadModal = ({
         <div className="grid gap-2">
           <SignatureCanvas strokesRef={strokesRef} apiRef={padApi} onInk={() => { setHasInk(strokesRef.current.length > 0); setError(""); }} />
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1 text-sm">
-            <span className="font-medium text-night" data-testid="signature-caption-name">{name.trim() || "Firmatario"}</span>
-            <span className="flex items-center gap-1.5 text-slate-500" data-testid="signature-caption-date"><CalendarClock size={14} /> {fmtSignedAt(now)}</span>
+            <span className="font-medium text-[var(--fg)]" data-testid="signature-caption-name">{name.trim() || "Firmatario"}</span>
+            <span className="flex items-center gap-1.5 text-[var(--fg2)]" data-testid="signature-caption-date"><CalendarClock size={14} /> {fmtSignedAt(now)}</span>
           </div>
         </div>
 
         {error && (
-          <p className="flex items-center gap-2 rounded-xl bg-rose-50 px-4 py-2.5 text-sm text-rose-700" role="alert" data-testid="signature-error">
+          <p className="flex items-center gap-2 rounded-xl bg-[var(--alert-bg)] px-4 py-2.5 text-sm text-[var(--alert)]" role="alert" data-testid="signature-error">
             <AlertCircle size={16} className="shrink-0" /> {error}
           </p>
         )}
@@ -314,7 +314,7 @@ export const SignaturePadModal = ({
             type="button"
             onClick={clear}
             disabled={!hasInk}
-            className="flex h-14 items-center justify-center gap-2 rounded-full border border-slate-300 px-2 text-sm font-medium sm:text-base text-night transition-colors hover:border-night disabled:opacity-40"
+            className="flex h-14 items-center justify-center gap-2 rounded-full border border-[var(--hair)] px-2 text-sm font-medium sm:text-base text-[var(--fg)] transition-colors hover:border-[var(--accent)] disabled:opacity-40"
             data-testid="signature-clear-btn"
           >
             <Eraser size={18} className="shrink-0" /> Pulisci / Riscrivi
@@ -322,7 +322,7 @@ export const SignaturePadModal = ({
           <button
             type="button"
             onClick={confirm}
-            className="flex h-14 items-center justify-center gap-2 rounded-full bg-night px-2 text-sm font-semibold sm:text-base text-white transition-transform hover:-translate-y-0.5"
+            className="flex h-14 items-center justify-center gap-2 rounded-full bg-[var(--accent)] px-2 text-sm font-semibold sm:text-base text-[var(--ink)] transition-transform hover:-translate-y-0.5"
             data-testid="signature-confirm-btn"
           >
             <Check size={18} className="shrink-0" /> Conferma Firma
@@ -339,16 +339,16 @@ export const SignatureField = ({ value, onChange, title, description, defaultNam
   return (
     <>
       {value ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-4" data-testid={`${testId}-preview`}>
-          <div className="flex h-24 items-center justify-center rounded-xl bg-[#F6F8FC] px-4">
+        <div className="rounded-2xl border border-[var(--hair)] bg-[var(--surface)] p-4" data-testid={`${testId}-preview`}>
+          <div className="flex h-24 items-center justify-center rounded-xl bg-[var(--bg)] px-4">
             <img src={value.image} alt={`Firma di ${value.signerName}`} className="max-h-20 max-w-full object-contain" data-testid={`${testId}-image`} />
           </div>
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
             <div>
-              <div className="font-medium text-night">{value.signerName}</div>
-              <div className="text-xs text-slate-500">Firmato il {fmtSignedAt(value.signedAt)}</div>
+              <div className="font-medium text-[var(--fg)]">{value.signerName}</div>
+              <div className="text-xs text-[var(--fg2)]">Firmato il {fmtSignedAt(value.signedAt)}</div>
             </div>
-            <button type="button" onClick={() => setOpen(true)} className="flex h-10 items-center gap-1.5 rounded-full border border-slate-200 px-4 text-sm text-night hover:border-night" data-testid={`${testId}-redo`}>
+            <button type="button" onClick={() => setOpen(true)} className="flex h-10 items-center gap-1.5 rounded-full border border-[var(--hair)] px-4 text-sm text-[var(--fg)] hover:border-[var(--accent)]" data-testid={`${testId}-redo`}>
               <RotateCcw size={14} /> Rifirma
             </button>
           </div>
@@ -357,7 +357,7 @@ export const SignatureField = ({ value, onChange, title, description, defaultNam
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="flex h-28 w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-[#F6F8FC] text-slate-600 transition-colors hover:border-night hover:text-night"
+          className="flex h-28 w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-[var(--hair)] bg-[var(--bg)] text-[var(--fg2)] transition-colors hover:border-[var(--accent)] hover:text-[var(--fg)]"
           data-testid={`${testId}-open`}
         >
           <PenLine size={22} strokeWidth={1.6} />

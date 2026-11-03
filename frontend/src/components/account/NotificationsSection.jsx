@@ -14,7 +14,7 @@ const LABELS = {
 };
 
 const Chan = ({ label, children }) => (
-  <div className="flex min-w-[72px] flex-col items-center gap-1.5"><span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-600">{label}</span>{children}</div>
+  <div className="flex min-w-[72px] flex-col items-center gap-1.5"><span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--fg2)]">{label}</span>{children}</div>
 );
 
 export const NotificationsSection = ({ data, onSaved }) => {
@@ -29,14 +29,14 @@ export const NotificationsSection = ({ data, onSaved }) => {
   return (
     <Card id="account-notifications" icon={BellRing} title={doctor ? "Notifiche e avvisi" : "Preferenze di notifica"}
       text={doctor ? "Gli avvisi nella dashboard sono sempre attivi. Scelga per cosa ricevere anche un'email." : "Scelga come essere avvisato. Le email non contengono mai dati clinici."}>
-      <ul className="divide-y divide-slate-100">
+      <ul className="divide-y divide-[var(--hair)]">
         {Object.entries(data.prefs).map(([cat, p]) => (
           <li key={cat} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between" data-testid={`notify-row-${cat}`}>
-            <div className="min-w-0"><div className="font-medium text-night">{LABELS[cat]?.[0] ?? cat}</div><div className="text-xs text-slate-600">{LABELS[cat]?.[1]}</div></div>
+            <div className="min-w-0"><div className="font-medium text-[var(--fg)]">{LABELS[cat]?.[0] ?? cat}</div><div className="text-xs text-[var(--fg2)]">{LABELS[cat]?.[1]}</div></div>
             <div className="grid shrink-0 grid-cols-3 gap-2 sm:gap-5">
               <Chan label="Email"><Switch checked={p.email} disabled={busy === `${cat}-email`} onCheckedChange={(v) => toggle(cat, "email", v)} aria-label={`Email ${LABELS[cat]?.[0]}`} data-testid={`notify-${cat}-email`} /></Chan>
               <Chan label="In-App"><Switch checked={doctor ? true : p.inapp} disabled={doctor || busy === `${cat}-inapp`} onCheckedChange={(v) => toggle(cat, "inapp", v)} aria-label={`In-App ${LABELS[cat]?.[0]}`} data-testid={`notify-${cat}-inapp`} /></Chan>
-              <Chan label="SMS"><span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600" data-testid={`notify-${cat}-sms`}>In arrivo</span></Chan>
+              <Chan label="SMS"><span className="rounded-full bg-[var(--raised)] px-2.5 py-1 text-[11px] font-semibold text-[var(--fg2)]" data-testid={`notify-${cat}-sms`}>In arrivo</span></Chan>
             </div>
           </li>
         ))}

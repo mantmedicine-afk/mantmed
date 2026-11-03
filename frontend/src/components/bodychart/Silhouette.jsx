@@ -1,8 +1,8 @@
 import { silhouette, sideLabels, pathOf, CAT, VB_W, VB_H } from "@/lib/bodychart";
 import { DETAIL_DRAWINGS } from "./Details";
 
-const OUT = "#0A192F";
-const FILL = "#F1F4F9";
+const OUT = "var(--fg)";
+const FILL = "var(--raised)";
 
 const Shape = ({ s, outline }) => {
   const o = outline ? { fill: OUT, stroke: OUT, strokeWidth: 3.2, strokeLinejoin: "round" } : { fill: FILL };
@@ -18,7 +18,7 @@ const arch = (n, cx, cy, rx, ry, from, to) => Array.from({ length: n }, (_, i) =
 const Mouth = ({ kind }) => {
   const n = kind === "child" ? 10 : 16;
   const r = kind === "child" ? 8 : 6.2;
-  const txt = { fontFamily: "Arial, sans-serif", fontSize: 10, fill: "#5B6478", textAnchor: "middle" };
+  const txt = { fontFamily: "Arial, sans-serif", fontSize: 10, fill: "var(--fg2)", textAnchor: "middle" };
   return (
     <g data-testid="bodychart-detail-mouth">
       <ellipse cx={100} cy={230} rx={96} ry={200} fill="#F8E1DE" stroke={OUT} strokeWidth={3} />
@@ -50,9 +50,9 @@ export const Silhouette = ({ kind, view }) => {
             <g>{shapes.map((s, i) => <Shape key={`f${i}`} s={s} />)}</g>
           </g>
         ))}
-        <g fill="none" stroke="#9AA7BD" strokeWidth={1} strokeLinecap="round">{details.map((d, i) => <path key={i} d={d} />)}</g>
+        <g fill="none" stroke="var(--fg2)" strokeWidth={1} strokeLinecap="round">{details.map((d, i) => <path key={i} d={d} />)}</g>
       </g>
-      {labels && <g fontFamily="Arial, sans-serif" fontSize={11} fontWeight={700} fill="#5B6478"><text x={10} y={VB_H - 8}>{labels[0]}</text><text x={VB_W - 18} y={VB_H - 8}>{labels[1]}</text></g>}
+      {labels && <g fontFamily="Arial, sans-serif" fontSize={11} fontWeight={700} fill="var(--fg2)"><text x={10} y={VB_H - 8}>{labels[0]}</text><text x={VB_W - 18} y={VB_H - 8}>{labels[1]}</text></g>}
     </g>
   );
 };

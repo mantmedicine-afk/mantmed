@@ -41,34 +41,34 @@ export const PortalConsentDialog = ({ open, onClose, child, onSigned }) => {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[92vh] w-[calc(100vw-1.5rem)] overflow-y-auto rounded-3xl bg-white sm:max-w-lg" data-testid="portal-consent-dialog" data-lenis-prevent>
+      <DialogContent className="max-h-[92vh] w-[calc(100vw-1.5rem)] overflow-y-auto rounded-3xl bg-[var(--surface)] sm:max-w-lg" data-testid="portal-consent-dialog" data-lenis-prevent>
         <DialogHeader className="text-left">
-          <DialogTitle className="flex items-center gap-2 font-display text-3xl font-normal text-night"><ShieldCheck /> Consenso informato</DialogTitle>
-          <DialogDescription className="text-sm text-slate-600">Per {child?.patient.name} presso {tpl?.doctor ?? child?.doctor.name}. Dopo la firma riceverà il PDF nella sezione Consensi.</DialogDescription>
+          <DialogTitle className="flex items-center gap-2 font-display text-3xl font-normal text-[var(--fg)]"><ShieldCheck /> Consenso informato</DialogTitle>
+          <DialogDescription className="text-sm text-[var(--fg2)]">Per {child?.patient.name} presso {tpl?.doctor ?? child?.doctor.name}. Dopo la firma riceverà il PDF nella sezione Consensi.</DialogDescription>
         </DialogHeader>
-        {!tpl ? <Loader2 className="animate-spin text-night" /> : (
+        {!tpl ? <Loader2 className="animate-spin text-[var(--fg)]" /> : (
           <>
-            <p className="max-h-36 overflow-y-auto rounded-2xl bg-[#F4F5F7] p-4 text-xs leading-relaxed text-slate-700" data-testid="portal-consent-text">{tpl.text}</p>
+            <p className="max-h-36 overflow-y-auto rounded-2xl bg-[var(--raised)] p-4 text-xs leading-relaxed text-[var(--fg2)]" data-testid="portal-consent-text">{tpl.text}</p>
             <div className="grid gap-2">
               {tpl.clauses.map((c) => (
-                <label key={c.key} className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-night hover:border-night">
-                  <input type="checkbox" checked={f[c.key]} onChange={(e) => setF({ ...f, [c.key]: e.target.checked })} className="mt-0.5 h-4 w-4 accent-[#0A192F]" data-testid={`portal-consent-${c.key}`} />
-                  <span>{c.label} {c.required ? <span className="text-red-600">*</span> : <span className="text-slate-500">(facoltativo)</span>}</span>
+                <label key={c.key} className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[var(--hair)] px-4 py-3 text-sm text-[var(--fg)] hover:border-[var(--accent)]">
+                  <input type="checkbox" checked={f[c.key]} onChange={(e) => setF({ ...f, [c.key]: e.target.checked })} className="mt-0.5 h-4 w-4 accent-[var(--accent)]" data-testid={`portal-consent-${c.key}`} />
+                  <span>{c.label} {c.required ? <span className="text-[var(--alert)]">*</span> : <span className="text-[var(--fg2)]">(facoltativo)</span>}</span>
                 </label>
               ))}
             </div>
             <label className="grid gap-1.5">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">Lei è</span>
-              <select value={f.relation} onChange={(e) => setF({ ...f, relation: e.target.value })} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-night" data-testid="portal-consent-relation">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--fg2)]">Lei è</span>
+              <select value={f.relation} onChange={(e) => setF({ ...f, relation: e.target.value })} className="h-11 rounded-xl border border-[var(--hair)] bg-[var(--surface)] px-3 text-sm text-[var(--fg)]" data-testid="portal-consent-relation">
                 {tpl.relations.map((r) => <option key={r}>{r}</option>)}
               </select>
             </label>
             <SignatureField value={sig} onChange={setSig} defaultName={user?.name ?? ""} testId="portal-consent-signature"
               description={`Consenso informato per ${child?.patient.name}. Firmi per esteso con il dito o il pennino.`} />
-            <button onClick={submit} disabled={busy} className="flex h-12 items-center justify-center gap-2 rounded-full bg-night text-sm font-semibold text-white disabled:opacity-60" data-testid="portal-consent-submit">
+            <button onClick={submit} disabled={busy} className="flex h-12 items-center justify-center gap-2 rounded-full bg-[var(--accent)] text-sm font-semibold text-[var(--ink)] disabled:opacity-60" data-testid="portal-consent-submit">
               {busy ? <Loader2 size={16} className="animate-spin" /> : <PenLine size={16} />} Firma e invia allo studio
             </button>
-            <p className="text-[11px] leading-relaxed text-slate-500">Registriamo data e ora, indirizzo IP e dispositivo come prova della firma elettronica. Il PDF è protetto da modifiche e archiviato cifrato su server UE.</p>
+            <p className="text-[11px] leading-relaxed text-[var(--fg2)]">Registriamo data e ora, indirizzo IP e dispositivo come prova della firma elettronica. Il PDF è protetto da modifiche e archiviato cifrato su server UE.</p>
           </>
         )}
       </DialogContent>
@@ -82,17 +82,17 @@ export const ConsentBanner = ({ child, onSigned }) => {
   if (child.consent_at) return null;
   const next = child.appointments?.[0];
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#0A192F] p-4 text-white sm:p-5" data-testid={`portal-consent-banner-${child.patient.id}`}>
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[var(--accent)] p-4 text-[var(--ink)] sm:p-5" data-testid={`portal-consent-banner-${child.patient.id}`}>
       <div className="flex min-w-0 items-start gap-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/10"><FileSignature size={18} className="text-[#C9CCD3]" /></span>
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--sel)]"><FileSignature size={18} className="text-[var(--fg2)]" /></span>
         <div className="min-w-0">
           <div className="font-medium">Consenso informato da firmare</div>
-          <p className="text-sm text-slate-300">
+          <p className="text-sm text-[var(--fg2)]">
             {next ? `Prima della visita ${next.date ? `di ${dlong(next.date)}` : "di oggi"} alle ${next.time}` : "Prima della prima visita"} con {child.doctor.name} serve il consenso al trattamento dei dati. Può firmarlo ora; in alternativa lo firmerà in studio.
           </p>
         </div>
       </div>
-      <button onClick={() => setOpen(true)} className="flex h-11 items-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-night transition-transform hover:-translate-y-0.5" data-testid={`portal-consent-sign-btn-${child.patient.id}`}>
+      <button onClick={() => setOpen(true)} className="flex h-11 items-center gap-2 rounded-full bg-[var(--surface)] px-5 text-sm font-semibold text-[var(--fg)] transition-transform hover:-translate-y-0.5" data-testid={`portal-consent-sign-btn-${child.patient.id}`}>
         <PenLine size={15} /> Firma ora
       </button>
       <PortalConsentDialog open={open} onClose={() => setOpen(false)} child={child} onSigned={onSigned} />

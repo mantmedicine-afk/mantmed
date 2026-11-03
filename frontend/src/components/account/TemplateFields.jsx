@@ -7,7 +7,7 @@ export const GROUPS = [
 ];
 
 const IconBtn = ({ onClick, disabled, label, testid, children, danger }) => (
-  <button type="button" onClick={onClick} disabled={disabled} aria-label={label} className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-200 transition-colors disabled:opacity-30 ${danger ? "text-rose-700 hover:border-rose-400" : "text-night hover:border-night"}`} data-testid={testid}>{children}</button>
+  <button type="button" onClick={onClick} disabled={disabled} aria-label={label} className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--hair)] transition-colors disabled:opacity-30 ${danger ? "text-[var(--alert)] hover:border-[var(--alert)]" : "text-[var(--fg)] hover:border-[var(--accent)]"}`} data-testid={testid}>{children}</button>
 );
 
 export const TemplateFields = ({ fields, onChange }) => {
@@ -17,8 +17,8 @@ export const TemplateFields = ({ fields, onChange }) => {
   return (
     <div className="space-y-2" data-testid="template-fields">
       {fields.map((f, i) => (
-        <div key={f.id} className="grid gap-2 rounded-2xl border border-slate-200 bg-[#F8FAFC] p-3 sm:grid-cols-[auto_1.2fr_0.9fr_1.4fr_auto] sm:items-center" data-testid={`template-field-${i}`}>
-          <span className="font-mono text-xs text-[#3B6CF6]">{String(i + 1).padStart(2, "0")}</span>
+        <div key={f.id} className="grid gap-2 rounded-2xl border border-[var(--hair)] bg-[var(--raised)] p-3 sm:grid-cols-[auto_1.2fr_0.9fr_1.4fr_auto] sm:items-center" data-testid={`template-field-${i}`}>
+          <span className="font-mono text-xs text-[var(--accent)]">{String(i + 1).padStart(2, "0")}</span>
           <input value={f.titolo} onChange={(e) => set(i, { titolo: e.target.value })} placeholder="Titolo del campo" className={inp} data-testid={`template-field-title-${i}`} />
           <select value={f.gruppo} onChange={(e) => set(i, { gruppo: e.target.value })} className={inp} data-testid={`template-field-group-${i}`}>
             {GROUPS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -31,8 +31,8 @@ export const TemplateFields = ({ fields, onChange }) => {
           </div>
         </div>
       ))}
-      {!fields.length && <p className="rounded-2xl border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500" data-testid="template-fields-empty">Nessun campo: l'IA compilerà solo la cartella standard.</p>}
-      <button type="button" onClick={add} className="flex items-center gap-1.5 rounded-full border border-dashed border-slate-300 px-4 py-2 text-sm text-slate-600 hover:border-night hover:text-night" data-testid="template-field-add"><Plus size={14} /> Aggiungi campo</button>
+      {!fields.length && <p className="rounded-2xl border border-dashed border-[var(--hair)] p-5 text-center text-sm text-[var(--fg2)]" data-testid="template-fields-empty">Nessun campo: l'IA compilerà solo la cartella standard.</p>}
+      <button type="button" onClick={add} className="flex items-center gap-1.5 rounded-full border border-dashed border-[var(--hair)] px-4 py-2 text-sm text-[var(--fg2)] hover:border-[var(--accent)] hover:text-[var(--fg)]" data-testid="template-field-add"><Plus size={14} /> Aggiungi campo</button>
     </div>
   );
 };

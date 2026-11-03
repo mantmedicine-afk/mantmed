@@ -13,23 +13,23 @@ const longDay = (d) => new Date(`${d}T12:00:00`).toLocaleDateString("it-IT", { w
 export const PortalCover = ({ user, kids }) => {
   const next = kids.flatMap((c) => c.appointments.filter((a) => a.date).map((a) => ({ ...a, who: c.patient.name }))).sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))[0];
   return (
-    <section className="rounded-2xl border border-[#DCDDDF] bg-white p-6 sm:p-8" data-testid="portal-cover">
-      <h1 className="font-display text-3xl leading-tight text-[#0A192F] sm:text-4xl" data-testid="portal-greeting">{greet()}, {user?.name?.split(" ")[0]}</h1>
+    <section className="rounded-2xl border border-[var(--hair)] bg-[var(--surface)] p-6 sm:p-8" data-testid="portal-cover">
+      <h1 className="font-display text-3xl leading-tight text-[var(--fg)] sm:text-4xl" data-testid="portal-greeting">{greet()}, {user?.name?.split(" ")[0]}</h1>
       <div className="mt-4 flex flex-wrap gap-2">
-        {[...new Map(kids.map((c) => [c.group, c])).values()].map((c) => <span key={c.group} className="rounded-full bg-[#F2F2EF] px-4 py-1.5 text-sm text-[#0A192F]" data-testid={`portal-cover-kid-${c.patient.id}`}>{c.patient.name.split(" ")[0]}</span>)}
+        {[...new Map(kids.map((c) => [c.group, c])).values()].map((c) => <span key={c.group} className="rounded-full bg-[var(--raised)] px-4 py-1.5 text-sm text-[var(--fg)]" data-testid={`portal-cover-kid-${c.patient.id}`}>{c.patient.name.split(" ")[0]}</span>)}
       </div>
-      <div className="mt-5 flex items-center gap-3 rounded-xl bg-[#F2F2EF] p-4 sm:max-w-md" data-testid="portal-cover-next">
-        <CalendarClock size={20} strokeWidth={1.5} className="shrink-0 text-[#0A192F]" />
-        {next ? <div className="text-sm"><div className="text-slate-500">Prossimo appuntamento</div><div className="font-medium capitalize text-[#0A192F]">{longDay(next.date)} · {next.time} · {next.who.split(" ")[0]}</div><div className="text-slate-600">{next.visit_type} · {next.clinic}</div></div>
-          : <div className="text-sm text-slate-600">Nessun appuntamento in programma.</div>}
+      <div className="mt-5 flex items-center gap-3 rounded-xl bg-[var(--raised)] p-4 sm:max-w-md" data-testid="portal-cover-next">
+        <CalendarClock size={20} strokeWidth={1.5} className="shrink-0 text-[var(--fg)]" />
+        {next ? <div className="text-sm"><div className="text-[var(--fg2)]">Prossimo appuntamento</div><div className="font-medium capitalize text-[var(--fg)]">{longDay(next.date)} · {next.time} · {next.who.split(" ")[0]}</div><div className="text-[var(--fg2)]">{next.visit_type} · {next.clinic}</div></div>
+          : <div className="text-sm text-[var(--fg2)]">Nessun appuntamento in programma.</div>}
       </div>
     </section>
   );
 };
 
 const Term = ({ g }) => (
-  <Tooltip><TooltipTrigger asChild><button className="rounded-full bg-white px-3 py-1.5 text-sm text-night ring-1 ring-[#FFE5B4] decoration-dotted underline-offset-4 hover:underline" data-testid={`simple-term-${g.termine}`}>{g.termine}</button></TooltipTrigger>
-    <TooltipContent className="max-w-xs bg-night text-sm text-white">{g.spiegazione}</TooltipContent></Tooltip>
+  <Tooltip><TooltipTrigger asChild><button className="rounded-full bg-[var(--surface)] px-3 py-1.5 text-sm text-[var(--fg)] ring-1 ring-[var(--hair)] decoration-dotted underline-offset-4 hover:underline" data-testid={`simple-term-${g.termine}`}>{g.termine}</button></TooltipTrigger>
+    <TooltipContent className="max-w-xs bg-[var(--accent)] text-sm text-[var(--ink)]">{g.spiegazione}</TooltipContent></Tooltip>
 );
 
 export const SimpleBox = ({ kid }) => {
@@ -38,21 +38,21 @@ export const SimpleBox = ({ kid }) => {
   useEffect(() => { setS(null); api.portalSimple(pid).then(setS).catch(() => setS({ available: false })); }, [pid]);
   const who = kid.patient.name.split(" ")[0];
   return (
-    <section className="rounded-[32px] border border-[#FFE5B4] bg-[#FFF9E6] p-6 sm:p-8" data-testid="portal-simple-box">
-      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#B7791F]"><Sparkles size={14} strokeWidth={1.5} /> Ultima visita di {who}</div>
-      <h2 className="mt-2 font-display text-3xl text-night sm:text-4xl">In parole semplici</h2>
+    <section className="rounded-[32px] border border-[var(--hair)] bg-[var(--sel)] p-6 sm:p-8" data-testid="portal-simple-box">
+      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--fg)]"><Sparkles size={14} strokeWidth={1.5} /> Ultima visita di {who}</div>
+      <h2 className="mt-2 font-display text-3xl text-[var(--fg)] sm:text-4xl">In parole semplici</h2>
       {!s && <div className="mt-6 space-y-3"><div className="ai-shimmer h-4 w-11/12 rounded-full" /><div className="ai-shimmer h-4 w-2/3 rounded-full" /><div className="ai-shimmer h-4 w-3/4 rounded-full" /></div>}
-      {s && !s.available && <p className="mt-4 max-w-xl text-[#0A192F]/70" data-testid="portal-simple-empty">Dopo la prossima visita troverà qui, spiegato con parole chiare, cosa ha detto il medico, cosa fare a casa e quando tornare.</p>}
+      {s && !s.available && <p className="mt-4 max-w-xl text-[var(--fg2)]" data-testid="portal-simple-empty">Dopo la prossima visita troverà qui, spiegato con parole chiare, cosa ha detto il medico, cosa fare a casa e quando tornare.</p>}
       {s?.available && (
         <TooltipProvider delayDuration={100}>
-          <div className="mt-1 text-sm text-[#0A192F]/60">{new Date(s.created_at).toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" })}{s.clinic ? ` · ${s.clinic}` : ""}</div>
+          <div className="mt-1 text-sm text-[var(--fg2)]">{new Date(s.created_at).toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" })}{s.clinic ? ` · ${s.clinic}` : ""}</div>
           {(s.ai_provenance?.ai_generated || s.riepilogo_provenance?.ai_generated) && <AILabel variant="riassunto" className="mt-3" testId="portal-simple-ai-label" />}
-          <p className="mt-5 text-lg leading-relaxed text-night" data-testid="portal-simple-diagnosi">{s.diagnosi || s.riepilogo}</p>
+          <p className="mt-5 text-lg leading-relaxed text-[var(--fg)]" data-testid="portal-simple-diagnosi">{s.diagnosi || s.riepilogo}</p>
           <div className="mt-6 grid gap-4 md:grid-cols-2">
-            {s.cosa_fare?.length > 0 && <div className="rounded-2xl bg-white/70 p-5"><div className="flex items-center gap-2 text-sm font-semibold text-night"><ListChecks size={16} strokeWidth={1.5} /> Cosa fare</div><ul className="mt-3 space-y-2 text-sm text-[#0A192F]/80" data-testid="portal-simple-todo">{s.cosa_fare.map((x) => <li key={x} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#B7791F]" />{x}</li>)}</ul></div>}
-            {s.quando_tornare && <div className="rounded-2xl bg-white/70 p-5"><div className="flex items-center gap-2 text-sm font-semibold text-night"><CalendarHeart size={16} strokeWidth={1.5} /> Quando tornare</div><p className="mt-3 text-sm text-[#0A192F]/80" data-testid="portal-simple-when">{s.quando_tornare}</p></div>}
+            {s.cosa_fare?.length > 0 && <div className="rounded-2xl bg-[var(--sel)] p-5"><div className="flex items-center gap-2 text-sm font-semibold text-[var(--fg)]"><ListChecks size={16} strokeWidth={1.5} /> Cosa fare</div><ul className="mt-3 space-y-2 text-sm text-[var(--fg2)]" data-testid="portal-simple-todo">{s.cosa_fare.map((x) => <li key={x} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--sel)]" />{x}</li>)}</ul></div>}
+            {s.quando_tornare && <div className="rounded-2xl bg-[var(--sel)] p-5"><div className="flex items-center gap-2 text-sm font-semibold text-[var(--fg)]"><CalendarHeart size={16} strokeWidth={1.5} /> Quando tornare</div><p className="mt-3 text-sm text-[var(--fg2)]" data-testid="portal-simple-when">{s.quando_tornare}</p></div>}
           </div>
-          {s.glossario?.length > 0 && <div className="mt-6"><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#0A192F]/60"><BookOpen size={14} strokeWidth={1.5} /> Le parole del referto</div><div className="mt-3 flex flex-wrap gap-2" data-testid="portal-simple-glossary">{s.glossario.map((g) => <Term key={g.termine} g={g} />)}</div></div>}
+          {s.glossario?.length > 0 && <div className="mt-6"><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--fg2)]"><BookOpen size={14} strokeWidth={1.5} /> Le parole del referto</div><div className="mt-3 flex flex-wrap gap-2" data-testid="portal-simple-glossary">{s.glossario.map((g) => <Term key={g.termine} g={g} />)}</div></div>}
         </TooltipProvider>
       )}
     </section>
@@ -62,15 +62,15 @@ export const SimpleBox = ({ kid }) => {
 export const DoctorCard = ({ kid, onWrite, onBook }) => {
   const d = kid.doctor;
   return (
-    <section className="flex flex-col gap-5 rounded-[32px] bg-white p-6 ring-1 ring-[#0A192F]/10 transition-shadow duration-300 hover:shadow-md" data-testid="portal-doctor-card">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#0A192F]/50">Il medico di {kid.patient.name.split(" ")[0]}</div>
-      <div className="flex items-center gap-4"><Avatar src={d.photo_url} name={d.name} size="h-16 w-16 text-xl" /><div className="min-w-0"><div className="font-display text-2xl leading-tight text-night" data-testid="portal-doctor-name">{d.name}</div><div className="text-sm font-medium text-[#3B6CF6]">{d.specialty}</div></div></div>
-      {(d.clinics ?? []).length > 0 && <ul className="space-y-1.5 text-sm text-[#0A192F]/70">{d.clinics.map((c) => <li key={c.name} className="flex gap-2"><MapPin size={14} strokeWidth={1.5} className="mt-0.5 shrink-0" /><span><span className="text-night">{c.name}</span>{c.address ? ` · ${c.address}` : ""}</span></li>)}</ul>}
+    <section className="flex flex-col gap-5 rounded-[32px] bg-[var(--surface)] p-6 ring-1 ring-[var(--sel)] transition-shadow duration-300 hover:shadow-md" data-testid="portal-doctor-card">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--fg2)]">Il medico di {kid.patient.name.split(" ")[0]}</div>
+      <div className="flex items-center gap-4"><Avatar src={d.photo_url} name={d.name} size="h-16 w-16 text-xl" /><div className="min-w-0"><div className="font-display text-2xl leading-tight text-[var(--fg)]" data-testid="portal-doctor-name">{d.name}</div><div className="text-sm font-medium text-[var(--accent)]">{d.specialty}</div></div></div>
+      {(d.clinics ?? []).length > 0 && <ul className="space-y-1.5 text-sm text-[var(--fg2)]">{d.clinics.map((c) => <li key={c.name} className="flex gap-2"><MapPin size={14} strokeWidth={1.5} className="mt-0.5 shrink-0" /><span><span className="text-[var(--fg)]">{c.name}</span>{c.address ? ` · ${c.address}` : ""}</span></li>)}</ul>}
       <div className="mt-auto grid grid-cols-2 gap-2">
-        <button onClick={onWrite} className="flex h-11 items-center justify-center gap-1.5 rounded-full border border-[#0A192F]/15 text-sm font-medium text-night transition-colors hover:border-night" data-testid="portal-doctor-write"><MessagesSquare size={15} strokeWidth={1.5} /> Scrivi</button>
-        <button onClick={onBook} className="flex h-11 items-center justify-center gap-1.5 rounded-full bg-night text-sm font-semibold text-white transition-transform hover:-translate-y-0.5" data-testid="portal-doctor-book"><CalendarPlus size={15} strokeWidth={1.5} /> Prenota</button>
+        <button onClick={onWrite} className="flex h-11 items-center justify-center gap-1.5 rounded-full border border-[var(--sel)] text-sm font-medium text-[var(--fg)] transition-colors hover:border-[var(--accent)]" data-testid="portal-doctor-write"><MessagesSquare size={15} strokeWidth={1.5} /> Scrivi</button>
+        <button onClick={onBook} className="flex h-11 items-center justify-center gap-1.5 rounded-full bg-[var(--accent)] text-sm font-semibold text-[var(--ink)] transition-transform hover:-translate-y-0.5" data-testid="portal-doctor-book"><CalendarPlus size={15} strokeWidth={1.5} /> Prenota</button>
       </div>
-      {d.slug && <Link to={`/portale/trova-specialista?medico=${d.slug}`} className="text-center text-sm text-[#3B6CF6] hover:underline" data-testid="portal-doctor-showcase">Vedi la Vetrina dello studio</Link>}
+      {d.slug && <Link to={`/portale/trova-specialista?medico=${d.slug}`} className="text-center text-sm text-[var(--accent)] hover:underline" data-testid="portal-doctor-showcase">Vedi la Vetrina dello studio</Link>}
     </section>
   );
 };
@@ -83,7 +83,7 @@ export const PortalOverview = ({ user, kids, onWrite, onBook }) => {
   return (
     <div className="space-y-5" data-testid="portal-overview">
       <PortalCover user={user} kids={kids} />
-      {uniq.length > 1 && <div className="flex flex-wrap gap-2" data-testid="portal-overview-kids">{uniq.map((c) => <button key={c.patient.id} onClick={() => setPid(c.patient.id)} className={`rounded-full px-4 py-2 text-sm transition-colors ${c.patient.id === kid?.patient.id ? "bg-night text-white" : "bg-white text-night ring-1 ring-[#0A192F]/10 hover:ring-night"}`} data-testid={`portal-overview-kid-${c.patient.id}`}>{c.patient.name.split(" ")[0]} · {c.doctor.specialty}</button>)}</div>}
+      {uniq.length > 1 && <div className="flex flex-wrap gap-2" data-testid="portal-overview-kids">{uniq.map((c) => <button key={c.patient.id} onClick={() => setPid(c.patient.id)} className={`rounded-full px-4 py-2 text-sm transition-colors ${c.patient.id === kid?.patient.id ? "bg-[var(--accent)] text-[var(--ink)]" : "bg-[var(--surface)] text-[var(--fg)] ring-1 ring-[var(--sel)] hover:ring-[var(--accent)]"}`} data-testid={`portal-overview-kid-${c.patient.id}`}>{c.patient.name.split(" ")[0]} · {c.doctor.specialty}</button>)}</div>}
       {kid && <div className="grid grid-cols-1 gap-5 lg:grid-cols-12"><div className="space-y-3 lg:col-span-8"><SimpleBox kid={kid} /><MantAIButton variant="banner" view="patient" /></div><div className="lg:col-span-4"><DoctorCard kid={kid} onWrite={() => onWrite(kid)} onBook={() => onBook(kid)} /></div></div>}
     </div>
   );

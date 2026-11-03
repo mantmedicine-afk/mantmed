@@ -19,9 +19,9 @@ const PasswordCard = ({ data }) => {
   const [open, setOpen] = useState(false);
   return (
     <Card id="account-password" icon={KeyRound} title="Password" text={data.password_changed_at ? `Ultima modifica il ${day(data.password_changed_at)}.` : "Usi una password lunga e diversa da quelle di altri servizi."}
-      action={<button onClick={() => setOpen(true)} className="h-10 rounded-full bg-night px-5 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5" data-testid="account-change-password-btn">Cambia password</button>}>
+      action={<button onClick={() => setOpen(true)} className="h-10 rounded-full bg-[var(--accent)] px-5 text-sm font-semibold text-[var(--ink)] transition-transform hover:-translate-y-0.5" data-testid="account-change-password-btn">Cambia password</button>}>
       <ChangePasswordDialog open={open} onClose={() => setOpen(false)} />
-      <p className="text-xs text-slate-600">Ha dimenticato la password? Usi "Password dimenticata?" nella pagina di accesso.</p>
+      <p className="text-xs text-[var(--fg2)]">Ha dimenticato la password? Usi "Password dimenticata?" nella pagina di accesso.</p>
     </Card>
   );
 };
@@ -59,14 +59,14 @@ const Sessions = () => {
   const list = Array.isArray(items) ? items : [];
   return (
     <Card id="account-sessions" icon={MonitorSmartphone} title="Sessioni attive" text="Dispositivi su cui il suo account è aperto. Le sessioni si chiudono anche da sole dopo un periodo di inattività."
-      action={list.length > 1 && <button onClick={() => act("all")} disabled={!!busy} className="h-10 rounded-full border border-slate-200 px-4 text-sm font-medium text-night hover:border-night" data-testid="account-sessions-close-others">Chiudi le altre</button>}>
-      {items === null ? <Loader2 className="animate-spin text-night" /> : (
-        <ul className="divide-y divide-slate-100">
+      action={list.length > 1 && <button onClick={() => act("all")} disabled={!!busy} className="h-10 rounded-full border border-[var(--hair)] px-4 text-sm font-medium text-[var(--fg)] hover:border-[var(--accent)]" data-testid="account-sessions-close-others">Chiudi le altre</button>}>
+      {items === null ? <Loader2 className="animate-spin text-[var(--fg)]" /> : (
+        <ul className="divide-y divide-[var(--hair)]">
           {list.map((s) => (
             <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 py-3" data-testid={`account-session-${s.id}`}>
-              <div className="min-w-0"><div className="text-sm font-medium text-night">{device(s.device)} {s.current && <span className="ml-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-900">Questo dispositivo</span>}</div>
-                <div className="text-xs text-slate-600">Accesso {ago(s.created_at)} · ultima attività {ago(s.last_seen)}{s.ip ? ` · IP ${s.ip}` : ""}</div></div>
-              {!s.current && <button onClick={() => act(s.id)} disabled={!!busy} className="flex h-9 items-center gap-1.5 rounded-full border border-slate-200 px-3 text-xs font-medium text-rose-700 hover:border-rose-300" data-testid={`account-session-end-${s.id}`}>{busy === s.id ? <Loader2 size={13} className="animate-spin" /> : <LogOut size={13} />} Disconnetti</button>}
+              <div className="min-w-0"><div className="text-sm font-medium text-[var(--fg)]">{device(s.device)} {s.current && <span className="ml-1 rounded-full bg-[var(--sel)] px-2 py-0.5 text-[11px] font-semibold text-[var(--ok)]">Questo dispositivo</span>}</div>
+                <div className="text-xs text-[var(--fg2)]">Accesso {ago(s.created_at)} · ultima attività {ago(s.last_seen)}{s.ip ? ` · IP ${s.ip}` : ""}</div></div>
+              {!s.current && <button onClick={() => act(s.id)} disabled={!!busy} className="flex h-9 items-center gap-1.5 rounded-full border border-[var(--hair)] px-3 text-xs font-medium text-[var(--alert)] hover:border-[var(--alert)]" data-testid={`account-session-end-${s.id}`}>{busy === s.id ? <Loader2 size={13} className="animate-spin" /> : <LogOut size={13} />} Disconnetti</button>}
             </li>
           ))}
         </ul>

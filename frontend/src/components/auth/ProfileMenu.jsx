@@ -15,8 +15,8 @@ export const ProfileMenu = ({ trigger, onSecurity, onTour }) => {
         <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-64 rounded-2xl p-1.5" data-testid="profile-menu">
           <DropdownMenuLabel className="px-3 py-2">
-            <span className="block text-sm font-semibold text-night">{user?.name}</span>
-            <span className="block truncate text-xs font-normal text-slate-600" data-testid="profile-menu-email">{user?.email}</span>
+            <span className="block text-sm font-semibold text-[var(--fg)]">{user?.name}</span>
+            <span className="block truncate text-xs font-normal text-[var(--fg2)]" data-testid="profile-menu-email">{user?.email}</span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => nav(user?.role === "parent" ? "/portale/impostazioni" : "/app/impostazioni")} className="cursor-pointer gap-2 rounded-xl px-3 py-2.5 text-sm font-medium" data-testid="profile-account"><UserCog size={15} /> {user?.role === "parent" ? "Impostazioni account" : "Area riservata"}</DropdownMenuItem>
@@ -25,7 +25,7 @@ export const ProfileMenu = ({ trigger, onSecurity, onTour }) => {
           {onSecurity && <DropdownMenuItem onSelect={onSecurity} className="cursor-pointer gap-2 rounded-xl px-3 py-2.5 text-sm" data-testid="profile-security"><ShieldCheck size={15} /> Sicurezza e 2FA</DropdownMenuItem>}
           {onTour && <DropdownMenuItem onSelect={onTour} className="cursor-pointer gap-2 rounded-xl px-3 py-2.5 text-sm" data-testid="profile-tour"><Compass size={15} /> Rivedi tour</DropdownMenuItem>}
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => logout()} className="cursor-pointer gap-2 rounded-xl px-3 py-2.5 text-sm text-rose-700" data-testid="profile-logout"><LogOut size={15} /> Esci</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => logout()} className="cursor-pointer gap-2 rounded-xl px-3 py-2.5 text-sm text-[var(--alert)]" data-testid="profile-logout"><LogOut size={15} /> Esci</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <ChangePasswordDialog open={pw} onClose={() => setPw(false)} />

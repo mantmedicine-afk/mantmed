@@ -1,3 +1,4 @@
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -17,7 +18,7 @@ const Line = ({ children, delay }) => (
 );
 
 const Hint = ({ ok, show, children, id }) => show ? (
-  <p className={`mt-1.5 flex items-center gap-1.5 text-xs ${ok ? "text-emerald-300" : "text-amber-300"}`} data-testid={id}>{ok ? <Check size={12} /> : <AlertTriangle size={12} />}{children}</p>
+  <p className={`mt-1.5 flex items-center gap-1.5 text-xs ${ok ? "text-[var(--ok)]" : "text-[var(--fg)]"}`} data-testid={id}>{ok ? <Check size={12} /> : <AlertTriangle size={12} />}{children}</p>
 ) : null;
 
 const HOME = { doctor: "/app", parent: "/portale", admin: "/admin" };
@@ -33,7 +34,7 @@ const useWelcome = () => {
   };
 };
 
-const inputCls = "mt-1.5 w-full rounded-2xl border bg-white/5 px-4 py-3.5 text-white outline-none transition-colors placeholder:text-slate-400 focus:bg-white/10";
+const inputCls = "mt-1.5 w-full rounded-2xl border bg-[var(--sel)] px-4 py-3.5 text-[var(--ink)] outline-none transition-colors placeholder:text-[var(--fg2)] focus:bg-[var(--sel)]";
 
 export default function Login({ subtitle = "Workspace clinico · Pediatria specialistica", note = "Accesso protetto per i medici MantMed", signup = true, parent = false }) {
   const { login, verify2fa, reason } = useAuth();
@@ -63,34 +64,34 @@ export default function Login({ subtitle = "Workspace clinico · Pediatria speci
   };
 
   return (
-    <div className="grain relative grid min-h-screen place-items-center overflow-hidden bg-[#0A192F] px-5 py-10 text-white" data-testid="login-page">
-      {[0, 1, 2].map((i) => <span key={i} className="ring-pulse pointer-events-none absolute left-1/2 top-1/2 -ml-[140px] -mt-[140px] rounded-full border border-[#C9CCD3]/20" style={{ animationDelay: `${i * 1.2}s` }} />)}
+    <div className="grain relative grid min-h-screen place-items-center overflow-hidden theme-page bg-[var(--bg)] px-5 py-10 text-[var(--ink)]" data-testid="login-page"><ThemeToggle floating />
+      {[0, 1, 2].map((i) => <span key={i} className="ring-pulse pointer-events-none absolute left-1/2 top-1/2 -ml-[140px] -mt-[140px] rounded-full border border-[var(--hair)]" style={{ animationDelay: `${i * 1.2}s` }} />)}
       <div className="relative z-10 w-full max-w-md">
         <div className="mb-8 flex flex-col items-center text-center">
-          <div className="rounded-2xl border border-[#C9CCD3]/40 p-1.5"><LogoMark size={52} /></div>
+          <div className="rounded-2xl border border-[var(--hair)] p-1.5"><LogoMark size={52} /></div>
           <div className="mt-4 font-display text-4xl">MantMed</div>
-          <div className="mt-1 text-[11px] uppercase tracking-[0.28em] text-[#C9CCD3]" data-testid="login-subtitle">{subtitle}</div>
+          <div className="mt-1 text-[11px] uppercase tracking-[0.28em] text-[var(--fg2)]" data-testid="login-subtitle">{subtitle}</div>
         </div>
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25, duration: 0.6 }} className="rounded-[28px] border border-[#C9CCD3]/25 bg-white/[0.04] p-7 backdrop-blur-xl">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25, duration: 0.6 }} className="rounded-[28px] border border-[var(--hair)] bg-[var(--sel)] p-7 backdrop-blur-xl">
           {forgot ? <ForgotStep parent={parent} initial={emailOk ? email.trim() : ""} onBack={() => setForgot(false)} /> : mfa ? <MfaStep token={mfa} onBack={() => { setMfa(null); setPassword(""); }} verify2fa={verify2fa} onDone={welcome} /> : (
             <form onSubmit={submit} noValidate data-testid="login-form">
               <h1 className="font-display text-4xl leading-tight"><Line delay={0.3}>Area riservata</Line></h1>
-              <p className="mt-1 text-sm text-slate-300" data-testid="login-note">{note}</p>
-              {reason && <p className="mt-4 rounded-xl border border-[#C9CCD3]/30 bg-white/5 px-4 py-3 text-sm text-slate-200" data-testid="login-reason">{reason}</p>}
-              <label className="mt-6 block text-xs uppercase tracking-[0.16em] text-[#C9CCD3]">Email</label>
-              <input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={() => setTouched((t) => ({ ...t, email: true }))} placeholder="nome@mantmed.it" className={`${inputCls} ${touched.email && !emailOk ? "border-amber-300/60" : "border-white/15 focus:border-[#C9CCD3]"}`} data-testid="login-email-input" />
+              <p className="mt-1 text-sm text-[var(--fg2)]" data-testid="login-note">{note}</p>
+              {reason && <p className="mt-4 rounded-xl border border-[var(--hair)] bg-[var(--sel)] px-4 py-3 text-sm text-[var(--fg2)]" data-testid="login-reason">{reason}</p>}
+              <label className="mt-6 block text-xs uppercase tracking-[0.16em] text-[var(--fg2)]">Email</label>
+              <input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={() => setTouched((t) => ({ ...t, email: true }))} placeholder="nome@mantmed.it" className={`${inputCls} ${touched.email && !emailOk ? "border-[var(--hair)]" : "border-[var(--hair)] focus:border-[var(--hair)]"}`} data-testid="login-email-input" />
               <Hint show={touched.email || email.length > 3} ok={emailOk} id="login-email-hint">{emailOk ? "Formato email valido" : "Inserisci un'email valida"}</Hint>
-              <label className="mt-5 block text-xs uppercase tracking-[0.16em] text-[#C9CCD3]">Password</label>
+              <label className="mt-5 block text-xs uppercase tracking-[0.16em] text-[var(--fg2)]">Password</label>
               <div className="relative">
-                <input type={show ? "text" : "password"} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} onBlur={() => setTouched((t) => ({ ...t, password: true }))} className={`${inputCls} pr-12 ${touched.password && !pwOk ? "border-amber-300/60" : "border-white/15 focus:border-[#C9CCD3]"}`} data-testid="login-password-input" />
-                <button type="button" onClick={() => setShow(!show)} className="absolute right-3 top-1/2 mt-[3px] -translate-y-1/2 p-1 text-slate-300 hover:text-white" aria-label={show ? "Nascondi password" : "Mostra password"} data-testid="login-password-toggle">{show ? <EyeOff size={17} /> : <Eye size={17} />}</button>
+                <input type={show ? "text" : "password"} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} onBlur={() => setTouched((t) => ({ ...t, password: true }))} className={`${inputCls} pr-12 ${touched.password && !pwOk ? "border-[var(--hair)]" : "border-[var(--hair)] focus:border-[var(--hair)]"}`} data-testid="login-password-input" />
+                <button type="button" onClick={() => setShow(!show)} className="absolute right-3 top-1/2 mt-[3px] -translate-y-1/2 p-1 text-[var(--fg2)] hover:text-[var(--ink)]" aria-label={show ? "Nascondi password" : "Mostra password"} data-testid="login-password-toggle">{show ? <EyeOff size={17} /> : <Eye size={17} />}</button>
               </div>
               <div className="flex items-start justify-between gap-3">
                 <Hint show={touched.password || password.length > 0} ok={pwOk} id="login-password-hint">{pwOk ? "Lunghezza adeguata" : "Almeno 8 caratteri"}</Hint>
-                <button type="button" onClick={() => setForgot(true)} className="ml-auto mt-2 shrink-0 text-sm font-medium text-white underline decoration-[#C9CCD3]/60 underline-offset-4 transition-colors hover:decoration-white" data-testid="login-forgot-link">Password dimenticata?</button>
+                <button type="button" onClick={() => setForgot(true)} className="ml-auto mt-2 shrink-0 text-sm font-medium text-[var(--ink)] underline decoration-[var(--hair)] underline-offset-4 transition-colors hover:decoration-[var(--ink)]" data-testid="login-forgot-link">Password dimenticata?</button>
               </div>
-              {error && <p className="mt-4 rounded-xl bg-red-500/15 px-4 py-3 text-sm text-red-200" data-testid="login-error">{error}</p>}
-              <button type="submit" disabled={busy} className="group mt-7 flex w-full items-center justify-center gap-3 rounded-full bg-white py-4 font-semibold text-[#0A192F] transition-transform hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-60" data-testid="login-submit-button">
+              {error && <p className="mt-4 rounded-xl bg-[var(--alert-bg)] px-4 py-3 text-sm text-[var(--alert)]" data-testid="login-error">{error}</p>}
+              <button type="submit" disabled={busy} className="group mt-7 flex w-full items-center justify-center gap-3 rounded-full bg-[var(--accent)] py-4 font-semibold text-[var(--ink)] transition-transform hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-60" data-testid="login-submit-button">
                 {busy ? <Loader2 className="animate-spin" size={18} /> : <Lock size={16} />} {busy ? "Accesso in corso…" : "Accedi"}
                 {!busy && <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />}
               </button>
@@ -99,18 +100,18 @@ export default function Login({ subtitle = "Workspace clinico · Pediatria speci
         </motion.div>
         {signup && !parent && (
           <p className="mt-5 text-center text-sm" data-testid="login-parent-link-wrap">
-            <Link to="/portale" className="text-slate-300 underline decoration-[#C9CCD3]/60 underline-offset-4 transition-colors hover:text-white hover:decoration-white" data-testid="login-parent-link">Sei un genitore? Accedi all'area pazienti</Link>
+            <Link to="/portale" className="text-[var(--fg2)] underline decoration-[var(--hair)] underline-offset-4 transition-colors hover:text-[var(--ink)] hover:decoration-[var(--ink)]" data-testid="login-parent-link">Sei un genitore? Accedi all'area pazienti</Link>
           </p>
         )}
         {signup && (
           <div className="mt-5 flex flex-wrap justify-center gap-2 text-sm" data-testid="login-signup-links">
-            <span className="text-slate-300">Nuovo su MantMed?</span>
-            <Link to="/registrati/medico" className="font-medium text-white underline underline-offset-4" data-testid="login-signup-doctor">Registrati come Medico</Link>
-            <span className="text-slate-400">·</span>
-            <Link to="/registrati/paziente" className="font-medium text-white underline underline-offset-4" data-testid="login-signup-parent">Registrati come Paziente / Genitore</Link>
+            <span className="text-[var(--fg2)]">Nuovo su MantMed?</span>
+            <Link to="/registrati/medico" className="font-medium text-[var(--ink)] underline underline-offset-4" data-testid="login-signup-doctor">Registrati come Medico</Link>
+            <span className="text-[var(--fg2)]">·</span>
+            <Link to="/registrati/paziente" className="font-medium text-[var(--ink)] underline underline-offset-4" data-testid="login-signup-parent">Registrati come Paziente / Genitore</Link>
           </div>
         )}
-        <p className="mt-6 flex items-center justify-center gap-2 text-center text-xs text-slate-300"><ShieldCheck size={14} /> Connessione cifrata · blocco dopo 5 tentativi · chiusura automatica per inattività</p>
+        <p className="mt-6 flex items-center justify-center gap-2 text-center text-xs text-[var(--fg2)]"><ShieldCheck size={14} /> Connessione cifrata · blocco dopo 5 tentativi · chiusura automatica per inattività</p>
       </div>
     </div>
   );
@@ -139,18 +140,18 @@ const MfaStep = ({ token, onBack, verify2fa, onDone }) => {
   };
   return (
     <div data-testid="mfa-step">
-      <button onClick={onBack} className="flex items-center gap-1 text-xs text-slate-300 hover:text-white" data-testid="mfa-back-btn"><ArrowLeft size={13} /> Indietro</button>
+      <button onClick={onBack} className="flex items-center gap-1 text-xs text-[var(--fg2)] hover:text-[var(--ink)]" data-testid="mfa-back-btn"><ArrowLeft size={13} /> Indietro</button>
       <h1 className="mt-3 font-display text-4xl">Verifica in due passaggi</h1>
-      <p className="mt-1 text-sm text-slate-300">Inserisci il codice a 6 cifre dell'app di autenticazione.</p>
+      <p className="mt-1 text-sm text-[var(--fg2)]">Inserisci il codice a 6 cifre dell'app di autenticazione.</p>
       <div className="mt-6 grid grid-cols-6 gap-2">
         {digits.map((d, i) => (
           <input key={i} ref={(el) => { refs.current[i] = el; }} autoFocus={i === 0} inputMode="numeric" maxLength={6} value={d} disabled={busy}
             onChange={(e) => set(i, e.target.value)} onKeyDown={(e) => { if (e.key === "Backspace" && !d && i) refs.current[i - 1]?.focus(); }}
-            className="h-14 w-full rounded-xl border border-white/15 bg-white/5 text-center font-mono text-2xl text-white outline-none focus:border-[#C9CCD3]" data-testid={`mfa-digit-${i}`} />
+            className="h-14 w-full rounded-xl border border-[var(--hair)] bg-[var(--sel)] text-center font-mono text-2xl text-[var(--ink)] outline-none focus:border-[var(--hair)]" data-testid={`mfa-digit-${i}`} />
         ))}
       </div>
-      {busy && <p className="mt-4 flex items-center gap-2 text-sm text-slate-300"><Loader2 size={15} className="animate-spin" /> Verifica in corso…</p>}
-      {error && <p className="mt-4 rounded-xl bg-red-500/15 px-4 py-3 text-sm text-red-200" data-testid="mfa-error">{error}</p>}
+      {busy && <p className="mt-4 flex items-center gap-2 text-sm text-[var(--fg2)]"><Loader2 size={15} className="animate-spin" /> Verifica in corso…</p>}
+      {error && <p className="mt-4 rounded-xl bg-[var(--alert-bg)] px-4 py-3 text-sm text-[var(--alert)]" data-testid="mfa-error">{error}</p>}
     </div>
   );
 };

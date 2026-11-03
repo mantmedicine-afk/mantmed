@@ -14,8 +14,8 @@ export const TEMPLATES = {
   clinico: { title: "Dubbio clinico non urgente", body: "", fields: [] },
 };
 
-const inp = "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-night outline-none focus:border-night";
-const Label = ({ children }) => <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">{children}</span>;
+const inp = "h-11 w-full rounded-xl border border-[var(--hair)] bg-[var(--surface)] px-3 text-sm text-[var(--fg)] outline-none focus:border-[var(--accent)]";
+const Label = ({ children }) => <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--fg2)]">{children}</span>;
 const slug = (s) => s.toLowerCase().replace(/[^a-z]+/g, "-");
 
 const FieldInput = ({ f, value, onChange }) => (
@@ -46,10 +46,10 @@ export const NewThreadDialog = ({ kind, kids, onClose, onSent }) => {
   };
   return (
     <Dialog open={!!kind} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl bg-white sm:max-w-lg" data-testid="new-thread-dialog">
+      <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl bg-[var(--surface)] sm:max-w-lg" data-testid="new-thread-dialog">
         <DialogHeader>
-          <DialogTitle className="font-display text-3xl font-normal text-night">{tpl.title}</DialogTitle>
-          <DialogDescription className="text-sm text-slate-600">Il messaggio arriva direttamente allo specialista scelto. Riceverà una notifica qui nel portale quando risponde.</DialogDescription>
+          <DialogTitle className="font-display text-3xl font-normal text-[var(--fg)]">{tpl.title}</DialogTitle>
+          <DialogDescription className="text-sm text-[var(--fg2)]">Il messaggio arriva direttamente allo specialista scelto. Riceverà una notifica qui nel portale quando risponde.</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <label className="block"><Label>Figlio e specialista</Label>
@@ -60,7 +60,7 @@ export const NewThreadDialog = ({ kind, kids, onClose, onSent }) => {
           {tpl.fields.length > 0 && <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{tpl.fields.map((f) => <FieldInput key={f.label} f={f} value={vals[f.label]} onChange={(v) => setVals({ ...vals, [f.label]: v })} />)}</div>}
           <UrgencyNotice ownerId={to.split("|")[1]} patientId={to.split("|")[0]} />
           <label className="block"><Label>Messaggio *</Label><textarea rows={4} required minLength={2} maxLength={4000} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Descriva la sua richiesta…" className={`${inp} h-auto resize-none py-2`} data-testid="new-thread-body" /></label>
-          <button disabled={busy || !to || body.trim().length < 2} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-night text-sm font-semibold text-white disabled:opacity-60" data-testid="new-thread-submit">{busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} Invia allo studio</button>
+          <button disabled={busy || !to || body.trim().length < 2} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[var(--accent)] text-sm font-semibold text-[var(--ink)] disabled:opacity-60" data-testid="new-thread-submit">{busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} Invia allo studio</button>
         </form>
       </DialogContent>
     </Dialog>

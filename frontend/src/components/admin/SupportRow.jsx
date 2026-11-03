@@ -5,9 +5,9 @@ import { ChevronDown, Loader2, Send, Save, Star } from "lucide-react";
 import { api, errMsg } from "@/lib/api";
 
 export const ST = {
-  nuovo: { label: "Nuovi", one: "Nuovo", cls: "bg-amber-100 text-amber-900" },
+  nuovo: { label: "Nuovi", one: "Nuovo", cls: "bg-[var(--sel)] text-[var(--fg)]" },
   in_lavorazione: { label: "In lavorazione", one: "In lavorazione", cls: "bg-sky-100 text-sky-900" },
-  risolto: { label: "Risolti", one: "Risolto", cls: "bg-emerald-100 text-emerald-900" },
+  risolto: { label: "Risolti", one: "Risolto", cls: "bg-[var(--sel)] text-[var(--ok)]" },
 };
 const QUICK = [
   "Grazie per la segnalazione: il nostro team la sta già verificando e la aggiorneremo a breve.",
@@ -35,36 +35,36 @@ export const SupportRow = ({ item: i, onChange }) => {
   };
   const st = ST[i.status] ?? ST.nuovo;
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white" data-testid={`inbox-item-${i.id}`}>
+    <div className="rounded-2xl border border-[var(--hair)] bg-[var(--surface)]" data-testid={`inbox-item-${i.id}`}>
       <button onClick={() => setOpen((o) => !o)} className="grid w-full grid-cols-[1fr_auto] items-center gap-3 p-4 text-left md:grid-cols-[220px_200px_minmax(0,1fr)_120px_16px]" data-testid={`inbox-toggle-${i.id}`}>
-        <div className="min-w-0"><div className="truncate font-medium text-night">{i.name}</div><div className="truncate text-xs text-slate-600">{i.role_label} · {i.email}</div></div>
-        <div className="hidden text-xs text-slate-600 md:block"><span className="font-semibold text-night">{i.kind_label}</span><div>{fmt(i.created_at)}</div></div>
-        <div className="hidden truncate text-sm text-slate-600 md:block">{i.text || "—"}</div>
+        <div className="min-w-0"><div className="truncate font-medium text-[var(--fg)]">{i.name}</div><div className="truncate text-xs text-[var(--fg2)]">{i.role_label} · {i.email}</div></div>
+        <div className="hidden text-xs text-[var(--fg2)] md:block"><span className="font-semibold text-[var(--fg)]">{i.kind_label}</span><div>{fmt(i.created_at)}</div></div>
+        <div className="hidden truncate text-sm text-[var(--fg2)] md:block">{i.text || "—"}</div>
         <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${st.cls}`} data-testid={`inbox-status-${i.id}`}>{st.one}</span>
-        <ChevronDown size={16} className={`hidden text-slate-500 transition-transform md:block ${open ? "rotate-180" : ""}`} />
+        <ChevronDown size={16} className={`hidden text-[var(--fg2)] transition-transform md:block ${open ? "rotate-180" : ""}`} />
       </button>
       <AnimatePresence initial={false}>
         {open && (
           <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden">
-            <div className="grid grid-cols-1 gap-5 border-t border-slate-100 p-4 lg:grid-cols-2">
-              <div className="space-y-3 text-sm text-night">
-                <div className="text-xs text-slate-600">{i.kind_label} · {i.area_label}{i.rating ? <span className="ml-2 inline-flex items-center gap-1"><Star size={12} className="fill-night" /> {i.rating}/5</span> : null}</div>
-                <p className="whitespace-pre-wrap" data-testid={`inbox-text-${i.id}`}>{i.text || <span className="text-slate-500">Nessun testo.</span>}</p>
-                {i.tech && <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600" data-testid={`inbox-tech-${i.id}`}>Pagina: {i.tech.page} · Schermo: {i.tech.screen} · {i.tech.language}<div className="mt-1 break-all">{i.tech.user_agent}</div></div>}
-                {i.replies.map((r, n) => <div key={n} className="rounded-xl border-l-2 border-night bg-[#F3F6FF] p-3 text-sm" data-testid={`inbox-reply-${i.id}-${n}`}><div className="text-[11px] text-slate-500">Risposta del {fmt(r.at)}{r.email_sent === false ? " · email non recapitata, visibile solo in app" : ""}</div><p className="mt-1 whitespace-pre-wrap">{r.text}</p></div>)}
+            <div className="grid grid-cols-1 gap-5 border-t border-[var(--hair)] p-4 lg:grid-cols-2">
+              <div className="space-y-3 text-sm text-[var(--fg)]">
+                <div className="text-xs text-[var(--fg2)]">{i.kind_label} · {i.area_label}{i.rating ? <span className="ml-2 inline-flex items-center gap-1"><Star size={12} className="fill-[var(--accent)]" /> {i.rating}/5</span> : null}</div>
+                <p className="whitespace-pre-wrap" data-testid={`inbox-text-${i.id}`}>{i.text || <span className="text-[var(--fg2)]">Nessun testo.</span>}</p>
+                {i.tech && <div className="rounded-xl bg-[var(--raised)] p-3 text-xs text-[var(--fg2)]" data-testid={`inbox-tech-${i.id}`}>Pagina: {i.tech.page} · Schermo: {i.tech.screen} · {i.tech.language}<div className="mt-1 break-all">{i.tech.user_agent}</div></div>}
+                {i.replies.map((r, n) => <div key={n} className="rounded-xl border-l-2 border-[var(--accent)] bg-[var(--raised)] p-3 text-sm" data-testid={`inbox-reply-${i.id}-${n}`}><div className="text-[11px] text-[var(--fg2)]">Risposta del {fmt(r.at)}{r.email_sent === false ? " · email non recapitata, visibile solo in app" : ""}</div><p className="mt-1 whitespace-pre-wrap">{r.text}</p></div>)}
                 <div className="flex flex-wrap gap-1.5">
-                  {Object.entries(ST).map(([id, s]) => <button key={id} disabled={!!busy || i.status === id} onClick={() => run("st", () => api.patchFeedback(i.id, { status: id }), `Segnato come ${s.one.toLowerCase()}`)} className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-opacity disabled:opacity-100 ${i.status === id ? s.cls : "border border-slate-200 text-slate-600 hover:border-night"}`} data-testid={`inbox-set-${id}-${i.id}`}>{s.one}</button>)}
+                  {Object.entries(ST).map(([id, s]) => <button key={id} disabled={!!busy || i.status === id} onClick={() => run("st", () => api.patchFeedback(i.id, { status: id }), `Segnato come ${s.one.toLowerCase()}`)} className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-opacity disabled:opacity-100 ${i.status === id ? s.cls : "border border-[var(--hair)] text-[var(--fg2)] hover:border-[var(--accent)]"}`} data-testid={`inbox-set-${id}-${i.id}`}>{s.one}</button>)}
                 </div>
-                <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Nota interna (non visibile all'utente)" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm outline-none focus:border-night" data-testid={`inbox-note-${i.id}`} />
-                <button onClick={() => run("note", () => api.patchFeedback(i.id, { note }), "Nota salvata")} disabled={!!busy || note === i.note} className="flex h-9 items-center gap-1.5 rounded-full border border-slate-200 px-4 text-sm disabled:opacity-40" data-testid={`inbox-note-save-${i.id}`}>{busy === "note" ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Salva nota</button>
+                <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Nota interna (non visibile all'utente)" className="w-full rounded-xl border border-[var(--hair)] bg-[var(--raised)] p-3 text-sm outline-none focus:border-[var(--accent)]" data-testid={`inbox-note-${i.id}`} />
+                <button onClick={() => run("note", () => api.patchFeedback(i.id, { note }), "Nota salvata")} disabled={!!busy || note === i.note} className="flex h-9 items-center gap-1.5 rounded-full border border-[var(--hair)] px-4 text-sm disabled:opacity-40" data-testid={`inbox-note-save-${i.id}`}>{busy === "note" ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Salva nota</button>
               </div>
               <div className="space-y-2">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Risposta rapida · email + avviso in app</div>
-                <div className="flex flex-wrap gap-1.5">{QUICK.map((q, n) => <button key={n} onClick={() => setReply(q)} className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 hover:border-night" data-testid={`inbox-quick-${n}-${i.id}`}>{["Presa in carico", "Risolto", "Grazie del feedback"][n]}</button>)}</div>
-                <textarea value={reply} onChange={(e) => setReply(e.target.value)} rows={5} placeholder={`Scrivi a ${i.name}…`} className="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:border-night" data-testid={`inbox-reply-input-${i.id}`} />
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--fg2)]">Risposta rapida · email + avviso in app</div>
+                <div className="flex flex-wrap gap-1.5">{QUICK.map((q, n) => <button key={n} onClick={() => setReply(q)} className="rounded-full border border-[var(--hair)] px-3 py-1 text-xs text-[var(--fg2)] hover:border-[var(--accent)]" data-testid={`inbox-quick-${n}-${i.id}`}>{["Presa in carico", "Risolto", "Grazie del feedback"][n]}</button>)}</div>
+                <textarea value={reply} onChange={(e) => setReply(e.target.value)} rows={5} placeholder={`Scrivi a ${i.name}…`} className="w-full rounded-xl border border-[var(--hair)] p-3 text-sm outline-none focus:border-[var(--accent)]" data-testid={`inbox-reply-input-${i.id}`} />
                 <div className="flex flex-wrap gap-2">
-                  <button onClick={() => send(false)} disabled={!!busy || reply.trim().length < 2} className="flex h-10 items-center gap-1.5 rounded-full bg-night px-4 text-sm font-semibold text-white disabled:opacity-40" data-testid={`inbox-send-${i.id}`}>{busy === "reply" ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Invia risposta</button>
-                  <button onClick={() => send(true)} disabled={!!busy || reply.trim().length < 2} className="flex h-10 items-center gap-1.5 rounded-full border border-emerald-300 px-4 text-sm font-semibold text-emerald-800 disabled:opacity-40" data-testid={`inbox-send-resolve-${i.id}`}>{busy === "resolve" && <Loader2 size={14} className="animate-spin" />} Invia e segna risolto</button>
+                  <button onClick={() => send(false)} disabled={!!busy || reply.trim().length < 2} className="flex h-10 items-center gap-1.5 rounded-full bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--ink)] disabled:opacity-40" data-testid={`inbox-send-${i.id}`}>{busy === "reply" ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Invia risposta</button>
+                  <button onClick={() => send(true)} disabled={!!busy || reply.trim().length < 2} className="flex h-10 items-center gap-1.5 rounded-full border border-[var(--hair)] px-4 text-sm font-semibold text-[var(--ok)] disabled:opacity-40" data-testid={`inbox-send-resolve-${i.id}`}>{busy === "resolve" && <Loader2 size={14} className="animate-spin" />} Invia e segna risolto</button>
                 </div>
               </div>
             </div>

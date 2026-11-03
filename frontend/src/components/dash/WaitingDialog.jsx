@@ -30,8 +30,8 @@ export const WaitingDialog = ({ value, onClose, onSaved, patients = [] }) => {
 
   return (
     <Dialog open={Boolean(value)} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="rounded-3xl bg-white sm:max-w-md" data-testid="waiting-dialog">
-        <DialogHeader><DialogTitle className="font-display text-3xl font-normal text-night">{isEdit ? "Modifica paziente" : "Nuovo paziente in attesa"}</DialogTitle></DialogHeader>
+      <DialogContent className="rounded-3xl bg-[var(--surface)] sm:max-w-md" data-testid="waiting-dialog">
+        <DialogHeader><DialogTitle className="font-display text-3xl font-normal text-[var(--fg)]">{isEdit ? "Modifica paziente" : "Nuovo paziente in attesa"}</DialogTitle></DialogHeader>
         <div className="grid gap-4">
           <Field label="Paziente"><PatientSelect patients={patients} value={f.patient_id} onChange={(p) => setF((x) => ({ ...x, patient_id: p.id, name: p.name }))} testId="waiting-patient-select" /></Field>
           <Field label="Motivo della visita"><Input value={f.reason} onChange={set("reason")} data-testid="waiting-reason-input" /></Field>
@@ -39,19 +39,19 @@ export const WaitingDialog = ({ value, onClose, onSaved, patients = [] }) => {
             <Field label="Studio">
               <Select value={f.clinic} onValueChange={set("clinic")}>
                 <SelectTrigger data-testid="waiting-clinic-select"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-white">{CLINICS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                <SelectContent className="bg-[var(--surface)]">{CLINICS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
             <Field label="Priorità">
               <Select value={f.priority} onValueChange={set("priority")}>
                 <SelectTrigger data-testid="waiting-priority-select"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-white"><SelectItem value="normale">Normale</SelectItem><SelectItem value="urgente">Urgente</SelectItem></SelectContent>
+                <SelectContent className="bg-[var(--surface)]"><SelectItem value="normale">Normale</SelectItem><SelectItem value="urgente">Urgente</SelectItem></SelectContent>
               </Select>
             </Field>
           </div>
         </div>
         <div className="mt-2 flex justify-end">
-          <button onClick={save} className="rounded-full bg-night px-6 py-3 text-sm font-medium text-white transition-transform hover:-translate-y-0.5 active:scale-95" data-testid="waiting-save-btn">Salva</button>
+          <button onClick={save} className="rounded-full bg-[var(--accent)] px-6 py-3 text-sm font-medium text-[var(--ink)] transition-transform hover:-translate-y-0.5 active:scale-95" data-testid="waiting-save-btn">Salva</button>
         </div>
       </DialogContent>
     </Dialog>

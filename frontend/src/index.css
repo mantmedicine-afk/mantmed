@@ -129,12 +129,12 @@ code {
 
 /* Stile essenziale per Area Medico e Portale (AppShell) */
 .app-min {
-    --min-bg: #FBFBF8;
-    --min-soft: #F2F2EF;
-    --min-line: #C9CCD3;
+    --min-bg: var(--bg);
+    --min-soft: var(--raised);
+    --min-line: var(--hair);
     font-family: "Inter", system-ui, sans-serif;
     font-size: 16.5px;
-    color: #0A192F;
+    color: var(--fg);
     background: var(--min-bg);
 }
 .app-min .font-display { font-family: "Inter", system-ui, sans-serif; font-weight: 650; letter-spacing: -0.02em; }
@@ -142,8 +142,8 @@ code {
 .app-min .grain::before, .app-min .grain::after { display: none !important; }
 .app-min .rounded-3xl, .app-min .rounded-\[28px\], .app-min .rounded-\[24px\], .app-min .rounded-\[32px\] { border-radius: 16px; }
 .app-min .rounded-2xl { border-radius: 14px; }
-.app-min .shadow-2xl, .app-min .shadow-xl { box-shadow: 0 10px 30px -12px rgba(10, 25, 47, 0.18); }
-.app-min .ring-slate-200, .app-min .border-slate-200 { --tw-ring-color: #DCDDDF; border-color: #DCDDDF; }
+.app-min .shadow-2xl, .app-min .shadow-xl { box-shadow: var(--shadow); }
+.app-min .ring-slate-200, .app-min .border-slate-200 { --tw-ring-color: var(--hair); border-color: var(--hair); }
 @media (prefers-reduced-motion: reduce) {
     .app-min *, .app-min *::before, .app-min *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }

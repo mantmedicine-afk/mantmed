@@ -34,11 +34,11 @@ export const SendToParents = ({ consultation, beforeSend, disabled = false, need
     : `Destinatario: ${patient?.guardian || (ped ? "genitore" : consultation.patient_name)} · ${email}`;
 
   return (
-    <button onClick={send} disabled={disabled || needsSign || busy || !email || !patient?.consent_email} className="group flex w-full items-center gap-3 rounded-2xl border border-night px-5 py-4 text-left text-night transition-all hover:-translate-y-0.5 hover:bg-slate-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:opacity-70" data-testid="send-parents-btn">
-      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-night text-white">{busy ? <Loader2 size={18} className="animate-spin" /> : sent ? <CheckCircle2 size={18} /> : <Mail size={18} />}</span>
+    <button onClick={send} disabled={disabled || needsSign || busy || !email || !patient?.consent_email} className="group flex w-full items-center gap-3 rounded-2xl border border-[var(--accent)] px-5 py-4 text-left text-[var(--fg)] transition-all hover:-translate-y-0.5 hover:bg-[var(--raised)] disabled:cursor-not-allowed disabled:border-[var(--hair)] disabled:opacity-70" data-testid="send-parents-btn">
+      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--accent)] text-[var(--ink)]">{busy ? <Loader2 size={18} className="animate-spin" /> : sent ? <CheckCircle2 size={18} /> : <Mail size={18} />}</span>
       <span className="min-w-0">
         <span className="block font-display text-2xl leading-none">{busy ? "Invio in corso…" : `${sent ? "Invia di nuovo" : "Invia"} ${ped ? "ai genitori" : "al paziente"}`}</span>
-        <span className="mt-1 block text-xs text-slate-600" data-testid="send-parents-hint">{hint}</span>
+        <span className="mt-1 block text-xs text-[var(--fg2)]" data-testid="send-parents-hint">{hint}</span>
       </span>
     </button>
   );

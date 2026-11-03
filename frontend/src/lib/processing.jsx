@@ -99,14 +99,14 @@ const ProcessingIndicator = ({ jobs }) => {
           aria-live="polite"
           data-testid="processing-indicator"
         >
-          <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white/95 p-1.5 text-night sm:py-2 sm:pl-2 sm:pr-4 shadow-[0_10px_30px_-12px_rgba(10,25,47,0.35)] backdrop-blur">
-            <span className="relative grid h-8 w-8 place-items-center rounded-full bg-night text-white">
+          <div className="flex items-center gap-3 rounded-full border border-[var(--hair)] bg-[var(--sel)] p-1.5 text-[var(--fg)] sm:py-2 sm:pl-2 sm:pr-4 shadow-[var(--shadow)] backdrop-blur">
+            <span className="relative grid h-8 w-8 place-items-center rounded-full bg-[var(--accent)] text-[var(--ink)]">
               <Loader2 size={15} className="animate-spin" />
-              <Sparkles size={9} className="absolute -right-0.5 -top-0.5 text-[#A9C2FF]" />
+              <Sparkles size={9} className="absolute -right-0.5 -top-0.5 text-[var(--fg2)]" />
             </span>
             <span className="sr-only sm:not-sr-only sm:leading-tight">
               <span className="block text-sm font-semibold">Elaborazione referto in corso…</span>
-              <span className="hidden max-w-[260px] truncate text-[11px] text-slate-500 sm:block" data-testid="processing-indicator-names">
+              <span className="hidden max-w-[260px] truncate text-[11px] text-[var(--fg2)] sm:block" data-testid="processing-indicator-names">
                 {list.length === 1 ? `${list[0].patient_name}${list[0].step ? ` · ${list[0].step}` : ""}` : `${list.length} referti · ${list.map((j) => j.patient_name).join(", ")}`}
               </span>
             </span>

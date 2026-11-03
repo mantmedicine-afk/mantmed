@@ -5,11 +5,11 @@ import { CLINICS, CLINIC_ADDR } from "@/lib/api";
 import { AppointmentDialog } from "./AppointmentDialog";
 
 const STATUS = {
-  programmato: { label: "Programmato", dot: "bg-slate-300", text: "text-slate-600" },
-  in_attesa: { label: "In attesa", dot: "bg-amber-500", text: "text-amber-700" },
-  in_corso: { label: "In corso", dot: "bg-[#3B6CF6]", text: "text-[#2747B8]" },
-  completato: { label: "Completato", dot: "bg-emerald-500", text: "text-emerald-700" },
-  annullato: { label: "Annullato", dot: "bg-rose-400", text: "text-rose-700" },
+  programmato: { label: "Programmato", dot: "bg-[var(--hair)]", text: "text-[var(--fg2)]" },
+  in_attesa: { label: "In attesa", dot: "bg-[var(--sel)]0", text: "text-[var(--fg)]" },
+  in_corso: { label: "In corso", dot: "bg-[var(--accent)]", text: "text-[var(--fg)]" },
+  completato: { label: "Completato", dot: "bg-[var(--ok)]", text: "text-[var(--ok)]" },
+  annullato: { label: "Annullato", dot: "bg-[var(--alert)]", text: "text-[var(--alert)]" },
 };
 
 const slug = (s) => s.toLowerCase().replace(/\s+/g, "-");
@@ -20,15 +20,15 @@ export const Agenda = ({ appointments, onChange, patients = [], onPassport }) =>
   const items = appointments.filter((a) => a.clinic === clinic);
 
   return (
-    <section className="flex h-full flex-col rounded-[28px] border border-slate-200 bg-white p-5 lg:p-6" data-testid="agenda-panel">
+    <section className="flex h-full flex-col rounded-[28px] border border-[var(--hair)] bg-[var(--surface)] p-5 lg:p-6" data-testid="agenda-panel">
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Agenda del giorno</div>
-          <h2 className="mt-1 font-display text-3xl text-night">Studi</h2>
+          <div className="text-[11px] uppercase tracking-[0.22em] text-[var(--fg2)]">Agenda del giorno</div>
+          <h2 className="mt-1 font-display text-3xl text-[var(--fg)]">Studi</h2>
         </div>
         <button
           onClick={() => setEditing({ clinic })}
-          className="grid h-11 w-11 place-items-center rounded-full bg-night text-white transition-transform duration-200 hover:rotate-90 active:scale-95"
+          className="grid h-11 w-11 place-items-center rounded-full bg-[var(--accent)] text-[var(--ink)] transition-transform duration-200 hover:rotate-90 active:scale-95"
           data-testid="add-appointment-btn"
           aria-label="Aggiungi appuntamento"
         >
@@ -36,30 +36,30 @@ export const Agenda = ({ appointments, onChange, patients = [], onPassport }) =>
         </button>
       </div>
 
-      <div className={`relative mt-5 grid rounded-full bg-slate-100 p-1 ${CLINICS.length > 1 ? "grid-cols-2" : "grid-cols-1"}`} data-testid="clinic-tabs">
+      <div className={`relative mt-5 grid rounded-full bg-[var(--raised)] p-1 ${CLINICS.length > 1 ? "grid-cols-2" : "grid-cols-1"}`} data-testid="clinic-tabs">
         {CLINICS.map((c) => {
           const n = appointments.filter((a) => a.clinic === c).length;
           return (
             <button
               key={c}
               onClick={() => setClinic(c)}
-              className={`relative z-10 rounded-full px-3 py-2.5 text-sm font-medium transition-colors ${clinic === c ? "text-white" : "text-slate-600 hover:text-night"}`}
+              className={`relative z-10 rounded-full px-3 py-2.5 text-sm font-medium transition-colors ${clinic === c ? "text-[var(--ink)]" : "text-[var(--fg2)] hover:text-[var(--fg)]"}`}
               data-testid={`${slug(c)}-tab`}
             >
-              {clinic === c && <motion.span layoutId="clinic-pill" className="absolute inset-0 -z-10 rounded-full bg-night" transition={{ type: "spring", stiffness: 380, damping: 32 }} />}
+              {clinic === c && <motion.span layoutId="clinic-pill" className="absolute inset-0 -z-10 rounded-full bg-[var(--accent)]" transition={{ type: "spring", stiffness: 380, damping: 32 }} />}
               {c} <span className="ml-1 font-mono text-xs opacity-70">{n}</span>
             </button>
           );
         })}
       </div>
 
-      <div className="mt-2 flex items-center gap-1.5 px-1 text-xs text-slate-500">
+      <div className="mt-2 flex items-center gap-1.5 px-1 text-xs text-[var(--fg2)]">
         <MapPin size={12} /> {CLINIC_ADDR[clinic] || "Indirizzo non indicato"}
       </div>
 
       <ol className="relative mt-4 flex-1 space-y-1" data-testid="agenda-list">
-        <span className="absolute bottom-3 left-[62px] top-3 w-px bg-slate-200" />
-        {items.length === 0 && <li className="py-10 text-center text-sm text-slate-500">Nessun appuntamento.</li>}
+        <span className="absolute bottom-3 left-[62px] top-3 w-px bg-[var(--hair)]" />
+        {items.length === 0 && <li className="py-10 text-center text-sm text-[var(--fg2)]">Nessun appuntamento.</li>}
         {items.map((a, i) => <AgendaRow key={a.id} a={a} i={i} age={patients.find((p) => p.id === a.patient_id)?.age_label} onClick={() => setEditing(a)} onPassport={a.patient_id && onPassport ? () => onPassport(a.patient_id) : null} />)}
       </ol>
 
@@ -80,22 +80,22 @@ const AgendaRow = ({ a, i, age, onClick, onPassport }) => {
     >
       <button
         onClick={onClick}
-        className={`group grid w-full grid-cols-[50px_24px_1fr] items-center gap-0 rounded-2xl px-1 py-2.5 text-left transition-colors hover:bg-slate-50 ${a.status === "completato" ? "opacity-60" : ""}`}
+        className={`group grid w-full grid-cols-[50px_24px_1fr] items-center gap-0 rounded-2xl px-1 py-2.5 text-left transition-colors hover:bg-[var(--raised)] ${a.status === "completato" ? "opacity-60" : ""}`}
         data-testid={`appointment-row-${a.id}`}
       >
-        <span className="font-mono text-sm tabular-nums text-night">{a.time}</span>
-        <span className="relative z-10 flex justify-center"><span className={`h-2.5 w-2.5 rounded-full ring-4 ring-white ${s.dot}`} /></span>
+        <span className="font-mono text-sm tabular-nums text-[var(--fg)]">{a.time}</span>
+        <span className="relative z-10 flex justify-center"><span className={`h-2.5 w-2.5 rounded-full ring-4 ring-[var(--ink)] ${s.dot}`} /></span>
         <span className="min-w-0 pl-2">
-          <span className="block truncate pr-10 text-[15px] font-medium text-night transition-transform duration-200 group-hover:translate-x-0.5">{a.patient_name}{age && <span className="ml-2 text-xs font-normal text-slate-500">{age}</span>}</span>
+          <span className="block truncate pr-10 text-[15px] font-medium text-[var(--fg)] transition-transform duration-200 group-hover:translate-x-0.5">{a.patient_name}{age && <span className="ml-2 text-xs font-normal text-[var(--fg2)]">{age}</span>}</span>
           <span className="flex items-center gap-2 text-xs">
-            <span className="truncate text-slate-500">{a.visit_type}</span>
+            <span className="truncate text-[var(--fg2)]">{a.visit_type}</span>
             <span className={`shrink-0 ${s.text}`}>· {s.label}</span>
-            {a.paid_online && <span className="shrink-0 font-medium text-emerald-700" data-testid={`appointment-paid-${a.id}`}>· Pagato online</span>}
+            {a.paid_online && <span className="shrink-0 font-medium text-[var(--ok)]" data-testid={`appointment-paid-${a.id}`}>· Pagato online</span>}
           </span>
         </span>
       </button>
       {onPassport && (
-        <button onClick={onPassport} className="absolute right-1 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-slate-500 transition-colors hover:bg-night hover:text-white" aria-label="Apri passaporto sanitario" data-testid={`appointment-passport-${a.id}`}>
+        <button onClick={onPassport} className="absolute right-1 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-[var(--fg2)] transition-colors hover:bg-[var(--accent)] hover:text-[var(--ink)]" aria-label="Apri passaporto sanitario" data-testid={`appointment-passport-${a.id}`}>
           <BookUser size={15} />
         </button>
       )}

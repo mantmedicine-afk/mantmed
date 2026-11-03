@@ -35,8 +35,8 @@ export const AppointmentDialog = ({ value, onClose, onSaved, patients = [] }) =>
 
   return (
     <Dialog open={Boolean(value)} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="rounded-3xl bg-white sm:max-w-md" data-testid="appointment-dialog">
-        <DialogHeader><DialogTitle className="font-display text-3xl font-normal text-night">{isEdit ? "Modifica appuntamento" : "Nuovo appuntamento"}</DialogTitle></DialogHeader>
+      <DialogContent className="rounded-3xl bg-[var(--surface)] sm:max-w-md" data-testid="appointment-dialog">
+        <DialogHeader><DialogTitle className="font-display text-3xl font-normal text-[var(--fg)]">{isEdit ? "Modifica appuntamento" : "Nuovo appuntamento"}</DialogTitle></DialogHeader>
         <div className="grid gap-4">
           <Field label="Paziente"><PatientSelect patients={patients} value={f.patient_id} onChange={(p) => setF((x) => ({ ...x, patient_id: p.id, patient_name: p.name }))} testId="appointment-patient-select" /></Field>
           <Field label="Tipo di visita"><Input value={f.visit_type} onChange={set("visit_type")} data-testid="appointment-type-input" /></Field>
@@ -45,20 +45,20 @@ export const AppointmentDialog = ({ value, onClose, onSaved, patients = [] }) =>
             <Field label="Studio">
               <Select value={f.clinic} onValueChange={set("clinic")}>
                 <SelectTrigger data-testid="appointment-clinic-select"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-white">{CLINICS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                <SelectContent className="bg-[var(--surface)]">{CLINICS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
           </div>
           <Field label="Stato">
             <Select value={f.status} onValueChange={set("status")}>
               <SelectTrigger data-testid="appointment-status-select"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-white">{STATUSES.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
+              <SelectContent className="bg-[var(--surface)]">{STATUSES.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
             </Select>
           </Field>
         </div>
         <div className="mt-2 flex items-center justify-between gap-3">
-          {isEdit ? <button onClick={remove} className="text-sm font-medium text-red-600 hover:underline" data-testid="appointment-delete-btn">Elimina</button> : <span />}
-          <button onClick={save} className="rounded-full bg-night px-6 py-3 text-sm font-medium text-white transition-transform hover:-translate-y-0.5 active:scale-95" data-testid="appointment-save-btn">Salva</button>
+          {isEdit ? <button onClick={remove} className="text-sm font-medium text-[var(--alert)] hover:underline" data-testid="appointment-delete-btn">Elimina</button> : <span />}
+          <button onClick={save} className="rounded-full bg-[var(--accent)] px-6 py-3 text-sm font-medium text-[var(--ink)] transition-transform hover:-translate-y-0.5 active:scale-95" data-testid="appointment-save-btn">Salva</button>
         </div>
       </DialogContent>
     </Dialog>
@@ -66,5 +66,5 @@ export const AppointmentDialog = ({ value, onClose, onSaved, patients = [] }) =>
 };
 
 export const Field = ({ label, children }) => (
-  <div className="grid gap-1.5"><Label className="text-xs uppercase tracking-[0.16em] text-slate-500">{label}</Label>{children}</div>
+  <div className="grid gap-1.5"><Label className="text-xs uppercase tracking-[0.16em] text-[var(--fg2)]">{label}</Label>{children}</div>
 );

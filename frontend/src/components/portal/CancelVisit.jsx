@@ -15,7 +15,7 @@ export const CancelVisit = ({ a, onDone, autoOpen = false }) => {
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   if (!canCancel(a)) {
-    return <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-600" data-testid={`portal-cancel-closed-${a.id}`}><Phone size={12} /> Mancano meno di {CUTOFF_H} ore: per annullare telefoni allo studio.</p>;
+    return <p className="mt-2 flex items-center gap-1.5 text-xs text-[var(--fg2)]" data-testid={`portal-cancel-closed-${a.id}`}><Phone size={12} /> Mancano meno di {CUTOFF_H} ore: per annullare telefoni allo studio.</p>;
   }
   const go = async () => {
     setBusy(true);
@@ -24,15 +24,15 @@ export const CancelVisit = ({ a, onDone, autoOpen = false }) => {
     setBusy(false);
   };
   if (!open) {
-    return <button onClick={() => setOpen(true)} className="mt-2 flex items-center gap-1.5 text-xs font-medium text-rose-700 underline-offset-4 hover:underline" data-testid={`portal-cancel-btn-${a.id}`}><XCircle size={13} /> Annulla visita</button>;
+    return <button onClick={() => setOpen(true)} className="mt-2 flex items-center gap-1.5 text-xs font-medium text-[var(--alert)] underline-offset-4 hover:underline" data-testid={`portal-cancel-btn-${a.id}`}><XCircle size={13} /> Annulla visita</button>;
   }
   return (
-    <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50/60 p-3" data-testid={`portal-cancel-box-${a.id}`}>
-      <p className="text-sm text-night">Vuole annullare questa visita? L'orario tornerà disponibile per altri pazienti.{a.paid_online ? " Il pagamento online le sarà rimborsato per intero." : ""}</p>
-      <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} placeholder="Motivo (facoltativo)" className="mt-2 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-night outline-none focus:border-night" data-testid={`portal-cancel-reason-${a.id}`} />
+    <div className="mt-3 rounded-xl border border-[var(--alert)] bg-[var(--alert-bg)] p-3" data-testid={`portal-cancel-box-${a.id}`}>
+      <p className="text-sm text-[var(--fg)]">Vuole annullare questa visita? L'orario tornerà disponibile per altri pazienti.{a.paid_online ? " Il pagamento online le sarà rimborsato per intero." : ""}</p>
+      <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} placeholder="Motivo (facoltativo)" className="mt-2 h-10 w-full rounded-xl border border-[var(--hair)] bg-[var(--surface)] px-3 text-sm text-[var(--fg)] outline-none focus:border-[var(--accent)]" data-testid={`portal-cancel-reason-${a.id}`} />
       <div className="mt-2 flex flex-wrap gap-2">
-        <button onClick={go} disabled={busy} className="flex h-9 items-center gap-1.5 rounded-full bg-rose-700 px-4 text-xs font-semibold text-white disabled:opacity-60" data-testid={`portal-cancel-confirm-${a.id}`}>{busy ? <Loader2 size={13} className="animate-spin" /> : <XCircle size={13} />} Conferma annullamento</button>
-        <button onClick={() => setOpen(false)} className="h-9 rounded-full border border-slate-200 bg-white px-4 text-xs text-night" data-testid={`portal-cancel-keep-${a.id}`}>Mantieni la visita</button>
+        <button onClick={go} disabled={busy} className="flex h-9 items-center gap-1.5 rounded-full bg-[var(--alert)] px-4 text-xs font-semibold text-[var(--ink)] disabled:opacity-60" data-testid={`portal-cancel-confirm-${a.id}`}>{busy ? <Loader2 size={13} className="animate-spin" /> : <XCircle size={13} />} Conferma annullamento</button>
+        <button onClick={() => setOpen(false)} className="h-9 rounded-full border border-[var(--hair)] bg-[var(--surface)] px-4 text-xs text-[var(--fg)]" data-testid={`portal-cancel-keep-${a.id}`}>Mantieni la visita</button>
       </div>
     </div>
   );

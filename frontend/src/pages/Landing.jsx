@@ -9,7 +9,7 @@ export default function Landing() {
   const [kind, setKind] = useState("beta");
   const beta = () => { setKind("beta"); scrollTo("contatti"); };
   return (
-    <div className="min-h-screen overflow-x-clip bg-[#0A192F]" data-testid="landing-page">
+    <div className="min-h-screen overflow-x-clip theme-page bg-[var(--bg)]" data-testid="landing-page">
       <LandingHeader />
       <main>
         <LandingHero onBeta={beta} />
@@ -18,11 +18,11 @@ export default function Landing() {
         <LandingSecurity />
         <LandingContact kind={kind} setKind={setKind} />
       </main>
-      <footer className="border-t border-[#C9CCD3]/15" data-testid="landing-footer">
-        <div className="mx-auto flex max-w-[1280px] flex-col gap-4 px-5 py-10 text-sm text-[#C9CCD3] sm:flex-row sm:items-center sm:justify-between lg:px-10">
+      <footer className="border-t border-[var(--hair)]" data-testid="landing-footer">
+        <div className="mx-auto flex max-w-[1280px] flex-col gap-4 px-5 py-10 text-sm text-[var(--fg2)] sm:flex-row sm:items-center sm:justify-between lg:px-10">
           <div className="flex items-center gap-3"><LogoMark size={28} light /><span>© {new Date().getFullYear()} MantMed · Workspace clinico per lo specialista</span></div>
-          <div className="flex gap-6"><Link to="/privacy" className="underline-offset-4 hover:text-white hover:underline" data-testid="footer-privacy-link">Privacy e AI</Link>
-          <Link to="/app" className="text-white underline-offset-4 hover:underline" data-testid="footer-login-link">Area riservata medici</Link></div>
+          <div className="flex gap-6"><Link to="/privacy" className="underline-offset-4 hover:text-[var(--ink)] hover:underline" data-testid="footer-privacy-link">Privacy e AI</Link>
+          <Link to="/app" className="text-[var(--ink)] underline-offset-4 hover:underline" data-testid="footer-login-link">Area riservata medici</Link></div>
         </div>
       </footer>
     </div>

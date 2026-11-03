@@ -26,17 +26,17 @@ export const CodeStep = ({ email, onDone, onBack, onResend }) => {
   };
   return (
     <form onSubmit={submit} data-testid="register-code-form">
-      <MailCheck className="text-[#C9CCD3]" />
-      <p className="mt-3 text-sm text-slate-200">Abbiamo inviato un codice a 6 cifre a <strong className="text-white">{email}</strong>. Lo inserisca qui sotto: scade tra 15 minuti.</p>
+      <MailCheck className="text-[var(--fg2)]" />
+      <p className="mt-3 text-sm text-[var(--fg2)]">Abbiamo inviato un codice a 6 cifre a <strong className="text-[var(--ink)]">{email}</strong>. Lo inserisca qui sotto: scade tra 15 minuti.</p>
       <input value={code} onChange={(e) => { setError(""); setCode(e.target.value.replace(/\D/g, "").slice(0, 6)); }} inputMode="numeric" autoFocus placeholder="000000"
-        className={`mt-5 h-14 w-full rounded-xl border bg-white/5 text-center font-mono text-2xl tracking-[0.5em] text-white outline-none ${error ? "border-rose-400/70" : "border-white/15 focus:border-[#C9CCD3]"}`} data-testid="register-code-input" />
+        className={`mt-5 h-14 w-full rounded-xl border bg-[var(--sel)] text-center font-mono text-2xl tracking-[0.5em] text-[var(--ink)] outline-none ${error ? "border-[var(--alert)]" : "border-[var(--hair)] focus:border-[var(--hair)]"}`} data-testid="register-code-input" />
       <FieldMsg id="register-code" error={error} />
-      <button disabled={busy || code.length !== 6} className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-white text-sm font-semibold text-[#0A192F] disabled:opacity-50" data-testid="register-code-submit">
+      <button disabled={busy || code.length !== 6} className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[var(--accent)] text-sm font-semibold text-[var(--ink)] disabled:opacity-50" data-testid="register-code-submit">
         {busy ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />} {busy ? "Verifica in corso…" : "Verifica email"}
       </button>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm">
-        <button type="button" onClick={onBack} className="text-slate-300 underline underline-offset-4" data-testid="register-code-back">Correggi i dati</button>
-        <button type="button" disabled={left > 0} onClick={resend} className="inline-flex items-center gap-1.5 text-white underline underline-offset-4 disabled:text-slate-400 disabled:no-underline" data-testid="register-code-resend">
+        <button type="button" onClick={onBack} className="text-[var(--fg2)] underline underline-offset-4" data-testid="register-code-back">Correggi i dati</button>
+        <button type="button" disabled={left > 0} onClick={resend} className="inline-flex items-center gap-1.5 text-[var(--ink)] underline underline-offset-4 disabled:text-[var(--fg2)] disabled:no-underline" data-testid="register-code-resend">
           <RotateCw size={13} /> {left > 0 ? `Nuovo codice tra ${left}s` : "Invia un nuovo codice"}
         </button>
       </div>

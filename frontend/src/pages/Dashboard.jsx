@@ -124,7 +124,7 @@ export default function Dashboard() {
     <ProcessingProvider onSettled={load} onOpen={openVisit}>
     <TrackPending notes={notes} />
     <AppShell items={items} area="Studio medico">
-    <div className="min-h-screen overflow-x-clip bg-paper" data-testid="dashboard" data-section={sezione}>
+    <div className="min-h-screen overflow-x-clip bg-[var(--bg)]" data-testid="dashboard" data-section={sezione}>
       <TopBar onCompliance={() => setCompliance(true)} onFeedback={() => setFeedback(true)} onTour={() => setTour(true)} unread={unread} search={search} />
       {sezione === "agenda" && <OggiScreen appointments={appointments} patients={patients} notes={notes} unread={unread + aiQueued} requests={requests}
         onStart={start} onOpenPatient={setPassportId} onSign={openVisit} top={<><AbsenceBanner /><SupportReplies /><SignatureReminder /></>} />}
@@ -133,8 +133,8 @@ export default function Dashboard() {
         <PageTitle kicker="Archivio clinico" title="Pazienti" it="& cartelle cliniche" />
         <div className="mx-auto max-w-[1440px] space-y-5 pb-12" data-testid="patients-page">
           <div className="flex gap-2 px-5 lg:px-8" role="tablist">
-            <button role="tab" aria-selected={!showVisits} onClick={() => setShowVisits(false)} className={`h-11 rounded-xl px-5 text-[15px] font-medium ${!showVisits ? "bg-[#0A192F] text-white" : "bg-[#F2F2EF] text-[#0A192F]"}`} data-testid="patients-tab-list">Pazienti</button>
-            <button role="tab" aria-selected={showVisits} onClick={() => setShowVisits(true)} className={`h-11 rounded-xl px-5 text-[15px] font-medium ${showVisits ? "bg-[#0A192F] text-white" : "bg-[#F2F2EF] text-[#0A192F]"}`} data-testid="patients-tab-visits">Tutte le visite</button>
+            <button role="tab" aria-selected={!showVisits} onClick={() => setShowVisits(false)} className={`h-11 rounded-xl px-5 text-[15px] font-medium ${!showVisits ? "bg-[var(--accent)] text-[var(--ink)]" : "bg-[var(--raised)] text-[var(--fg)]"}`} data-testid="patients-tab-list">Pazienti</button>
+            <button role="tab" aria-selected={showVisits} onClick={() => setShowVisits(true)} className={`h-11 rounded-xl px-5 text-[15px] font-medium ${showVisits ? "bg-[var(--accent)] text-[var(--ink)]" : "bg-[var(--raised)] text-[var(--fg)]"}`} data-testid="patients-tab-visits">Tutte le visite</button>
           </div>
           {showVisits ? <VisitsList notes={notes} onOpen={openVisit} /> : <>
           {folder && <div className="px-5 lg:px-8" id="patient-folder"><PatientFolder patient={patients.find((p) => p.id === folder)} notes={notes} onOpenVisit={openVisit} onPassport={setPassportId} onClose={() => setFolder(null)} /></div>}

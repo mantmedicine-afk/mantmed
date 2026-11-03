@@ -12,22 +12,22 @@ const FEATURES = [
 ];
 
 export const LandingFeatures = () => (
-  <section id="vantaggi" className="scroll-mt-20 bg-[#F4F5F7]" data-testid="landing-features">
+  <section id="vantaggi" className="scroll-mt-20 bg-[var(--raised)]" data-testid="landing-features">
     <div className="mx-auto max-w-[1280px] px-5 py-24 lg:px-10 lg:py-32">
       <motion.div {...reveal()} className="max-w-2xl">
-        <div className="text-[11px] uppercase tracking-[0.24em] text-slate-600">Vantaggi chiave</div>
-        <h2 className="mt-3 font-display text-4xl leading-tight text-[#0A192F] sm:text-5xl">Meno tastiera, <span className="italic text-slate-500">più medicina.</span></h2>
-        <p className="mt-5 text-base text-slate-600 md:text-lg">Ogni funzione nasce da una visita reale: niente moduli superflui, solo gli strumenti che servono tra un paziente e l'altro.</p>
+        <div className="text-[11px] uppercase tracking-[0.24em] text-[var(--fg2)]">Vantaggi chiave</div>
+        <h2 className="mt-3 font-display text-4xl leading-tight text-[var(--fg)] sm:text-5xl">Meno tastiera, <span className="italic text-[var(--fg2)]">più medicina.</span></h2>
+        <p className="mt-5 text-base text-[var(--fg2)] md:text-lg">Ogni funzione nasce da una visita reale: niente moduli superflui, solo gli strumenti che servono tra un paziente e l'altro.</p>
       </motion.div>
       <div className="mt-14 grid grid-cols-1 gap-4 md:grid-cols-3">
         {FEATURES.map((f, i) => (
-          <motion.article key={f.id} {...reveal(i * 0.06)} className={`group relative overflow-hidden rounded-[28px] p-7 transition-transform duration-300 hover:-translate-y-1 ${f.span ?? ""} ${i === 0 ? "grain bg-[#0A192F] text-white" : "border border-slate-200 bg-white text-[#0A192F]"}`} data-testid={`feature-${f.id}`}>
+          <motion.article key={f.id} {...reveal(i * 0.06)} className={`group relative overflow-hidden rounded-[28px] p-7 transition-transform duration-300 hover:-translate-y-1 ${f.span ?? ""} ${i === 0 ? "grain bg-[var(--accent)] text-[var(--ink)]" : "border border-[var(--hair)] bg-[var(--surface)] text-[var(--fg)]"}`} data-testid={`feature-${f.id}`}>
             <div className="relative flex items-start justify-between gap-4">
-              <span className={`grid h-12 w-12 place-items-center rounded-2xl ${i === 0 ? "bg-white/10 text-white" : "bg-[#0A192F] text-white"}`}><f.icon size={20} /></span>
-              {f.big && <span className={`font-display text-5xl leading-none ${i === 0 ? "text-[#C9CCD3]" : "text-[#0A192F]"}`}>{f.big}</span>}
+              <span className={`grid h-12 w-12 place-items-center rounded-2xl ${i === 0 ? "bg-[var(--sel)] text-[var(--ink)]" : "bg-[var(--accent)] text-[var(--ink)]"}`}><f.icon size={20} /></span>
+              {f.big && <span className={`font-display text-5xl leading-none ${i === 0 ? "text-[var(--fg2)]" : "text-[var(--fg)]"}`}>{f.big}</span>}
             </div>
             <h3 className="relative mt-10 font-display text-3xl leading-tight">{f.title}</h3>
-            <p className={`relative mt-3 max-w-lg text-sm leading-relaxed ${i === 0 ? "text-[#C9CCD3]" : "text-slate-600"}`}>{f.text}</p>
+            <p className={`relative mt-3 max-w-lg text-sm leading-relaxed ${i === 0 ? "text-[var(--fg2)]" : "text-[var(--fg2)]"}`}>{f.text}</p>
           </motion.article>
         ))}
       </div>
@@ -48,18 +48,18 @@ export const LandingSecurity = () => (
   <section id="sicurezza" className="grain relative scroll-mt-20 overflow-hidden" data-testid="landing-security">
     <div className="relative mx-auto grid max-w-[1280px] grid-cols-1 gap-14 px-5 py-24 lg:grid-cols-[1fr_1.5fr] lg:px-10 lg:py-32">
       <motion.div {...reveal()}>
-        <div className="text-[11px] uppercase tracking-[0.24em] text-[#C9CCD3]">Sicurezza &amp; GDPR</div>
-        <h2 className="mt-3 font-display text-4xl leading-tight text-white sm:text-5xl">Dati sanitari trattati <span className="italic text-[#C9CCD3]">come devono essere.</span></h2>
-        <p className="mt-5 text-base leading-relaxed text-[#C9CCD3]">Misure tecniche progettate per i dati particolari (art. 9 Reg. UE 2016/679) e verificabili dal pannello "Sicurezza e GDPR" della dashboard.</p>
-        <p className="mt-6 rounded-2xl border border-[#C9CCD3]/20 p-4 text-xs leading-relaxed text-[#C9CCD3]" data-testid="security-disclaimer">
+        <div className="text-[11px] uppercase tracking-[0.24em] text-[var(--fg2)]">Sicurezza &amp; GDPR</div>
+        <h2 className="mt-3 font-display text-4xl leading-tight text-[var(--ink)] sm:text-5xl">Dati sanitari trattati <span className="italic text-[var(--fg2)]">come devono essere.</span></h2>
+        <p className="mt-5 text-base leading-relaxed text-[var(--fg2)]">Misure tecniche progettate per i dati particolari (art. 9 Reg. UE 2016/679) e verificabili dal pannello "Sicurezza e GDPR" della dashboard.</p>
+        <p className="mt-6 rounded-2xl border border-[var(--hair)] p-4 text-xs leading-relaxed text-[var(--fg2)]" data-testid="security-disclaimer">
           MantMed fornisce strumenti a supporto degli obblighi GDPR. La conformità complessiva resta in capo allo studio, in qualità di titolare del trattamento (informativa, registro dei trattamenti, nomine).
         </p>
       </motion.div>
-      <div className="grid grid-cols-1 border-l border-t border-[#C9CCD3]/20 sm:grid-cols-2">
+      <div className="grid grid-cols-1 border-l border-t border-[var(--hair)] sm:grid-cols-2">
         {SPECS.map(({ icon: Icon, k, v }, i) => (
-          <motion.div key={k} {...reveal(i * 0.05)} className="border-b border-r border-[#C9CCD3]/20 p-6" data-testid={`security-spec-${i}`}>
-            <div className="flex items-center gap-3 font-mono text-sm text-white"><Icon size={16} className="text-[#C9CCD3]" /> {k}</div>
-            <p className="mt-3 text-sm leading-relaxed text-[#C9CCD3]">{v}</p>
+          <motion.div key={k} {...reveal(i * 0.05)} className="border-b border-r border-[var(--hair)] p-6" data-testid={`security-spec-${i}`}>
+            <div className="flex items-center gap-3 font-mono text-sm text-[var(--ink)]"><Icon size={16} className="text-[var(--fg2)]" /> {k}</div>
+            <p className="mt-3 text-sm leading-relaxed text-[var(--fg2)]">{v}</p>
           </motion.div>
         ))}
       </div>

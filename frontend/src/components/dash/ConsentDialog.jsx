@@ -50,17 +50,17 @@ export const ConsentDialog = ({ patient, open, onClose, onSaved }) => {
     setBusy(false);
   };
   const Check = ({ k, label, required }) => (
-    <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-night hover:border-night">
-      <input type="checkbox" checked={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.checked })} className="mt-0.5 h-4 w-4 accent-[#0A192F]" data-testid={`consent-${k}`} />
-      <span>{label} {required ? <span className="text-red-600">*</span> : <span className="text-slate-500">(facoltativo)</span>}</span>
+    <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[var(--hair)] px-4 py-3 text-sm text-[var(--fg)] hover:border-[var(--accent)]">
+      <input type="checkbox" checked={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.checked })} className="mt-0.5 h-4 w-4 accent-[var(--accent)]" data-testid={`consent-${k}`} />
+      <span>{label} {required ? <span className="text-[var(--alert)]">*</span> : <span className="text-[var(--fg2)]">(facoltativo)</span>}</span>
     </label>
   );
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl bg-white sm:max-w-lg" data-testid="consent-dialog" data-lenis-prevent>
-        <DialogHeader><DialogTitle className="flex items-center gap-2 font-display text-3xl font-normal text-night"><ShieldCheck className="text-night" /> Consenso informato</DialogTitle></DialogHeader>
-        <p className="max-h-32 overflow-y-auto rounded-2xl bg-[#F4F5F7] p-4 text-xs leading-relaxed text-slate-700" data-testid="consent-informativa">{tpl?.text || informativa(user?.name || "il medico")}</p>
+      <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl bg-[var(--surface)] sm:max-w-lg" data-testid="consent-dialog" data-lenis-prevent>
+        <DialogHeader><DialogTitle className="flex items-center gap-2 font-display text-3xl font-normal text-[var(--fg)]"><ShieldCheck className="text-[var(--fg)]" /> Consenso informato</DialogTitle></DialogHeader>
+        <p className="max-h-32 overflow-y-auto rounded-2xl bg-[var(--raised)] p-4 text-xs leading-relaxed text-[var(--fg2)]" data-testid="consent-informativa">{tpl?.text || informativa(user?.name || "il medico")}</p>
         <div className="grid gap-2">
           <Check k="privacy_policy" label="Dichiaro di aver letto l'informativa privacy" required />
           <Check k="health_data" label="Acconsento al trattamento dei dati sanitari del minore (art. 9 GDPR)" required />
@@ -76,7 +76,7 @@ export const ConsentDialog = ({ patient, open, onClose, onSaved }) => {
         </div>
         <div className="grid grid-cols-2 gap-2">
           {[["firma_tablet", "Firma su tablet", PenLine], ["modulo_cartaceo", "Modulo cartaceo", FileSignature]].map(([v, l, Icon]) => (
-            <button key={v} onClick={() => setF({ ...f, method: v })} className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-medium ${f.method === v ? "bg-night text-white" : "border border-slate-200 text-slate-600"}`} data-testid={`consent-method-${v}`}><Icon size={15} /> {l}</button>
+            <button key={v} onClick={() => setF({ ...f, method: v })} className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-medium ${f.method === v ? "bg-[var(--accent)] text-[var(--ink)]" : "border border-[var(--hair)] text-[var(--fg2)]"}`} data-testid={`consent-method-${v}`}><Icon size={15} /> {l}</button>
           ))}
         </div>
         {f.method === "firma_tablet" ? (
@@ -84,14 +84,14 @@ export const ConsentDialog = ({ patient, open, onClose, onSaved }) => {
             title={`Firma ${f.signer_relation === "Tutore legale" ? "del Tutore" : "del Genitore / Tutore"}`}
             description={`Consenso informato al trattamento dei dati di ${patient?.name || "del minore"}. Firmi per esteso nel riquadro.`} />
         ) : (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 p-4">
-            <p className="text-xs text-slate-600">Stampi il modulo precompilato, lo faccia firmare a mano e lo conservi in studio.</p>
-            <button type="button" onClick={printForm} disabled={printing} className="flex h-10 items-center gap-2 rounded-full border border-slate-200 px-4 text-sm font-medium text-night hover:border-night disabled:opacity-60" data-testid="consent-print-form-btn">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--hair)] p-4">
+            <p className="text-xs text-[var(--fg2)]">Stampi il modulo precompilato, lo faccia firmare a mano e lo conservi in studio.</p>
+            <button type="button" onClick={printForm} disabled={printing} className="flex h-10 items-center gap-2 rounded-full border border-[var(--hair)] px-4 text-sm font-medium text-[var(--fg)] hover:border-[var(--accent)] disabled:opacity-60" data-testid="consent-print-form-btn">
               {printing ? <Loader2 size={15} className="animate-spin" /> : <Printer size={15} />} Scarica modulo da stampare
             </button>
           </div>
         )}
-        <button onClick={save} disabled={busy} className="rounded-full bg-night py-3.5 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 disabled:opacity-60" data-testid="consent-save-btn">Registra consenso</button>
+        <button onClick={save} disabled={busy} className="rounded-full bg-[var(--accent)] py-3.5 text-sm font-semibold text-[var(--ink)] transition-transform hover:-translate-y-0.5 disabled:opacity-60" data-testid="consent-save-btn">Registra consenso</button>
       </DialogContent>
     </Dialog>
   );

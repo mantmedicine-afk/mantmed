@@ -11,8 +11,8 @@ export const UrgencyNotice = ({ ownerId, patientId, className = "" }) => {
     api.portalAiNotice(ownerId, patientId).then((r) => setText(r.text)).catch(() => setText(FALLBACK));
   }, [ownerId, patientId]);
   return (
-    <div role="note" className={`flex items-start gap-2.5 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-950 sm:text-sm ${className}`} data-testid="portal-urgency-notice">
-      <PhoneCall size={16} className="mt-0.5 shrink-0 text-amber-700" />
+    <div role="note" className={`flex items-start gap-2.5 rounded-2xl border border-[var(--hair)] bg-[var(--sel)] px-4 py-3 text-xs leading-relaxed text-[var(--fg)] sm:text-sm ${className}`} data-testid="portal-urgency-notice">
+      <PhoneCall size={16} className="mt-0.5 shrink-0 text-[var(--fg)]" />
       <p>{text}</p>
     </div>
   );

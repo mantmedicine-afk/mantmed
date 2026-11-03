@@ -10,24 +10,24 @@ import { makeSnapshot } from "./snapshot";
 import { PinSheet } from "./PinSheet";
 import { IntimateConfirm } from "./PinPhotos";
 
-const seg = (on) => `flex h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition-colors ${on ? "bg-night text-white" : "text-slate-600 hover:text-night"}`;
+const seg = (on) => `flex h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition-colors ${on ? "bg-[var(--accent)] text-[var(--ink)]" : "text-[var(--fg2)] hover:text-[var(--fg)]"}`;
 
 const ViewPicker = ({ view, setView, markers }) => ["body", "detail"].map((g) => (
   <div key={g} className="-mx-1 flex gap-1 overflow-x-auto px-1" role="tablist" aria-label={g === "body" ? "Viste del corpo" : "Viste di dettaglio"} data-testid={g === "body" ? "bodychart-views" : "bodychart-detail-views"}>
-    {VIEWS.filter((v) => v.group === g).map((v) => <button key={v.id} role="tab" aria-selected={view === v.id} onClick={() => setView(v.id)} className={seg(view === v.id)} data-testid={`bodychart-view-${v.id}`}>{v.label} {markers.some((m) => m.view === v.id) && <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />}</button>)}
+    {VIEWS.filter((v) => v.group === g).map((v) => <button key={v.id} role="tab" aria-selected={view === v.id} onClick={() => setView(v.id)} className={seg(view === v.id)} data-testid={`bodychart-view-${v.id}`}>{v.label} {markers.some((m) => m.view === v.id) && <span className="h-1.5 w-1.5 rounded-full bg-[var(--alert)]" />}</button>)}
   </div>
 ));
 
 const Proposals = ({ items, onOpen, onDrop }) => items.length > 0 && (
-  <div className="rounded-3xl bg-[#FFF8E6] p-4 ring-2 ring-[#E3A92B]" data-testid="bodychart-proposals">
-    <div className="flex items-center gap-1.5 text-xs font-semibold text-[#5C3A00]"><Sparkles size={13} /> Proposto da MantAI, da confermare</div>
-    <p className="mt-1 text-xs text-[#5C3A00]/80">Sedi citate nella nota. Nessun pin viene salvato finché non lo conferma.</p>
+  <div className="rounded-3xl bg-[var(--sel)] p-4 ring-2 ring-[#E3A92B]" data-testid="bodychart-proposals">
+    <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--fg)]"><Sparkles size={13} /> Proposto da MantAI, da confermare</div>
+    <p className="mt-1 text-xs text-[var(--fg)]/80">Sedi citate nella nota. Nessun pin viene salvato finché non lo conferma.</p>
     <ul className="mt-2 space-y-1.5">{items.map((p) => (
-      <li key={p.id} className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm" data-testid={`bodychart-proposal-${p.id}`}>
+      <li key={p.id} className="flex items-center gap-2 rounded-xl bg-[var(--surface)] px-3 py-2 text-sm" data-testid={`bodychart-proposal-${p.id}`}>
         <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: CAT[p.cat]?.color }} />
-        <span className="min-w-0 flex-1"><span className="block truncate font-medium text-night">{p.regione}</span><span className="block truncate text-xs text-slate-500">«{p.note}»</span></span>
-        <button onClick={() => onOpen(p)} className="flex h-8 items-center gap-1 rounded-full bg-night px-3 text-xs font-semibold text-white" data-testid={`bodychart-proposal-confirm-${p.id}`}><Check size={12} /> Verifica</button>
-        <button onClick={() => onDrop(p.id)} className="grid h-8 w-8 place-items-center rounded-full ring-1 ring-slate-200" aria-label="Scarta proposta" data-testid={`bodychart-proposal-drop-${p.id}`}><X size={13} /></button>
+        <span className="min-w-0 flex-1"><span className="block truncate font-medium text-[var(--fg)]">{p.regione}</span><span className="block truncate text-xs text-[var(--fg2)]">«{p.note}»</span></span>
+        <button onClick={() => onOpen(p)} className="flex h-8 items-center gap-1 rounded-full bg-[var(--accent)] px-3 text-xs font-semibold text-[var(--ink)]" data-testid={`bodychart-proposal-confirm-${p.id}`}><Check size={12} /> Verifica</button>
+        <button onClick={() => onDrop(p.id)} className="grid h-8 w-8 place-items-center rounded-full ring-1 ring-[var(--hair)]" aria-label="Scarta proposta" data-testid={`bodychart-proposal-drop-${p.id}`}><X size={13} /></button>
       </li>))}
     </ul>
   </div>
@@ -131,37 +131,37 @@ export const BodychartEditor = ({ consultation, defaultKind = "child", onClose, 
   const carried = prev && prev.markers.some((m) => doc.markers.some((x) => x.lesion_id && x.lesion_id === (m.lesion_id || m.id)));
 
   return (
-    <div className="fixed inset-0 z-[60] overflow-auto bg-[#F4F5F7] text-night" data-testid="bodychart-editor" data-lenis-prevent>
-      <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur-xl">
+    <div className="fixed inset-0 z-[60] overflow-auto bg-[var(--raised)] text-[var(--fg)]" data-testid="bodychart-editor" data-lenis-prevent>
+      <div className="sticky top-0 z-10 border-b border-[var(--hair)] bg-[var(--bg)]">
         <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-8">
-          <div className="min-w-0"><div className="text-[11px] uppercase tracking-[0.22em] text-slate-600">Bodychart · mappa corporea</div><div className="truncate font-display text-2xl">{consultation.patient_name}</div></div>
+          <div className="min-w-0"><div className="text-[11px] uppercase tracking-[0.22em] text-[var(--fg2)]">Bodychart · mappa corporea</div><div className="truncate font-display text-2xl">{consultation.patient_name}</div></div>
           <div className="flex items-center gap-2">
-            <div className="flex rounded-full bg-[#F4F5F7] p-1" role="tablist">
+            <div className="flex rounded-full bg-[var(--raised)] p-1" role="tablist">
               <button role="tab" aria-selected={tab === "map"} onClick={() => setTab("map")} className={seg(tab === "map")} data-testid="bodychart-tab-map"><MapIcon size={15} /> Mappa</button>
               <button role="tab" aria-selected={tab === "history"} onClick={() => setTab("history")} className={seg(tab === "history")} data-testid="bodychart-tab-history"><History size={15} /> Confronta</button>
             </div>
-            <button onClick={close} className="grid h-11 w-11 place-items-center rounded-full ring-1 ring-slate-200 hover:ring-night" aria-label="Chiudi bodychart" data-testid="bodychart-close"><X size={18} /></button>
+            <button onClick={close} className="grid h-11 w-11 place-items-center rounded-full ring-1 ring-[var(--hair)] hover:ring-[var(--accent)]" aria-label="Chiudi bodychart" data-testid="bodychart-close"><X size={18} /></button>
           </div>
         </div>
       </div>
       <div className="mx-auto max-w-[1440px] px-4 py-5 lg:px-8">
         {tab === "history" ? <BodychartHistory patientId={consultation.patient_id} currentId={consultation.id} /> : loading ? <Loader2 className="animate-spin" /> : (
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_380px]">
-            <div className="rounded-3xl bg-white p-3 ring-1 ring-slate-200 sm:p-5">
+            <div className="rounded-3xl bg-[var(--surface)] p-3 ring-1 ring-[var(--hair)] sm:p-5">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0 space-y-1.5"><ViewPicker view={view} setView={setView} markers={doc.markers} /></div>
-                <div className="flex rounded-full bg-[#F4F5F7] p-1" data-testid="bodychart-silhouette">
+                <div className="flex rounded-full bg-[var(--raised)] p-1" data-testid="bodychart-silhouette">
                   <button onClick={() => setKind("child")} className={seg(kind === "child")} data-testid="bodychart-kind-child"><Baby size={15} /> Bambino</button>
                   <button onClick={() => setKind("adult")} className={seg(kind === "adult")} data-testid="bodychart-kind-adult"><User size={15} /> Adulto</button>
                 </div>
               </div>
               {isBodyView(view) && (
                 <div className="-mx-1 mt-3 flex items-center gap-1 overflow-x-auto px-1" role="tablist" data-testid="bodychart-zooms">
-                  <ZoomIn size={15} className="mr-1 shrink-0 text-slate-500" />
-                  {ZOOMS.map((z) => <button key={z.id} role="tab" aria-selected={zoom === z.id} onClick={() => setZoom(z.id)} className={`h-9 shrink-0 rounded-full px-3.5 text-[13px] font-medium transition-colors ${zoom === z.id ? "bg-[#3B6CF6] text-white" : "bg-[#F4F5F7] text-night hover:bg-slate-200"}`} data-testid={`bodychart-zoom-${z.id}`}>{z.label}</button>)}
+                  <ZoomIn size={15} className="mr-1 shrink-0 text-[var(--fg2)]" />
+                  {ZOOMS.map((z) => <button key={z.id} role="tab" aria-selected={zoom === z.id} onClick={() => setZoom(z.id)} className={`h-9 shrink-0 rounded-full px-3.5 text-[13px] font-medium transition-colors ${zoom === z.id ? "bg-[var(--accent)] text-[var(--ink)]" : "bg-[var(--raised)] text-[var(--fg)] hover:bg-[var(--hair)]"}`} data-testid={`bodychart-zoom-${z.id}`}>{z.label}</button>)}
                 </div>
               )}
-              <p className="mt-2 text-xs text-slate-500" data-testid="bodychart-help">Tocchi la figura per un nuovo reperto · tocchi un pin per aprirlo · per spostarlo tenga premuto e trascini · la lente apre il dettaglio.</p>
+              <p className="mt-2 text-xs text-[var(--fg2)]" data-testid="bodychart-help">Tocchi la figura per un nuovo reperto · tocchi un pin per aprirlo · per spostarlo tenga premuto e trascini · la lente apre il dettaglio.</p>
               <div className="mx-auto mt-2 h-[62vh] min-h-[440px] max-w-[520px]">
                 <BodyCanvas box={box} kind={kind} view={view} tool={tool} pen={pen} markers={[...doc.markers, ...proposals]} strokes={doc.strokes} numbers={numbers} selected={sheet?.m.id}
                   onTap={openNew} onStroke={(s) => commit({ ...doc, strokes: [...doc.strokes, s] })} onPick={openPin} onMove={move} onDetail={setView} />
@@ -173,19 +173,19 @@ export const BodychartEditor = ({ consultation, defaultKind = "child", onClose, 
               <Proposals items={proposals} onOpen={(p) => openPin(p.id)} onDrop={(id) => { handled(proposals.find((p) => p.id === id)); setProposals((ps) => ps.filter((p) => p.id !== id)); }} />
               <IntimateConfirm open={!!pendingMove} onOpenChange={(o) => !o && setPendingMove(null)} action="Sposta e rendi riservate le foto"
                 onConfirm={() => { applyMove(pendingMove.id, pendingMove.pos); setPendingMove(null); }} />
-              {prev && !carried && <button onClick={carryOver} className="flex w-full items-center gap-3 rounded-3xl bg-[#F0FDF4] p-4 text-left text-sm text-night ring-1 ring-emerald-200 transition-colors hover:ring-emerald-400" data-testid="bodychart-carry-over"><CopyPlus size={18} className="shrink-0 text-emerald-700" /><span><span className="block font-medium">Riporta i reperti della visita precedente</span><span className="text-xs text-slate-600">{prev.markers.length} reperti del {new Date(`${prev.visit_date}T12:00:00`).toLocaleDateString("it-IT")}, con la loro storia (esclusi i risolti)</span></span></button>}
-              <div className="rounded-3xl bg-white p-4 ring-1 ring-slate-200"><Tools {...{ tool, cat, pen, setTool, setCat, setPen }} onUndo={undo} onClear={clearView} canUndo={past.length > 0} /></div>
-              <div className="rounded-3xl bg-white p-4 ring-1 ring-slate-200">
-                <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600">Reperti ({doc.markers.length})</div>
+              {prev && !carried && <button onClick={carryOver} className="flex w-full items-center gap-3 rounded-3xl bg-[#F0FDF4] p-4 text-left text-sm text-[var(--fg)] ring-1 ring-emerald-200 transition-colors hover:ring-emerald-400" data-testid="bodychart-carry-over"><CopyPlus size={18} className="shrink-0 text-[var(--ok)]" /><span><span className="block font-medium">Riporta i reperti della visita precedente</span><span className="text-xs text-[var(--fg2)]">{prev.markers.length} reperti del {new Date(`${prev.visit_date}T12:00:00`).toLocaleDateString("it-IT")}, con la loro storia (esclusi i risolti)</span></span></button>}
+              <div className="rounded-3xl bg-[var(--surface)] p-4 ring-1 ring-[var(--hair)]"><Tools {...{ tool, cat, pen, setTool, setCat, setPen }} onUndo={undo} onClear={clearView} canUndo={past.length > 0} /></div>
+              <div className="rounded-3xl bg-[var(--surface)] p-4 ring-1 ring-[var(--hair)]">
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--fg2)]">Reperti ({doc.markers.length})</div>
                 <MarkerList markers={doc.markers} numbers={numbers} selected={sheet?.m.id} onPick={(m) => { setViewRaw(m.view); setTool("marker"); openPin(m.id); }} />
               </div>
-              <div className="rounded-3xl bg-white p-4 ring-1 ring-slate-200">
-                <label className="flex items-start gap-3 text-sm"><input type="checkbox" checked={include} onChange={(e) => { setInclude(e.target.checked); dirty.current = true; }} className="mt-0.5 h-5 w-5 accent-[#0A192F]" data-testid="bodychart-include-report" />
-                  <span><span className="block font-medium">Includi nel referto</span><span className="text-xs text-slate-600">Aggiunge una pagina con la mappa e la legenda al PDF della visita, anche quello inviato o pubblicato alla famiglia.</span></span></label>
-                <button onClick={save} disabled={busy} className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-night text-base font-semibold text-white transition-transform hover:-translate-y-0.5 disabled:opacity-60" data-testid="bodychart-save-btn">
+              <div className="rounded-3xl bg-[var(--surface)] p-4 ring-1 ring-[var(--hair)]">
+                <label className="flex items-start gap-3 text-sm"><input type="checkbox" checked={include} onChange={(e) => { setInclude(e.target.checked); dirty.current = true; }} className="mt-0.5 h-5 w-5 accent-[var(--accent)]" data-testid="bodychart-include-report" />
+                  <span><span className="block font-medium">Includi nel referto</span><span className="text-xs text-[var(--fg2)]">Aggiunge una pagina con la mappa e la legenda al PDF della visita, anche quello inviato o pubblicato alla famiglia.</span></span></label>
+                <button onClick={save} disabled={busy} className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-[var(--accent)] text-base font-semibold text-[var(--ink)] transition-transform hover:-translate-y-0.5 disabled:opacity-60" data-testid="bodychart-save-btn">
                   {busy ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} Salva Bodychart nella Visita
                 </button>
-                <p className="mt-2 text-center text-[11px] text-slate-500">I reperti si salvano anche in automatico a ogni modifica.</p>
+                <p className="mt-2 text-center text-[11px] text-[var(--fg2)]">I reperti si salvano anche in automatico a ogni modifica.</p>
               </div>
             </aside>
           </div>

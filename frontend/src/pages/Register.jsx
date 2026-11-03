@@ -1,3 +1,4 @@
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -23,30 +24,30 @@ const PARENT_FIELDS = [
 ];
 
 const Shell = ({ icon: Icon, kicker, title, children }) => (
-  <div className="grain relative min-h-screen overflow-hidden bg-[#0A192F] px-5 py-10 text-white" data-testid="register-page">
+  <div className="grain relative min-h-screen overflow-hidden theme-page bg-[var(--bg)] px-5 py-10 text-[var(--ink)]" data-testid="register-page"><ThemeToggle floating />
     <div className="relative mx-auto max-w-2xl">
       <Link to="/" className="inline-flex items-center gap-3" data-testid="register-home-link"><LogoMark size={34} light /><span className="font-display text-2xl">MantMed</span></Link>
-      <div className="mt-10 flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-[#C9CCD3]"><Icon size={14} /> {kicker}</div>
+      <div className="mt-10 flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-[var(--fg2)]"><Icon size={14} /> {kicker}</div>
       <h1 className="mt-2 font-display text-4xl leading-tight sm:text-5xl">{title}</h1>
-      <motion.div initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mt-8 rounded-[28px] border border-[#C9CCD3]/25 bg-white/[0.04] p-6 backdrop-blur-xl sm:p-8">{children}</motion.div>
+      <motion.div initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mt-8 rounded-[28px] border border-[var(--hair)] bg-[var(--sel)] p-6 backdrop-blur-xl sm:p-8">{children}</motion.div>
     </div>
   </div>
 );
 
 const Pending = () => (
   <div className="text-center" data-testid="register-pending">
-    <Hourglass className="mx-auto text-[#C9CCD3]" size={34} />
+    <Hourglass className="mx-auto text-[var(--fg2)]" size={34} />
     <h2 className="mt-4 font-display text-3xl">Registrazione ricevuta</h2>
-    <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-200">Email verificata. Il team MantMed verificherà i suoi dati professionali e attiverà la licenza: riceverà un'email appena potrà accedere al suo studio.</p>
-    <Link to="/" className="mt-6 inline-flex h-11 items-center rounded-full border border-[#C9CCD3]/40 px-6 text-sm" data-testid="register-pending-home">Torna al sito</Link>
+    <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-[var(--fg2)]">Email verificata. Il team MantMed verificherà i suoi dati professionali e attiverà la licenza: riceverà un'email appena potrà accedere al suo studio.</p>
+    <Link to="/" className="mt-6 inline-flex h-11 items-center rounded-full border border-[var(--hair)] px-6 text-sm" data-testid="register-pending-home">Torna al sito</Link>
   </div>
 );
 
 const Redirecting = () => (
   <div className="py-8 text-center" data-testid="register-redirecting">
-    <Loader2 className="mx-auto animate-spin text-[#C9CCD3]" size={30} />
+    <Loader2 className="mx-auto animate-spin text-[var(--fg2)]" size={30} />
     <p className="mt-4 font-display text-2xl">Account attivo</p>
-    <p className="mt-1 text-sm text-slate-300">Apertura del Portale Paziente…</p>
+    <p className="mt-1 text-sm text-[var(--fg2)]">Apertura del Portale Paziente…</p>
   </div>
 );
 
@@ -128,13 +129,13 @@ export default function Register({ role }) {
   const pwOk = !fieldError("password", f);
   return (
     <Shell icon={doctor ? Stethoscope : Baby} kicker={doctor ? "Registrazione professionisti sanitari" : "Portale Paziente · genitori e tutori"}
-      title={doctor ? <>Porti il suo studio <span className="italic text-[#C9CCD3]">su MantMed.</span></> : <>Referti e appuntamenti <span className="italic text-[#C9CCD3]">di suo figlio.</span></>}>
+      title={doctor ? <>Porti il suo studio <span className="italic text-[var(--fg2)]">su MantMed.</span></> : <>Referti e appuntamenti <span className="italic text-[var(--fg2)]">di suo figlio.</span></>}>
       {step === "pending" && <Pending />}
       {step === "redirect" && <Redirecting />}
       {step === "code" && <CodeStep email={(f.email || "").trim().toLowerCase()} onDone={done} onBack={() => setStep("form")} onResend={() => api.registerStart(body())} />}
       {step === "form" && (
         <form ref={formRef} onSubmit={submit} noValidate className="space-y-4" data-testid={`register-${role}-form`}>
-          {invite && <p className="rounded-2xl border border-[#C9CCD3]/30 bg-white/5 p-4 text-sm text-slate-200" data-testid="register-invite-banner">Invito di <strong className="text-white">{invite.doctor}</strong> per il portale di {invite.patient_first}: email e codice fiscale sono già compilati.</p>}
+          {invite && <p className="rounded-2xl border border-[var(--hair)] bg-[var(--sel)] p-4 text-sm text-[var(--fg2)]" data-testid="register-invite-banner">Invito di <strong className="text-[var(--ink)]">{invite.doctor}</strong> per il portale di {invite.patient_first}: email e codice fiscale sono già compilati.</p>}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {fields.map(([k, label, ph, type = "text", wide]) => (
               <RegisterField key={k} name={k} label={label} wide={wide} type={type} value={f[k] ?? ""} onChange={set(k)} onBlur={blur(k)} placeholder={ph}
@@ -148,9 +149,9 @@ export default function Register({ role }) {
               error={errOf("confirm") || (f.confirm.length >= f.password.length && f.confirm && f.confirm !== f.password ? "Le password non coincidono" : "")} ok={f.confirm && f.confirm === f.password ? "Le password coincidono" : ""} />
           </div>
           {f.password && <Strength pw={f.password} prefix="register" />}
-          {!doctor && <p className="text-xs leading-relaxed text-slate-300">La cartella di suo figlio viene collegata automaticamente solo se codice fiscale ed email coincidono con quelli registrati dallo studio.</p>}
+          {!doctor && <p className="text-xs leading-relaxed text-[var(--fg2)]">La cartella di suo figlio viene collegata automaticamente solo se codice fiscale ed email coincidono con quelli registrati dallo studio.</p>}
           <div className="space-y-3">
-            <a href="/privacy" target="_blank" rel="noreferrer" className="text-xs text-white underline underline-offset-4" data-testid="register-privacy-link">Leggi l'informativa privacy e sull'uso dell'AI</a>
+            <a href="/privacy" target="_blank" rel="noreferrer" className="text-xs text-[var(--ink)] underline underline-offset-4" data-testid="register-privacy-link">Leggi l'informativa privacy e sull'uso dell'AI</a>
             {doctor ? (
               <Check id="terms" checked={f.terms} onChange={set("terms")} text="Ho letto l'informativa privacy e acconsento al trattamento dei miei dati per la verifica professionale e l'attivazione della licenza MantMed." />
             ) : (
@@ -161,13 +162,13 @@ export default function Register({ role }) {
             )}
             {touched.consents && !consentsOk && <FieldMsg id="register-consents" error="Per proseguire servono i consensi obbligatori" />}
           </div>
-          {general && <p role="alert" className="flex items-start gap-2 rounded-xl bg-rose-500/15 px-4 py-3 text-sm text-rose-200" data-testid="register-general-error"><AlertCircle size={16} className="mt-0.5 shrink-0" /> {general}</p>}
-          <button disabled={busy} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-white text-sm font-semibold text-[#0A192F] transition-transform hover:-translate-y-0.5 disabled:opacity-60" data-testid="register-submit-btn">
+          {general && <p role="alert" className="flex items-start gap-2 rounded-xl bg-[var(--alert-bg)] px-4 py-3 text-sm text-[var(--alert)]" data-testid="register-general-error"><AlertCircle size={16} className="mt-0.5 shrink-0" /> {general}</p>}
+          <button disabled={busy} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[var(--accent)] text-sm font-semibold text-[var(--ink)] transition-transform hover:-translate-y-0.5 disabled:opacity-60" data-testid="register-submit-btn">
             {busy ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />} {busy ? "Invio in corso…" : doctor ? "Invia richiesta di registrazione" : "Crea il mio account"}
           </button>
-          <div className="flex flex-wrap justify-between gap-2 text-sm text-slate-300">
+          <div className="flex flex-wrap justify-between gap-2 text-sm text-[var(--fg2)]">
             <Link to="/" className="inline-flex items-center gap-1 underline-offset-4 hover:underline" data-testid="register-back-link"><ArrowLeft size={14} /> Torna al sito</Link>
-            <Link to={doctor ? "/app" : "/portale"} className="text-white underline underline-offset-4" data-testid="register-login-link">Ha già un account? Accedi</Link>
+            <Link to={doctor ? "/app" : "/portale"} className="text-[var(--ink)] underline underline-offset-4" data-testid="register-login-link">Ha già un account? Accedi</Link>
           </div>
         </form>
       )}
@@ -176,7 +177,7 @@ export default function Register({ role }) {
 }
 
 const Check = ({ id, checked, onChange, text }) => (
-  <label className="flex items-start gap-3 text-xs leading-relaxed text-slate-200">
+  <label className="flex items-start gap-3 text-xs leading-relaxed text-[var(--fg2)]">
     <input type="checkbox" name={id === "health_data" || id === "terms" ? "consents" : id} checked={checked} onChange={onChange} className="mt-0.5 h-4 w-4 shrink-0 accent-white" data-testid={`register-${id}-checkbox`} />
     <span>{text}</span>
   </label>

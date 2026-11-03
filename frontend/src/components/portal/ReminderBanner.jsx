@@ -11,11 +11,11 @@ export const ReminderBanner = ({ kids, onOpen }) => {
   return (
     <div className="space-y-2" data-testid="portal-reminders">
       {items.map((a) => (
-        <button key={a.id} onClick={() => onOpen(a.child.id, a.id)} className="flex w-full items-center gap-4 rounded-[24px] bg-night p-4 text-left text-white transition-transform hover:-translate-y-0.5 sm:p-5" data-testid={`portal-reminder-${a.id}`}>
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-amber-300 text-night"><CalendarClock size={20} /></span>
-          <span className="min-w-0 flex-1"><span className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-200">Promemoria · {days[a.date]}</span>
+        <button key={a.id} onClick={() => onOpen(a.child.id, a.id)} className="flex w-full items-center gap-4 rounded-[24px] bg-[var(--accent)] p-4 text-left text-[var(--ink)] transition-transform hover:-translate-y-0.5 sm:p-5" data-testid={`portal-reminder-${a.id}`}>
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[var(--wait)] text-[var(--fg)]"><CalendarClock size={20} /></span>
+          <span className="min-w-0 flex-1"><span className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--fg)]">Promemoria · {days[a.date]}</span>
             <span className="block truncate text-base font-medium">{a.child.name} · {a.visit_type}</span>
-            <span className="block truncate text-sm text-slate-300">{a.clinic} · {a.doctor.name}</span></span>
+            <span className="block truncate text-sm text-[var(--fg2)]">{a.clinic} · {a.doctor.name}</span></span>
           <span className="shrink-0 font-display text-3xl">{a.time}</span>
         </button>
       ))}

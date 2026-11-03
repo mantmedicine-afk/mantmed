@@ -21,10 +21,10 @@ const Correction = ({ k, onDone }) => {
     setBusy(false);
   };
   return (
-    <form onSubmit={submit} className="mt-3 grid grid-cols-1 gap-2 rounded-2xl bg-[#F4F5F7] p-3 sm:grid-cols-[180px_1fr_auto]" data-testid={`family-correction-form-${k.patient.id}`}>
+    <form onSubmit={submit} className="mt-3 grid grid-cols-1 gap-2 rounded-2xl bg-[var(--raised)] p-3 sm:grid-cols-[180px_1fr_auto]" data-testid={`family-correction-form-${k.patient.id}`}>
       <select value={f.field} onChange={(e) => setF({ ...f, field: e.target.value })} className={inp} data-testid={`family-correction-field-${k.patient.id}`}>{FIELDS.map((x) => <option key={x}>{x}</option>)}</select>
       <input required minLength={2} maxLength={300} value={f.value} onChange={(e) => setF({ ...f, value: e.target.value })} placeholder="Dato corretto" className={inp} data-testid={`family-correction-value-${k.patient.id}`} />
-      <button disabled={busy} className="flex h-11 items-center justify-center gap-2 rounded-full bg-night px-4 text-sm font-semibold text-white disabled:opacity-60" data-testid={`family-correction-send-${k.patient.id}`}>{busy && <Loader2 size={14} className="animate-spin" />} Invia</button>
+      <button disabled={busy} className="flex h-11 items-center justify-center gap-2 rounded-full bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--ink)] disabled:opacity-60" data-testid={`family-correction-send-${k.patient.id}`}>{busy && <Loader2 size={14} className="animate-spin" />} Invia</button>
     </form>
   );
 };
@@ -32,10 +32,10 @@ const Correction = ({ k, onDone }) => {
 const Child = ({ k }) => {
   const [edit, setEdit] = useState(false);
   return (
-    <li className="rounded-2xl border border-slate-200 p-4" data-testid={`family-child-${k.patient.id}`}>
+    <li className="rounded-2xl border border-[var(--hair)] p-4" data-testid={`family-child-${k.patient.id}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div><div className="font-display text-2xl text-night">{k.patient.name}</div><div className="text-xs text-slate-600">Nato/a il {day(k.patient.birth_date)} · {k.doctor.name} ({k.doctor.specialty})</div></div>
-        <button onClick={() => setEdit(!edit)} className="flex h-9 items-center gap-1.5 rounded-full border border-slate-200 px-3 text-xs font-medium text-night hover:border-night" data-testid={`family-edit-${k.patient.id}`}><PencilLine size={13} /> Richiedi modifica</button>
+        <div><div className="font-display text-2xl text-[var(--fg)]">{k.patient.name}</div><div className="text-xs text-[var(--fg2)]">Nato/a il {day(k.patient.birth_date)} · {k.doctor.name} ({k.doctor.specialty})</div></div>
+        <button onClick={() => setEdit(!edit)} className="flex h-9 items-center gap-1.5 rounded-full border border-[var(--hair)] px-3 text-xs font-medium text-[var(--fg)] hover:border-[var(--accent)]" data-testid={`family-edit-${k.patient.id}`}><PencilLine size={13} /> Richiedi modifica</button>
       </div>
       {edit && <Correction k={k} onDone={() => setEdit(false)} />}
     </li>
@@ -57,12 +57,12 @@ export const FamilySection = () => {
   };
   return (
     <Card id="account-family" icon={Users} title="Nucleo familiare" text="I figli collegati al suo profilo. Le schede cliniche sono tenute dal medico: per correggere un dato invii una richiesta allo studio.">
-      {kids === null ? <Loader2 className="animate-spin text-night" /> : (
-        <ul className="space-y-2">{kids.length ? kids.map((k) => <Child key={`${k.patient.id}-${k.doctor.id}`} k={k} />) : <li className="text-sm text-slate-600" data-testid="family-empty">Nessun figlio collegato.</li>}</ul>
+      {kids === null ? <Loader2 className="animate-spin text-[var(--fg)]" /> : (
+        <ul className="space-y-2">{kids.length ? kids.map((k) => <Child key={`${k.patient.id}-${k.doctor.id}`} k={k} />) : <li className="text-sm text-[var(--fg2)]" data-testid="family-empty">Nessun figlio collegato.</li>}</ul>
       )}
       <form onSubmit={add} className="mt-5 flex flex-col gap-2 sm:flex-row" data-testid="family-add-form">
         <input value={cf} onChange={(e) => setCf(e.target.value.toUpperCase().slice(0, 16))} placeholder="Codice fiscale del figlio" className={`${inp} font-mono uppercase sm:max-w-xs`} data-testid="family-add-cf" />
-        <button disabled={busy || cf.length !== 16} className="flex h-11 items-center justify-center gap-2 rounded-full bg-night px-5 text-sm font-semibold text-white disabled:opacity-50" data-testid="family-add-btn">{busy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Aggiungi figlio</button>
+        <button disabled={busy || cf.length !== 16} className="flex h-11 items-center justify-center gap-2 rounded-full bg-[var(--accent)] px-5 text-sm font-semibold text-[var(--ink)] disabled:opacity-50" data-testid="family-add-btn">{busy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Aggiungi figlio</button>
       </form>
     </Card>
   );

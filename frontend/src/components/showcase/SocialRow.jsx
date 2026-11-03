@@ -26,11 +26,11 @@ export const SocialRow = ({ links = [], name, compact = false }) => {
         return (
           <li key={l.piattaforma} className="group relative">
             <a href={l.url} target="_blank" rel="noopener noreferrer nofollow" aria-label={label}
-              className={`grid ${compact ? "h-9 w-9" : "h-10 w-10"} place-items-center rounded-full bg-[#0A192F] text-[#C9CCD3] ring-1 ring-[#C9CCD3]/30 transition-[transform,color,background-color] duration-200 hover:-translate-y-0.5 hover:bg-[#13284A] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0A192F]`}
+              className={`grid ${compact ? "h-9 w-9" : "h-10 w-10"} place-items-center rounded-full bg-[var(--accent)] text-[var(--fg2)] ring-1 ring-[var(--hair)] transition-[transform,color,background-color] duration-200 hover:-translate-y-0.5 hover:bg-[var(--accent)] hover:text-[var(--ink)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]`}
               data-testid={`showcase-social-${l.piattaforma}`}>
               <Icon size={compact ? 16 : 18} strokeWidth={1.75} className="h-[18px] w-[18px]" />
             </a>
-            <span role="tooltip" className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#0A192F] px-2.5 py-1 text-[11px] font-medium text-white opacity-0 shadow transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">{l.label}</span>
+            <span role="tooltip" className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-full bg-[var(--accent)] px-2.5 py-1 text-[11px] font-medium text-[var(--ink)] opacity-0 shadow transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">{l.label}</span>
           </li>
         );
       })}
