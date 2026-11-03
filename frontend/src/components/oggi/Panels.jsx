@@ -11,11 +11,11 @@ export const NextBar = ({ next, until, age, onOpen, onStart }) => (
     {next ? <>
       <span className="shrink-0 text-sm text-[#C9CCD3]" data-testid="oggi-next-when">Prossimo · <span className="font-semibold text-[#FFFFFF]">{next.time}, {until}</span></span>
       <span className="min-w-0 flex-1 truncate text-sm" data-testid="oggi-next-who"><span className="font-semibold">{next.patient_name}</span>{age ? ` · ${age}` : ""} · {next.visit_type}</span>
+    </> : <span className="min-w-0 flex-1 text-sm" data-testid="oggi-next-empty">Nessun'altra visita in programma oggi.</span>}
       <div className="flex shrink-0 gap-2">
-        {next.patient_id && <button onClick={onOpen} className="h-8 rounded-full border border-[#FFFFFF]/35 px-3.5 text-sm font-medium transition-colors hover:bg-[#FFFFFF]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3B6CF6]" data-testid="oggi-next-folder-btn">Cartella</button>}
+        {next?.patient_id && <button onClick={onOpen} className="h-8 rounded-full border border-[#FFFFFF]/35 px-3.5 text-sm font-medium transition-colors hover:bg-[#FFFFFF]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3B6CF6]" data-testid="oggi-next-folder-btn">Cartella</button>}
         <button onClick={onStart} className="flex h-8 items-center gap-1.5 rounded-full bg-white pl-1.5 pr-3.5 text-sm font-semibold text-[#0A192F] transition-colors hover:bg-[#F2F2EF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A9C2FF]" data-testid="oggi-next-start-btn"><MantAIMark size={18} /> Inizia visita</button>
       </div>
-    </> : <span className="text-sm" data-testid="oggi-next-empty">Nessun'altra visita in programma oggi.</span>}
   </section>
 );
 

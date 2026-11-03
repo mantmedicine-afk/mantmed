@@ -3,10 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { CLINICS } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { needsSignature } from "@/components/dash/SignNote";
-import { OggiTopBar } from "./OggiTopBar";
 import { NextBar, VisitDetail, TodoPanel } from "./Panels";
 import { AgendaList } from "./AgendaList";
-import { TabBar } from "./TabBar";
 import { CANCELLED, LONG_DATE, greeting, isDone, nowHM, shortClinic, surname, untilLabel } from "./data";
 
 const useNow = () => {
@@ -25,7 +23,7 @@ const Segmented = ({ value, onChange, options }) => (
 );
 
 export const OggiScreen = ({ appointments, patients, notes, unread, requests, onStart, onOpenPatient, onSign, top }) => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const nav = useNavigate();
   const date = useNow();
   const now = nowHM(date);
@@ -52,9 +50,7 @@ export const OggiScreen = ({ appointments, patients, notes, unread, requests, on
   const startNext = () => onStart(next ? { name: next.patient_name, patient_id: next.patient_id } : null);
 
   return (
-    <div className="app-min min-h-screen bg-[#FBFBF8] text-[#0A192F]" data-testid="dashboard" data-section="agenda">
-      <OggiTopBar user={user} unread={unread} onStart={startNext} onLogout={() => logout()} onNav={nav} />
-      <main className="mx-auto max-w-[1200px] space-y-4 px-4 pb-28 pt-6 sm:px-6 md:pb-12" data-testid="today-page">
+      <main className="mx-auto max-w-[1280px] space-y-4 px-5 pb-12 pt-6 lg:px-8" data-testid="today-page">
         {top}
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -70,7 +66,5 @@ export const OggiScreen = ({ appointments, patients, notes, unread, requests, on
         </div>
         <AgendaList groups={groups} patients={patients} now={now} nowBefore={nowBefore} selected={sel?.id} onSelect={setSelected} />
       </main>
-      <TabBar unread={unread} onStart={startNext} />
-    </div>
   );
 };

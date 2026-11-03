@@ -120,22 +120,14 @@ export default function Dashboard() {
       />
   </>;
 
-  if (sezione === "agenda") return (
-    <ProcessingProvider onSettled={load} onOpen={openVisit}>
-      <TrackPending notes={notes} />
-      <OggiScreen appointments={appointments} patients={patients} notes={notes} unread={unread + aiQueued} requests={requests}
-        onStart={start} onOpenPatient={setPassportId} onSign={openVisit}
-        top={<><AbsenceBanner /><SupportReplies /><SignatureReminder /></>} />
-      {modals}
-    </ProcessingProvider>
-  );
-
   return (
     <ProcessingProvider onSettled={load} onOpen={openVisit}>
     <TrackPending notes={notes} />
     <AppShell items={items} area="Studio medico">
     <div className="min-h-screen overflow-x-clip bg-paper" data-testid="dashboard" data-section={sezione}>
       <TopBar onCompliance={() => setCompliance(true)} onFeedback={() => setFeedback(true)} onTour={() => setTour(true)} unread={unread} search={search} />
+      {sezione === "agenda" && <OggiScreen appointments={appointments} patients={patients} notes={notes} unread={unread + aiQueued} requests={requests}
+        onStart={start} onOpenPatient={setPassportId} onSign={openVisit} top={<><AbsenceBanner /><SupportReplies /><SignatureReminder /></>} />}
       {sezione === "strumenti" && <ToolsPage onCompliance={() => setCompliance(true)} stats={<div className="space-y-5"><Hero total={appointments.length} waiting={waiting.length} name={shortName} income={income} /><BetaMetrics refreshKey={cashKey} onFeedback={() => setFeedback(true)} /></div>} />}
       {sezione === "pazienti" && <>
         <PageTitle kicker="Archivio clinico" title="Pazienti" it="& cartelle cliniche" />
