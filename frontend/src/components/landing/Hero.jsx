@@ -68,7 +68,7 @@ export const RegisterBand = () => (
   <section className="relative border-t border-[var(--hair)]" data-testid="landing-register">
     <div className="mx-auto grid max-w-[1280px] grid-cols-1 gap-4 px-5 py-14 md:grid-cols-2 lg:px-10">
       {ROLES.map(({ to, icon: Icon, kicker, title, text, testid }) => (
-        <Link key={to} to={to} className="group flex items-start gap-5 rounded-[28px] border border-[var(--hair)] bg-[var(--sel)] p-6 transition-colors hover:border-[var(--ink)] hover:bg-[var(--sel)]" data-testid={testid}>
+        <Link key={to} to={to} className="group flex items-start gap-5 rounded-[28px] border border-[var(--hair)] bg-[var(--surface)] p-6 transition-colors hover:border-[var(--ink)] hover:bg-[var(--sel)]" data-testid={testid}>
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[var(--surface)] text-[var(--fg)]"><Icon size={20} /></span>
           <span className="min-w-0 flex-1">
             <span className="block text-[11px] uppercase tracking-[0.2em] text-[var(--fg2)]">{kicker}</span>

@@ -72,7 +72,7 @@ export default function Login({ subtitle = "Workspace clinico · Pediatria speci
           <div className="mt-4 font-display text-4xl">MantMed</div>
           <div className="mt-1 text-[11px] uppercase tracking-[0.28em] text-[var(--fg2)]" data-testid="login-subtitle">{subtitle}</div>
         </div>
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25, duration: 0.6 }} className="rounded-[28px] border border-[var(--hair)] bg-[var(--sel)] p-7 backdrop-blur-xl">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25, duration: 0.6 }} className="rounded-[28px] border border-[var(--hair)] bg-[var(--surface)] p-7">
           {forgot ? <ForgotStep parent={parent} initial={emailOk ? email.trim() : ""} onBack={() => setForgot(false)} /> : mfa ? <MfaStep token={mfa} onBack={() => { setMfa(null); setPassword(""); }} verify2fa={verify2fa} onDone={welcome} /> : (
             <form onSubmit={submit} noValidate data-testid="login-form">
               <h1 className="font-display text-4xl leading-tight"><Line delay={0.3}>Area riservata</Line></h1>

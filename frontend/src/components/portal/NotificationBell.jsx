@@ -6,8 +6,8 @@ import { usePoll } from "@/hooks/usePoll";
 import { when } from "./Conversation";
 
 const KIND = {
-  report: [FileText, "bg-sky-100 text-sky-900"],
-  checkpoint: [HeartPulse, "bg-violet-100 text-violet-900"],
+  report: [FileText, "bg-[var(--sel)] text-[var(--fg)]"],
+  checkpoint: [HeartPulse, "bg-[var(--sel)] text-[var(--fg)]"],
   reply: [MessageCircleReply, "bg-[var(--sel)] text-[var(--ok)]"],
   reminder: [CalendarClock, "bg-[var(--sel)] text-[var(--fg)]"],
   team: [ShieldCheck, "bg-[var(--sel)] text-[var(--ok)]"],
@@ -23,7 +23,7 @@ export const useNotifications = () => {
 const Item = ({ n, onPick }) => {
   const [Icon, cls] = KIND[n.kind] ?? KIND.report;
   return (
-    <button onClick={() => onPick(n)} className={`flex w-full items-start gap-3 rounded-2xl p-3 text-left transition-colors hover:bg-[var(--raised)] ${n.read_at ? "" : "bg-sky-50/60"}`} data-testid={`notification-${n.id}`}>
+    <button onClick={() => onPick(n)} className={`flex w-full items-start gap-3 rounded-2xl p-3 text-left transition-colors hover:bg-[var(--raised)] ${n.read_at ? "" : "bg-[var(--sel)]"}`} data-testid={`notification-${n.id}`}>
       <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${cls}`}><Icon size={16} /></span>
       <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-[var(--fg)]">{n.title}</span><span className="block truncate text-xs text-[var(--fg2)]">{n.body}</span><span className="block text-[11px] text-[var(--fg2)]">{when(n.created_at)}</span></span>
       {!n.read_at && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[var(--alert)]" aria-label="Non letta" />}

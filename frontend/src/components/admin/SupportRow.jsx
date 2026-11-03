@@ -6,7 +6,7 @@ import { api, errMsg } from "@/lib/api";
 
 export const ST = {
   nuovo: { label: "Nuovi", one: "Nuovo", cls: "bg-[var(--sel)] text-[var(--fg)]" },
-  in_lavorazione: { label: "In lavorazione", one: "In lavorazione", cls: "bg-sky-100 text-sky-900" },
+  in_lavorazione: { label: "In lavorazione", one: "In lavorazione", cls: "bg-[var(--sel)] text-[var(--fg)]" },
   risolto: { label: "Risolti", one: "Risolto", cls: "bg-[var(--sel)] text-[var(--ok)]" },
 };
 const QUICK = [

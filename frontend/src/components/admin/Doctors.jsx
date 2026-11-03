@@ -4,7 +4,7 @@ import { Loader2, Mail, Phone, MapPin, BadgeCheck, Ban, Network, Send } from "lu
 import { api, errMsg } from "@/lib/api";
 import { AddSpecialist } from "./AddSpecialist";
 
-const BADGE = { pending: ["In attesa di approvazione", "bg-[var(--sel)] text-[var(--fg)]"], invited: ["Invito inviato · da attivare", "bg-sky-100 text-sky-900"], active: ["Licenza attiva", "bg-[var(--sel)] text-[var(--ok)]"], suspended: ["Sospeso", "bg-[var(--hair)] text-[var(--fg2)]"] };
+const BADGE = { pending: ["In attesa di approvazione", "bg-[var(--sel)] text-[var(--fg)]"], invited: ["Invito inviato · da attivare", "bg-[var(--sel)] text-[var(--fg)]"], active: ["Licenza attiva", "bg-[var(--sel)] text-[var(--ok)]"], suspended: ["Sospeso", "bg-[var(--hair)] text-[var(--fg2)]"] };
 const day = (iso) => (iso ? new Date(iso).toLocaleDateString("it-IT", { day: "numeric", month: "short", year: "numeric" }) : "—");
 
 const DoctorCard = ({ d, onStatus, onNetwork, onResend, busy }) => {

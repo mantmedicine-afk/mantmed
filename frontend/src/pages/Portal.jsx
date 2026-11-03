@@ -38,7 +38,7 @@ const TABS = [{ id: "reports", label: "Referti", icon: FileDown }, { id: "appoin
 
 const Empty = ({ text }) => <p className="rounded-2xl border border-dashed border-[var(--hair)] p-6 text-center text-sm text-[var(--fg2)]">{text}</p>;
 
-const CP_CLS = { ottimo: "bg-[var(--sel)] text-[var(--ok)]", buono: "bg-sky-100 text-sky-900" };
+const CP_CLS = { ottimo: "bg-[var(--sel)] text-[var(--ok)]", buono: "bg-[var(--sel)] text-[var(--fg)]" };
 
 const Checkpoints = ({ items }) => (items.length > 0 && (
   <>

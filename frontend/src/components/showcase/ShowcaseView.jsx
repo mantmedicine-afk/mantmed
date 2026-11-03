@@ -26,7 +26,7 @@ export const ShowcaseView = ({ d, onBook, bookLabel = "Prenota una visita", comp
   <article className="overflow-hidden rounded-3xl bg-[var(--bg)] ring-1 ring-[var(--sel)]" data-testid="showcase-view">
     <div className={`relative ${compact ? "h-36" : "h-48 sm:h-64 lg:h-72"} bg-[var(--accent)]`}>
       {d.cover_url ? <img src={imgSrc(d.cover_url)} alt="Lo studio" className="h-full w-full object-cover" data-testid="showcase-cover" />
-        : <div className="h-full w-full bg-[radial-gradient(circle_at_20%_30%,#1E3A5F_0,#0A192F_60%)]" />}
+        : <div className="h-full w-full bg-[radial-gradient(circle_at_20%_30%,var(--accent)_0,var(--bar)_60%)]" />}
       <div className="absolute inset-0 bg-gradient-to-t from-[var(--sel)] to-transparent" />
     </div>
     <div className={`relative ${compact ? "px-5 pb-6" : "px-5 pb-10 sm:px-10"}`}>

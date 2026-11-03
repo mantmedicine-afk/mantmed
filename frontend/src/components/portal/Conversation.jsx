@@ -6,7 +6,7 @@ import { UrgencyNotice } from "./UrgencyNotice";
 
 export const STATUS = {
   inviato: ["Ricevuto", "bg-[var(--hair)] text-[var(--fg2)]", Check],
-  letto: ["Letto", "bg-sky-100 text-sky-900", CheckCheck],
+  letto: ["Letto", "bg-[var(--sel)] text-[var(--fg)]", CheckCheck],
   in_attesa: ["In attesa del medico", "bg-[var(--sel)] text-[var(--fg)]", Hourglass],
   risposto: ["Risposto", "bg-[var(--sel)] text-[var(--ok)]", Reply],
 };

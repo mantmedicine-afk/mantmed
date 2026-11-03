@@ -56,7 +56,7 @@ export default function ResetPassword() {
           <div className="mt-4 font-display text-4xl">MantMed</div>
           <div className="mt-1 text-[11px] uppercase tracking-[0.28em] text-[var(--fg2)]">Recupero password</div>
         </div>
-        <div className="rounded-[28px] border border-[var(--hair)] bg-[var(--sel)] p-7 backdrop-blur-xl">
+        <div className="rounded-[28px] border border-[var(--hair)] bg-[var(--surface)] p-7">
           {res ? <Done res={res} /> : error ? (
             <div data-testid="reset-error">
               <h1 className="font-display text-4xl">Link non valido</h1>

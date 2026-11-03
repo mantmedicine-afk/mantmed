@@ -29,7 +29,7 @@ const Shell = ({ icon: Icon, kicker, title, children }) => (
       <Link to="/" className="inline-flex items-center gap-3" data-testid="register-home-link"><LogoMark size={34} light /><span className="font-display text-2xl">MantMed</span></Link>
       <div className="mt-10 flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-[var(--fg2)]"><Icon size={14} /> {kicker}</div>
       <h1 className="mt-2 font-display text-4xl leading-tight sm:text-5xl">{title}</h1>
-      <motion.div initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mt-8 rounded-[28px] border border-[var(--hair)] bg-[var(--sel)] p-6 backdrop-blur-xl sm:p-8">{children}</motion.div>
+      <motion.div initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mt-8 rounded-[28px] border border-[var(--hair)] bg-[var(--surface)] p-6 sm:p-8">{children}</motion.div>
     </div>
   </div>
 );

@@ -1,3 +1,4 @@
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
@@ -12,7 +13,7 @@ export default function DoctorShowcase() {
   const [d, setD] = useState(undefined);
   useEffect(() => { api.publicDoctor(slug).then((x) => { setD(x); document.title = `${x.name} · ${x.specialty} | MantMed`; }).catch(() => setD(null)); }, [slug]);
   return (
-    <div className="min-h-screen bg-[var(--bg)]" data-testid="public-showcase-page">
+    <div className="min-h-screen bg-[var(--bg)]" data-testid="public-showcase-page"><ThemeToggle floating />
       <header className="mx-auto flex max-w-5xl items-center justify-between px-5 py-5">
         <Link to="/" className="flex items-center gap-2" data-testid="public-showcase-home"><LogoMark size={32} /><span className="font-display text-2xl text-[var(--fg)]">MantMed</span></Link>
         <Link to="/portale/trova-specialista" className="rounded-full border border-[var(--sel)] px-4 py-2 text-sm text-[var(--fg)] transition-colors hover:border-[var(--accent)]" data-testid="public-showcase-portal">Trova Specialista</Link>

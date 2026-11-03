@@ -7,7 +7,7 @@ import { AILabel } from "@/components/mantai/AILabel";
 
 export const CAT = {
   clinico: ["Clinico", "bg-[var(--sel)] text-[var(--fg)]"],
-  amministrativo: ["Amministrativo", "bg-sky-100 text-sky-900"],
+  amministrativo: ["Amministrativo", "bg-[var(--sel)] text-[var(--fg)]"],
 };
 const VISIT_RE = /\b(fiss|prenot|programm|organizz|propon|consigli|vedere|valut)\w*[^.?!]*\b(visita|appuntamento|controllo)|\b(visita|appuntamento|controllo) in studio|\bvenire in studio|\b(telefon|chiam)\w*[^.?!]*\b(studio|112|118)/i;
 

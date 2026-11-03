@@ -6,7 +6,7 @@ import { api, errMsg } from "@/lib/api";
 
 export const STATUSES = [
   { id: "nuova", label: "Nuova", cls: "bg-[var(--sel)] text-[var(--fg)]" },
-  { id: "contattato", label: "Contattato", cls: "bg-sky-100 text-sky-900" },
+  { id: "contattato", label: "Contattato", cls: "bg-[var(--sel)] text-[var(--fg)]" },
   { id: "attivato", label: "Attivato", cls: "bg-[var(--sel)] text-[var(--ok)]" },
   { id: "archiviata", label: "Archiviata", cls: "bg-[var(--hair)] text-[var(--fg2)]" },
 ];

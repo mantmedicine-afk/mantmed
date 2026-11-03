@@ -32,7 +32,7 @@ export default function Activate() {
     <div className="grid min-h-screen place-items-center theme-page bg-[var(--bg)] px-5 py-10 text-[var(--ink)]" data-testid="activate-page"><ThemeToggle floating />
       <div className="w-full max-w-md">
         <div className="flex items-center gap-3"><LogoMark size={38} light /><div className="font-display text-3xl">MantMed</div></div>
-        <div className="mt-8 rounded-[28px] border border-[var(--hair)] bg-[var(--sel)] p-6 backdrop-blur-xl">
+        <div className="mt-8 rounded-[28px] border border-[var(--hair)] bg-[var(--surface)] p-6">
           <div className="text-[11px] uppercase tracking-[0.22em] text-[var(--fg2)]">Rete multispecialistica</div>
           {error && <p className="mt-3 text-sm text-[var(--alert)]" data-testid="activate-error">{error}</p>}
           {!error && !info && <Loader2 className="mt-4 animate-spin" />}

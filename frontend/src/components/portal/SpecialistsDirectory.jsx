@@ -8,7 +8,7 @@ import { Availability } from "@/components/showcase/Availability";
 
 const DoctorTile = ({ d, onOpen, onBook }) => (
   <article className="group flex flex-col overflow-hidden rounded-3xl bg-[var(--surface)] ring-1 ring-[var(--sel)] transition-[transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-lg" data-testid={`specialist-card-${d.slug}`}>
-    <button onClick={onOpen} className="relative h-32 overflow-hidden bg-[radial-gradient(circle_at_20%_30%,#1E3A5F_0,#0A192F_60%)]" aria-label={`Vetrina di ${d.name}`}>{d.cover_url && <img src={imgSrc(d.cover_url)} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />}</button>
+    <button onClick={onOpen} className="relative h-32 overflow-hidden bg-[radial-gradient(circle_at_20%_30%,var(--accent)_0,var(--bar)_60%)]" aria-label={`Vetrina di ${d.name}`}>{d.cover_url && <img src={imgSrc(d.cover_url)} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />}</button>
     <div className="relative z-10 -mt-9 flex flex-1 flex-col gap-2 px-5 pb-5">
       <Avatar src={d.photo_url} name={d.name} size="h-16 w-16 text-xl" ring="ring-4 ring-[var(--ink)]" />
       <div className="font-display text-2xl leading-tight text-[var(--fg)]">{d.name}</div>

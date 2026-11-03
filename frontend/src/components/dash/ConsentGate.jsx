@@ -6,7 +6,7 @@ export const ConsentGate = ({ patient, free, paper, setPaper, onSaved }) => {
   const [open, setOpen] = useState(false);
   if (free) {
     return (
-      <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[var(--hair)] bg-[var(--wait)] px-4 py-3 text-sm text-[var(--sel)]" data-testid="consent-gate-free">
+      <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[var(--hair)] bg-[var(--sel)] px-4 py-3 text-sm text-[var(--fg)]" data-testid="consent-gate-free">
         <input type="checkbox" checked={paper} onChange={(e) => setPaper(e.target.checked)} className="mt-0.5 h-4 w-4 accent-white" data-testid="consent-paper-checkbox" />
         Visita libera: confermo di aver acquisito il consenso privacy firmato su modulo cartaceo
       </label>
@@ -15,7 +15,7 @@ export const ConsentGate = ({ patient, free, paper, setPaper, onSaved }) => {
   if (!patient) return null;
   if (patient.consent_at) {
     return (
-      <div className="flex items-center gap-2 rounded-2xl bg-[var(--ok)] px-4 py-3 text-sm text-[var(--ok)]" data-testid="consent-gate-ok">
+      <div className="flex items-center gap-2 rounded-2xl bg-[var(--sel)] px-4 py-3 text-sm text-[var(--ok)]" data-testid="consent-gate-ok">
         <ShieldCheck size={16} /> Consenso privacy valido dal {new Date(patient.consent_at).toLocaleDateString("it-IT")}
       </div>
     );

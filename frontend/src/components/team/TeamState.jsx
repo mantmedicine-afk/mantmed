@@ -45,7 +45,7 @@ const Locked = ({ data, onRequested }) => {
         </div>
       )}
       {!pending && !data.parent_linked && <p className="mt-4 rounded-2xl bg-[var(--sel)] p-3 text-sm text-[var(--fg2)]" data-testid="team-no-parent">Nessun genitore ha ancora collegato questa cartella al Portale Paziente: la richiesta sarà possibile dopo il collegamento.</p>}
-      {pending && <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-[var(--wait)] px-3 py-1.5 text-xs text-[var(--sel)]" data-testid="team-pending-badge"><Clock3 size={13} /> In attesa di autorizzazione</div>}
+      {pending && <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-[var(--sel)] px-3 py-1.5 text-xs text-[var(--fg)]" data-testid="team-pending-badge"><Clock3 size={13} /> In attesa di autorizzazione</div>}
     </div>
   );
 };
@@ -70,7 +70,7 @@ const Specialist = ({ s, refId }) => {
           </div>
         ))}
       </div>
-      {s.checkpoints.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{s.checkpoints.map((k) => <span key={k.id} className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-3 py-1 text-xs text-violet-900"><HeartPulse size={12} /> {k.band_label} · {day(k.created_at)}</span>)}</div>}
+      {s.checkpoints.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{s.checkpoints.map((k) => <span key={k.id} className="inline-flex items-center gap-1 rounded-full bg-[var(--sel)] px-3 py-1 text-xs text-[var(--fg)]"><HeartPulse size={12} /> {k.band_label} · {day(k.created_at)}</span>)}</div>}
     </article>
   );
 };

@@ -17,7 +17,7 @@ export const DlBtn = ({ onClick, label, testid, dark = true }) => {
 };
 
 const card = "rounded-3xl bg-[var(--surface)] p-5 ring-1 ring-[var(--sel)]";
-const CP = { ottimo: "bg-[var(--sel)] text-[var(--ok)]", buono: "bg-sky-100 text-sky-900" };
+const CP = { ottimo: "bg-[var(--sel)] text-[var(--ok)]", buono: "bg-[var(--sel)] text-[var(--fg)]" };
 
 /** Scheda "Bilanci di salute": bilanci in studio, questionari dei genitori, prossimo bilancio e questionario pre-visita. */
 export const BilanciTab = ({ g, reports, onChange }) => {
