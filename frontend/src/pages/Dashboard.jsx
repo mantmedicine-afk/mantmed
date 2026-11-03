@@ -3,11 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, CLINICS, errMsg } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { TopBar } from "@/components/dash/TopBar";
-import { Marquee } from "@/components/dash/Marquee";
 import { Hero } from "@/components/dash/Hero";
-import { Agenda } from "@/components/dash/Agenda";
-import { WaitingList } from "@/components/dash/WaitingList";
-import { RecentNotes } from "@/components/dash/RecentNotes";
 import { ConsultationOverlay } from "@/components/dash/ConsultationOverlay";
 import { PassportSection } from "@/components/dash/PassportSection";
 import { Passport } from "@/components/dash/Passport";
@@ -31,14 +27,13 @@ import { Sun, Users, MessagesSquare, ReceiptText, Settings, Wrench } from "lucid
 import { AppShell } from "@/components/nav/AppShell";
 import { PageTitle, VisitsList, PatientFolder, SettingsExtras } from "@/components/nav/sections";
 import { ToolsPage } from "@/components/nav/ToolsPage";
-import { NextPatient, TodoBox, Fold, pickNext } from "@/components/today/Today";
+import { Fold } from "@/components/today/Today";
+import { OggiScreen } from "@/components/oggi/OggiScreen";
 import Account from "@/pages/Account";
 import { ProcessingProvider, useProcessing } from "@/lib/processing";
 
 const SECTIONS = ["agenda", "pazienti", "messaggi", "visite", "cassa", "impostazioni", "strumenti"];
 
-const isToday = (iso) => new Date(iso).toDateString() === new Date().toDateString();
-const isTodayDate = (d) => d === new Date().toLocaleDateString("sv-SE");
 
 
 export default function Dashboard() {
@@ -76,19 +71,8 @@ export default function Dashboard() {
     load();
   }, [load]);
 
-  const next = pickNext(waiting, appointments.filter((a) => a.date == null || isTodayDate(a.date)));
   const [requests, setRequests] = useState(0);
   usePoll(() => api.apptRequests().then((r) => setRequests(r.filter((x) => !x.status || x.status === "pending").length)).catch(() => {}), []);
-  const ticker = [
-    ...CLINICS.map((c) => `${c} · ${appointments.filter((a) => a.clinic === c).length} visite`),
-    `${waiting.length} pazienti in sala d'attesa`,
-    next ? `Prossimo: ${next.name}` : "Sala d'attesa libera",
-    `${patients.length} passaporti sanitari sincronizzati`,
-    "Percentili OMS automatici · Check-point di benessere per l'età evolutiva",
-    "Trascrizione AI attiva · Whisper",
-    "Cartella pediatrica · Anamnesi · Sintomi · Esame obiettivo · Crescita · Terapia su misura",
-  ];
-
   const start = (patient) => setOverlay({ open: true, patient: patient ?? null, initial: null });
   const { sezione = "agenda" } = useParams();
   const [folder, setFolder] = useState(null);
@@ -116,49 +100,7 @@ export default function Dashboard() {
   ];
   if (!SECTIONS.includes(sezione)) return <Navigate to="/app" replace />;
 
-  return (
-    <ProcessingProvider onSettled={load} onOpen={openVisit}>
-    <TrackPending notes={notes} />
-    <AppShell items={items} area="Studio medico">
-    <div className="min-h-screen overflow-x-clip bg-paper" data-testid="dashboard" data-section={sezione}>
-      <TopBar onCompliance={() => setCompliance(true)} onFeedback={() => setFeedback(true)} onTour={() => setTour(true)} unread={unread} search={search} />
-      {sezione === "agenda" && <>
-      <div className="mx-auto max-w-[1280px] space-y-3 px-5 pt-4 lg:px-8"><AbsenceBanner /><SupportReplies /></div>
-      <SignatureReminder />
-      <main className="mx-auto max-w-[1280px] space-y-5 px-5 pb-10 pt-4 lg:px-8" data-testid="today-page">
-        <NextPatient next={next} age={patients.find((p) => p.id === next?.patient_id)?.age_label} onStart={start} onOpen={() => setPassportId(next.patient_id)} />
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
-          <div className="min-w-0 xl:col-span-7"><Agenda appointments={appointments} onChange={load} patients={patients} onPassport={setPassportId} /></div>
-          <div className="min-w-0 space-y-5 xl:col-span-5">
-            <TodoBox notes={notes} unread={unread + aiQueued} requests={requests} onSign={openVisit} onMessages={() => navTo("/app/messaggi")}
-              onRequests={() => document.getElementById("today-requests")?.scrollIntoView({ behavior: "smooth" })} onTeam={() => navTo("/app/pazienti")} />
-            <WaitingList waiting={waiting} onChange={load} onStart={start} patients={patients} onPassport={setPassportId} />
-          </div>
-        </div>
-        <div id="today-requests"><Fold title={`Richieste dal portale${requests ? ` · ${requests}` : ""}`} testId="today-requests-fold" defaultOpen={requests > 0}><PortalRequests onChange={load} /></Fold></div>
-        <RecentNotes items={notes.filter((c) => isToday(c.created_at))} onOpen={openVisit} />
-      </main>
-      <Marquee items={ticker} />
-      </>}
-      {sezione === "strumenti" && <ToolsPage onCompliance={() => setCompliance(true)} stats={<div className="space-y-5"><Hero total={appointments.length} waiting={waiting.length} name={shortName} income={income} /><BetaMetrics refreshKey={cashKey} onFeedback={() => setFeedback(true)} /></div>} />}
-      {sezione === "pazienti" && <>
-        <PageTitle kicker="Archivio clinico" title="Pazienti" it="& cartelle cliniche" />
-        <div className="mx-auto max-w-[1440px] space-y-5 pb-12" data-testid="patients-page">
-          <div className="flex gap-2 px-5 lg:px-8" role="tablist">
-            <button role="tab" aria-selected={!showVisits} onClick={() => setShowVisits(false)} className={`h-11 rounded-xl px-5 text-[15px] font-medium ${!showVisits ? "bg-[#0A192F] text-white" : "bg-[#F2F2EF] text-[#0A192F]"}`} data-testid="patients-tab-list">Pazienti</button>
-            <button role="tab" aria-selected={showVisits} onClick={() => setShowVisits(true)} className={`h-11 rounded-xl px-5 text-[15px] font-medium ${showVisits ? "bg-[#0A192F] text-white" : "bg-[#F2F2EF] text-[#0A192F]"}`} data-testid="patients-tab-visits">Tutte le visite</button>
-          </div>
-          {showVisits ? <VisitsList notes={notes} onOpen={openVisit} /> : <>
-          {folder && <div className="px-5 lg:px-8" id="patient-folder"><PatientFolder patient={patients.find((p) => p.id === folder)} notes={notes} onOpenVisit={openVisit} onPassport={setPassportId} onClose={() => setFolder(null)} /></div>}
-          <NetworkSearch />
-          <PassportSection patients={patients} onOpen={(id) => { setFolder(id); window.scrollTo({ top: 0, behavior: "smooth" }); }} onAdd={() => setEditPatient({})} />
-          </>}
-        </div>
-      </>}
-      {sezione === "messaggi" && <div className="pt-4"><DoctorMessages onRead={loadUnread} /></div>}
-      {sezione === "visite" && <><PageTitle kicker="Diario clinico" title="Visite" it="e Bodychart" /><VisitsList notes={notes} onOpen={openVisit} /></>}
-      {sezione === "cassa" && <><PageTitle kicker="Amministrazione" title="Cassa" it="ricevute e incassi" /><CashRegister refreshKey={cashKey} /></>}
-      {sezione === "impostazioni" && <Account role="doctor" embedded extras={<SettingsExtras onCompliance={() => setCompliance(true)} onFeedback={() => setFeedback(true)} onTour={() => setTour(true)} />} />}
+  const modals = <>
       {passportId && <Passport key={`${passportId}-${passportKey}`} patientId={passportId} onClose={() => { setPassportId(null); load(); }} onEdit={setEditPatient}
         onStart={(p) => { setPassportId(null); start({ name: p.name, patient_id: p.id }); }} onOpenVisit={(c) => { setPassportId(null); openVisit(c); }} />}
       <PatientDialog value={editPatient} onClose={() => setEditPatient(null)} onSaved={() => { load(); setPassportKey((k) => k + 1); }} />
@@ -176,6 +118,44 @@ export default function Dashboard() {
         onDone={load}
         onEditPatient={(pid) => setEditPatient(patients.find((p) => p.id === pid) ?? null)}
       />
+  </>;
+
+  if (sezione === "agenda") return (
+    <ProcessingProvider onSettled={load} onOpen={openVisit}>
+      <TrackPending notes={notes} />
+      <OggiScreen appointments={appointments} patients={patients} notes={notes} unread={unread + aiQueued} requests={requests}
+        onStart={start} onOpenPatient={setPassportId} onSign={openVisit}
+        top={<><AbsenceBanner /><SupportReplies /><SignatureReminder /></>} />
+      {modals}
+    </ProcessingProvider>
+  );
+
+  return (
+    <ProcessingProvider onSettled={load} onOpen={openVisit}>
+    <TrackPending notes={notes} />
+    <AppShell items={items} area="Studio medico">
+    <div className="min-h-screen overflow-x-clip bg-paper" data-testid="dashboard" data-section={sezione}>
+      <TopBar onCompliance={() => setCompliance(true)} onFeedback={() => setFeedback(true)} onTour={() => setTour(true)} unread={unread} search={search} />
+      {sezione === "strumenti" && <ToolsPage onCompliance={() => setCompliance(true)} stats={<div className="space-y-5"><Hero total={appointments.length} waiting={waiting.length} name={shortName} income={income} /><BetaMetrics refreshKey={cashKey} onFeedback={() => setFeedback(true)} /></div>} />}
+      {sezione === "pazienti" && <>
+        <PageTitle kicker="Archivio clinico" title="Pazienti" it="& cartelle cliniche" />
+        <div className="mx-auto max-w-[1440px] space-y-5 pb-12" data-testid="patients-page">
+          <div className="flex gap-2 px-5 lg:px-8" role="tablist">
+            <button role="tab" aria-selected={!showVisits} onClick={() => setShowVisits(false)} className={`h-11 rounded-xl px-5 text-[15px] font-medium ${!showVisits ? "bg-[#0A192F] text-white" : "bg-[#F2F2EF] text-[#0A192F]"}`} data-testid="patients-tab-list">Pazienti</button>
+            <button role="tab" aria-selected={showVisits} onClick={() => setShowVisits(true)} className={`h-11 rounded-xl px-5 text-[15px] font-medium ${showVisits ? "bg-[#0A192F] text-white" : "bg-[#F2F2EF] text-[#0A192F]"}`} data-testid="patients-tab-visits">Tutte le visite</button>
+          </div>
+          {showVisits ? <VisitsList notes={notes} onOpen={openVisit} /> : <>
+          {folder && <div className="px-5 lg:px-8" id="patient-folder"><PatientFolder patient={patients.find((p) => p.id === folder)} notes={notes} onOpenVisit={openVisit} onPassport={setPassportId} onClose={() => setFolder(null)} /></div>}
+          <NetworkSearch />
+          <PassportSection patients={patients} onOpen={(id) => { setFolder(id); window.scrollTo({ top: 0, behavior: "smooth" }); }} onAdd={() => setEditPatient({})} />
+          </>}
+        </div>
+      </>}
+      {sezione === "messaggi" && <div className="space-y-5 pt-4">{requests > 0 && <div className="mx-auto max-w-[1280px] px-5 lg:px-8" id="today-requests"><Fold title={`Richieste dal portale · ${requests}`} testId="today-requests-fold" defaultOpen><PortalRequests onChange={load} /></Fold></div>}<DoctorMessages onRead={loadUnread} /></div>}
+      {sezione === "visite" && <><PageTitle kicker="Diario clinico" title="Visite" it="e Bodychart" /><VisitsList notes={notes} onOpen={openVisit} /></>}
+      {sezione === "cassa" && <><PageTitle kicker="Amministrazione" title="Cassa" it="ricevute e incassi" /><CashRegister refreshKey={cashKey} /></>}
+      {sezione === "impostazioni" && <Account role="doctor" embedded extras={<SettingsExtras onCompliance={() => setCompliance(true)} onFeedback={() => setFeedback(true)} onTour={() => setTour(true)} />} />}
+      {modals}
     </div>
     </AppShell>
     </ProcessingProvider>
