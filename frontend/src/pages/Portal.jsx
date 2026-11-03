@@ -273,7 +273,7 @@ export default function Portal() {
             <span className="truncate text-base font-semibold text-[#0A192F]" data-testid="portal-section-label">{items.find((i) => i.id === sezione)?.label}</span></div>
           <div className="flex shrink-0 items-center gap-2">
             <NotificationBell state={notif} reload={reloadNotif} onPick={pickNotif} />
-            <ProfileMenu trigger={<button className="flex h-10 items-center gap-2 rounded-full border border-[#DCDDDF] px-2 text-sm text-[#0A192F] transition-colors hover:border-[#0A192F] sm:px-3" data-testid="portal-profile-btn" aria-label="Il mio profilo"><UserRound size={16} /><span className="hidden max-w-[160px] truncate sm:inline" data-testid="portal-user-name">{user?.name}</span><Caret /></button>} />
+            <ProfileMenu onTour={tour.start} trigger={<button className="flex h-10 items-center gap-2 rounded-full border border-[#DCDDDF] px-2 text-sm text-[#0A192F] transition-colors hover:border-[#0A192F] sm:px-3" data-testid="portal-profile-btn" aria-label="Il mio profilo"><UserRound size={16} /><span className="hidden max-w-[160px] truncate sm:inline" data-testid="portal-user-name">{user?.name}</span><Caret /></button>} />
             <button onClick={() => logout()} className={iconBtn} aria-label="Esci" title="Esci" data-testid="portal-logout-btn"><LogOut size={16} /></button></div>
         </div>
       </header>
@@ -300,7 +300,7 @@ export default function Portal() {
         {data?.consent && sezione === "panoramica" && <p className="flex items-center gap-2 text-xs text-slate-600" data-testid="portal-consent-note"><Info size={13} /> Consenso accettato il {day(data.consent.at)} · {data.consent.version} · {count("reports")} referti · {count("appointments")} appuntamenti</p>}
       </main>)}
       <FeedbackDialog parent open={feedback} onClose={() => setFeedback(false)} />
-      <GuidedTour open={tour.open} steps={PATIENT_STEPS} name={user?.name?.split(" ")[0]} where="Impostazioni" onDone={tour.end} />
+      <GuidedTour open={tour.open} steps={PATIENT_STEPS} name={user?.name?.split(" ")[0]} where="nel menu profilo o in Impostazioni" onDone={tour.end} />
     </div>
     </AppShell>
   );

@@ -30,7 +30,7 @@ export const TopBar = ({ onCompliance, onFeedback, onTour, unread = 0, search })
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <div className="hidden font-mono text-lg text-night tabular-nums xl:block" data-testid="topbar-clock">{fmtTime(now)}</div>
-          <ProfileMenu onSecurity={onCompliance} trigger={
+          <ProfileMenu onSecurity={onCompliance} onTour={onTour} trigger={
             <button className="flex items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pl-1 pr-3 text-night transition-colors hover:border-night" data-testid="doctor-chip" aria-label="Il mio profilo">
               <span className="grid h-8 w-8 place-items-center rounded-full bg-night text-xs font-semibold text-white">{initials(name)}</span>
               <span className="hidden max-w-[180px] truncate text-sm font-medium xl:inline">{name}</span><Caret />

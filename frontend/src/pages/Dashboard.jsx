@@ -106,7 +106,7 @@ export default function Dashboard() {
       <PatientDialog value={editPatient} onClose={() => setEditPatient(null)} onSaved={() => { load(); setPassportKey((k) => k + 1); }} />
       {compliance && <CompliancePanel onClose={() => setCompliance(false)} />}
       <FeedbackDialog open={feedback} onClose={() => setFeedback(false)} onSent={() => setCashKey((k) => k + 1)} />
-      <GuidedTour open={tourCtl.open} steps={DOCTOR_STEPS} name={shortName} where="Impostazioni o nella barra in alto" onDone={tourCtl.end} />
+      <GuidedTour open={tourCtl.open} steps={DOCTOR_STEPS} name={shortName} where="nel menu profilo o in Impostazioni" onDone={tourCtl.end} />
       <ConsultationOverlay
         patients={patients}
         onPatientsChange={load}

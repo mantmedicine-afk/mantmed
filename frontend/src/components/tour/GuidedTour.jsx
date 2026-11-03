@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
@@ -7,7 +7,13 @@ import { ArrowLeft, ArrowRight, Check, Compass, ExternalLink, Sparkles, X } from
 
 const PAD = 10;
 const HEADER = 72;
-const find = (ids) => ids?.map((id) => document.querySelector(id.endsWith("*") ? `[data-testid^="${id.slice(0, -1)}"]` : `[data-testid="${id}"]`)).find(Boolean) ?? null;
+const GAP = 14;
+const M = 12;
+const visible = (el) => {
+  const r = el?.getBoundingClientRect();
+  return !!r && r.width > 0 && r.height > 0 && r.right > 0 && r.left < window.innerWidth;
+};
+const find = (ids) => ids?.flatMap((id) => [...document.querySelectorAll(id.endsWith("*") ? `[data-testid^="${id.slice(0, -1)}"]` : `[data-testid="${id}"]`)]).find(visible) ?? null;
 
 const useTargetRect = (ids, key, active) => {
   const [rect, setRect] = useState(null);
@@ -19,7 +25,8 @@ const useTargetRect = (ids, key, active) => {
       const el = find(ids);
       if (el && scrolled.current !== key) {
         scrolled.current = key;
-        window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + window.scrollY - HEADER - 16), behavior: "smooth" });
+        const b = el.getBoundingClientRect();
+        if (b.top < 0 || b.bottom > window.innerHeight) window.scrollTo({ top: Math.max(0, b.top + window.scrollY - HEADER - 16), behavior: "smooth" });
       }
       const r = el?.getBoundingClientRect();
       setRect((p) => (!r ? null : p && p.top === r.top && p.left === r.left && p.width === r.width && p.height === r.height ? p : r));
@@ -31,10 +38,33 @@ const useTargetRect = (ids, key, active) => {
   return rect;
 };
 
+/** Posiziona il fumetto accanto all'elemento evidenziato, sempre dentro lo schermo. */
+const place = (rect, h) => {
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const w = Math.min(440, vw - M * 2);
+  const clampX = (x) => Math.min(Math.max(x, M), vw - M - w);
+  if (!rect) { const hh = Math.min(h, vh - M * 2); return { width: w, left: (vw - w) / 2, top: (vh - hh) / 2, maxHeight: vh - M * 2 }; }
+  const below = vh - rect.bottom - PAD - GAP - M;
+  const above = rect.top - PAD - GAP - M;
+  const cx = clampX(rect.left + rect.width / 2 - w / 2);
+  if (below >= h) return { width: w, left: cx, top: rect.bottom + PAD + GAP, maxHeight: below };
+  if (above >= h) return { width: w, left: cx, top: rect.top - PAD - GAP - h, maxHeight: above };
+  const right = vw - rect.right - PAD - GAP - M, leftSpace = rect.left - PAD - GAP - M;
+  const ty = Math.min(Math.max(rect.top, M), Math.max(M, vh - M - h));
+  if (right >= w) return { width: w, left: rect.right + PAD + GAP, top: ty, maxHeight: vh - M * 2 };
+  if (leftSpace >= w) return { width: w, left: rect.left - PAD - GAP - w, top: ty, maxHeight: vh - M * 2 };
+  if (Math.max(below, above) >= 220) {
+    if (below >= above) return { width: w, left: cx, top: rect.bottom + PAD + GAP, maxHeight: below };
+    return { width: w, left: cx, top: rect.top - PAD - GAP - Math.min(h, above), maxHeight: above };
+  }
+  const hh = Math.min(h, vh * 0.6);
+  return { width: w, left: cx, top: vh - M - hh, maxHeight: vh * 0.6 };
+};
+
 const Spotlight = ({ rect }) => {
   if (!rect) return <motion.div key="backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-[#0A192F]/80" data-testid="tour-backdrop" />;
-  const top = Math.max(rect.top - PAD, HEADER - PAD);
-  const bottom = Math.min(rect.bottom + PAD, window.innerHeight - 8);
+  const top = Math.max(rect.top - PAD, 2);
+  const bottom = Math.min(rect.bottom + PAD, window.innerHeight - 2);
   return (
     <motion.div key="spot" initial={{ opacity: 0 }} className="pointer-events-none fixed rounded-[32px] ring-2 ring-[#C9CCD3] shadow-[0_0_0_9999px_rgba(10,25,47,0.78)]"
       animate={{ opacity: 1, top, left: rect.left - PAD, width: rect.width + PAD * 2, height: Math.max(0, bottom - top) }}
@@ -68,11 +98,11 @@ const DoneBody = ({ where }) => (
   <div className="mt-4 text-center" data-testid="tour-done">
     <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-[#E5E4E2] text-[#0A192F]"><Check size={24} /></span>
     <h2 id="tour-title" className="mt-4 font-display text-3xl text-white">Tutto pronto</h2>
-    <p className="mt-2 text-sm leading-relaxed text-slate-300">Può rivedere questa guida quando vuole da <span className="inline-flex items-center gap-1 text-white"><Compass size={13} /> Rivedi tour</span> in {where}.</p>
+    <p className="mt-2 text-sm leading-relaxed text-slate-300">Può rivedere questa guida quando vuole da <span className="inline-flex items-center gap-1 text-white"><Compass size={13} /> Rivedi tour</span> {where}.</p>
   </div>
 );
 
-export const GuidedTour = ({ open, steps, name, where = "Impostazioni", onDone }) => {
+export const GuidedTour = ({ open, steps, name, where = "in Impostazioni", onDone }) => {
   const [i, setI] = useState(0);
   const nav = useNavigate();
   const loc = useLocation();
@@ -93,21 +123,38 @@ export const GuidedTour = ({ open, steps, name, where = "Impostazioni", onDone }
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onDone, steps.length]);
   const rect = useTargetRect(done ? null : step.targets, `${i}`, open);
+  const card = useRef(null);
+  const [h, setH] = useState(420);
+  useLayoutEffect(() => {
+    const el = card.current;
+    if (!el) return undefined;
+    const measure = () => {
+      const inner = el.firstElementChild, body = el.querySelector('[data-testid="tour-body"]');
+      if (inner && body) setH(inner.offsetHeight - body.clientHeight + body.scrollHeight);
+    };
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    measure();
+    const t = setTimeout(measure, 320);
+    return () => { ro.disconnect(); clearTimeout(t); };
+  }, [open, i, done]);
+  const [, setVp] = useState(0);
+  useEffect(() => { const f = () => setVp((n) => n + 1); window.addEventListener("resize", f); return () => window.removeEventListener("resize", f); }, []);
   if (!open) return null;
-  const left = rect && !done && rect.left + rect.width / 2 > window.innerWidth / 2 && rect.width < window.innerWidth * 0.6;
+  const pos = place(done ? null : rect, h);
   return (
     <div className="fixed inset-0 z-[70]" role="dialog" aria-modal="true" aria-labelledby="tour-title" data-testid="onboarding-tour">
       <Spotlight rect={done ? null : rect} />
-      <div className={`fixed inset-x-3 bottom-3 sm:inset-x-auto sm:bottom-6 sm:w-[440px] ${left ? "sm:left-6" : "sm:right-6"} ${done ? "sm:left-1/2 sm:right-auto sm:top-1/2 sm:bottom-auto sm:-translate-x-1/2 sm:-translate-y-1/2" : ""}`}>
+      <div ref={card} className="fixed flex flex-col overflow-hidden rounded-[28px] transition-[top,left] duration-300 ease-out" style={pos} data-testid="tour-card">
         <AnimatePresence mode="wait">
           <motion.div key={i} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}
-            className="grain relative rounded-[28px] border border-[#C9CCD3]/30 bg-[#0A192F] p-5 text-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.6)] sm:p-6" data-testid={done ? "tour-step-done" : `tour-step-${i + 1}`}>
+            className="grain relative flex max-h-full min-h-0 flex-col [&>*:not([data-testid=tour-body])]:shrink-0 rounded-[28px] border border-[#C9CCD3]/30 bg-[#0A192F] p-5 text-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.6)] sm:p-6" data-testid={done ? "tour-step-done" : `tour-step-${i + 1}`}>
             <div className="flex items-center justify-between">
               <span className="flex min-w-0 items-center gap-2 truncate text-[11px] uppercase tracking-[0.22em] text-[#C9CCD3]"><Sparkles size={13} className="shrink-0" /> <span className="truncate">{i === 0 ? `Benvenuto${name ? `, ${name}` : ""}` : "Guida MantMed"}</span></span>
               {!done && <button onClick={onDone} className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-xs text-[#C9CCD3] transition-colors hover:text-white" data-testid="tour-skip-btn"><X size={13} /> Salta il tour</button>}
             </div>
             {!done && <TourVideo id={step.video} title={step.title} />}
-            <div className="max-h-[30vh] overflow-y-auto sm:max-h-[34vh]" data-testid="tour-body">{done ? <DoneBody where={where} /> : <StepBody step={step} i={i} total={steps.length} />}</div>
+            <div className="max-h-[30vh] min-h-0 flex-1 overflow-y-auto overscroll-contain sm:max-h-[34vh]" data-testid="tour-body">{done ? <DoneBody where={where} /> : <StepBody step={step} i={i} total={steps.length} />}</div>
             {!done && step.extra && <button onClick={() => go(step.extra.to)} className="mt-3 inline-flex items-center gap-1.5 text-sm text-[#C9CCD3] underline underline-offset-4 hover:text-white" data-testid="tour-extra-link"><ExternalLink size={13} /> {step.extra.label}</button>}
             <div className="mt-5 flex gap-1.5" aria-hidden="true">
               {steps.map((s, k) => <button key={s.title} tabIndex={-1} onClick={() => setI(k)} className={`h-1.5 flex-1 rounded-full transition-colors ${k <= i ? "bg-[#E5E4E2]" : "bg-white/15"}`} data-testid={`tour-dot-${k + 1}`} />)}
