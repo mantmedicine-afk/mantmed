@@ -1,0 +1,55 @@
+{
+  "summary": "Frontend-only test of the Doctor-area restructure (Area personale, Strumenti removed, dark-bar widgets, light TopBar weather, Home nav, tour). Tested with Playwright on desktop 1920, tablet 768 and mobile 390, plus the parent Portal. Almost everything works. One functional bug was found and fixed: the weather fallback when geolocation is denied never worked because the code read the wrong field. One mobile contrast issue is still open.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "BarWidgets.Weather (studio-city fallback)", "issue": "FIXED BY TESTER: fromStudio read (await api.account())?.studio_address, but /api/account returns it under profile.studio_address. Because of this the weather pill never appeared when geolocation was denied. Changed it to ?.profile?.studio_address. With the fix, a denied permission shows 'Reggio Calabria 15°' with a sun icon.", "selector": "[data-testid=topbar-weather]", "priority": "HIGH"},
+      {"component": "TopBar mobile TourButton", "issue": "tour-open-button-mobile sits in the LIGHT TopBar but uses the dark-bar color text-[var(--ink)]. The icon color is rgb(247,249,251) on a rgb(199,209,213) background, about 1.4:1 contrast, so the '?' is almost invisible. The ThemeToggle next to it is fine because it uses --fg. Fix: give TourButton a light variant (text-[var(--fg)] bg-[var(--raised)], like ThemeToggle without the bar prop).", "selector": "[data-testid=tour-open-button-mobile]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Weather when the geolocation prompt is never answered", "issue": "If the permission stays in 'prompt' (the user ignores it), getCurrentPosition never calls back. The 8s timeout only starts after permission is granted, so the studio fallback never runs and no weather is shown. Seen in headless Chromium with no permission set: no open-meteo requests at all. Suggest wrapping fromBrowser in Promise.race with a timeout of about 10s, or checking navigator.permissions.query first.", "affected_selectors": ["[data-testid=topbar-weather]"]}
+    ],
+    "design_issues": [
+      {"screen": "Compliance panel (area-tile-gdpr)", "issues": ["It opens correctly but does not close with Escape and has no role=dialog. It closes only with compliance-close-btn. Minor and pre-existing."]},
+      {"screen": "Tour videos", "issues": ["The tour step videos and screenshots still show the old vertical-sidebar UI. They do not match the new top bar or Area personale. Cosmetic."]},
+      {"screen": "Tablet 768 / mobile", "issues": ["bar-clock is hidden below lg (lg:block) and topbar-weather is hidden below sm (sm:flex). This looks intentional; just noting it."]}
+    ]
+  },
+  "passed_tests": [
+    "Desktop nav reads Home (lucide-house icon, sidebar-link-agenda) | Pazienti | Messaggi | Cassa | Area personale. There is no sidebar-link-strumenti.",
+    "Dark bar order: mantai-sidebar-btn, tour-open-button, theme-toggle-btn, bar-clock, sidebar-collapse-btn, sidebar-logout-btn. The clock shows HH:MM:SS and ticks (23:28:01 -> 23:28:03). All of these stay visible in mini/collapsed mode.",
+    "Theme toggle in the dark bar switches light<->dark, sets localStorage mantmed.theme, and the choice survives a reload.",
+    "Light TopBar has search, topbar-weather, doctor-chip and logout-button. compliance-button, feedback-beta-button, topbar-messages-btn and topbar-clock are gone, and there is no Sicurezza button.",
+    "Geolocation granted at Milan 45.46,9.19: the pill shows 'Milano 10°' with an icon. Nominatim and Open-Meteo both returned 200.",
+    "Geolocation denied (simulated error code 1), after the fix: the pill shows 'Reggio Calabria 15°' from studio_address 'Via Roma 12, Reggio Calabria'.",
+    "Tour on desktop has 9 steps, each with a spotlight on an existing element: step 1 sidebar-nav, step 8 sidebar-link-area-personale, step 9 tour-open-button, then the done screen. On mobile all 9 steps also have a spotlight.",
+    "/app/area-personale shows all 12 tiles in the requested order. Each content tile opens its section (with the matching sezione param), and area-back returns to the grid. bilanci opens modelli.",
+    "The Profilo section contains account-professional, account-showcase and account-doctor-signature.",
+    "esportazioni goes to /app/cassa, gdpr opens compliance-panel, and feedback opens the feedback dialog.",
+    "Legacy URLs: /app/impostazioni?sezione=firma -> /app/area-personale?sezione=firma (profilo section with signature); /app/strumenti -> /app/area-personale grid; /app/impostazioni?sezione=modelli -> Modelli; ?sezione=vetrina -> profilo.",
+    "In the doctor-chip menu, profile-account reads 'Area personale' and navigates to /app/area-personale. The Ctrl+K search lists an 'Area personale' action.",
+    "Mobile 390: bottom nav reads Home | Pazienti | Messaggi | Cassa | Altro. tour-open-button-mobile and the theme toggle are visible and work. No horizontal overflow on Home, the Area grid or Profilo. The Altro drawer includes Area personale.",
+    "Tablet 768: no overflow, and the bar shows the tour, theme, MantAI and logout buttons.",
+    "Parent Portal is unchanged: Impostazioni has the account-nav sections, the feedback button is there, and there is no area-grid or bar-clock."
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "Fix the low contrast of tour-open-button-mobile in the light TopBar (add a light variant to TourButton).",
+    "Add an overall timeout to the browser geolocation path in Weather so the studio fallback runs when the permission prompt is ignored.",
+    "Optional: let CompliancePanel close with Escape and add role=dialog.",
+    "Optional: refresh the tour videos to show the new UI."
+  ],
+  "critical_code_review_comments": [
+    "BarWidgets studioPlace used the wrong response path (fixed by tester: profile.studio_address).",
+    "Weather mounts and fetches twice (duplicate open-meteo and nominatim requests seen). Probably StrictMode or a remount. Consider caching the result in sessionStorage for a few minutes so it does not refetch on every page.",
+    "Account.jsx still defines a SECTIONS.doctor list (vetrina, firma, ...) that the doctor no longer uses because DoctorArea replaces it. This is dead code and should be removed to avoid confusion.",
+    "theme-toggle-btn and the mobile TopBar toggle share one data-testid, so there are 2 nodes on desktop. Tests have to scope to the bar."
+  ],
+  "updated_files": ["/app/frontend/src/components/dash/BarWidgets.jsx"],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "~93% (1 functional bug fixed by tester, 1 contrast bug still open)"},
+  "seed_data_creation": "None. No data was modified (feedback dialog opened, not sent).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Doctor login is at /app (not /login). To test the denied-geolocation fallback, use add_init_script to override navigator.geolocation.getCurrentPosition so it calls the error callback. clear_permissions leaves the prompt pending, and then nothing renders. Scope dark-bar selectors with [data-testid=sidebar] on desktop and [data-testid=sidebar-tablet] on tablet.",
+  "rca of the issue": "Weather fallback: GET /api/account returns doctor fields under 'profile' (backend/account.py doctor_view). BarWidgets read the top-level studio_address, which is undefined, so cityCandidates('') returned [] and geocode returned null. fromStudio then resolved null and the pill was never rendered. Mitigation applied: read ?.profile?.studio_address."
+}

@@ -436,3 +436,9 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - ConsultationOverlay: sfondo theme-bar (scuro in giorno/notte), campi input/textarea leggibili (regola CSS per input su superfici scure), pulsanti primari su --accent
 - AppShell: nav orizzontale senza scrollbar/striscia (overflow-y-hidden, webkit-scrollbar nascosta)
 - Backlog: placeholder giorno, --ok su --sel, box annidati PortalOverview, tour-video-expand notte
+
+## 2026-06 Area personale e barre
+- Impostazioni -> Area personale (/app/area-personale) a riquadri (DoctorArea.jsx); Profilo professionale unisce profilo+vetrina+firma; Strumenti eliminata (redirect da /app/impostazioni e /app/strumenti)
+- Barra scura: ? tour, modalita' notte, orologio HH:MM:SS; barra chiara: meteo Open-Meteo (posizione browser + Nominatim, fallback citta' studio), solo profilo ed Esci
+- Oggi -> Home; tour aggiornato
+- Backlog: video tour con nuova interfaccia, Esc su pannello GDPR

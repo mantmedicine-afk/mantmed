@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { CircleHelp, Sun, Cloud, CloudRain } from "lucide-react";
 import { api } from "@/lib/api";
 
-export const TourButton = ({ onClick, testId = "tour-open-button", className = "" }) => (
-  <button onClick={onClick} className={`grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[var(--hair)] text-[var(--ink)] transition-colors hover:bg-[var(--sel)] ${className}`} aria-label="Rivedi tour / guida" title="Rivedi tour / guida" data-testid={testId}>
+export const TourButton = ({ onClick, testId = "tour-open-button", light = false }) => (
+  <button onClick={onClick} className={`grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[var(--hair)] transition-colors ${light ? "bg-[var(--raised)] text-[var(--fg)] hover:border-[var(--accent)]" : "text-[var(--ink)] hover:bg-[var(--sel)]"}`} aria-label="Rivedi tour / guida" title="Rivedi tour / guida" data-testid={testId}>
     <CircleHelp size={17} />
   </button>
 );
@@ -13,7 +13,7 @@ const fmt = (d) => d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-d
 export const LiveClock = () => {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
-  return <time dateTime={now.toISOString()} className="hidden shrink-0 px-1 font-mono text-base tabular-nums text-[var(--ink)] lg:block" data-testid="bar-clock">{fmt(now)}</time>;
+  return <time dateTime={now.toISOString()} className="hidden shrink-0 px-1 font-mono text-base tabular-nums text-[var(--ink)] md:block" data-testid="bar-clock">{fmt(now)}</time>;
 };
 
 const iconFor = (code) => (code <= 1 ? Sun : code >= 51 ? CloudRain : Cloud);
@@ -44,7 +44,7 @@ const geocode = async (names) => {
   return null;
 };
 
-const studioPlace = async () => geocode(cityCandidates((await api.account())?.studio_address));
+const studioPlace = async () => geocode(cityCandidates((await api.account())?.profile?.studio_address));
 const studioCity = async () => (await studioPlace())?.name || "";
 
 const fromStudio = async () => {
@@ -67,7 +67,7 @@ export const Weather = () => {
   const [w, setW] = useState(null);
   useEffect(() => {
     let alive = true;
-    fromBrowser().catch(() => fromStudio()).then((v) => alive && v && setW(v)).catch(() => {});
+    Promise.race([fromBrowser(), new Promise((_, ko) => setTimeout(() => ko(new Error("timeout")), 10000))]).catch(() => fromStudio()).then((v) => alive && v && setW(v)).catch(() => {});
     return () => { alive = false; };
   }, []);
   if (!w || w.temperature_2m == null) return null;

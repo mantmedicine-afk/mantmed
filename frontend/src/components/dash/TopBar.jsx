@@ -23,7 +23,7 @@ export const TopBar = ({ onCompliance, onTour, search }) => {
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Weather />
-          <div className="flex items-center gap-2 md:hidden"><TourButton onClick={onTour} testId="tour-open-button-mobile" /><ThemeToggle /></div>
+          <div className="flex items-center gap-2 md:hidden"><TourButton onClick={onTour} testId="tour-open-button-mobile" light /><ThemeToggle /></div>
           <ProfileMenu onSecurity={onCompliance} onTour={onTour} trigger={
             <button className="flex items-center gap-2 rounded-full border border-[var(--hair)] bg-[var(--surface)] py-1 pl-1 pr-3 text-[var(--fg)] transition-colors hover:border-[var(--accent)]" data-testid="doctor-chip" aria-label="Il mio profilo">
               <span className="grid h-8 w-8 place-items-center rounded-full bg-[var(--accent)] text-xs font-semibold text-[var(--ink)]">{initials(name)}</span>
