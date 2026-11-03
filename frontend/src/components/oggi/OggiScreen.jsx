@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import { CLINICS } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { needsSignature } from "@/components/dash/SignNote";
-import { NextBar, VisitDetail, TodoPanel } from "./Panels";
+import { StartButton, NextLine, Summary, VisitSheet, rise } from "./Panels";
 import { AgendaList } from "./AgendaList";
-import { CANCELLED, LONG_DATE, greeting, isDone, nowHM, shortClinic, surname, untilLabel } from "./data";
+import { CANCELLED, LONG_DATE, greeting, isDone, nowHM, shortClinic, surname } from "./data";
 
 const useNow = () => {
   const [d, setD] = useState(new Date());
@@ -35,36 +36,33 @@ export const OggiScreen = ({ appointments, patients, notes, unread, requests, on
     .sort((x, y) => x.time.localeCompare(y.time)), [appointments, date]);
   const groups = CLINICS.filter((c) => clinic === "all" || c === clinic).map((c) => ({ clinic: c, items: today.filter((a) => a.clinic === c) }));
   const shown = groups.flatMap((g) => g.items);
-  const next = today.find((a) => !isDone(a) && a.time >= now) ?? null;
-  const firstFuture = shown.find((a) => a.time > now);
-  const lastPastGroup = [...groups].reverse().find((g) => g.items.length && g.items[g.items.length - 1].time <= now);
-  const nowBefore = !shown.length ? null : shown[0].time > now ? shown[0].id : firstFuture ? firstFuture.id : lastPastGroup && `end-${lastPastGroup.clinic}`;
-  const sel = shown.find((a) => a.id === selected) ?? (next && shown.includes(next) ? next : shown[0]);
-
+  const next = shown.find((a) => !isDone(a) && a.time >= now) ?? null;
+  const sel = today.find((a) => a.id === selected) ?? null;
   const toSign = notes.filter(needsSignature);
-  const todo = [
-    { id: "sign", label: "Note da firmare", count: toSign.length, onClick: () => (toSign[0] ? onSign(toSign[0]) : nav("/app/visite")) },
-    { id: "messages", label: "Messaggi da leggere", count: unread, onClick: () => nav("/app/messaggi") },
-    ...(requests > 0 ? [{ id: "requests", label: "Richieste dal portale", count: requests, onClick: () => nav("/app/messaggi") }] : []),
-  ];
   const startNext = () => onStart(next ? { name: next.patient_name, patient_id: next.patient_id } : null);
 
   return (
-      <main className="mx-auto max-w-[1280px] space-y-4 px-5 pb-12 pt-6 lg:px-8" data-testid="today-page">
-        {top}
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <div className="text-sm text-[var(--fg2)]" data-testid="oggi-date">{LONG_DATE(date)}</div>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-4xl" data-testid="oggi-title">{greeting(date)}, {surname(user?.name)}</h1>
-          </div>
-          <Segmented value={clinic} onChange={setClinic} options={[["all", "Tutti"], ...CLINICS.map((c) => [c, shortClinic(c)])]} />
+    <main className="mx-auto max-w-[1100px] space-y-10 px-5 pb-16 pt-8 sm:space-y-12 lg:px-8 lg:pt-10" data-testid="today-page">
+      {top}
+      <motion.header {...rise(0)} className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div className="text-sm text-[var(--fg2)]" data-testid="oggi-date">{LONG_DATE(date)}</div>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-[var(--fg)] sm:text-4xl" data-testid="oggi-title">{greeting(date)}, {surname(user?.name)}</h1>
         </div>
-        <NextBar next={next} until={next && untilLabel(next.time, now)} age={byId[next?.patient_id]?.age_label} onOpen={() => onOpenPatient(next.patient_id)} onStart={startNext} />
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <VisitDetail appt={sel} patient={byId[sel?.patient_id]} onOpen={onOpenPatient} />
-          <TodoPanel items={todo} />
-        </div>
-        <AgendaList groups={groups} patients={patients} now={now} nowBefore={nowBefore} selected={sel?.id} onSelect={setSelected} />
-      </main>
+        <Segmented value={clinic} onChange={setClinic} options={[["all", "Tutti"], ...CLINICS.map((c) => [c, shortClinic(c)])]} />
+      </motion.header>
+      <motion.section {...rise(1)} className="flex flex-col items-center gap-6 py-2 sm:gap-7" aria-label="Prossimo paziente" data-testid="oggi-next-bar">
+        <StartButton onStart={startNext} />
+        <NextLine next={next} age={byId[next?.patient_id]?.age_label} onOpen={() => onOpenPatient(next.patient_id)} />
+      </motion.section>
+      <Summary visits={shown.length} done={shown.filter(isDone).length} toSign={toSign.length} unread={unread} requests={requests}
+        onVisits={() => document.getElementById("oggi-agenda")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+        onSign={() => (toSign[0] ? onSign(toSign[0]) : nav("/app/visite"))}
+        onMessages={() => nav("/app/messaggi")} />
+      <motion.div {...rise(6)}>
+        <AgendaList groups={groups} patients={patients} now={now} onSelect={setSelected} />
+      </motion.div>
+      <VisitSheet appt={sel} patient={byId[sel?.patient_id]} onClose={() => setSelected(null)} onOpen={onOpenPatient} />
+    </main>
   );
 };

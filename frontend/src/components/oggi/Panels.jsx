@@ -1,58 +1,86 @@
-import { ChevronRight, FolderOpen } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
+import { AudioLines, FolderOpen, CalendarCheck, PenLine, MessagesSquare, ChevronRight } from "lucide-react";
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { isDone, shortClinic } from "./data";
-import { MantAIMark } from "@/components/mantai/MantAILogo";
 
-export const Dot = ({ color, label }) => <span className="inline-block h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: color }} aria-label={label} role={label ? "img" : undefined} />;
+export const Dot = ({ color, label }) => <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: color }} aria-label={label} role={label ? "img" : undefined} />;
 export const STATUS = { done: ["var(--ok)", "Fatto"], planned: ["var(--wait)", "In programma"] };
-const card = "rounded-[20px] border border-[var(--hair)] bg-[var(--surface)] p-5 sm:p-6";
+export const card = "rounded-3xl bg-[var(--surface)]";
 
-export const NextBar = ({ next, until, age, onOpen, onStart }) => (
-  <section className="flex min-h-[52px] flex-wrap items-center gap-x-4 gap-y-2 rounded-[20px] bg-[var(--accent)] px-4 py-2 text-[var(--ink)] sm:flex-nowrap sm:px-5" aria-label="Prossimo paziente" data-testid="oggi-next-bar">
-    {next ? <>
-      <span className="shrink-0 text-sm text-[var(--fg2)]" data-testid="oggi-next-when">Prossimo · <span className="font-semibold text-[var(--ink)]">{next.time}, {until}</span></span>
-      <span className="w-full min-w-0 text-sm sm:w-auto sm:flex-1 sm:truncate" data-testid="oggi-next-who"><span className="font-semibold">{next.patient_name}</span>{age ? ` · ${age}` : ""} · {next.visit_type}</span>
-    </> : <span className="min-w-0 flex-1 text-sm" data-testid="oggi-next-empty">Nessun'altra visita in programma oggi.</span>}
-      <div className="flex shrink-0 gap-2">
-        {next?.patient_id && <button onClick={onOpen} className="h-8 rounded-full border border-[var(--hair)] px-3.5 text-sm font-medium transition-colors hover:bg-[var(--raised)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]" data-testid="oggi-next-folder-btn">Cartella</button>}
-        <button onClick={onStart} className="flex h-8 items-center gap-1.5 rounded-full bg-[var(--surface)] pl-1.5 pr-3.5 text-sm font-semibold text-[var(--fg)] transition-colors hover:bg-[var(--raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]" data-testid="oggi-next-start-btn"><MantAIMark size={18} /> Inizia visita</button>
-      </div>
-  </section>
-);
+export const rise = (i = 0) => ({ initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.55, delay: 0.08 * i, ease: [0.22, 1, 0.36, 1] } });
 
-const Row = ({ k, v, children }) => (
-  <div className="flex gap-4 border-t border-[var(--sel)] py-2.5 text-sm first:border-t-0"><dt className="w-20 shrink-0 text-[var(--fg2)]">{k}</dt><dd className="min-w-0 text-[var(--fg)]">{children ?? v}</dd></div>
-);
-
-export const VisitDetail = ({ appt, patient, onOpen }) => {
-  if (!appt) return <section className={card} data-testid="oggi-detail"><p className="text-sm text-[var(--fg2)]">Selezioni una visita dall'agenda.</p></section>;
-  const [color, label] = STATUS[isDone(appt) ? "done" : "planned"];
+const PulseRing = () => {
+  const still = useReducedMotion();
   return (
-    <section className={`${card} flex flex-col`} aria-live="polite" data-testid="oggi-detail">
-      <div className="flex items-center gap-2 text-sm text-[var(--fg2)]" data-testid="oggi-detail-status"><Dot color={color} /> {label} · {appt.time}</div>
-      <h2 className="mt-2 text-2xl font-semibold tracking-tight text-[var(--fg)]" data-testid="oggi-detail-name">{appt.patient_name}</h2>
-      {patient?.age_label && <div className="mt-0.5 text-sm text-[var(--fg2)]" data-testid="oggi-detail-age">{patient.age_label}</div>}
-      <dl className="mt-4">
-        <Row k="Motivo" v={appt.visit_type} />
-        <Row k="Studio" v={shortClinic(appt.clinic)} />
-        <Row k="Allergie">{patient?.allergies ? <span className="inline-flex rounded-full bg-[var(--alert-bg)] px-2.5 py-0.5 font-semibold text-[var(--alert)]" data-testid="oggi-detail-allergies">Allergia: {patient.allergies}</span> : <span className="text-[var(--fg2)]">Nessuna nota</span>}</Row>
-      </dl>
-      {appt.patient_id && <button onClick={() => onOpen(appt.patient_id)} className="mt-5 flex h-10 w-fit items-center gap-2 rounded-full bg-[var(--raised)] px-4 text-sm font-semibold text-[var(--fg)] transition-colors hover:bg-[var(--raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]" data-testid="oggi-detail-open-btn"><FolderOpen size={15} /> Apri cartella</button>}
-    </section>
+    <motion.span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-full border-2 border-[var(--fg2)]"
+      animate={still ? { opacity: 0.35 } : { scale: [1, 1.22], opacity: [0.55, 0] }}
+      transition={still ? undefined : { duration: 2.6, repeat: Infinity, ease: "easeOut" }} />
   );
 };
 
-export const TodoPanel = ({ items }) => (
-  <section className={card} data-testid="oggi-todo">
-    <h2 className="text-base font-semibold text-[var(--fg)]">Da fare</h2>
-    <ul className="mt-3 space-y-1.5">
-      {items.map(({ id, label, count, onClick }) => (
-        <li key={id}>
-          <button onClick={onClick} className="flex w-full items-center justify-between gap-3 rounded-2xl px-3 py-3 text-left text-sm text-[var(--fg)] transition-colors hover:bg-[var(--raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]" data-testid={`oggi-todo-${id}`}>
-            <span>{label} <span className="font-semibold" data-testid={`oggi-todo-${id}-count`}>({count})</span></span>
-            <ChevronRight size={17} className="text-[var(--fg2)]" aria-hidden="true" />
-          </button>
-        </li>
-      ))}
-    </ul>
+export const StartButton = ({ onStart }) => (
+  <div className="relative grid h-[140px] w-[140px] place-items-center sm:h-[180px] sm:w-[180px]">
+    <PulseRing />
+    <span aria-hidden="true" className="pointer-events-none absolute -inset-3 rounded-full border border-[var(--hair)]" />
+    <button onClick={onStart}
+      className="theme-bar relative flex h-full w-full flex-col items-center justify-center gap-2 rounded-full transition-[transform,box-shadow] duration-300 ease-out hover:scale-[1.04] hover:shadow-[0_22px_48px_-14px_var(--scrim)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--accent)] active:scale-[0.98]"
+      data-testid="oggi-next-start-btn">
+      <AudioLines className="h-10 w-10 sm:h-12 sm:w-12" strokeWidth={1.6} />
+      <span className="text-[15px] font-semibold sm:text-base">Inizia visita</span>
+    </button>
+  </div>
+);
+
+export const NextLine = ({ next, age, onOpen }) => (
+  <p className="text-center text-sm text-[var(--fg2)]" data-testid="oggi-next-line">
+    {next ? <>
+      <span data-testid="oggi-next-who">Prossimo: <span className="font-semibold text-[var(--fg)]">{next.patient_name}</span>{age ? ` · ${age}` : ""} · <span className="tabular-nums" data-testid="oggi-next-when">{next.time}</span></span>
+      {next.patient_id && <> <span aria-hidden="true">·</span> <button onClick={onOpen} className="font-semibold text-[var(--fg)] underline decoration-[var(--hair)] underline-offset-4 transition-colors hover:decoration-[var(--fg)]" data-testid="oggi-next-folder-btn">Apri cartella</button></>}
+    </> : <span data-testid="oggi-next-empty">Nessun'altra visita in programma oggi.</span>}
+  </p>
+);
+
+const Stat = ({ id, icon: Icon, value, label, sub, onClick, i }) => (
+  <motion.button {...rise(i)} onClick={onClick}
+    className={`${card} group flex items-center gap-4 p-5 text-left transition-transform duration-300 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] sm:p-6`} data-testid={`oggi-stat-${id}`}>
+    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[var(--sel)] text-[var(--fg)]"><Icon size={19} /></span>
+    <span className="min-w-0 flex-1">
+      <span className="block text-3xl font-semibold tabular-nums tracking-tight text-[var(--fg)]" data-testid={`oggi-stat-${id}-count`}>{value}</span>
+      <span className="block text-sm text-[var(--fg2)]">{label}{sub && <span className="block text-xs" data-testid={`oggi-stat-${id}-sub`}>{sub}</span>}</span>
+    </span>
+    <ChevronRight size={17} className="text-[var(--fg2)] transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+  </motion.button>
+);
+
+export const Summary = ({ visits, done, toSign, unread, requests, onVisits, onSign, onMessages }) => (
+  <section className="grid grid-cols-1 gap-4 sm:grid-cols-3" aria-label="Riepilogo" data-testid="oggi-summary">
+    <Stat i={3} id="visits" icon={CalendarCheck} value={visits} label="Visite di oggi" sub={`di cui ${done} ${done === 1 ? "fatta" : "fatte"}`} onClick={onVisits} />
+    <Stat i={4} id="sign" icon={PenLine} value={toSign} label="Note da firmare" onClick={onSign} />
+    <Stat i={5} id="messages" icon={MessagesSquare} value={unread} label="Messaggi da leggere" sub={requests > 0 ? `+ ${requests} richieste dal portale` : null} onClick={onMessages} />
   </section>
 );
+
+const Row = ({ k, children }) => (
+  <div className="flex gap-4 border-t border-[var(--sel)] py-3 text-sm first:border-t-0"><dt className="w-20 shrink-0 text-[var(--fg2)]">{k}</dt><dd className="min-w-0 text-[var(--fg)]">{children}</dd></div>
+);
+
+export const VisitSheet = ({ appt, patient, onClose, onOpen }) => {
+  const [color, label] = appt ? STATUS[isDone(appt) ? "done" : "planned"] : [];
+  return (
+    <Sheet open={Boolean(appt)} onOpenChange={(o) => !o && onClose()}>
+      <SheetContent side="right" className="w-full border-0 bg-[var(--surface)] p-7 text-[var(--fg)] sm:max-w-md" data-testid="oggi-detail">
+        {appt && <>
+          <div className="flex items-center gap-2 text-sm text-[var(--fg2)]" data-testid="oggi-detail-status"><Dot color={color} /> {label} · <span className="tabular-nums">{appt.time}</span></div>
+          <SheetTitle className="mt-3 text-3xl font-semibold tracking-tight text-[var(--fg)]" data-testid="oggi-detail-name">{appt.patient_name}</SheetTitle>
+          <SheetDescription className="mt-1 text-sm text-[var(--fg2)]" data-testid="oggi-detail-age">{patient?.age_label || "Dettaglio della visita"}</SheetDescription>
+          <dl className="mt-6">
+            <Row k="Motivo">{appt.visit_type}</Row>
+            <Row k="Studio">{shortClinic(appt.clinic)}</Row>
+            <Row k="Allergie">{patient?.allergies ? <span className="inline-flex rounded-full bg-[var(--alert-bg)] px-2.5 py-0.5 font-semibold text-[var(--alert)]" data-testid="oggi-detail-allergies">Allergia: {patient.allergies}</span> : <span className="text-[var(--fg2)]">Nessuna nota</span>}</Row>
+          </dl>
+          {appt.patient_id && <button onClick={() => { onClose(); onOpen(appt.patient_id); }} className="mt-8 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[var(--accent)] text-sm font-semibold text-[var(--ink)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]" data-testid="oggi-detail-open-btn"><FolderOpen size={16} /> Apri cartella</button>}
+        </>}
+      </SheetContent>
+    </Sheet>
+  );
+};

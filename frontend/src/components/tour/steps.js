@@ -10,22 +10,22 @@ export const DOCTOR_STEPS = [
   },
   {
     video: "doctor-1", to: "/app", targets: ["oggi-next-bar"], icon: CalendarDays, kicker: "Home", title: "La giornata parte dal prossimo paziente",
-    text: "La barra scura mostra il prossimo paziente con orario, età e motivo della visita. «Cartella» apre subito la sua scheda.",
-    points: ["Filtri l'agenda per studio con Tutti / Centro / Provincia", "Il conto alla rovescia indica quanto manca alla visita"],
+    text: "Sotto il grande pulsante «Inizia visita» trova il prossimo paziente con età e orario. «Apri cartella» apre subito la sua scheda.",
+    points: ["Filtri l'agenda per studio con Tutti / Centro / Provincia", "L'anello che pulsa indica che è tutto pronto per registrare"],
   },
   {
     video: "doctor-2", to: "/app", targets: ["oggi-next-start-btn"], icon: AudioLines, kicker: "MantAI", title: "Parli con il paziente, MantAI scrive",
-    text: "Un solo pulsante, «Inizia visita»: MantAI trascrive e prepara la bozza della nota, sempre etichettata. Lei la rilegge con «Rivedi e firma».",
+    text: "Un solo pulsante rotondo, «Inizia visita», già sul prossimo paziente: MantAI trascrive e prepara la bozza della nota, sempre etichettata. Lei la rilegge con «Rivedi e firma».",
     points: ["Anamnesi, esame obiettivo, diagnosi e terapia compilati secondo il suo modello", "Ogni nota è una bozza: la rivede e la firma prima del referto PDF"],
   },
   {
-    video: "doctor-4", to: "/app", targets: ["oggi-todo"], icon: ListChecks, kicker: "Da fare", title: "Note da firmare e messaggi, a un clic",
-    text: "Il riquadro «Da fare» mostra solo ciò che aspetta lei: note da firmare, messaggi e richieste dal portale. Ogni voce porta direttamente all'azione.",
-    points: ["«Note da firmare» apre la prima nota in bozza", "«Messaggi da leggere» porta alla conversazione con la famiglia"],
+    video: "doctor-4", to: "/app", targets: ["oggi-summary"], icon: ListChecks, kicker: "Riepilogo", title: "La giornata in tre numeri",
+    text: "Visite di oggi, note da firmare e messaggi da leggere: ogni riquadro porta direttamente all'azione.",
+    points: ["«Visite di oggi» scorre fino all'agenda", "«Note da firmare» apre la prima nota in bozza"],
   },
   {
     video: "doctor-1", to: "/app", targets: ["oggi-agenda"], icon: CalendarDays, kicker: "Agenda", title: "Le visite di oggi, studio per studio",
-    text: "L'agenda raggruppa le visite per studio. La linea «Ora» separa le visite passate da quelle in arrivo; tocchi una riga per vederne il dettaglio.",
+    text: "L'agenda raggruppa le visite per studio. La linea «Ora» separa le visite passate da quelle in arrivo; tocchi una riga per aprire il dettaglio nel pannello laterale.",
     points: ["Il puntino verde indica una visita fatta, quello ambra una visita in programma", "Il puntino terracotta accanto al nome segnala le allergie"],
   },
   {
