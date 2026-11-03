@@ -91,16 +91,13 @@ def test_payments_export_monthly(doctor):
     r = doctor.get(f"{API}/payments/export", params={"start": start, "end": end})
     assert r.status_code == 200, r.text
     ct = r.headers.get("content-type", "")
-    assert "text/csv" in ct
+    assert "application/pdf" in ct
     cd = r.headers.get("content-disposition", "")
-    assert "Registro_cassa_" in cd
-    assert start in cd and end in cd
-    body = r.content.decode("utf-8-sig")
-    # First row header
-    assert body.splitlines()[0].startswith("Data;Ora;Paziente")
-    # Summary block
-    assert "Riepilogo" in body
-    assert "Totale" in body
+    assert f"MantMed_commercialista_{y:04d}-{m:02d}.pdf" in cd
+    assert r.content.startswith(b"%PDF")
+    import pymupdf
+    text = "".join(p.get_text() for p in pymupdf.open(stream=r.content))
+    assert "Paziente" in text and "Riepilogo" in text and "Totale" in text and "Pagina 1 di" in text
 
 
 def test_payments_export_single_day_still_works(doctor):

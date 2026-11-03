@@ -426,3 +426,8 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - GuidedTour: fumetto posizionato accanto all'elemento (sotto/sopra/lato, fallback in basso) sempre dentro lo schermo; testo scorrevole, pulsanti sempre visibili; target invisibili/fuori schermo ignorati
 - ProfileMenu: voce "Rivedi tour" (Area Medico e Portale); avvio automatico al primo accesso invariato
 - Test: iteration_52 (bug 768px risolto dopo, verificato con screenshot)
+
+## Implemented (2026-11-03, export commercialista in PDF)
+- backend/cash_pdf.py + GET /api/payments/export ora restituisce PDF A4 (intestazione medico/periodo/data generazione, tabella Data·Ora·Paziente·Prestazione·Studio·Metodo·Importo, riepilogo per metodo + totale, "Pagina X di Y"); nome file MantMed_commercialista_YYYY-MM.pdf (mese intero) / _YYYY-MM-DD.pdf (giorno) / _start_end.pdf
+- CSV rimosso; pulsanti giorno e mese "Esporta PDF"; test aggiornati (test_onboarding_tour.py export)
+- Nota: la landing cita ancora "export CSV" (non modificata su richiesta)

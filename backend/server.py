@@ -45,6 +45,7 @@ from auth import build_auth, seed_doctor, seed_admin, require_role, TOUR_VERSION
 from cleanup import build_cleanup
 from visit_templates import build_visit_templates, fields_prompt, map_fields, parse_json
 from report import build_report
+from cash_pdf import build_cash_pdf
 import provenance as prov
 from signed_docs import build_signed_docs, record_privacy_consent, doctor_signature
 from mailer import send_email
@@ -1575,25 +1576,22 @@ async def delete_payment(pid: str):
 
 
 @api.get("/payments/export")
-async def export_payments(start: Optional[str] = None, end: Optional[str] = None):
+async def export_payments(start: Optional[str] = None, end: Optional[str] = None, user: dict = Depends(current_user)):
     s = start or today_rome()
     e = end or s
     items = await payments_between(s, e)
-    eur = lambda v: f"{v:.2f}".replace(".", ",")
-    clean = lambda v: str(v or "").replace(";", ",").replace("\n", " ")
-    rows = ["Data;Ora;Paziente;Prestazione;Studio;Metodo;Importo (EUR)"]
+    rows = []
     for p in items:
         t = datetime.fromisoformat(p["created_at"]).astimezone(ROME).strftime("%H:%M")
         d = datetime.fromisoformat(p["date"]).strftime("%d/%m/%Y")
-        rows.append(";".join([d, t, clean(p["patient_name"]), clean(p["service"]), clean(p["clinic"]), METHODS[p["method"]], eur(p["amount"])]))
+        rows.append([d, t, p["patient_name"], p["service"], p["clinic"], METHODS[p["method"]], p["amount"]])
     sm = summarize(items)
-    rows += ["", "Riepilogo;;;;;Metodo;Totale (EUR)"]
-    rows += [f";;;;;{m['label']};{eur(m['total'])}" for m in sm["by_method"]]
-    rows += [f";;;;;Totale;{eur(sm['total'])}"]
-    csv = "\ufeff" + "\r\n".join(rows) + "\r\n"
-    name = f"Registro_cassa_{s}" + (f"_{e}" if e != s else "") + ".csv"
-    return Response(csv.encode("utf-8"), media_type="text/csv; charset=utf-8",
-                    headers={"Content-Disposition": f"attachment; filename=\"{name}\""})
+    pdf = build_cash_pdf(rows, sm["by_method"], sm["total"], user.get("name", ""), s, e)
+    ds, de = date.fromisoformat(s), date.fromisoformat(e)
+    whole_month = ds.day == 1 and (ds.year, ds.month) == (de.year, de.month) and (de + timedelta(days=1)).month != de.month
+    period = s[:7] if whole_month else s if s == e else f"{s}_{e}"
+    name = f"MantMed_commercialista_{period}.pdf"
+    return Response(pdf, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=\"{name}\""})
 
 
 @api.get("/checkpoints/bands")

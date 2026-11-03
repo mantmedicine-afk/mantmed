@@ -103,7 +103,7 @@ export const api = {
   payments: (params) => http.get("/payments", { params }).then((r) => ({ items: Array.isArray(r.data?.items) ? r.data.items : [], summary: r.data?.summary ?? null, today: r.data?.today })),
   addPayment: (b) => http.post("/payments", b).then((r) => r.data),
   deletePayment: (id) => http.delete(`/payments/${id}`),
-  exportPayments: async (params) => saveBlob(await http.get("/payments/export", { params, responseType: "blob" }), "Registro_cassa.csv"),
+  exportPayments: async (params) => saveBlob(await http.get("/payments/export", { params, responseType: "blob" }), "MantMed_commercialista.pdf"),
   sendFeedback: (b) => http.post("/beta/feedback", b).then((r) => r.data),
   betaMetrics: () => http.get("/beta/metrics").then((r) => r.data),
   sendLead: (b) => http.post("/public/leads", b).then((r) => r.data),
