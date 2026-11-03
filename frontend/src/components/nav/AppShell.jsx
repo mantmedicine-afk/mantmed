@@ -65,6 +65,56 @@ const Panel = ({ items, area, onNav, onClose, mini, onToggle }) => {
 
 const KEY = "mantmed.sidebar.mini";
 
+const HItem = ({ it, mini }) => (
+  <NavLink to={it.to} end={it.end} data-testid={`sidebar-link-${it.id}`} title={mini ? it.label : undefined} aria-label={mini ? it.label : undefined}
+    className={({ isActive }) => `group relative flex h-11 shrink-0 items-center gap-2 rounded-2xl px-3 text-[15px] font-medium transition-colors duration-200 ${isActive ? "bg-white text-night" : "text-[#C9CCD3] hover:bg-white/10 hover:text-white"}`}>
+    {({ isActive }) => (
+      <>
+        <span className={`absolute -bottom-[10px] left-1/2 h-1 w-7 -translate-x-1/2 rounded-t-full bg-[#A9C2FF] transition-opacity ${isActive ? "opacity-100" : "opacity-0"}`} />
+        <it.icon size={19} className={`shrink-0 transition-transform duration-200 group-hover:scale-110 ${isActive ? "text-night" : ""}`} />
+        {mini ? <span className="sr-only" aria-current={isActive ? "page" : undefined}>{it.label}</span> : <span className="whitespace-nowrap leading-tight" aria-current={isActive ? "page" : undefined}>{it.label}</span>}
+        {it.badge > 0 && <span className={mini ? "absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white" : "grid h-5 min-w-5 place-items-center rounded-full bg-rose-600 px-1.5 text-[11px] font-bold text-white"} data-testid={`sidebar-badge-${it.id}`}>{it.badge > 9 ? "9+" : it.badge}</span>}
+      </>
+    )}
+  </NavLink>
+);
+
+/** Computer e tablet: barra di navigazione orizzontale in cima alla pagina. */
+const useMedia = (q) => {
+  const [m, setM] = useState(() => window.matchMedia(q).matches);
+  useEffect(() => { const mq = window.matchMedia(q); const f = () => setM(mq.matches); mq.addEventListener("change", f); return () => mq.removeEventListener("change", f); }, [q]);
+  return m;
+};
+
+const TopNav = ({ items, area, mini: miniPref, onToggle, testId }) => {
+  const { user, logout } = useAuth();
+  const wide = useMedia("(min-width: 1536px)");
+  const xl = useMedia("(min-width: 1280px)");
+  const mini = miniPref || !xl;
+  return (
+    <header className="bg-[#0A192F] text-white" data-testid={testId} data-mini={miniPref}>
+      <div className="flex h-16 items-center gap-4 px-5 lg:px-8">
+        <div className="flex shrink-0 items-center gap-3"><LogoMark size={36} light />{!mini && <div className="leading-none"><div className="font-display text-2xl">MantMed</div><div className="mt-1 text-[10px] uppercase tracking-[0.22em] text-[#C9CCD3]">{area}</div></div>}</div>
+        <nav className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto py-2.5 [scrollbar-width:none]" aria-label="Navigazione principale" data-testid="sidebar-nav">
+          {items.filter((it) => !it.bottom).map((it) => <HItem key={it.id} it={it} mini={mini} />)}
+          {items.some((it) => it.bottom) && <div className="flex items-center gap-1.5 border-l border-white/10 pl-1.5">{items.filter((it) => it.bottom).map((it) => <HItem key={it.id} it={it} mini={mini} />)}</div>}
+        </nav>
+        <div className="flex shrink-0 items-center gap-1.5 [&_[data-testid=mantai-sidebar-btn]]:mb-0 [&_[data-testid=mantai-sidebar-btn]]:px-3">
+          <MantAIButton variant="sidebar" view={user?.role === "parent" ? "patient" : "doctor"} mini={mini || !wide} />
+          {onToggle && (
+            <button onClick={onToggle} className="flex h-11 items-center gap-2 rounded-2xl px-3 text-sm text-[#C9CCD3] transition-colors hover:bg-white/10 hover:text-white"
+              aria-label={miniPref ? "Espandi la barra" : "Riduci la barra alle icone"} title={miniPref ? "Espandi" : "Riduci alle icone"} aria-expanded={!miniPref} data-testid="sidebar-collapse-btn">
+              {miniPref ? <PanelLeftOpen size={19} /> : <><PanelLeftClose size={19} /><span className="hidden min-[1800px]:inline">Riduci barra</span></>}
+            </button>
+          )}
+          {!mini && <div className="hidden max-w-[180px] text-right leading-tight min-[1800px]:block"><div className="truncate text-sm font-medium" data-testid="sidebar-user-name">{user?.name}</div><div className="truncate text-xs text-slate-300">{user?.email}</div></div>}
+          <button onClick={() => logout()} className={`flex h-10 items-center justify-center gap-2 rounded-full border border-white/20 text-sm text-white transition-colors hover:bg-white hover:text-night ${mini || !wide ? "w-10" : "px-4"}`} aria-label="Esci" title={`Esci · ${user?.name ?? ""}`} data-testid="sidebar-logout-btn"><LogOut size={15} />{!mini && wide && " Esci"}</button>
+        </div>
+      </div>
+    </header>
+  );
+};
+
 /** Smartphone: barra fissa in basso con le 4 voci principali + "Altro" (apre il menu completo). */
 const BottomBar = ({ items, onMore }) => (
   <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-[#DCDDDF] bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden" aria-label="Navigazione rapida" data-testid="bottom-nav">
@@ -93,8 +143,8 @@ export const AppShell = ({ items, area, children }) => {
   }, [open]);
   return (
     <ShellCtx.Provider value={{ open: () => setOpen(true) }}>
-      <aside className={`fixed inset-y-0 left-0 z-40 hidden transition-[width] duration-300 ease-out md:block lg:hidden w-[84px]`} data-testid="sidebar-tablet"><Panel items={items} area={area} mini /></aside>
-      <aside className={`fixed inset-y-0 left-0 z-40 hidden transition-[width] duration-300 ease-out lg:block ${mini ? "w-[84px]" : "w-[264px]"}`} data-testid="sidebar" data-mini={mini}><Panel items={items} area={area} mini={mini} onToggle={toggle} /></aside>
+      <div className="hidden md:block lg:hidden"><TopNav items={items} area={area} mini testId="sidebar-tablet" /></div>
+      <div className="hidden lg:block"><TopNav items={items} area={area} mini={mini} onToggle={toggle} testId="sidebar" /></div>
       <div className={`fixed inset-0 z-[55] lg:hidden ${open ? "" : "pointer-events-none"}`} aria-hidden={!open}>
         <div onClick={() => setOpen(false)} className={`absolute inset-0 bg-[#0A192F]/50 backdrop-blur-sm transition-opacity duration-300 ${open ? "opacity-100" : "opacity-0"}`} data-testid="sidebar-backdrop" />
         <div className={`absolute inset-y-0 left-0 w-[min(86vw,300px)] transition-transform duration-300 ease-out ${open ? "translate-x-0 shadow-2xl" : "-translate-x-full"}`} data-testid="sidebar-drawer">
@@ -102,7 +152,7 @@ export const AppShell = ({ items, area, children }) => {
         </div>
       </div>
       <BottomBar items={items} onMore={() => setOpen(true)} />
-      <div className={`app-min min-h-screen pb-[72px] transition-[padding] duration-300 ease-out md:pb-0 md:pl-[84px] ${mini ? "lg:pl-[84px]" : "lg:pl-[264px]"}`}>{children}</div>
+      <div className="app-min min-h-screen pb-[72px] md:pb-0">{children}</div>
     </ShellCtx.Provider>
   );
 };
