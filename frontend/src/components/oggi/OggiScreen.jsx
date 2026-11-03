@@ -16,10 +16,10 @@ const useNow = () => {
 };
 
 const Segmented = ({ value, onChange, options }) => (
-  <div className="inline-flex rounded-full bg-[#B9C1C7] p-1" role="radiogroup" aria-label="Filtra per studio" data-testid="oggi-clinic-filter">
+  <div className="inline-flex rounded-full bg-[#F2F2EF] p-1" role="radiogroup" aria-label="Filtra per studio" data-testid="oggi-clinic-filter">
     {options.map(([v, l]) => (
       <button key={v} role="radio" aria-checked={value === v} onClick={() => onChange(v)}
-        className={`h-8 rounded-full px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#22272B] ${value === v ? "bg-[#CCD2D6] text-[#22272B]" : "text-[#3A4045] hover:text-[#22272B]"}`} data-testid={`oggi-filter-${l.toLowerCase()}`}>{l}</button>
+        className={`h-8 rounded-full px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0A192F] ${value === v ? "bg-white text-[#0A192F] shadow-sm" : "text-[#475569] hover:text-[#0A192F]"}`} data-testid={`oggi-filter-${l.toLowerCase()}`}>{l}</button>
     ))}
   </div>
 );
@@ -52,13 +52,13 @@ export const OggiScreen = ({ appointments, patients, notes, unread, requests, on
   const startNext = () => onStart(next ? { name: next.patient_name, patient_id: next.patient_id } : null);
 
   return (
-    <div className="min-h-screen bg-[#A4AEB6] text-[#22272B]" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif" }} data-testid="dashboard" data-section="agenda">
+    <div className="app-min min-h-screen bg-[#FBFBF8] text-[#0A192F]" data-testid="dashboard" data-section="agenda">
       <OggiTopBar user={user} unread={unread} onStart={startNext} onLogout={() => logout()} onNav={nav} />
       <main className="mx-auto max-w-[1200px] space-y-4 px-4 pb-28 pt-6 sm:px-6 md:pb-12" data-testid="today-page">
         {top}
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div className="text-sm text-[#3A4045]" data-testid="oggi-date">{LONG_DATE(date)}</div>
+            <div className="text-sm text-[#475569]" data-testid="oggi-date">{LONG_DATE(date)}</div>
             <h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-4xl" data-testid="oggi-title">{greeting(date)}, {surname(user?.name)}</h1>
           </div>
           <Segmented value={clinic} onChange={setClinic} options={[["all", "Tutti"], ...CLINICS.map((c) => [c, shortClinic(c)])]} />
