@@ -4,7 +4,7 @@ import { PenLine, X } from "lucide-react";
 import { api } from "@/lib/api";
 
 const KEY = "mm_sig_reminder_dismissed";
-const SIG_URL = "/app/impostazioni?sezione=firma";
+const SIG_URL = "/app/area-personale?sezione=firma";
 
 /** Promemoria finché la/il medico non ha disegnato la firma da apporre sui referti PDF. */
 export const useDoctorSignature = () => {

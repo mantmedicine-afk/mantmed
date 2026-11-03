@@ -49,7 +49,7 @@ const AccountGate = () => {
   if (user === null) return <Loading />;
   if (!user) return <Login subtitle="Area riservata · gestione account" note="Acceda per gestire profilo, sicurezza e notifiche" />;
   if (user.role === "admin") return <Navigate to="/admin" replace />;
-  if (user.role === "doctor") return <Navigate to={`/app/impostazioni${window.location.search}`} replace />;
+  if (user.role === "doctor") return <Navigate to={`/app/area-personale${window.location.search}`} replace />;
   return <Navigate to={`/portale/impostazioni${window.location.search}`} replace />;
 };
 

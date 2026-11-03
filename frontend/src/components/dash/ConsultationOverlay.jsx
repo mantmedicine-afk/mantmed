@@ -177,7 +177,7 @@ const TplPill = ({ t, value, onChange, hint }) => (
 
 const TemplatePicker = ({ templates, value, onChange, suggested, ageM }) => (templates.length ? (
   <div className="rounded-2xl border border-[var(--hair)] p-4" data-testid="consult-template-picker">
-    <div className="flex items-center justify-between gap-2 text-[11px] uppercase tracking-[0.2em] text-[var(--fg2)]"><span className="flex items-center gap-1.5"><LayoutTemplate size={13} /> Modello di visita</span><Link to="/app/impostazioni?sezione=modelli" className="normal-case tracking-normal text-[var(--fg2)] hover:text-[var(--ink)]" data-testid="consult-template-manage">Gestisci</Link></div>
+    <div className="flex items-center justify-between gap-2 text-[11px] uppercase tracking-[0.2em] text-[var(--fg2)]"><span className="flex items-center gap-1.5"><LayoutTemplate size={13} /> Modello di visita</span><Link to="/app/area-personale?sezione=modelli" className="normal-case tracking-normal text-[var(--fg2)] hover:text-[var(--ink)]" data-testid="consult-template-manage">Gestisci</Link></div>
     <div className="mt-3 flex flex-wrap gap-2">
       {templates.filter((t) => !t.bilancio).map((t) => <TplPill key={t.id} t={t} value={value} onChange={onChange} />)}
     </div>

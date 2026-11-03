@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, FileText, PersonStanding, Landmark, ShieldCheck, MessageSquarePlus, Compass, X } from "lucide-react";
+import { Search, FileText, PersonStanding, Landmark, X } from "lucide-react";
 import { BodychartHistory } from "@/components/bodychart/BodychartHistory";
 import { TeamPanel } from "@/components/team/TeamPanel";
 import { api } from "@/lib/api";
@@ -68,13 +68,5 @@ export const TsCard = () => (
       <div className="min-w-0 flex-1"><div className="font-medium text-[var(--fg)]">Invio al Sistema Tessera Sanitaria</div><div className="text-sm text-[var(--fg2)]">La trasmissione automatica delle spese sanitarie per il 730 precompilato sarà disponibile a breve.</div></div>
       <span className="rounded-full bg-[var(--sel)] px-3 py-1 text-xs font-semibold text-[var(--fg)]" data-testid="ts-coming-soon">In arrivo</span>
     </div>
-  </div>
-);
-
-export const SettingsExtras = ({ onCompliance, onFeedback, onTour }) => (
-  <div className="flex flex-wrap gap-2" data-testid="settings-extras">
-    {[[onCompliance, ShieldCheck, "Sicurezza e GDPR", "settings-compliance-btn"], [onFeedback, MessageSquarePlus, "Feedback e assistenza", "settings-feedback-btn"], [onTour, Compass, "Rivedi Tour", "settings-tour-btn"]].filter(([f]) => f).map(([f, I, l, id]) => (
-      <button key={id} onClick={f} className="flex h-11 items-center gap-2 rounded-full border border-[var(--hair)] bg-[var(--surface)] px-4 text-sm font-medium text-[var(--fg)] transition-colors hover:border-[var(--accent)]" data-testid={id}><I size={15} /> {l}</button>
-    ))}
   </div>
 );

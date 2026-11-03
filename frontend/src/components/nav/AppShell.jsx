@@ -86,7 +86,7 @@ const useMedia = (q) => {
   return m;
 };
 
-const TopNav = ({ items, area, mini: miniPref, onToggle, testId }) => {
+const TopNav = ({ items, area, mini: miniPref, onToggle, testId, extras }) => {
   const { user, logout } = useAuth();
   const wide = useMedia("(min-width: 1536px)");
   const xl = useMedia("(min-width: 1280px)");
@@ -101,6 +101,7 @@ const TopNav = ({ items, area, mini: miniPref, onToggle, testId }) => {
         </nav>
         <div className="flex shrink-0 items-center gap-1.5 [&_[data-testid=mantai-sidebar-btn]]:mb-0 [&_[data-testid=mantai-sidebar-btn]]:px-3">
           <MantAIButton variant="sidebar" view={user?.role === "parent" ? "patient" : "doctor"} mini={mini || !wide} />
+          {extras}
           {onToggle && xl && (
             <button onClick={onToggle} className="flex h-11 items-center gap-2 rounded-2xl px-3 text-sm text-[var(--fg2)] transition-colors hover:bg-[var(--sel)] hover:text-[var(--ink)]"
               aria-label={miniPref ? "Espandi la barra" : "Riduci la barra alle icone"} title={miniPref ? "Espandi" : "Riduci alle icone"} aria-expanded={!miniPref} data-testid="sidebar-collapse-btn">
@@ -129,7 +130,7 @@ const BottomBar = ({ items, onMore }) => (
   </nav>
 );
 
-export const AppShell = ({ items, area, children }) => {
+export const AppShell = ({ items, area, children, barExtras }) => {
   const [open, setOpen] = useState(false);
   const [mini, setMini] = useState(() => { try { return localStorage.getItem(KEY) === "1"; } catch { return false; } });
   const toggle = () => setMini((m) => { const v = !m; try { localStorage.setItem(KEY, v ? "1" : "0"); } catch { /* storage non disponibile */ } return v; });
@@ -143,8 +144,8 @@ export const AppShell = ({ items, area, children }) => {
   }, [open]);
   return (
     <ShellCtx.Provider value={{ open: () => setOpen(true) }}>
-      <div className="hidden md:block lg:hidden"><TopNav items={items} area={area} mini testId="sidebar-tablet" /></div>
-      <div className="hidden lg:block"><TopNav items={items} area={area} mini={mini} onToggle={toggle} testId="sidebar" /></div>
+      <div className="hidden md:block lg:hidden"><TopNav items={items} area={area} mini testId="sidebar-tablet" extras={barExtras} /></div>
+      <div className="hidden lg:block"><TopNav items={items} area={area} mini={mini} onToggle={toggle} testId="sidebar" extras={barExtras} /></div>
       <div className={`fixed inset-0 z-[55] lg:hidden ${open ? "" : "pointer-events-none"}`} aria-hidden={!open}>
         <div onClick={() => setOpen(false)} className={`absolute inset-0 bg-[var(--scrim)] backdrop-blur-sm transition-opacity duration-300 ${open ? "opacity-100" : "opacity-0"}`} data-testid="sidebar-backdrop" />
         <div className={`absolute inset-y-0 left-0 w-[min(86vw,300px)] transition-transform duration-300 ease-out ${open ? "translate-x-0 shadow-2xl" : "-translate-x-full"}`} data-testid="sidebar-drawer">

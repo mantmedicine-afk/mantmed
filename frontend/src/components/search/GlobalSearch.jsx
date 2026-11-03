@@ -7,8 +7,8 @@ import { api } from "@/lib/api";
 
 const ACTIONS = [
   { id: "ricevuta", label: "Nuova ricevuta", sub: "Cassa · incassi e ricevute", to: "/app/cassa", icon: ReceiptText, keys: ["ricev", "cassa", "incass", "fattur"] },
-  { id: "modello", label: "Nuovo modello di visita", sub: "Modelli e bilanci di salute", to: "/app/impostazioni?sezione=modelli", icon: LayoutTemplate, keys: ["model", "bilanc", "templat"] },
-  { id: "strumenti", label: "Strumenti", sub: "Statistiche, Tessera Sanitaria, GDPR, vetrina", to: "/app/strumenti", icon: Wrench, keys: ["strument", "statist", "tessera", "gdpr", "vetrin"] },
+  { id: "modello", label: "Nuovo modello di visita", sub: "Modelli e bilanci di salute", to: "/app/area-personale?sezione=modelli", icon: LayoutTemplate, keys: ["model", "bilanc", "templat"] },
+  { id: "area-personale", label: "Area personale", sub: "Profilo, vetrina, firma, statistiche, Tessera Sanitaria, GDPR", to: "/app/area-personale", icon: Wrench, keys: ["area", "personale", "impostaz", "strument", "statist", "tessera", "gdpr", "vetrin", "profilo", "firma"] },
 ];
 
 const GROUP = "px-1 pb-1 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.18em] [&_[cmdk-group-heading]]:text-[var(--fg2)]";

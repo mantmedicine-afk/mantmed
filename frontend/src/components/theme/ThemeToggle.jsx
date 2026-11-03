@@ -19,12 +19,12 @@ const useTheme = () => {
   return [theme, toggle];
 };
 
-export const ThemeToggle = ({ floating = false }) => {
+export const ThemeToggle = ({ floating = false, bar = false }) => {
   const [theme, toggle] = useTheme();
   const dark = theme === "dark";
   return (
     <button onClick={toggle} aria-label={dark ? "Passa alla modalità giorno" : "Passa alla modalità notte"} title={dark ? "Modalità giorno" : "Modalità notte"} aria-pressed={dark}
-      className={`grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[var(--hair)] bg-[var(--raised)] text-[var(--fg)] transition-colors hover:border-[var(--accent)] ${floating ? "fixed right-4 top-4 z-[60]" : ""}`} data-testid="theme-toggle-btn">
+      className={`grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[var(--hair)] transition-colors ${bar ? "text-[var(--ink)] hover:bg-[var(--sel)]" : "bg-[var(--raised)] text-[var(--fg)] hover:border-[var(--accent)]"} ${floating ? "fixed right-4 top-4 z-[60]" : ""}`} data-testid="theme-toggle-btn">
       {dark ? <Sun size={17} /> : <Moon size={17} />}
     </button>
   );

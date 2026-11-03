@@ -5,11 +5,11 @@ const nav = (id, mobile = id) => [`sidebar-link-${id}`, `bottom-link-${mobile}`]
 export const DOCTOR_STEPS = [
   {
     video: "doctor-1", to: "/app", targets: ["sidebar-nav", "bottom-nav"], icon: LayoutGrid, kicker: "Menu", title: "Tutto il menu nella barra in alto",
-    text: "Oggi, Pazienti, Messaggi, Cassa, Impostazioni e Strumenti sono nella barra orizzontale in cima alla pagina. Su smartphone li trova nella barra in basso e in «Altro».",
-    points: ["La voce attiva è evidenziata in bianco", "Il numero rosso indica i messaggi da leggere", "«Cos'è MantAI» spiega come lavora l'assistente"],
+    text: "Home, Pazienti, Messaggi, Cassa e Area personale sono nella barra orizzontale in cima alla pagina. Su smartphone li trova nella barra in basso e in «Altro».",
+    points: ["La voce attiva è evidenziata in bianco", "Il numero rosso indica i messaggi da leggere", "A destra: «Cos'è MantAI», il punto interrogativo per il tour, la modalità notte e l'orologio"],
   },
   {
-    video: "doctor-1", to: "/app", targets: ["oggi-next-bar"], icon: CalendarDays, kicker: "Oggi", title: "La giornata parte dal prossimo paziente",
+    video: "doctor-1", to: "/app", targets: ["oggi-next-bar"], icon: CalendarDays, kicker: "Home", title: "La giornata parte dal prossimo paziente",
     text: "La barra scura mostra il prossimo paziente con orario, età e motivo della visita. «Cartella» apre subito la sua scheda.",
     points: ["Filtri l'agenda per studio con Tutti / Centro / Provincia", "Il conto alla rovescia indica quanto manca alla visita"],
   },
@@ -39,14 +39,14 @@ export const DOCTOR_STEPS = [
     points: ["Le risposte MantAI sono bozze: le rivede prima dell'invio"],
   },
   {
-    video: "doctor-5", to: "/app", targets: [...nav("cassa"), "bottom-link-altro"], icon: Store, kicker: "Cassa e Strumenti", title: "Il resto, quando serve",
-    text: "In Cassa: ricevute e incassi. In Strumenti: statistiche, modelli di visita e bilanci, Tessera Sanitaria, esportazioni, pannello GDPR e vetrina.",
-    points: ["In Cassa trova incassi, ricevute ed esportazione per il commercialista", "La vetrina pubblica e il pannello GDPR sono in Strumenti"],
+    video: "doctor-5", to: "/app", targets: [...nav("area-personale"), "bottom-link-altro"], icon: Store, kicker: "Area personale", title: "Il resto, quando serve",
+    text: "L'Area personale raccoglie tutto in riquadri: profilo professionale con vetrina e firma, orari, modelli e bilanci, statistiche, Tessera Sanitaria, esportazioni, GDPR e assistenza.",
+    points: ["In Cassa trova incassi, ricevute ed esportazione per il commercialista", "Tocchi un riquadro per aprirne la sezione"],
   },
   {
-    to: "/app", targets: ["doctor-chip"], icon: Compass, kicker: "Profilo", title: "Rivedere la guida",
-    text: "Dal menu profilo può cambiare password, gestire sicurezza e 2FA e rivedere questo tour quando vuole con «Rivedi tour».",
-    points: ["Il tour è disponibile anche in Impostazioni"],
+    to: "/app", targets: ["tour-open-button", "tour-open-button-mobile"], icon: Compass, kicker: "Guida", title: "Rivedere la guida",
+    text: "Il punto interrogativo nella barra in alto riapre questo tour quando vuole. Accanto trova l'icona della modalità notte.",
+    points: ["Dal menu profilo cambia password e gestisce sicurezza e 2FA", "La barra chiara mostra la sua città con il meteo attuale"],
   },
 ];
 

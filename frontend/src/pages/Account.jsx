@@ -14,6 +14,7 @@ import { NotificationsSection } from "@/components/account/NotificationsSection"
 import { PrivacySection } from "@/components/account/PrivacySection";
 import { AvailabilitySection } from "@/components/account/AvailabilitySection";
 import { DoctorSignatureSection } from "@/components/account/DoctorSignatureSection";
+import { DoctorArea } from "@/components/account/DoctorArea";
 
 const SECTIONS = {
   parent: [
@@ -35,7 +36,7 @@ const SECTIONS = {
   ],
 };
 
-export default function Account({ role, embedded = false, extras = null }) {
+export default function Account({ role, embedded = false, extras = null, tools = null }) {
   const [data, setData] = useState(null);
   const [params, setParams] = useSearchParams();
   const list = SECTIONS[role] ?? SECTIONS.parent;
@@ -52,11 +53,11 @@ export default function Account({ role, embedded = false, extras = null }) {
         </div>
       </header>}
       <main className={`mx-auto max-w-[1200px] px-5 ${embedded ? "pb-12 pt-8" : "py-8 lg:py-12"}`}>
-        <div className="text-[11px] uppercase tracking-[0.22em] text-[var(--fg2)]">{embedded ? "Impostazioni account" : "Gestione account"}</div>
+        <div className="text-[11px] uppercase tracking-[0.22em] text-[var(--fg2)]">{tools ? "Area personale" : embedded ? "Impostazioni account" : "Gestione account"}</div>
         <h1 className="mt-1 font-display text-4xl text-[var(--fg)] sm:text-5xl">{data?.name || "Il mio profilo"}</h1>
         <p className="mt-1 text-sm text-[var(--fg2)]" data-testid="account-email">{data?.email}</p>
         {extras && <div className="mt-5">{extras}</div>}
-        <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr]">
+        {tools ? <div className="mt-8">{data ? <DoctorArea data={data} onSaved={setData} tools={tools} /> : <Loader2 className="animate-spin text-[var(--fg)]" />}</div> : <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr]">
           <nav className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0" aria-label="Sezioni" data-testid="account-nav">
             {list.map((s) => (
               <button key={s.id} ref={(el) => { if (el && cur.id === s.id) el.scrollIntoView({ block: "nearest", inline: "nearest" }); }} onClick={() => setParams({ sezione: s.id }, { replace: true })} aria-current={cur.id === s.id ? "page" : undefined}
@@ -68,7 +69,7 @@ export default function Account({ role, embedded = false, extras = null }) {
           <div className="min-w-0" data-testid={`account-section-${cur.id}`}>
             {data ? <cur.C key={cur.id} data={data} onSaved={setData} /> : <Loader2 className="animate-spin text-[var(--fg)]" />}
           </div>
-        </div>
+        </div>}
       </main>
     </div>
   );

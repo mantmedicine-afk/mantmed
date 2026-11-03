@@ -23,16 +23,17 @@ import { SupportReplies } from "@/components/support/SupportReplies";
 import { SignatureReminder } from "@/components/signature/SignatureReminder";
 import { usePoll } from "@/hooks/usePoll";
 import { useNavigate, useParams, Navigate } from "react-router-dom";
-import { Sun, Users, MessagesSquare, ReceiptText, Settings, Wrench } from "lucide-react";
+import { Home, Users, MessagesSquare, ReceiptText, UserCog } from "lucide-react";
 import { AppShell } from "@/components/nav/AppShell";
-import { PageTitle, VisitsList, PatientFolder, SettingsExtras } from "@/components/nav/sections";
-import { ToolsPage } from "@/components/nav/ToolsPage";
+import { PageTitle, VisitsList, PatientFolder } from "@/components/nav/sections";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { TourButton, LiveClock } from "@/components/dash/BarWidgets";
 import { Fold } from "@/components/today/Today";
 import { OggiScreen } from "@/components/oggi/OggiScreen";
 import Account from "@/pages/Account";
 import { ProcessingProvider, useProcessing } from "@/lib/processing";
 
-const SECTIONS = ["agenda", "pazienti", "messaggi", "visite", "cassa", "impostazioni", "strumenti"];
+const SECTIONS = ["agenda", "pazienti", "messaggi", "visite", "cassa", "area-personale"];
 
 
 
@@ -91,13 +92,13 @@ export default function Dashboard() {
     },
   };
   const items = [
-    { id: "agenda", to: "/app", end: true, label: "Oggi", icon: Sun },
+    { id: "agenda", to: "/app", end: true, label: "Home", icon: Home },
     { id: "pazienti", to: "/app/pazienti", label: "Pazienti", icon: Users },
     { id: "messaggi", to: "/app/messaggi", label: "Messaggi", icon: MessagesSquare, badge: unread + aiQueued },
     { id: "cassa", to: "/app/cassa", label: "Cassa", icon: ReceiptText },
-    { id: "impostazioni", to: "/app/impostazioni", label: "Impostazioni", icon: Settings },
-    { id: "strumenti", to: "/app/strumenti", label: "Strumenti", icon: Wrench, bottom: true },
+    { id: "area-personale", to: "/app/area-personale", label: "Area personale", short: "Area", icon: UserCog },
   ];
+  if (sezione === "impostazioni" || sezione === "strumenti") return <Navigate to={`/app/area-personale${window.location.search}`} replace />;
   if (!SECTIONS.includes(sezione)) return <Navigate to="/app" replace />;
 
   const modals = <>
@@ -106,7 +107,7 @@ export default function Dashboard() {
       <PatientDialog value={editPatient} onClose={() => setEditPatient(null)} onSaved={() => { load(); setPassportKey((k) => k + 1); }} />
       {compliance && <CompliancePanel onClose={() => setCompliance(false)} />}
       <FeedbackDialog open={feedback} onClose={() => setFeedback(false)} onSent={() => setCashKey((k) => k + 1)} />
-      <GuidedTour open={tourCtl.open} steps={DOCTOR_STEPS} name={shortName} where="nel menu profilo o in Impostazioni" onDone={tourCtl.end} />
+      <GuidedTour open={tourCtl.open} steps={DOCTOR_STEPS} name={shortName} where="con il punto interrogativo nella barra in alto" onDone={tourCtl.end} />
       <ConsultationOverlay
         patients={patients}
         onPatientsChange={load}
@@ -123,12 +124,11 @@ export default function Dashboard() {
   return (
     <ProcessingProvider onSettled={load} onOpen={openVisit}>
     <TrackPending notes={notes} />
-    <AppShell items={items} area="Studio medico">
+    <AppShell items={items} area="Studio medico" barExtras={<><TourButton onClick={() => setTour(true)} /><ThemeToggle bar /><LiveClock /></>}>
     <div className="min-h-screen overflow-x-clip bg-[var(--bg)]" data-testid="dashboard" data-section={sezione}>
-      <TopBar onCompliance={() => setCompliance(true)} onFeedback={() => setFeedback(true)} onTour={() => setTour(true)} unread={unread} search={search} />
+      <TopBar onCompliance={() => setCompliance(true)} onTour={() => setTour(true)} search={search} />
       {sezione === "agenda" && <OggiScreen appointments={appointments} patients={patients} notes={notes} unread={unread + aiQueued} requests={requests}
         onStart={start} onOpenPatient={setPassportId} onSign={openVisit} top={<><AbsenceBanner /><SupportReplies /><SignatureReminder /></>} />}
-      {sezione === "strumenti" && <ToolsPage onCompliance={() => setCompliance(true)} stats={<div className="space-y-5"><Hero total={appointments.length} waiting={waiting.length} name={shortName} income={income} /><BetaMetrics refreshKey={cashKey} onFeedback={() => setFeedback(true)} /></div>} />}
       {sezione === "pazienti" && <>
         <PageTitle kicker="Archivio clinico" title="Pazienti" it="& cartelle cliniche" />
         <div className="mx-auto max-w-[1440px] space-y-5 pb-12" data-testid="patients-page">
@@ -146,7 +146,7 @@ export default function Dashboard() {
       {sezione === "messaggi" && <div className="space-y-5 pt-4">{requests > 0 && <div className="mx-auto max-w-[1280px] px-5 lg:px-8" id="today-requests"><Fold title={`Richieste dal portale · ${requests}`} testId="today-requests-fold" defaultOpen><PortalRequests onChange={load} /></Fold></div>}<DoctorMessages onRead={loadUnread} /></div>}
       {sezione === "visite" && <><PageTitle kicker="Diario clinico" title="Visite" it="e Bodychart" /><VisitsList notes={notes} onOpen={openVisit} /></>}
       {sezione === "cassa" && <><PageTitle kicker="Amministrazione" title="Cassa" it="ricevute e incassi" /><CashRegister refreshKey={cashKey} /></>}
-      {sezione === "impostazioni" && <Account role="doctor" embedded extras={<SettingsExtras onCompliance={() => setCompliance(true)} onFeedback={() => setFeedback(true)} onTour={() => setTour(true)} />} />}
+      {sezione === "area-personale" && <Account role="doctor" embedded tools={{ onCompliance: () => setCompliance(true), onFeedback: () => setFeedback(true), stats: <div className="space-y-5"><Hero total={appointments.length} waiting={waiting.length} name={shortName} income={income} /><BetaMetrics refreshKey={cashKey} onFeedback={() => setFeedback(true)} /></div> }} />}
       {modals}
     </div>
     </AppShell>
