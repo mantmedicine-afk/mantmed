@@ -39,7 +39,7 @@ const useTargetRect = (ids, key, active) => {
 };
 
 /** Posiziona il fumetto accanto all'elemento evidenziato, sempre dentro lo schermo. */
-const place = (rect, h) => {
+const place = (rect, { h, min }) => {
   const vw = window.innerWidth, vh = window.innerHeight;
   const w = Math.min(440, vw - M * 2);
   const clampX = (x) => Math.min(Math.max(x, M), vw - M - w);
@@ -53,12 +53,12 @@ const place = (rect, h) => {
   const ty = Math.min(Math.max(rect.top, M), Math.max(M, vh - M - h));
   if (right >= w) return { width: w, left: rect.right + PAD + GAP, top: ty, maxHeight: vh - M * 2 };
   if (leftSpace >= w) return { width: w, left: rect.left - PAD - GAP - w, top: ty, maxHeight: vh - M * 2 };
-  if (Math.max(below, above) >= 220) {
+  if (Math.max(below, above) >= min) {
     if (below >= above) return { width: w, left: cx, top: rect.bottom + PAD + GAP, maxHeight: below };
     return { width: w, left: cx, top: rect.top - PAD - GAP - Math.min(h, above), maxHeight: above };
   }
-  const hh = Math.min(h, vh * 0.6);
-  return { width: w, left: cx, top: vh - M - hh, maxHeight: vh * 0.6 };
+  const hh = Math.min(h, Math.max(vh * 0.6, min), vh - M * 2);
+  return { width: w, left: cx, top: vh - M - hh, maxHeight: hh };
 };
 
 const Spotlight = ({ rect }) => {
@@ -124,13 +124,13 @@ export const GuidedTour = ({ open, steps, name, where = "in Impostazioni", onDon
   }, [open, onDone, steps.length]);
   const rect = useTargetRect(done ? null : step.targets, `${i}`, open);
   const card = useRef(null);
-  const [h, setH] = useState(420);
+  const [h, setH] = useState({ h: 420, min: 320 });
   useLayoutEffect(() => {
     const el = card.current;
     if (!el) return undefined;
     const measure = () => {
       const inner = el.firstElementChild, body = el.querySelector('[data-testid="tour-body"]');
-      if (inner && body) setH(inner.offsetHeight - body.clientHeight + body.scrollHeight);
+      if (inner && body) { const fixed = inner.offsetHeight - body.clientHeight; const full = Math.min(body.scrollHeight, parseFloat(getComputedStyle(body).maxHeight) || Infinity); setH((p) => { const n = { h: fixed + full, min: fixed + Math.min(full, 80) }; return p.h === n.h && p.min === n.min ? p : n; }); }
     };
     const ro = new ResizeObserver(measure);
     ro.observe(el);

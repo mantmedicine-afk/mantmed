@@ -420,3 +420,9 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Registrazione genitore: etichette "Nome/Cognome del genitore / tutore", placeholder aggiornati (campi backend invariati)
 - index.html: nuovo title e meta description; Logo.jsx sottotitolo aggiornato (componente oggi non usato)
 - Test: iteration_51 OK (1440 + 375)
+
+## Implemented (2026-11-03, tour guidato per la barra in alto)
+- steps.js: tour medico 9 passi (menu, prossimo paziente, Inizia visita, Da fare, Agenda, Pazienti, Messaggi, Cassa/Strumenti, profilo) e famiglia 8 passi; target sulla barra in alto (desktop/tablet) o bottom-nav (mobile); niente sala d'attesa; video mantenuti
+- GuidedTour: fumetto posizionato accanto all'elemento (sotto/sopra/lato, fallback in basso) sempre dentro lo schermo; testo scorrevole, pulsanti sempre visibili; target invisibili/fuori schermo ignorati
+- ProfileMenu: voce "Rivedi tour" (Area Medico e Portale); avvio automatico al primo accesso invariato
+- Test: iteration_52 (bug 768px risolto dopo, verificato con screenshot)

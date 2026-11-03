@@ -1,0 +1,28 @@
+{
+  "summary": "Frontend-only test of the redesigned guided tour. Doctor tour (9 steps) was tested at 1440x800, 1024x768, 768x1024 and 375x740. Patient portal tour (8 steps) was tested at 1440x800, 375x740 and 768x1024. Each step targets the right element: sidebar-nav/top bar on desktop and tablet, bottom-nav/bottom-link-* on mobile, and the off-screen drawer is never targeted. The spotlight matches the target's bounding box exactly (difference 0px) on every step at every viewport. The card is always inside the viewport. Step text reads 'Passo N di 9/8'. Indietro is disabled on step 1, the last step shows 'Concludi', then tour-done with tour-finish-btn, and Salta closes the tour. No step text mentions 'attesa'. Entry points that work: profile-tour (doctor-chip and portal-profile-btn), TopBar tour-open-button and portal-settings-tour-btn. Auto-start works: with tour_done=false the tour opens after login and after reload. Finishing it saves tour_done=true and the tour does not reopen after reload. tour_done was checked as true for the doctor at the end. One bug, found at 768x1024 on both tours: the card gets squeezed into a strip that is too short and the Avanti/Indietro buttons are cut off.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "GuidedTour place() fallback branch (GuidedTour.jsx lines 56-58)", "issue": "When neither below nor above has room for the full card height h, but max(below, above) >= 220, the card is placed in that strip with maxHeight=below or above, which is less than h. The card has overflow-hidden, and the video, header, dots and buttons are all shrink-0, so the bottom of the card is clipped. Reproduced every time: (a) Doctor step 4 (oggi-todo) at 768x1024: card is 657-1012 (maxHeight 355px) and tour-next-btn/tour-back-btn sit at y=1013-1057, outside the card and the viewport. Title and text are hidden too; only the video shows. (b) Portal step 3 (portal-simple-box) at 768x1024: card is placed above the target, 12-310 (about 300px). Only the header and video are visible; the next and back buttons are hidden (elementFromPoint fails). The user cannot see how to go forward except via Salta or the arrow keys.", "selector": "[data-testid=tour-card] [data-testid=tour-next-btn]", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Tour step 'Agenda' (doctor S5) and portal S2/S3 at all viewports", "issues": ["The target is taller than the viewport (agenda about 890px, portal-overview about 900-1600px), so the card is placed over the target. This is acceptable because there is no room, but it could be placed over the lower part of the target or scroll so only the top shows."]},
+      {"screen": "Tour videos (user chose to keep them)", "issues": ["The doctor-1 video poster still shows the old sidebar layout and a 'Pazienti in attesa' panel. The step text is fine; this is for awareness only, no action required."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix place() in GuidedTour.jsx: in the fallback branch, only use the below/above strip if it can hold the fixed part of the card (everything except tour-body: header, video, dots and buttons, plus a minimum of about 80px of body). Otherwise use the bottom-sheet branch (top = vh - M - min(h, vh - 2M)), or let the video shrink or hide when space is tight, so tour-next-btn, tour-back-btn and tour-skip-btn are always visible. Re-check doctor step 4 and portal step 3 at 768x1024."
+  ],
+  "critical_code_review_comments": [
+    "GuidedTour place(): the last branch (hh = min(h, vh*0.6)) has the same clipping risk on short landscape screens, because the video is shrink-0.",
+    "The h measurement uses the content of the step that is fading out (AnimatePresence mode=wait), so the first frame of a step can briefly use the previous step's height. The ResizeObserver and the 320ms re-measure fix it, but the card can jump."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "96% (2 of 51 step/viewport combinations have clipped buttons)"},
+  "seed_data_creation": "None. The doctor's tour_done was set to false via POST /api/onboarding/tour for the auto-start test, then restored to true by finishing the tour (checked with /api/auth/me).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The tour tests use an in-page JS check: find the first visible target, compare it with the tour-spotlight rect (padding 10px), check the tour-card rect is inside the viewport, and use elementFromPoint on the button centres. Wait about 1.3s per step for the spring and transition animations. Both the doctor and the parent have tour_done=true. The failing cases are both at 768x1024 (doctor step 4, portal step 3)."
+}
