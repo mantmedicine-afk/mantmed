@@ -1,0 +1,24 @@
+{
+  "summary": "Frontend-only test of the sidebar-to-top-bar change (AppShell TopNav), on Area Medico (/app) and Portale Famiglia (/portale), at widths 1920/1600/1440/1280/1024/768 plus mobile 390. Everything requested passes. No left sidebar (0 <aside>). A dark (#0A192F) 64px header sits at the top: data-testid=sidebar at >=1024 and sidebar-tablet at 768-1023, and only one of them is visible at a time. Nav items keep their order. Doctor: Oggi, Pazienti, Messaggi, Cassa, Impostazioni | Strumenti. Portal: Home, Appuntamenti, Documenti, Messaggi, Trova specialista | Impostazioni. At every width every link sits fully inside the nav (nav scrollWidth == clientWidth, nothing clipped) and the document has no horizontal overflow. Labels show at >=1280 and only icons show below 1280. mantai-sidebar-btn and sidebar-logout-btn are present everywhere. sidebar-collapse-btn is present only at >=1024. The Messaggi badge shows '1' (doctor). Page content (.app-min) starts at left=0, top=64 and is full width. The doctor TopBar and the portal header are sticky at top:0 after scrolling. All nav links route correctly and show the active state (bg-white + aria-current). The collapse toggle switches to icons, sets localStorage mantmed.sidebar.mini=1, persists after reload and expands again. The MantAI dialog opens from the top bar in both areas. The consultation overlay opens from oggi-next-start-btn and covers the nav (fixed, z-50). Mobile 390 is unchanged: no top nav, bottom-nav visible, sidebar-open-btn opens the full vertical drawer (all items, badge, logout), and the drawer closes after navigating. All doctor and portal sections render content.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Top nav 1024-1279px (doctor and portal)", "issues": ["sidebar-collapse-btn is shown but clicking it has no visible effect, because labels are already forced to icons below 1280. The preference only applies at >=1280. Minor UX inconsistency."]},
+      {"screen": "Desktop/tablet doctor and portal", "issues": ["Two logout buttons are visible on the same screen: sidebar-logout-btn in the top nav and the page's own TopBar/portal header logout. This is redundant but was already there before the change, so it is acceptable under the 'change nothing else' instruction."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AppShell renders TopNav twice (tablet + desktop wrappers, toggled by CSS). This works, and only one is visible, but the duplicated data-testids (sidebar-link-*, sidebar-nav) now exist 3x in the DOM (tablet, desktop, drawer). Tests must scope by container.",
+    "The nav uses overflow-x-auto with a hidden scrollbar. Items fit today, but any future nav item could be silently scrolled out with no visible cue."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Login for both doctor and parent is on /app and /portale (the login form is inline; /login redirects to the landing page). Scope selectors with [data-testid=sidebar] (>=1024), [data-testid=sidebar-tablet] (768-1023) or [data-testid=sidebar-drawer] (mobile), because link testids repeat across these containers. Use page.clock.install(datetime(2026,11,3,10,5)) to get a populated Oggi next-bar. The consultation overlay takes about 1-2s to render consultation-setup."
+}

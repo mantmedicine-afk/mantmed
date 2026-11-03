@@ -101,7 +101,7 @@ const TopNav = ({ items, area, mini: miniPref, onToggle, testId }) => {
         </nav>
         <div className="flex shrink-0 items-center gap-1.5 [&_[data-testid=mantai-sidebar-btn]]:mb-0 [&_[data-testid=mantai-sidebar-btn]]:px-3">
           <MantAIButton variant="sidebar" view={user?.role === "parent" ? "patient" : "doctor"} mini={mini || !wide} />
-          {onToggle && (
+          {onToggle && xl && (
             <button onClick={onToggle} className="flex h-11 items-center gap-2 rounded-2xl px-3 text-sm text-[#C9CCD3] transition-colors hover:bg-white/10 hover:text-white"
               aria-label={miniPref ? "Espandi la barra" : "Riduci la barra alle icone"} title={miniPref ? "Espandi" : "Riduci alle icone"} aria-expanded={!miniPref} data-testid="sidebar-collapse-btn">
               {miniPref ? <PanelLeftOpen size={19} /> : <><PanelLeftClose size={19} /><span className="hidden min-[1800px]:inline">Riduci barra</span></>}

@@ -410,3 +410,7 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Inizia visita apre la vera ConsultationOverlay (consenso + registrazione)
 - Pagine pubbliche: lasciate invariate su richiesta
 - Test: iteration_49 frontend OK
+
+## Implemented (2026-11-03, barra di navigazione orizzontale)
+- AppShell: su computer/tablet (>=768px) il menu laterale è ora una barra orizzontale scura in cima (TopNav), stesse voci e ordine, contenuto a tutta larghezza; etichette da 1280px, solo icone sotto; pulsante "Riduci barra" da 1280px. Telefono invariato (barra in basso + menu a scomparsa). Vale per Area Medico e Portale Famiglia
+- Test: iteration_50 frontend OK
