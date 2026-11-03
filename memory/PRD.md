@@ -396,3 +396,10 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Foto: bodychart_media.process_photo (EXIF rimossi, JPEG 2048 + miniatura 360, AES-256-GCM), HEIC via pillow-heif; zone intime -> 428 senza doppia conferma, reserved=true; PUT forza reserved per pin spostati in zona intima; audit completo con dedupe 10 min sulle consultazioni
 - Non approvati: figure per età, aree, visibilità per pin alla famiglia, punto prestazioni. Medicina di Squadra invariata (nessun accesso alla bodychart)
 - Test: iteration_45/46 (31/31 backend), tests/test_bodychart_v3.py
+
+## Implemented (2026-11-03, Oggi + MantAI + Portale minimal)
+- components/mantai/MantAILogo.jsx (MantAIMark + wordmark); usato nel grande pulsante centrale "Inizia visita" (Today.jsx NextPatient centrato) e nel pulsante "Cos'è MantAI" della sidebar
+- Fix iteration_47: TopBar senza clipping 768–1920 (logo duplicato rimosso, orologio/nome da xl, feedback/sicurezza da lg), waiting-panel senza h-full, griglia Oggi 7/5 da xl, ombra drawer solo se aperto
+- Portale Famiglia: header chiaro, menu semplificato (Home, Appuntamenti, Documenti, Messaggi, Trova specialista, Impostazioni in basso; etichette brevi su mobile), copertina chiara, sfondi #FBFBF8/#F2F2EF
+- Test: iteration_48 frontend 100%
+- Backlog: rigenerare immagini anteprima del tour Portale (mostrano ancora il vecchio stile scuro)

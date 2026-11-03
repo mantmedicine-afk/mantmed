@@ -269,7 +269,7 @@ export default function Portal() {
     <div className="min-h-screen bg-[#FBFBF8]" data-testid="portal-page" data-section={sezione}>
       <header className="sticky top-0 z-40 border-b border-[#DCDDDF] bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-[1100px] items-center justify-between gap-3 px-5 py-3">
-          <div className="flex min-w-0 items-center gap-3"><MenuButton /><span className="md:hidden"><LogoMark size={32} /></span>
+          <div className="flex min-w-0 items-center gap-3"><MenuButton /><span className="hidden sm:inline md:hidden"><LogoMark size={32} /></span>
             <span className="truncate text-base font-semibold text-[#0A192F]" data-testid="portal-section-label">{items.find((i) => i.id === sezione)?.label}</span></div>
           <div className="flex shrink-0 items-center gap-2">
             <NotificationBell state={notif} reload={reloadNotif} onPick={pickNotif} />
@@ -300,7 +300,7 @@ export default function Portal() {
         {data?.consent && sezione === "panoramica" && <p className="flex items-center gap-2 text-xs text-slate-600" data-testid="portal-consent-note"><Info size={13} /> Consenso accettato il {day(data.consent.at)} · {data.consent.version} · {count("reports")} referti · {count("appointments")} appuntamenti</p>}
       </main>)}
       <FeedbackDialog parent open={feedback} onClose={() => setFeedback(false)} />
-      <GuidedTour open={tour.open} steps={PATIENT_STEPS} name={user?.name?.split(" ")[0]} where="Impostazioni o dall'icona in alto" onDone={tour.end} />
+      <GuidedTour open={tour.open} steps={PATIENT_STEPS} name={user?.name?.split(" ")[0]} where="Impostazioni" onDone={tour.end} />
     </div>
     </AppShell>
   );

@@ -1,0 +1,41 @@
+{
+  "summary": "Frontend-only retest of the MantAI logo / Oggi layout / TopBar / drawer fixes and the minimalist Family Portal. Tested at 390, 768, 1024, 1100, 1280, 1440 and 1920 with medico, cardiologo (no patients) and genitore. Every requested item passes. Only minor cosmetic leftovers remain, all in the portal guided tour.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Portal GuidedTour (opened from portal-settings-tour-btn)", "issues": [
+        "The step-1 preview screenshot is outdated. It still shows the old dark navy cover, a serif greeting and the old menu label 'Panoramica / Famiglia'. Regenerate the tour preview images to match the new light portal.",
+        "Portal.jsx:303 passes where=\"Impostazioni o dall'icona in alto\", but the tour icon was removed from the header. Change it to \"Impostazioni\"."
+      ]},
+      {"screen": "Portal header at 390", "issues": ["portal-section-label truncates to 'Appunta…' next to the logo mark. The full title is repeated in the h1 just below, so this is minor; consider hiding the label on mobile or dropping the LogoMark."]}
+    ]
+  },
+  "verified": [
+    "next-patient-card: text-align center. start-consultation-btn is horizontally centered (card center = button center = 1092px at 1920), 460x168px, and contains data-testid mantai-logo plus the text 'Inizia visita'. Clicking it opens the 'Chi stai visitando?' consultation flow with Francesco Bruno and the 6-month template recommended.",
+    "No-next-patient case (cardiologo.demo): next-patient-empty is shown and the button still opens the consultation flow.",
+    "TopBar at 768, 1024, 1100, 1280, 1440 and 1920: doctor-chip, tour-open-button, topbar-messages-btn and logout-button sit fully inside the viewport. compliance-button and feedback-beta-button are hidden below lg and visible and inside the viewport from 1024 up. No horizontal overflow (scrollWidth == clientWidth).",
+    "Oggi layout: waiting-panel bottom is above today-requests-fold top at every width (969 < 1107 at >=1280; 1566 < 1586 at 768). The agenda and side column stack below 1280 and sit side by side (7/5) at >=1280. todo-box rows are a single line at 52px.",
+    "sidebar-drawer has box-shadow none when closed at 768 and 390 and gets its shadow only when open.",
+    "mantai-sidebar-btn shows mantai-logo-mark and opens the 'Cos'è MantAI' dialog.",
+    "Portal: header background is white (rgba 255,255,255,0.9). portal-section-label, portal-bell-btn (badge 5), portal-profile-btn and portal-logout-btn are present; there is no tour button in the header. Sidebar labels are Home, Appuntamenti, Documenti, Messaggi, Trova specialista, plus Impostazioni at the bottom. portal-cover is a white card reading 'Buonasera, Giulia'.",
+    "Portal at 390: bottom-nav shows Home, Visite, Documenti, Messaggi and Altro, each 56px tall, single-line, no overflow. Altro opens the drawer and navigation works.",
+    "All portal sections render with no errors: appuntamenti, documenti, messaggi, trova-specialista and impostazioni. portal-settings-tour-btn opens the tour."
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "Optional: update the portal tour preview images to the new light design.",
+    "Optional: fix the stale 'dall'icona in alto' text in the Portal GuidedTour where prop."
+  ],
+  "critical_code_review_comments": [
+    "Portal.jsx is 307 lines and mixes many inline sub-components (Reports, Receipts, Appointments, Child, AddChild, PayBanner). Consider moving them into components/portal/*.",
+    "Portal.jsx has import statements after const declarations (lines 31-33). This works but is unconventional."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (not requested)", "frontend": "100% of requested checks"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The iteration_47 layout bugs are confirmed fixed. Measurement scripts used getBoundingClientRect on header buttons at multiple widths. The consultation overlay does not close with Escape; use its X button."
+}
