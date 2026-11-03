@@ -135,10 +135,10 @@ const Child = ({ c, onRequest, focus, onChange, jump, only }) => {
     return undefined;
   }, [jump?.n]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <section id={`child-${p.id}`} className="scroll-mt-24 rounded-[28px] border border-slate-200 bg-[#F4F5F7] p-5 sm:p-7" data-testid={`portal-child-${p.id}`}>
+    <section id={`child-${p.id}`} className="scroll-mt-24 rounded-2xl border border-[#DCDDDF] bg-[#F2F2EF] p-5 sm:p-7" data-testid={`portal-child-${p.id}`}>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div><div className="text-[11px] uppercase tracking-[0.2em] text-slate-600">Nato/a il {day(p.birth_date)}</div><h2 className="font-display text-4xl text-night">{p.name}</h2><div className="text-sm text-slate-600" data-testid={`portal-child-doctor-${p.id}`}>{c.doctor.name} · {c.doctor.specialty}</div>
-          <button onClick={() => onRequest(p.id)} className="mt-3 flex h-10 items-center gap-2 rounded-full bg-night px-4 text-sm font-medium text-white transition-transform hover:-translate-y-0.5" data-testid={`portal-request-btn-${p.id}`}><CalendarPlus size={15} /> Richiedi appuntamento</button></div>
+          <button onClick={() => onRequest(p.id)} className="mt-3 flex h-10 items-center gap-2 rounded-full bg-night px-4 text-sm font-medium text-white transition-colors hover:bg-[#13284A]" data-testid={`portal-request-btn-${p.id}`}><CalendarPlus size={15} /> Richiedi appuntamento</button></div>
         {!only && <div className="flex flex-wrap gap-1 rounded-full bg-white p-1 ring-1 ring-slate-200" role="tablist">
           {TABS.map((t) => (
             <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} className={`flex h-9 items-center gap-1.5 rounded-full px-3 text-sm transition-colors ${tab === t.id ? "bg-night text-white" : "text-slate-600 hover:text-night"}`} data-testid={`portal-tab-${t.id}-${p.id}`}>
@@ -252,46 +252,46 @@ export default function Portal() {
   };
   const count = (k) => children.reduce((s, c) => s + (c[k]?.length ?? 0), 0);
   const items = [
-    { id: "panoramica", to: "/portale", end: true, label: "Panoramica / Famiglia", icon: LayoutGrid },
-    { id: "trova-specialista", to: "/portale/trova-specialista", label: "Trova Specialista", icon: Stethoscope },
-    { id: "appuntamenti", to: "/portale/appuntamenti", label: "Appuntamenti", icon: CalendarClock },
-    { id: "documenti", to: "/portale/documenti", label: "Area Riservata", icon: FolderOpen },
-    { id: "messaggi", to: "/portale/messaggi", label: "Messaggi con lo Studio", icon: MessagesSquare, badge: notif.messages_unread },
-    { id: "impostazioni", to: "/portale/impostazioni", label: "Impostazioni / Feedback", icon: Settings },
+    { id: "panoramica", to: "/portale", end: true, label: "Home", icon: LayoutGrid },
+    { id: "appuntamenti", to: "/portale/appuntamenti", label: "Appuntamenti", short: "Visite", icon: CalendarClock },
+    { id: "documenti", to: "/portale/documenti", label: "Documenti", icon: FolderOpen },
+    { id: "messaggi", to: "/portale/messaggi", label: "Messaggi", icon: MessagesSquare, badge: notif.messages_unread },
+    { id: "trova-specialista", to: "/portale/trova-specialista", label: "Trova specialista", short: "Specialisti", icon: Stethoscope },
+    { id: "impostazioni", to: "/portale/impostazioni", label: "Impostazioni", icon: Settings, bottom: true },
   ];
   if (LEGACY[sezione]) return <Navigate to={`/portale/documenti?tab=${LEGACY[sezione]}`} replace />;
   if (!(sezione in SECTIONS)) return <Navigate to="/portale" replace />;
   const only = SECTIONS[sezione];
-  const TITLES = { documenti: "Area Riservata", "trova-specialista": "Trova Specialista", appuntamenti: "Appuntamenti", referti: "Referti e bilanci di salute", ricevute: "Ricevute e pagamenti", messaggi: "Messaggi con lo studio" };
+  const TITLES = { documenti: "Documenti", "trova-specialista": "Trova specialista", appuntamenti: "Appuntamenti", referti: "Referti e bilanci di salute", ricevute: "Ricevute e pagamenti", messaggi: "Messaggi con lo studio" };
+  const iconBtn = "grid h-10 w-10 place-items-center rounded-full border border-[#DCDDDF] text-slate-600 transition-colors hover:border-[#0A192F] hover:text-[#0A192F]";
   return (
-    <AppShell items={items} area="Portale Paziente">
-    <div className="min-h-screen bg-[#FBF8F3]" data-testid="portal-page" data-section={sezione}>
-      <header className="sticky top-0 z-40 border-b border-[#C9CCD3]/15 bg-[#0A192F]">
+    <AppShell items={items} area="Portale Famiglia">
+    <div className="min-h-screen bg-[#FBFBF8]" data-testid="portal-page" data-section={sezione}>
+      <header className="sticky top-0 z-40 border-b border-[#DCDDDF] bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-[1100px] items-center justify-between gap-3 px-5 py-3">
-          <div className="flex items-center gap-3"><MenuButton dark /><span className="flex items-center gap-3 lg:hidden"><LogoMark size={34} light /><span className="hidden leading-none sm:block"><span className="block font-display text-2xl text-white">MantMed</span><span className="mt-1 block text-[10px] uppercase tracking-[0.22em] text-[#C9CCD3]">Portale Paziente</span></span></span>
-            <span className="hidden text-[11px] uppercase tracking-[0.22em] text-[#C9CCD3] lg:block" data-testid="portal-section-label">{items.find((i) => i.id === sezione)?.label}</span></div>
-          <div className="flex items-center gap-3">
-            <ProfileMenu trigger={<button className="flex h-10 items-center gap-2 rounded-full border border-[#C9CCD3]/30 px-2 text-sm text-[#C9CCD3] transition-colors hover:border-white hover:text-white sm:px-3" data-testid="portal-profile-btn" aria-label="Il mio profilo"><UserRound size={16} /><span className="hidden sm:inline" data-testid="portal-user-name">{user?.name}</span><Caret /></button>} />
-            <button onClick={tour.start} className="grid h-10 w-10 place-items-center rounded-full border border-[#C9CCD3]/30 text-[#C9CCD3] transition-colors hover:border-white hover:text-white" aria-label="Rivedi tour" title="Rivedi tour" data-testid="portal-tour-open-btn"><Compass size={16} /></button>
+          <div className="flex min-w-0 items-center gap-3"><MenuButton /><span className="md:hidden"><LogoMark size={32} /></span>
+            <span className="truncate text-base font-semibold text-[#0A192F]" data-testid="portal-section-label">{items.find((i) => i.id === sezione)?.label}</span></div>
+          <div className="flex shrink-0 items-center gap-2">
             <NotificationBell state={notif} reload={reloadNotif} onPick={pickNotif} />
-            <button onClick={() => logout()} className="grid h-10 w-10 place-items-center rounded-full border border-[#C9CCD3]/30 text-white hover:border-white" aria-label="Esci" data-testid="portal-logout-btn"><LogOut size={16} /></button></div>
+            <ProfileMenu trigger={<button className="flex h-10 items-center gap-2 rounded-full border border-[#DCDDDF] px-2 text-sm text-[#0A192F] transition-colors hover:border-[#0A192F] sm:px-3" data-testid="portal-profile-btn" aria-label="Il mio profilo"><UserRound size={16} /><span className="hidden max-w-[160px] truncate sm:inline" data-testid="portal-user-name">{user?.name}</span><Caret /></button>} />
+            <button onClick={() => logout()} className={iconBtn} aria-label="Esci" title="Esci" data-testid="portal-logout-btn"><LogOut size={16} /></button></div>
         </div>
       </header>
       {sezione === "impostazioni" ? <Account role="parent" embedded extras={<div className="flex flex-wrap gap-2"><button onClick={() => setFeedback(true)} className="flex h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-night hover:border-night" data-testid="portal-feedback-btn"><MessagesSquare size={15} /> Feedback e assistenza</button>
         <button onClick={tour.start} className="flex h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-night hover:border-night" data-testid="portal-settings-tour-btn"><Compass size={15} /> Rivedi tour</button></div>} /> : (
       <main className="mx-auto max-w-[1100px] space-y-5 px-5 py-10">
         {sezione === "panoramica" && children.length > 0 ? <PortalOverview user={user} kids={children} onWrite={() => nav("/portale/messaggi")} onBook={(k) => { setReqDoctor(k.doctor.id); setReq(k.patient.id); }} />
-          : <div><div className="text-[11px] uppercase tracking-[0.22em] text-slate-600">Area personale protetta</div><h1 className="mt-1 font-display text-4xl text-night sm:text-5xl">{TITLES[sezione] ?? <>Buongiorno, <span className="italic text-slate-500">{user?.name?.split(" ")[0]}</span></>}</h1></div>}
+          : <div><h1 className="font-display text-3xl text-night sm:text-4xl">{TITLES[sezione] ?? <>Buongiorno, <span className="italic text-slate-500">{user?.name?.split(" ")[0]}</span></>}</h1></div>}
         <PayBanner state={payState} />
         {sezione === "panoramica" && <SupportReplies />}
         {sezione === "panoramica" && <ReminderBanner kids={children} onOpen={(pid) => go(pid, "appointments")} />}
         {!data && <Loader2 className="animate-spin text-night" />}
         {data && children.length === 0 && (
-          <div className="flex gap-3 rounded-[28px] bg-[#0A192F] p-6 text-white" data-testid="portal-no-children"><Baby className="shrink-0 text-[#C9CCD3]" />
-            <p className="text-sm leading-relaxed text-slate-200">Non abbiamo ancora trovato una cartella collegata. Il collegamento avviene in automatico quando lo studio registra il codice fiscale del bambino e la sua email ({user?.email}). Se ha già fatto una visita, chieda allo studio di verificare questi due dati.</p></div>
+          <div className="flex gap-3 rounded-2xl border border-[#DCDDDF] bg-white p-6" data-testid="portal-no-children"><Baby className="shrink-0 text-[#0A192F]" />
+            <p className="text-sm leading-relaxed text-slate-600">Non abbiamo ancora trovato una cartella collegata. Il collegamento avviene in automatico quando lo studio registra il codice fiscale del bambino e la sua email ({user?.email}). Se ha già fatto una visita, chieda allo studio di verificare questi due dati.</p></div>
         )}
         {sezione === "trova-specialista" && data && <SpecialistsDirectory onBook={(id, slot) => { setReqDoctor(id); setReqPreset(slot ?? null); setReq(children[0]?.patient.id ?? null); if (!children.length) toast.message("Colleghi prima la cartella di suo figlio per prenotare"); }} />}
-        {sezione === "panoramica" && children.length > 0 && <div className="pt-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">La famiglia</div>}
+        {sezione === "panoramica" && children.length > 0 && <h2 className="pt-4 text-lg font-semibold text-[#0A192F]">La famiglia</h2>}
         {sezione === "documenti" && data && <DocumentsArea kids={children} onChange={load} addChild={<AddChild onLinked={load} />} />}
         {!["messaggi", "trova-specialista", "documenti"].includes(sezione) && children.map((c) => <Child key={c.patient.id} c={c} onRequest={setReq} focus={focus} onChange={load} jump={jump} only={only} />)}
         {sezione === "messaggi" && children.length > 0 && <Messages kids={children} openId={openThread} onOpened={() => setOpenThread(null)} onRead={reloadNotif} />}

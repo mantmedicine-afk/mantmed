@@ -76,7 +76,7 @@ export default function Dashboard() {
     load();
   }, [load]);
 
-  const next = pickNext(waiting, appointments.filter((a) => a.date === undefined || isTodayDate(a.date)));
+  const next = pickNext(waiting, appointments.filter((a) => a.date == null || isTodayDate(a.date)));
   const [requests, setRequests] = useState(0);
   usePoll(() => api.apptRequests().then((r) => setRequests(r.filter((x) => !x.status || x.status === "pending").length)).catch(() => {}), []);
   const ticker = [
@@ -127,9 +127,9 @@ export default function Dashboard() {
       <SignatureReminder />
       <main className="mx-auto max-w-[1280px] space-y-5 px-5 pb-10 pt-4 lg:px-8" data-testid="today-page">
         <NextPatient next={next} age={patients.find((p) => p.id === next?.patient_id)?.age_label} onStart={start} onOpen={() => setPassportId(next.patient_id)} />
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-          <div className="min-w-0 lg:col-span-7"><Agenda appointments={appointments} onChange={load} patients={patients} onPassport={setPassportId} /></div>
-          <div className="min-w-0 space-y-5 lg:col-span-5">
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
+          <div className="min-w-0 xl:col-span-7"><Agenda appointments={appointments} onChange={load} patients={patients} onPassport={setPassportId} /></div>
+          <div className="min-w-0 space-y-5 xl:col-span-5">
             <TodoBox notes={notes} unread={unread + aiQueued} requests={requests} onSign={openVisit} onMessages={() => navTo("/app/messaggi")}
               onRequests={() => document.getElementById("today-requests")?.scrollIntoView({ behavior: "smooth" })} onTeam={() => navTo("/app/pazienti")} />
             <WaitingList waiting={waiting} onChange={load} onStart={start} patients={patients} onPassport={setPassportId} />

@@ -47,7 +47,7 @@ export const Messages = ({ kids, openId, onOpened, onRead }) => {
   return (
     <section id="portal-messages" className="scroll-mt-24 rounded-[28px] border border-slate-200 bg-white p-5 sm:p-7" data-testid="portal-messages">
       <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-slate-600"><MessagesSquare size={13} /> Comunicazioni con lo studio</div>
-      <h2 className="mt-1 font-display text-4xl text-night">Messaggi <span className="italic text-slate-500">e richieste</span></h2>
+      <h2 className="mt-1 font-display text-2xl text-night">Messaggi e richieste</h2>
       <div className="mt-5 grid grid-cols-2 gap-2 lg:grid-cols-4" data-testid="quick-requests">
         {QUICK.map((q) => (
           <button key={q.kind} disabled={!kids.length} onClick={() => setKind(q.kind)} className="group flex flex-col items-start gap-2 rounded-2xl border border-slate-200 bg-[#F4F5F7] p-4 text-left transition-all hover:-translate-y-0.5 hover:border-night disabled:opacity-50" data-testid={`quick-request-${q.kind}`}>

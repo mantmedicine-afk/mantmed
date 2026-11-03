@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { AudioLines, BookOpenText, Eye, FileSignature, KeyRound, Lock, ShieldCheck, Sparkles, Tags, Trash2, UserCheck } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { LabelPill, VARIANTS } from "./aiLabels";
+import { MantAIMark } from "./MantAILogo";
 
 const ROLE = {
   doctor: {
@@ -114,7 +115,7 @@ const TRIGGERS = {
   sidebar: ({ mini, onClick }) => (
     <button onClick={onClick} title={mini ? "Cos'è MantAI" : undefined} aria-label="Cos'è MantAI" data-testid="mantai-sidebar-btn"
       className={`mb-2 flex h-11 items-center gap-2 rounded-2xl text-sm text-[#C9CCD3] transition-colors hover:bg-white/10 hover:text-white ${mini ? "justify-center" : "px-3.5"}`}>
-      <Sparkles size={19} />{!mini && "Cos'è MantAI"}
+      <MantAIMark size={22} light />{!mini && "Cos'è MantAI"}
     </button>
   ),
   banner: ({ onClick }) => (

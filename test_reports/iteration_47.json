@@ -1,0 +1,63 @@
+{
+  "summary": "Frontend-only test of doctor-area redesign (Oggi, sidebar, Ctrl+K, patient card, Strumenti, Pazienti tabs, tour, responsive 768/390, portal). Found and fixed 1 critical bug (next-patient card always empty). Everything else in the brief works. Still open: topbar buttons clipped off-screen between 768 and about 1150px, the waiting-room card overlapping the 'Richieste dal portale' fold, long portal bottom-nav labels, and the closed drawer's shadow leaking into the viewport on mobile and tablet.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Dashboard/NextPatient (FIXED by T1)", "issue": "The next-patient card always showed 'Nessun paziente in attesa né appuntamenti in arrivo' even with 7 'programmato' appointments today. GET /api/appointments returns date:null for today's seeded appointments, but Dashboard.jsx:79 filtered with `a.date === undefined`. Changed it to `a.date == null`. Next-patient-name now shows Francesco Bruno · 6 mesi · ore 10:15 · reason.", "selector": "[data-testid=next-patient-card]", "priority": "CRITICAL"},
+      {"component": "TopBar (md-lg widths)", "issue": "The right-hand button group does not fit and is clipped by the overflow-x-clip on the dashboard wrapper, so the buttons cannot be reached and no horizontal scrollbar appears. At 768: compliance-button right edge 761 and logout-button 773-803, against a content width of 684. At 1024: topbar-messages-btn, compliance-button and logout-button are all off-screen. At 1100: logout-button is off-screen. Causes: the <Logo/> is shown at sm..lg (it duplicates the logo already in sidebar-tablet), plus the clock, the full doctor name in doctor-chip and 6 buttons with no shrink or wrap.", "selector": "header [data-testid=logout-button], [data-testid=compliance-button]", "priority": "HIGH"},
+      {"component": "Oggi layout (WaitingList)", "issue": "waiting-panel has `h-full` and sits in the right column under TodoBox. It takes 100% of the grid-row height plus the TodoBox height, so it overflows and overlaps the 'Richieste dal portale' fold: waiting bottom y=1069, fold top y=895 at 1920x1080. The empty waiting card is also stretched very tall, with a stray '00' at the bottom.", "selector": "[data-testid=waiting-panel], [data-testid=today-requests-fold]", "priority": "MEDIUM"},
+      {"component": "AppShell sidebar-drawer (closed)", "issue": "The drawer at translate-x:-100% keeps shadow-2xl, which leaks a grey strip about 20px wide along the left edge of every page at <lg, including the passport overlay at 768 and 390. Apply the shadow only when the drawer is open.", "selector": "[data-testid=sidebar-drawer]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Portal bottom-nav (390)", "issues": ["Items have no short labels. 'Panoramica / Famiglia' and 'Trova Specialista' wrap to 2 lines, and 'Panoramica / Famiglia' runs into the screen edge and the next cell. Add `short` labels (e.g. Home, Specialisti, Agenda, Documenti).", "'Messaggi con lo Studio' is not in the mobile bottom bar (only via Altro), while the doctor bottom bar does include Messaggi. Consider swapping it in."]},
+      {"screen": "Sidebar logo / portaled dialogs", "issues": ["The sidebar Panel and Radix dialogs (note-sign-dialog title 'Firma della nota') render outside `.app-min`, so font-display is still the serif face. This does not match the Inter-only restyle."]},
+      {"screen": "Tour step 5", "issues": ["The extra link label still says 'Apri Fatturazione & TS'; the section is now called 'Cassa'."]},
+      {"screen": "Next patient fallback", "issues": ["After the last appointment time has passed (tested at 20:47), pickNext falls back to the first open appointment (10:15), which is in the past. Consider a 'Nessun altro appuntamento' state or marking it as overdue."]}
+    ]
+  },
+  "passed_criteria": [
+    "C1: next-patient-card, name, age, time and reason shown (after fix). start-consultation-btn 'Inizia visita' opens consultation-overlay with the patient preselected (6-month balance recommended, consent warning shown). Clicking next-patient-name opens the passport.",
+    "C2: sidebar has agenda(Oggi), pazienti, messaggi, cassa, impostazioni, then a divider and strumenti. No sidebar-link-visite. /app/visite still renders (data-section=visite).",
+    "C4: Ctrl+K opens global-search-dialog. CF RCCRRA22M47H224F returns global-search-patient-6ad86e64c06e50ff4cd67d1e, already selected. Enter opens passport-overlay with passport-name 'Aurora Ricci'. Actions: ricevuta goes to /app/cassa, modello to /app/impostazioni?sezione=modelli, strumenti to /app/strumenti.",
+    "Passport: all 7 tabs render with no page errors. passport-allergies is visible for Aurora and Ginevra. passport-start-visit-btn opens the overlay. passport-visit-open-* ('Apri nota e bodychart') opens the note editor. The Bodychart tab shows bodychart-history with a before/after comparison.",
+    "Da fare: todo-sign ('9 note da firmare') opens the note with note-ai-draft-banner, and note-sign-btn reads 'Rivedi e firma'. note-sign-dialog opens and the cancel button works. todo-messages (unread created via TEST_ portal message) goes to /app/messaggi. todo-team goes to /app/pazienti. today-requests-fold toggles (aria-expanded true) and shows PortalRequests.",
+    "Strumenti: all 7 cards present. Stats panel shows Hero and BetaMetrics, and tools-back returns. TS panel renders. GDPR opens the CompliancePanel. Templates and Bilanci go to sezione=modelli, Exports to /app/cassa, Showcase to sezione=vetrina.",
+    "Pazienti: patients-tab-visits shows the 'Tutte le visite' list with visit rows. patients-tab-list returns to the list.",
+    "C6: at 768x1024, sidebar-tablet is visible, the lg sidebar and bottom bar are hidden, and scrollWidth=768 on /app, pazienti, cassa, strumenti, messaggi, impostazioni and the passport tabs. At 390x800, bottom-nav and all 5 links are visible and scrollWidth=390 everywhere. Altro opens sidebar-drawer (x=0); choosing a link navigates and closes it. (Note: scrollWidth passes, but topbar buttons are clipped, see ui_bugs.)",
+    "Tour: tour-open-button starts a tour with exactly 5 steps ('Passo n di 5'). Each target exists and is spotlighted (next-patient-card, start-consultation-btn, patients-page, todo-box, tools-page), followed by the done screen.",
+    "Portal (genitore.demo): portal-overview loads with .app-min (Inter). The 'In parole semplici' AI label is visible. The mobile bottom-nav works and has no horizontal overflow. Altro opens the drawer. No page errors."
+  ],
+  "click_counts_from_oggi": {
+    "open_next_patient": "1 (click next-patient-name)",
+    "start_mantai_visit": "1 to open the overlay (start-consultation-btn), +1 'Inizia registrazione' = 2. Blocked if consent is missing.",
+    "sign_draft_note": "3 (todo-sign, then note-sign-btn 'Rivedi e firma', then note-sign-confirm)",
+    "open_patient_bodychart": "2 for the next patient (next-patient-name, then passport-tab-bodychart). Any other patient: Ctrl+K, type, Enter, then the Bodychart tab (3 actions plus typing).",
+    "issue_receipt": "About 3: open today's note (recent-note-*, scroll needed) or todo-sign, then cash-method-*, then cash-register-btn (amount is prefilled by the template). Not executed, to avoid creating payments.",
+    "reply_to_message": "3 (todo-messages, then doc-thread-row-*, then type and send). todo-messages does not open the unread thread directly. Suggestion: deep-link to the first unread thread to save 1 click.",
+    "find_patient_by_cf": "2 (Ctrl+K, type CF, Enter)"
+  },
+  "obsolete_old_tests": "Old Playwright flows that use consult-hub, hero on /app, sidebar-link-visite or passport-tab-checkpoint are obsolete by design (not regressions). No pytest files in /app/backend/tests reference them.",
+  "test_report_links": [],
+  "action_items": [
+    "TopBar: make the right-hand group fit at md/lg. Hide <Logo/> when the tablet sidebar is shown (sm:inline md:hidden), hide the clock and doctor name below xl, and/or allow shrink. Verify logout, compliance and messages buttons are visible at 768, 1024 and 1100.",
+    "Oggi: stop WaitingList (waiting-panel h-full) overlapping the 'Richieste dal portale' fold. Remove h-full in this layout or make the right column flex-col with the panel flex-1.",
+    "Portal bottom-nav: add short labels; consider Messaggi as a bottom item.",
+    "AppShell: apply shadow-2xl on sidebar-drawer only when it is open.",
+    "Keep the T1 fix in Dashboard.jsx (a.date == null) and consider handling the 'all appointments passed' state in pickNext.",
+    "Minor: tour step 5 extra label 'Apri Fatturazione & TS' should become 'Apri Cassa'. Font-display is still serif outside .app-min (sidebar logo, dialogs)."
+  ],
+  "critical_code_review_comments": [
+    "Dashboard.jsx:79 used strict `=== undefined` against an API null. Use `== null` for optional API fields. isTodayDate uses the browser's local date, while the backend uses today_rome(), so they can disagree around midnight for users outside Italy.",
+    "AppShell renders 3 Panels (tablet, desktop, drawer), so every sidebar-link-* testid appears 3 times in the DOM. Tests must scope to [data-testid=sidebar] / sidebar-tablet / sidebar-drawer.",
+    "TodoBox onRequests scrolls to #today-requests but does not open the Fold if it is closed. defaultOpen is only applied on the first mount, before the requests count loads, so it starts closed even when there are requests."
+  ],
+  "updated_files": ["/app/frontend/src/pages/Dashboard.jsx (line 79: a.date === undefined -> a.date == null)"],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "~88% (1 critical fixed; 2 functional layout bugs + 2 design issues open)"},
+  "seed_data_creation": "One TEST_ portal message posted by genitore.demo into thread 6ade4be4188e309146a920f8 ('TEST_ messaggio di prova per Da fare (iteration 47)') so that todo-messages could be tested. The doctor opened /app/messaggi, so it may now be marked read. No other data created; no payments or signatures performed.",
+  "test_credentials": "From /app/memory/test_credentials.md: medico@mantmed.it / Auscula-Studio-2026; genitore.demo@example.com / Portale-Demo-2026. Login form is at /app and /portale (not /login).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login happens on /app (doctor) or /portale (parent). Test patient: Aurora Ricci id 6ad86e64c06e50ff4cd67d1e, CF RCCRRA22M47H224F, has allergies, 16 visits and bodychart history. Seeded appointments have date:null. Recheck the topbar at 768/1024/1100 and the waiting-panel overlap after fixes.",
+  "rca of the issue": "Next patient empty: the backend /api/appointments returns today's docs with {date: {$in:[None, today]}}, so seeded ones have date:null. The frontend filter `a.date === undefined || isTodayDate(a.date)` rejected null, so pickNext got [] and the card fell into its empty state. Mitigated with `== null`. Topbar clipping: AppShell now adds md:pl-[84px] for the tablet sidebar, but TopBar still shows the full logo, clock, name and 6 buttons at md-lg, and the parent overflow-x-clip hides the overflow."
+}

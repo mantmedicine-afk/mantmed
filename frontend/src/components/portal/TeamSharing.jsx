@@ -47,7 +47,7 @@ const GrantDialog = ({ target, text, onClose, onDone }) => {
 };
 
 const Row = ({ g, info, actions, testid }) => (
-  <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#FBF8F3] p-4" data-testid={testid}>
+  <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#F2F2EF] p-4" data-testid={testid}>
     <div className="min-w-0"><div className="font-medium text-night">{g.doctor.name} <span className="text-sm font-normal text-[#3B6CF6]">· {g.doctor.specialty}</span></div>{info}</div>
     <div className="flex gap-2">{actions}</div>
   </div>

@@ -53,7 +53,7 @@ export const BilanciTab = ({ g, reports, onChange }) => {
 };
 
 const ConsentRow = ({ c }) => (
-  <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-[#FBF8F3] px-4 py-3 text-sm" data-testid={`docs-consent-${c.id}`}>
+  <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-[#F2F2EF] px-4 py-3 text-sm" data-testid={`docs-consent-${c.id}`}>
     <div><div className="font-medium text-night">{c.version}</div><div className="text-[#0A192F]/60">Firmato il {day(c.signed_at)} da {c.signer_name}{c.email_reports ? " · referti via email" : ""}</div></div>
     <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${c.revoked_at ? "bg-slate-200 text-slate-700" : "bg-emerald-100 text-emerald-900"}`}>{c.revoked_at ? `Revocato il ${day(c.revoked_at)}` : "Attivo"}</span>
   </div>

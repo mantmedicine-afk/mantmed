@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { AudioLines, ChevronDown, Clock, PenLine, MessagesSquare, CalendarPlus, ClipboardList, Users2, CheckCircle2 } from "lucide-react";
+import { ChevronDown, Clock, PenLine, MessagesSquare, CalendarPlus, ClipboardList, Users2, CheckCircle2 } from "lucide-react";
 import { needsSignature } from "@/components/dash/SignNote";
+import { MantAILogo } from "@/components/mantai/MantAILogo";
 
 const hm = (iso) => new Date(iso).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
 
@@ -14,30 +15,29 @@ export const pickNext = (waiting, appointments) => {
   return a ? { name: a.patient_name, patient_id: a.patient_id, reason: a.visit_type, clinic: a.clinic, when: `ore ${a.time}` } : null;
 };
 
+const StartButton = ({ onClick }) => (
+  <button onClick={onClick} className="group mt-7 flex w-full max-w-[460px] flex-col items-center gap-3 rounded-[22px] bg-[#0A192F] px-8 py-6 text-white transition-colors hover:bg-[#13284A] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#A9C2FF]" data-testid="start-consultation-btn">
+    <MantAILogo size={44} light />
+    <span className="text-2xl font-semibold tracking-tight sm:text-[28px]">Inizia visita</span>
+    <span className="text-sm text-[#C9CCD3]">MantAI ascolta la visita e prepara la nota da rivedere</span>
+  </button>
+);
+
 export const NextPatient = ({ next, age, onStart, onOpen }) => (
-  <section className="rounded-2xl border border-[#DCDDDF] bg-white p-6 sm:p-8" data-testid="next-patient-card">
+  <section className="flex flex-col items-center rounded-2xl border border-[#DCDDDF] bg-white px-6 py-8 text-center sm:px-10 sm:py-10" data-testid="next-patient-card">
     <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Prossimo paziente</div>
     {next ? (
-      <div className="mt-3 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div className="min-w-0">
-          <button onClick={next.patient_id ? onOpen : undefined} className="text-left text-3xl font-semibold tracking-tight text-[#0A192F] hover:underline disabled:no-underline sm:text-4xl" disabled={!next.patient_id} data-testid="next-patient-name">{next.name}</button>
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-base text-slate-600">
-            {age && <span data-testid="next-patient-age">{age}</span>}
-            <span className="flex items-center gap-1.5" data-testid="next-patient-time"><Clock size={15} /> {next.when}</span>
-            {next.reason && <span data-testid="next-patient-reason">{next.reason}</span>}
-            {next.clinic && <span className="text-slate-500">{next.clinic}</span>}
-          </div>
+      <>
+        <button onClick={next.patient_id ? onOpen : undefined} className="mt-3 text-3xl font-semibold tracking-tight text-[#0A192F] hover:underline disabled:no-underline sm:text-4xl" disabled={!next.patient_id} data-testid="next-patient-name">{next.name}</button>
+        <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 text-base text-slate-600">
+          {age && <span data-testid="next-patient-age">{age}</span>}
+          <span className="flex items-center gap-1.5" data-testid="next-patient-time"><Clock size={15} /> {next.when}</span>
+          {next.reason && <span data-testid="next-patient-reason">{next.reason}</span>}
+          {next.clinic && <span className="text-slate-500">{next.clinic}</span>}
         </div>
-        <button onClick={() => onStart(next)} className="flex h-14 items-center justify-center gap-2 rounded-xl bg-[#0A192F] px-8 text-base font-semibold text-white transition-colors hover:bg-[#13284A]" data-testid="start-consultation-btn">
-          <AudioLines size={19} /> Inizia visita
-        </button>
-      </div>
-    ) : (
-      <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-lg text-slate-600" data-testid="next-patient-empty">Nessun paziente in attesa né appuntamenti in arrivo.</p>
-        <button onClick={() => onStart(null)} className="flex h-12 items-center justify-center gap-2 rounded-xl bg-[#0A192F] px-6 text-base font-semibold text-white" data-testid="start-consultation-btn"><AudioLines size={18} /> Inizia visita</button>
-      </div>
-    )}
+      </>
+    ) : <p className="mt-3 text-lg text-slate-600" data-testid="next-patient-empty">Nessun paziente in attesa né appuntamenti in arrivo.</p>}
+    <StartButton onClick={() => onStart(next)} />
   </section>
 );
 
@@ -46,7 +46,7 @@ const Row = ({ icon: Icon, n, label, cta, onClick, testId }) => (
     <button onClick={onClick} className="flex min-h-[52px] w-full items-center gap-3 rounded-xl px-3 text-left transition-colors hover:bg-[#F2F2EF]" data-testid={testId}>
       <Icon size={18} className="shrink-0 text-[#0A192F]" />
       <span className="min-w-0 flex-1 text-[15px] text-[#0A192F]"><strong className="font-semibold tabular-nums">{n}</strong> {label}</span>
-      <span className="text-sm font-medium text-[#3B6CF6]">{cta} →</span>
+      <span className="shrink-0 whitespace-nowrap text-sm font-medium text-[#3B6CF6]">{cta} →</span>
     </button>
   </li>
 );

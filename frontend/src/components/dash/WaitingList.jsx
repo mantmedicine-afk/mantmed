@@ -23,7 +23,7 @@ export const WaitingList = ({ waiting, onChange, onStart, patients = [], onPassp
   };
 
   return (
-    <section className="flex h-full flex-col rounded-[28px] border border-slate-200 bg-white p-5 lg:p-6" data-testid="waiting-panel">
+    <section className="flex flex-col rounded-[28px] border border-slate-200 bg-white p-5 lg:p-6" data-testid="waiting-panel">
       <div className="flex items-center justify-between">
         <div>
           <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Sala d'attesa</div>
@@ -34,8 +34,8 @@ export const WaitingList = ({ waiting, onChange, onStart, patients = [], onPassp
         </button>
       </div>
 
-      <ul className="mt-5 flex-1 space-y-3" data-testid="waiting-list">
-        {waiting.length === 0 && <li className="rounded-2xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-500">Sala d'attesa vuota.</li>}
+      <ul className="mt-5 space-y-3" data-testid="waiting-list">
+        {waiting.length === 0 && <li className="rounded-2xl border border-dashed border-slate-200 py-6 text-center text-sm text-slate-500" data-testid="waiting-empty">Sala d'attesa vuota.</li>}
         <AnimatePresence initial={false}>
           {waiting.map((w, i) => (
             <motion.li key={w.id} layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: 30 }} transition={{ duration: 0.3, delay: 0.04 * i }}>

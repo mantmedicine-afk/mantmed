@@ -97,7 +97,7 @@ export const AppShell = ({ items, area, children }) => {
       <aside className={`fixed inset-y-0 left-0 z-40 hidden transition-[width] duration-300 ease-out lg:block ${mini ? "w-[84px]" : "w-[264px]"}`} data-testid="sidebar" data-mini={mini}><Panel items={items} area={area} mini={mini} onToggle={toggle} /></aside>
       <div className={`fixed inset-0 z-[55] lg:hidden ${open ? "" : "pointer-events-none"}`} aria-hidden={!open}>
         <div onClick={() => setOpen(false)} className={`absolute inset-0 bg-[#0A192F]/50 backdrop-blur-sm transition-opacity duration-300 ${open ? "opacity-100" : "opacity-0"}`} data-testid="sidebar-backdrop" />
-        <div className={`absolute inset-y-0 left-0 w-[min(86vw,300px)] shadow-2xl transition-transform duration-300 ease-out ${open ? "translate-x-0" : "-translate-x-full"}`} data-testid="sidebar-drawer">
+        <div className={`absolute inset-y-0 left-0 w-[min(86vw,300px)] transition-transform duration-300 ease-out ${open ? "translate-x-0 shadow-2xl" : "-translate-x-full"}`} data-testid="sidebar-drawer">
           <Panel items={items} area={area} onNav={() => setOpen(false)} onClose={() => setOpen(false)} />
         </div>
       </div>

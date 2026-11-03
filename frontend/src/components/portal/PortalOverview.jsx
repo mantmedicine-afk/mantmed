@@ -13,20 +13,15 @@ const longDay = (d) => new Date(`${d}T12:00:00`).toLocaleDateString("it-IT", { w
 export const PortalCover = ({ user, kids }) => {
   const next = kids.flatMap((c) => c.appointments.filter((a) => a.date).map((a) => ({ ...a, who: c.patient.name }))).sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))[0];
   return (
-    <section className="relative overflow-hidden rounded-[32px] bg-[#0A192F] p-7 text-[#FDFBF7] sm:p-10" data-testid="portal-cover">
-      <div className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full bg-[#3B6CF6]/25 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-[#FFE5B4]/15 blur-3xl" />
-      <div className="relative">
-        <div className="text-[11px] uppercase tracking-[0.24em] text-[#C9CCD3]">Area personale protetta</div>
-        <h1 className="mt-2 font-display text-4xl leading-tight sm:text-5xl lg:text-6xl" data-testid="portal-greeting">{greet()}, <span className="italic text-[#FFE5B4]">{user?.name?.split(" ")[0]}</span></h1>
-        <div className="mt-6 flex flex-wrap gap-2">
-          {[...new Map(kids.map((c) => [c.group, c])).values()].map((c) => <span key={c.group} className="rounded-full bg-white/10 px-4 py-1.5 text-sm text-white ring-1 ring-white/15" data-testid={`portal-cover-kid-${c.patient.id}`}>{c.patient.name.split(" ")[0]}</span>)}
-        </div>
-        <div className="mt-6 flex items-center gap-3 rounded-2xl bg-white/[0.07] p-4 ring-1 ring-white/10 sm:max-w-md" data-testid="portal-cover-next">
-          <CalendarClock size={20} strokeWidth={1.5} className="shrink-0 text-[#FFE5B4]" />
-          {next ? <div className="text-sm"><div className="text-[#C9CCD3]">Prossimo appuntamento</div><div className="font-medium capitalize text-white">{longDay(next.date)} · {next.time} · {next.who.split(" ")[0]}</div><div className="text-[#C9CCD3]">{next.visit_type} · {next.clinic}</div></div>
-            : <div className="text-sm text-[#C9CCD3]">Nessun appuntamento in programma.</div>}
-        </div>
+    <section className="rounded-2xl border border-[#DCDDDF] bg-white p-6 sm:p-8" data-testid="portal-cover">
+      <h1 className="font-display text-3xl leading-tight text-[#0A192F] sm:text-4xl" data-testid="portal-greeting">{greet()}, {user?.name?.split(" ")[0]}</h1>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {[...new Map(kids.map((c) => [c.group, c])).values()].map((c) => <span key={c.group} className="rounded-full bg-[#F2F2EF] px-4 py-1.5 text-sm text-[#0A192F]" data-testid={`portal-cover-kid-${c.patient.id}`}>{c.patient.name.split(" ")[0]}</span>)}
+      </div>
+      <div className="mt-5 flex items-center gap-3 rounded-xl bg-[#F2F2EF] p-4 sm:max-w-md" data-testid="portal-cover-next">
+        <CalendarClock size={20} strokeWidth={1.5} className="shrink-0 text-[#0A192F]" />
+        {next ? <div className="text-sm"><div className="text-slate-500">Prossimo appuntamento</div><div className="font-medium capitalize text-[#0A192F]">{longDay(next.date)} · {next.time} · {next.who.split(" ")[0]}</div><div className="text-slate-600">{next.visit_type} · {next.clinic}</div></div>
+          : <div className="text-sm text-slate-600">Nessun appuntamento in programma.</div>}
       </div>
     </section>
   );
