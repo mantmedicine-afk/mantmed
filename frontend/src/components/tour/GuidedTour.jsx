@@ -148,7 +148,7 @@ export const GuidedTour = ({ open, steps, name, where = "in Impostazioni", onDon
       <div ref={card} className="fixed flex flex-col overflow-hidden rounded-[28px] transition-[top,left] duration-300 ease-out" style={pos} data-testid="tour-card">
         <AnimatePresence mode="wait">
           <motion.div key={i} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}
-            className="grain relative flex max-h-full min-h-0 flex-col [&>*:not([data-testid=tour-body])]:shrink-0 rounded-[28px] border border-[var(--hair)] bg-[var(--accent)] p-5 text-[var(--ink)] shadow-[var(--shadow)] sm:p-6" data-testid={done ? "tour-step-done" : `tour-step-${i + 1}`}>
+            className="theme-bar grain relative flex max-h-full min-h-0 flex-col [&>*:not([data-testid=tour-body])]:shrink-0 rounded-[28px] border border-[var(--hair)] p-5 text-[var(--ink)] shadow-[var(--shadow)] sm:p-6" data-testid={done ? "tour-step-done" : `tour-step-${i + 1}`}>
             <div className="flex items-center justify-between">
               <span className="flex min-w-0 items-center gap-2 truncate text-[11px] uppercase tracking-[0.22em] text-[var(--fg2)]"><Sparkles size={13} className="shrink-0" /> <span className="truncate">{i === 0 ? `Benvenuto${name ? `, ${name}` : ""}` : "Guida MantMed"}</span></span>
               {!done && <button onClick={onDone} className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-xs text-[var(--fg2)] transition-colors hover:text-[var(--ink)]" data-testid="tour-skip-btn"><X size={13} /> Salta il tour</button>}

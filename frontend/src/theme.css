@@ -12,7 +12,7 @@
     --bar: #0F1A1E;
     --onbar: #F7F9FB;
     --onbar2: rgba(247, 249, 251, 0.76);
-    --ok: #2F6447;
+    --ok: #2A5A40;
     --wait: #7A8494;
     --alert: #8E3826;
     --alert-bg: rgba(180, 83, 63, 0.11);
@@ -102,7 +102,9 @@ html, body { background-color: var(--bg); color: var(--fg); }
 .rounded-3xl.bg-\[var\(--surface\)\], .rounded-\[28px\].bg-\[var\(--surface\)\], .rounded-2xl.bg-\[var\(--surface\)\] { box-shadow: var(--shadow); }
 :where(input, textarea, select) { color: var(--fg); }
 :where(input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea, select) { background-color: var(--raised); }
-::placeholder { color: var(--fg2); opacity: 1; }
+:is(input, textarea)::placeholder { color: var(--fg2); opacity: 1; }
+:where(.theme-bar, .bg-\[var\(--accent\)\]) :where(input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea, select) { background-color: var(--sel); }
+:where(.theme-bar, .bg-\[var\(--accent\)\]) option { background-color: var(--surface); color: var(--fg-base); }
 [data-sonner-toaster] [data-sonner-toast] { background: var(--surface) !important; color: var(--fg) !important; border-color: var(--hair) !important; }
 [data-sonner-toaster] [data-sonner-toast] [data-description] { color: var(--fg2) !important; }
 ::selection { background: var(--accent); color: var(--ink); }

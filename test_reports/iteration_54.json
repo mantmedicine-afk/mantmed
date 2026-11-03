@@ -1,0 +1,32 @@
+{
+  "summary": "Re-ran /app/tests/theme_audit.js in day and night at 1440x900 and 375x812 on every iteration_53 page. Public pages checked: /, /app login, /registrati/medico, /registrati/paziente, /privacy, /verifica, /reimposta-password, /attiva, /medico/tiziana-foti and the /portale login. Doctor pages checked: Oggi, Pazienti, Messaggi, Visite, Cassa, Impostazioni, Strumenti, the patient folder, the consultation overlay with a free name typed, and the tour. Portal pages checked: all 6 sections and the bell dropdown. Night mode has 0 failures everywhere except one: tour-video-expand. Every public page has 0 failures in both modes, and none of the pages above has pure white, pure black or navy anywhere. Verified fixed: consult-free-name-input now has a transparent background and readable text, with consent-gate-free also readable in both modes; NotificationBell unread rows in night (no sky or violet left); --accent surfaces in night (consultation overlay, tour card, cash-summary) pass; day --alert labels (oggi-visit-allergy, login-error) pass; the login, register and activate cards and their labels pass; the specialist card cover and the /medico/tiziana-foti cover are no longer navy, and the showcase page has exactly one theme-toggle-btn. The toggle works (dark to light), the choice persists in localStorage 'mantmed.theme' and carries over to other pages. The top bar is dark in both modes. Remaining failures are listed below, all in day mode except tour-video-expand.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Placeholders (day)", "issue": "Placeholder ratio is 1.90-2.09 in day mode. Root cause: Tailwind preflight 'input::placeholder, textarea::placeholder {color: rgb(156,163,175)}' has specificity 0,0,2, which beats theme.css:105 '::placeholder {color: var(--fg2)}' at 0,0,1. Login inputs pass because they set an explicit class. Fix: in theme.css use 'input::placeholder, textarea::placeholder { color: var(--fg2); opacity: 1; }'.", "selector": "[data-testid=team-search-input], [data-testid=passport-search-input], [data-testid=visits-search], [data-testid=specialists-search-input], [data-testid=account-fiscal-code], [data-testid=account-address], [data-testid=portal-add-child-input]", "priority": "MEDIUM"},
+      {"component": "--ok text on --sel (day)", "issue": "Day --ok #2F6447 now passes on the surface. It still gets 4.30 on --sel chip backgrounds (composited #C5CDD1). It needs about #2A5A40 or darker.", "selector": "[data-testid^=doc-thread-status-], [data-testid^=thread-status-], [data-testid^=portal-checkpoint-], [data-testid^=docs-signed-status-]", "priority": "LOW"},
+      {"component": "Nested --sel boxes in portal overview (day)", "issue": "--fg2 #44525E fails on the nested --sel boxes. portal-simple-todo and portal-simple-when sit on an inner bg-[var(--sel)] inside an outer bg-[var(--sel)] (PortalOverview.jsx:41, 52, 53), which composites to #A6B1B5, ratio 3.64. The portal-simple-box meta text is at 4.32 on #B5C0C4. Fix: use bg-[var(--surface)] for the inner boxes, or use --fg for the text.", "selector": "[data-testid=portal-simple-todo], [data-testid=portal-simple-when], [data-testid=portal-simple-box]", "priority": "MEDIUM"},
+      {"component": "Tour video expand button (night)", "issue": "'Schermo intero' is #0F1A1E text on #1D2C31, ratio 1.22. Still unfixed from iteration_53.", "selector": "[data-testid=tour-video-expand]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Night consultation overlay and tour card", "issues": ["Contrast passes, but the full-screen consultation overlay and the tour card are still light teal (#6E95A1) in night mode, which looks like an inverted theme. Consider --surface or --bar."]},
+      {"screen": "Tour video poster", "issues": ["The tour step-1 media still shows an old screenshot with a navy sidebar and a white canvas in both modes."]},
+      {"screen": "Doctor TopBar (day, 1440)", "issues": ["A light grey strip shows under the horizontal nav (about y=64-72, x=193-1260), as if the nav container's background extends below the bar. In night it shows as a bordered box. Minor."]}
+    ]
+  },
+  "test_report_links": ["/app/tests/theme_audit.js"],
+  "action_items": [
+    "theme.css: change '::placeholder' to 'input::placeholder, textarea::placeholder' so the --fg2 colour beats Tailwind preflight.",
+    "PortalOverview.jsx:52-53: inner 'Cosa fare' and 'Quando tornare' boxes should use bg-[var(--surface)] instead of a nested --sel (or use --fg text).",
+    "Darken day --ok slightly (to about #2A5A40) so the status chips on --sel reach 4.5.",
+    "tour-video-expand: give it readable text in night (for example text-[#F7F9FB] on its dark pill)."
+  ],
+  "critical_code_review_comments": ["theme.css:105 ::placeholder has lower specificity than Tailwind preflight input::placeholder, so it does nothing for inputs without an explicit placeholder: class."],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "about 92% (all 8 targeted fixes verified; 4 remaining low/medium contrast items, mostly in day mode)"},
+  "seed_data_creation": "None. Typed 'TEST_Mario Rossi' in consult-free-name-input and closed the overlay without starting a visit. One failed portal login with a wrong password (genitore account, no lockout observed).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Same approach as iteration_53: AUDIT=open('/app/tests/theme_audit.js').read(); r=await page.evaluate(AUDIT). Set the mode via localStorage 'mantmed.theme' = light/dark, then reload. Bell button: portal-bell-btn. Tour: settings-tour-btn on /app/impostazioni. At 375 the oggi-next-start-btn sometimes needs about 4s to appear."
+}

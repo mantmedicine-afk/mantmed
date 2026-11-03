@@ -38,7 +38,7 @@ export const SimpleBox = ({ kid }) => {
   useEffect(() => { setS(null); api.portalSimple(pid).then(setS).catch(() => setS({ available: false })); }, [pid]);
   const who = kid.patient.name.split(" ")[0];
   return (
-    <section className="rounded-[32px] border border-[var(--hair)] bg-[var(--sel)] p-6 sm:p-8" data-testid="portal-simple-box">
+    <section className="rounded-[32px] border border-[var(--hair)] bg-[var(--raised)] p-6 sm:p-8" data-testid="portal-simple-box">
       <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--fg)]"><Sparkles size={14} strokeWidth={1.5} /> Ultima visita di {who}</div>
       <h2 className="mt-2 font-display text-3xl text-[var(--fg)] sm:text-4xl">In parole semplici</h2>
       {!s && <div className="mt-6 space-y-3"><div className="ai-shimmer h-4 w-11/12 rounded-full" /><div className="ai-shimmer h-4 w-2/3 rounded-full" /><div className="ai-shimmer h-4 w-3/4 rounded-full" /></div>}
@@ -49,8 +49,8 @@ export const SimpleBox = ({ kid }) => {
           {(s.ai_provenance?.ai_generated || s.riepilogo_provenance?.ai_generated) && <AILabel variant="riassunto" className="mt-3" testId="portal-simple-ai-label" />}
           <p className="mt-5 text-lg leading-relaxed text-[var(--fg)]" data-testid="portal-simple-diagnosi">{s.diagnosi || s.riepilogo}</p>
           <div className="mt-6 grid gap-4 md:grid-cols-2">
-            {s.cosa_fare?.length > 0 && <div className="rounded-2xl bg-[var(--sel)] p-5"><div className="flex items-center gap-2 text-sm font-semibold text-[var(--fg)]"><ListChecks size={16} strokeWidth={1.5} /> Cosa fare</div><ul className="mt-3 space-y-2 text-sm text-[var(--fg2)]" data-testid="portal-simple-todo">{s.cosa_fare.map((x) => <li key={x} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--sel)]" />{x}</li>)}</ul></div>}
-            {s.quando_tornare && <div className="rounded-2xl bg-[var(--sel)] p-5"><div className="flex items-center gap-2 text-sm font-semibold text-[var(--fg)]"><CalendarHeart size={16} strokeWidth={1.5} /> Quando tornare</div><p className="mt-3 text-sm text-[var(--fg2)]" data-testid="portal-simple-when">{s.quando_tornare}</p></div>}
+            {s.cosa_fare?.length > 0 && <div className="rounded-2xl bg-[var(--raised)] p-5"><div className="flex items-center gap-2 text-sm font-semibold text-[var(--fg)]"><ListChecks size={16} strokeWidth={1.5} /> Cosa fare</div><ul className="mt-3 space-y-2 text-sm text-[var(--fg2)]" data-testid="portal-simple-todo">{s.cosa_fare.map((x) => <li key={x} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--raised)]" />{x}</li>)}</ul></div>}
+            {s.quando_tornare && <div className="rounded-2xl bg-[var(--raised)] p-5"><div className="flex items-center gap-2 text-sm font-semibold text-[var(--fg)]"><CalendarHeart size={16} strokeWidth={1.5} /> Quando tornare</div><p className="mt-3 text-sm text-[var(--fg2)]" data-testid="portal-simple-when">{s.quando_tornare}</p></div>}
           </div>
           {s.glossario?.length > 0 && <div className="mt-6"><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--fg2)]"><BookOpen size={14} strokeWidth={1.5} /> Le parole del referto</div><div className="mt-3 flex flex-wrap gap-2" data-testid="portal-simple-glossary">{s.glossario.map((g) => <Term key={g.termine} g={g} />)}</div></div>}
         </TooltipProvider>

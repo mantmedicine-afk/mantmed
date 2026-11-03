@@ -41,7 +41,7 @@ const Preview = ({ id, onExpand }) => {
       <video ref={ref} poster={src(id, "jpg")} autoPlay={auto} loop muted playsInline preload={auto ? "auto" : "none"}
         className="aspect-[16/10] w-full object-cover" data-testid="tour-video"><Sources id={id} /></video>
       {!playing && <button onClick={play} className="absolute inset-0 grid place-items-center bg-[var(--scrim)]" aria-label="Riproduci video" data-testid="tour-video-play"><span className="grid h-14 w-14 place-items-center rounded-full bg-[var(--sel)] text-[var(--fg)]"><Play size={22} className="ml-1" /></span></button>}
-      <button onClick={onExpand} className="absolute bottom-2 right-2 flex items-center gap-1.5 rounded-full bg-[var(--scrim)] px-3 py-1.5 text-xs text-[var(--ink)] opacity-90 backdrop-blur transition-opacity hover:opacity-100" data-testid="tour-video-expand"><Maximize2 size={12} /> Schermo intero</button>
+      <button onClick={onExpand} className="absolute bottom-2 right-2 flex items-center gap-1.5 rounded-full bg-[var(--scrim)] px-3 py-1.5 text-xs text-[var(--onbar)] opacity-90 backdrop-blur transition-opacity hover:opacity-100" data-testid="tour-video-expand"><Maximize2 size={12} /> Schermo intero</button>
     </div>
   );
 };

@@ -95,7 +95,7 @@ const TopNav = ({ items, area, mini: miniPref, onToggle, testId }) => {
     <header className="theme-bar" data-testid={testId} data-mini={miniPref}>
       <div className="flex h-16 items-center gap-4 px-5 lg:px-8">
         <div className="flex shrink-0 items-center gap-3"><LogoMark size={36} light />{!mini && <div className="leading-none"><div className="font-display text-2xl">MantMed</div><div className="mt-1 text-[10px] uppercase tracking-[0.22em] text-[var(--fg2)]">{area}</div></div>}</div>
-        <nav className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto py-2.5 [scrollbar-width:none]" aria-label="Navigazione principale" data-testid="sidebar-nav">
+        <nav className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto overflow-y-hidden py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Navigazione principale" data-testid="sidebar-nav">
           {items.filter((it) => !it.bottom).map((it) => <HItem key={it.id} it={it} mini={mini} />)}
           {items.some((it) => it.bottom) && <div className="flex items-center gap-1.5 border-l border-[var(--hair)] pl-1.5">{items.filter((it) => it.bottom).map((it) => <HItem key={it.id} it={it} mini={mini} />)}</div>}
         </nav>

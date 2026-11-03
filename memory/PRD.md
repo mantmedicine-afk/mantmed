@@ -431,3 +431,8 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - backend/cash_pdf.py + GET /api/payments/export ora restituisce PDF A4 (intestazione medico/periodo/data generazione, tabella Data·Ora·Paziente·Prestazione·Studio·Metodo·Importo, riepilogo per metodo + totale, "Pagina X di Y"); nome file MantMed_commercialista_YYYY-MM.pdf (mese intero) / _YYYY-MM-DD.pdf (giorno) / _start_end.pdf
 - CSV rimosso; pulsanti giorno e mese "Esporta PDF"; test aggiornati (test_onboarding_tour.py export)
 - Nota: la landing cita ancora "export CSV" (non modificata su richiesta)
+
+## 2026-06 Fix tema
+- ConsultationOverlay: sfondo theme-bar (scuro in giorno/notte), campi input/textarea leggibili (regola CSS per input su superfici scure), pulsanti primari su --accent
+- AppShell: nav orizzontale senza scrollbar/striscia (overflow-y-hidden, webkit-scrollbar nascosta)
+- Backlog: placeholder giorno, --ok su --sel, box annidati PortalOverview, tour-video-expand notte

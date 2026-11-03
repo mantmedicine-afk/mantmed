@@ -127,7 +127,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
       initial={{ clipPath: "circle(0% at 50% 60%)" }}
       animate={{ clipPath: "circle(150% at 50% 60%)" }}
       transition={{ duration: 0.8, ease: [0.65, 0, 0.35, 1] }}
-      className="grain fixed inset-0 z-50 overflow-auto bg-[var(--accent)] text-[var(--ink)]"
+      className="theme-bar grain fixed inset-0 z-50 overflow-auto text-[var(--ink)]"
       data-testid="consultation-overlay"
       data-lenis-prevent
     >
@@ -147,7 +147,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
             <div className="flex flex-col items-center gap-5 text-center" data-testid="consultation-retry">
               <div className="font-display text-4xl">Invio della registrazione non riuscito</div>
               <div className="text-sm text-[var(--fg2)]">L'audio di {name} è ancora qui: verifichi la connessione e riprovi.</div>
-              <button onClick={() => process(null, rec.seconds)} disabled={sending} className="flex h-14 items-center gap-2 rounded-full bg-[var(--surface)] px-7 font-semibold text-[var(--fg)] disabled:opacity-60" data-testid="consultation-retry-btn">
+              <button onClick={() => process(null, rec.seconds)} disabled={sending} className="flex h-14 items-center gap-2 rounded-full bg-[var(--accent)] px-7 font-semibold text-[var(--fg)] disabled:opacity-60" data-testid="consultation-retry-btn">
                 {sending ? <Loader2 size={18} className="animate-spin" /> : <Square size={16} fill="currentColor" />} Riprova invio
               </button>
             </div>
@@ -170,7 +170,7 @@ const ageMonths = (bd) => {
 const ageLabel = (m) => (m < 24 ? `${Math.floor(m)} mesi` : `${Math.floor(m / 12)} anni`);
 
 const TplPill = ({ t, value, onChange, hint }) => (
-  <button type="button" onClick={() => onChange(t.id)} className={`rounded-full px-4 py-2 text-sm transition-colors ${t.id === value ? "bg-[var(--surface)] font-semibold text-[var(--fg)]" : hint ? "border border-[var(--accent)] text-[var(--ink)] hover:border-[var(--ink)]" : "border border-[var(--hair)] text-[var(--fg2)] hover:border-[var(--hair)]"}`} data-testid={`consult-template-${t.id}`}>
+  <button type="button" onClick={() => onChange(t.id)} className={`rounded-full px-4 py-2 text-sm transition-colors ${t.id === value ? "bg-[var(--accent)] font-semibold text-[var(--fg)]" : hint ? "border border-[var(--accent)] text-[var(--ink)] hover:border-[var(--ink)]" : "border border-[var(--hair)] text-[var(--fg2)] hover:border-[var(--hair)]"}`} data-testid={`consult-template-${t.id}`}>
     {t.name.replace("Bilancio di salute · ", "")} <span className="opacity-60">· {t.fields.length} campi</span>{hint && <span className="ml-1.5 rounded-full bg-[var(--accent)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--fg)]" data-testid="consult-template-suggested">{hint}</span>}
   </button>
 );
@@ -201,7 +201,7 @@ const Setup = ({ waiting, sel, setSel, freeName, setFreeName, manual, setManual,
     </div>
     <div className="space-y-3">
       {waiting.map((w) => (
-        <button key={w.id} onClick={() => { setSel(w); setFreeName(""); }} className={`flex w-full items-center justify-between rounded-2xl border px-5 py-4 text-left transition-colors ${sel?.id === w.id ? "border-[var(--ink)] bg-[var(--surface)] text-[var(--fg)]" : "border-[var(--hair)] hover:border-[var(--hair)]"}`} data-testid={`consult-select-${w.id}`}>
+        <button key={w.id} onClick={() => { setSel(w); setFreeName(""); }} className={`flex w-full items-center justify-between rounded-2xl border px-5 py-4 text-left transition-colors ${sel?.id === w.id ? "border-[var(--ink)] bg-[var(--accent)] text-[var(--fg)]" : "border-[var(--hair)] hover:border-[var(--hair)]"}`} data-testid={`consult-select-${w.id}`}>
           <span><span className="block font-medium">{w.name}</span><span className={`text-sm ${sel?.id === w.id ? "text-[var(--fg2)]" : "text-[var(--fg2)]"}`}>{w.clinic} · {w.reason}</span></span>
           {w.priority === "urgente" && <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--alert)]">Urgente</span>}
         </button>
@@ -213,7 +213,7 @@ const Setup = ({ waiting, sel, setSel, freeName, setFreeName, manual, setManual,
       {manual && <textarea value={text} onChange={(e) => setText(e.target.value)} rows={5} placeholder="Medico: Buongiorno, cosa la porta qui oggi? Paziente: …" className="w-full rounded-2xl border border-[var(--hair)] bg-[var(--sel)] px-5 py-4 text-[var(--ink)] placeholder:text-[var(--fg2)] outline-none focus:border-[var(--hair)]" data-testid="consult-manual-textarea" />}
       {!manual && <MicCheck />}
       {hint && <p role="alert" className="rounded-2xl border border-[var(--alert)] bg-[var(--alert-bg)] px-5 py-3 text-sm text-[var(--alert)]" data-testid="consult-start-error">{hint}</p>}
-      <button onClick={start} disabled={sending} className="mt-2 flex w-full items-center justify-center gap-3 rounded-full bg-[var(--surface)] py-5 text-lg font-semibold text-[var(--fg)] transition-transform hover:-translate-y-0.5 active:scale-[0.98]" data-testid="consult-begin-btn">
+      <button onClick={start} disabled={sending} className="mt-2 flex w-full items-center justify-center gap-3 rounded-full bg-[var(--accent)] py-5 text-lg font-semibold text-[var(--fg)] transition-transform hover:-translate-y-0.5 active:scale-[0.98]" data-testid="consult-begin-btn">
         {sending ? <Loader2 size={20} className="animate-spin" /> : manual ? <Keyboard size={20} /> : <Mic size={20} />} {starting ? "In attesa del microfono…" : manual ? "Genera nota clinica" : "Inizia registrazione"}
       </button>
     </div>
@@ -233,7 +233,7 @@ const Recording = ({ name, rec, onStop, sending, sendStep }) => {
       <div className="mt-8 w-full max-w-3xl"><Waveform analyser={rec.analyser} active={live} /></div>
       <div className="mt-10 flex items-center gap-4">
         <button onClick={live ? rec.pause : rec.resume} className="grid h-16 w-16 place-items-center rounded-full border border-[var(--hair)] transition-colors hover:bg-[var(--sel)]" data-testid="recording-pause-btn" aria-label="Pausa">{live ? <Pause /> : <Play />}</button>
-        <button onClick={onStop} disabled={sending} className="flex h-16 items-center gap-3 rounded-full bg-[var(--surface)] px-8 text-lg font-semibold text-[var(--fg)] transition-transform hover:-translate-y-0.5 disabled:opacity-80" data-testid="recording-stop-btn">
+        <button onClick={onStop} disabled={sending} className="flex h-16 items-center gap-3 rounded-full bg-[var(--accent)] px-8 text-lg font-semibold text-[var(--fg)] transition-transform hover:-translate-y-0.5 disabled:opacity-80" data-testid="recording-stop-btn">
           {sending ? <Loader2 size={18} className="animate-spin" /> : <Square size={18} fill="currentColor" />} {sending ? sendStep || "Apertura cartella…" : "Termina e trascrivi"}
         </button>
       </div>
