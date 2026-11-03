@@ -206,6 +206,12 @@ const Setup = ({ waiting, sel, setSel, freeName, setFreeName, manual, setManual,
           {w.priority === "urgente" && <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--alert)]">Urgente</span>}
         </button>
       ))}
+      {sel && !waiting.some((w) => w.id === sel.id) && (
+        <div className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[var(--ink)] bg-[var(--accent)] px-5 py-4 text-[var(--fg)]" data-testid="consult-preselected">
+          <span className="min-w-0"><span className="block text-[11px] uppercase tracking-[0.18em] text-[var(--fg2)]">Paziente selezionato</span><span className="block truncate font-medium" data-testid="consult-preselected-name">{sel.name}</span></span>
+          <button onClick={() => setSel(null)} className="shrink-0 rounded-full border border-[var(--hair)] px-3 py-1.5 text-sm font-medium" data-testid="consult-preselected-change">Cambia</button>
+        </div>
+      )}
       <input value={freeName} onChange={(e) => { setFreeName(e.target.value); setSel(null); }} placeholder="Oppure scrivi nome e cognome del paziente" className="w-full rounded-2xl border border-[var(--hair)] bg-transparent px-5 py-4 text-[var(--ink)] placeholder:text-[var(--fg2)] outline-none focus:border-[var(--hair)]" data-testid="consult-free-name-input" />
       {gate}
       {picker}

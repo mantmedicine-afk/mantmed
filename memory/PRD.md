@@ -442,3 +442,9 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Barra scura: ? tour, modalita' notte, orologio HH:MM:SS; barra chiara: meteo Open-Meteo (posizione browser + Nominatim, fallback citta' studio), solo profilo ed Esci
 - Oggi -> Home; tour aggiornato
 - Backlog: video tour con nuova interfaccia, Esc su pannello GDPR
+
+## 2026-06 Nuova Home medico
+- Pulsante rotondo Inizia visita (anello che pulsa, apre la visita sul prossimo paziente), riga Prossimo + Apri cartella
+- Riepilogo a 3 riquadri (visite/note/messaggi), agenda a tutta larghezza con linea Ora per studio, dettaglio visita in pannello laterale
+- Overlay visita: card 'Paziente selezionato' con Cambia
+- Backlog: anteprime video tour aggiornate

@@ -23,7 +23,7 @@ export const StartButton = ({ onStart }) => (
     <PulseRing />
     <span aria-hidden="true" className="pointer-events-none absolute -inset-3 rounded-full border border-[var(--hair)]" />
     <button onClick={onStart}
-      className="theme-bar relative flex h-full w-full flex-col items-center justify-center gap-2 rounded-full transition-[transform,box-shadow] duration-300 ease-out hover:scale-[1.04] hover:shadow-[0_22px_48px_-14px_var(--scrim)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--accent)] active:scale-[0.98]"
+      className="theme-bar start-btn relative flex h-full w-full flex-col items-center justify-center gap-2 rounded-full transition-[transform,box-shadow] duration-300 ease-out hover:scale-[1.04] hover:shadow-[0_22px_48px_-14px_var(--scrim)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--accent)] active:scale-[0.98]"
       data-testid="oggi-next-start-btn">
       <AudioLines className="h-10 w-10 sm:h-12 sm:w-12" strokeWidth={1.6} />
       <span className="text-[15px] font-semibold sm:text-base">Inizia visita</span>

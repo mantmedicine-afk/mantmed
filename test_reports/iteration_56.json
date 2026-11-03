@@ -1,0 +1,44 @@
+{
+  "summary": "Frontend-only test of the redesigned doctor Home (/app). Tested with the browser clock fixed at 10:00 (UTC) and with the real time (23:52 UTC), in light and dark theme, at 1920, 768 and 390. Every requested feature works: header with date, greeting and filter; round Inizia visita button; Prossimo line with Apri cartella; the 3 summary tiles; agenda grouped per clinic with the Ora line; side sheet; guided tour steps 2-5; responsive layout. Two non-blocking issues: (1) the patient preselected in the consultation overlay is never shown by name, (2) in dark theme the Inizia visita button barely stands out from the page background.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Inizia visita -> consultation overlay preselection", "issue": "The next patient (Francesco Bruno) is preselected: sel is set, the consent badge 'Consenso privacy valido' appears and the template is 'CONSIGLIATO PER 6 MESI'. But the patient's name never appears anywhere in the setup step. Home passes {name, patient_id} with no waiting-list id, so no consult-select card renders and the free-name input stays empty. The doctor cannot see who will be recorded and could think no patient is selected.", "affected_selectors": ["consultation-setup", "consult-free-name-input"]}
+    ],
+    "design_issues": [
+      {"screen": "Home dark theme", "issues": ["The oggi-next-start-btn background is rgb(22,40,46) on a page background of rgb(15,26,30), about 1.2:1 contrast. The main call to action nearly disappears in dark mode; only the thin rings outline it. Suggest a lighter fill or the accent colour in dark mode."]},
+      {"screen": "Guided tour", "issues": ["The preview video/thumbnail for step 3 still shows the old Home layout (big 'Buonasera… 10 visite, due studi' hero). The thumbnails for steps 2 and 5 were blank white while loading. Cosmetic only."]}
+    ]
+  },
+  "passed_checks": [
+    "With the clock at 10:00: oggi-date shows 'Martedì 3 novembre' and oggi-title shows 'Buongiorno, Dott.ssa Foti'. At 23:52: 'Buonasera'.",
+    "oggi-clinic-filter shows Tutti/Centro/Provincia. Centro gives 6 visits ('di cui 3 fatte') and hides the Provincia group. Provincia gives 4 visits ('di cui 0 fatte') and the next patient becomes Alice Conti 15:00.",
+    "Start button: border-radius 9999px, dark bar colour. 180x180 and centred (x=960) at 1920, 180x180 at 768, 140x140 centred at 390. Hover gives scale 1.04 plus a shadow.",
+    "oggi-next-who shows 'Prossimo: Francesco Bruno · 6 mesi · 10:15'. oggi-next-folder-btn opens the passport for Francesco Bruno.",
+    "With the real time (late evening), oggi-next-empty is shown and the overlay opens with no patient. consultation-close-btn closes the overlay.",
+    "The old next bar and oggi-todo are gone (count 0).",
+    "Summary tiles: 10 visits 'di cui 3 fatte', 9 notes to sign, 0 messages. The visits tile scrolls the agenda into view (top at 112px), the sign tile opens the Aurora Ricci draft note, the messages tile goes to /app/messaggi.",
+    "Ora line at 10:00: in Studio Centro it sits between 09:30 and 10:15, and it is first in Studio Provincia. At 23:52 it is at the end of both groups.",
+    "Side sheet: shows status, time, name, age, Motivo, Studio and the Allergie badge. Escape closes it. oggi-detail-open-btn opens the passport and closes the sheet. Full width on mobile.",
+    "Tour steps 2-5 spotlight oggi-next-bar, oggi-next-start-btn, oggi-summary and oggi-agenda correctly.",
+    "No horizontal overflow at 1920, 768 or 390. Tiles stack on mobile and sit 3 across at 768. Light and dark themes are readable (apart from the start button contrast)."
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "In the ConsultationOverlay Setup, show the preselected patient when sel is set but not from the waiting list, e.g. a selected card with name, clinic and reason plus a 'cambia' option.",
+    "Dark theme: raise the contrast of the Inizia visita button against the page background.",
+    "Optional: update the tour step 3 preview to the new Home layout."
+  ],
+  "critical_code_review_comments": [
+    "OggiScreen startNext passes {name, patient_id} but not clinic or reason. As a result the overlay's sel.clinic is empty, so the consultation is saved with clinic '' and the bilancio auto-template regex (which uses sel.reason/visit_type) cannot fire. Consider passing clinic: next.clinic and visit_type/reason: next.visit_type.",
+    "The 'today' filter accepts a.date == null as today. Fine for demo seed data, but if real appointments always carry a date this fallback can hide date bugs.",
+    "AgendaList refs array is rebuilt on every render. Works, but useRef would be cleaner."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "95%"},
+  "seed_data_creation": "None. No data was created or modified; no recordings were started.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Doctor login is at /app. Use page.clock.set_fixed_time('2026-11-03T10:00:00') before goto to mock 10:00 (the browser timezone is UTC). Seed appointments have date null. The visible tour button is '[data-testid=tour-open-button]:visible'. The preselected patient can be detected in the overlay through the consent badge text, not the name."
+}

@@ -111,3 +111,5 @@ html, body { background-color: var(--bg); color: var(--fg); }
 .recharts-cartesian-grid line { stroke: var(--hair); }
 .recharts-text { fill: var(--fg2); }
 .theme-page .bg-\[var\(--surface\)\], .theme-page .bg-\[var\(--raised\)\], .theme-page .bg-\[var\(--bg\)\] { --ink: var(--fg-base); }
+
+[data-theme="dark"] .start-btn { background-color: var(--raised); box-shadow: 0 0 0 1px rgba(238, 242, 244, 0.16); }
