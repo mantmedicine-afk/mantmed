@@ -1,8 +1,15 @@
 import { createElement, useCallback, useEffect, useRef, useState } from "react";
 import { Command } from "cmdk";
-import { Search, User, FileText, CalendarClock, Loader2, CornerDownLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Search, User, FileText, CalendarClock, Loader2, CornerDownLeft, ReceiptText, LayoutTemplate, Wrench } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
+
+const ACTIONS = [
+  { id: "ricevuta", label: "Nuova ricevuta", sub: "Cassa · incassi e ricevute", to: "/app/cassa", icon: ReceiptText, keys: ["ricev", "cassa", "incass", "fattur"] },
+  { id: "modello", label: "Nuovo modello di visita", sub: "Modelli e bilanci di salute", to: "/app/impostazioni?sezione=modelli", icon: LayoutTemplate, keys: ["model", "bilanc", "templat"] },
+  { id: "strumenti", label: "Strumenti", sub: "Statistiche, Tessera Sanitaria, GDPR, vetrina", to: "/app/strumenti", icon: Wrench, keys: ["strument", "statist", "tessera", "gdpr", "vetrin"] },
+];
 
 const GROUP = "px-1 pb-1 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.18em] [&_[cmdk-group-heading]]:text-slate-500";
 const EMPTY = { patients: [], reports: [], appointments: [] };
@@ -53,6 +60,7 @@ const ResultRow = ({ value, onSelect, icon: Icon, title, suffix, sub, meta, test
  * onPatient(id), onReport(id), onAppointment(appt) gestiscono la navigazione.
  */
 export const GlobalSearch = ({ onPatient, onReport, onAppointment }) => {
+  const nav = useNavigate();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [res, setRes] = useState(EMPTY);
@@ -100,12 +108,19 @@ export const GlobalSearch = ({ onPatient, onReport, onAppointment }) => {
           <Command shouldFilter={false} loop className="flex max-h-[70vh] min-w-0 flex-col">
             <div className="flex items-center gap-3 border-b border-slate-100 px-5">
               {loading ? <Loader2 size={18} className="shrink-0 animate-spin text-slate-400" /> : <Search size={18} className="shrink-0 text-slate-400" />}
-              <Command.Input value={q} onValueChange={setQ} autoFocus placeholder="Nome del paziente, diagnosi (es. otite), appuntamento…" className="h-16 w-full bg-transparent text-base text-night outline-none placeholder:text-slate-400" data-testid="global-search-input" />
+              <Command.Input value={q} onValueChange={setQ} autoFocus placeholder="Paziente (nome o codice fiscale), diagnosi, azione…" className="h-16 w-full bg-transparent text-base text-night outline-none placeholder:text-slate-400" data-testid="global-search-input" />
               <kbd className="hidden rounded-md border border-slate-200 px-1.5 py-0.5 font-mono text-[11px] text-slate-500 sm:block">Esc</kbd>
             </div>
             <Command.List className="overflow-y-auto overscroll-contain p-2">
               {term.length < 2 && <div className="px-4 py-8 text-center text-sm text-slate-500" data-testid="global-search-hint">Scriva almeno 2 lettere. Cerca nei nomi dei pazienti, nel testo delle diagnosi dei referti e negli appuntamenti futuri.</div>}
               {term.length >= 2 && !loading && total === 0 && <div className="px-4 py-8 text-center text-sm text-slate-500" data-testid="global-search-empty">Nessun risultato per “{term}”.</div>}
+              {ACTIONS.filter((a) => term.length < 2 || fold(a.label).includes(fold(term)) || a.keys.some((k) => fold(term).includes(k))).length > 0 && (
+                <Command.Group heading="Azioni" className={GROUP} data-testid="global-search-group-actions">
+                  {ACTIONS.filter((a) => term.length < 2 || fold(a.label).includes(fold(term)) || a.keys.some((k) => fold(term).includes(k))).map((a) => (
+                    <ResultRow key={a.id} value={`a-${a.id}`} icon={a.icon} onSelect={() => go(() => nav(a.to))} testId={`global-search-action-${a.id}`} title={a.label} sub={a.sub} />
+                  ))}
+                </Command.Group>
+              )}
               {res.patients.length > 0 && (
                 <Command.Group heading="Pazienti" className={GROUP} data-testid="global-search-group-patients">
                   {res.patients.map((p) => (

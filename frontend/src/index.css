@@ -126,3 +126,24 @@ code {
 @keyframes ai-filled { 0% { box-shadow: 0 0 0 0 rgba(59,108,246,0.45); background-color: #EAF0FF; } 100% { box-shadow: 0 0 0 10px rgba(59,108,246,0); } }
 .ai-filled { animation: ai-filled 1.6s ease-out 1; }
 @media (prefers-reduced-motion: reduce) { .ai-shimmer, .ai-shimmer-dark, .ai-filled { animation: none; } }
+
+/* Stile essenziale per Area Medico e Portale (AppShell) */
+.app-min {
+    --min-bg: #FBFBF8;
+    --min-soft: #F2F2EF;
+    --min-line: #C9CCD3;
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 16.5px;
+    color: #0A192F;
+    background: var(--min-bg);
+}
+.app-min .font-display { font-family: "Inter", system-ui, sans-serif; font-weight: 650; letter-spacing: -0.02em; }
+.app-min .bg-paper { background-color: var(--min-bg); }
+.app-min .grain::before, .app-min .grain::after { display: none !important; }
+.app-min .rounded-3xl, .app-min .rounded-\[28px\], .app-min .rounded-\[24px\], .app-min .rounded-\[32px\] { border-radius: 16px; }
+.app-min .rounded-2xl { border-radius: 14px; }
+.app-min .shadow-2xl, .app-min .shadow-xl { box-shadow: 0 10px 30px -12px rgba(10, 25, 47, 0.18); }
+.app-min .ring-slate-200, .app-min .border-slate-200 { --tw-ring-color: #DCDDDF; border-color: #DCDDDF; }
+@media (prefers-reduced-motion: reduce) {
+    .app-min *, .app-min *::before, .app-min *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}

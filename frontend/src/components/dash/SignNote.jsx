@@ -33,7 +33,7 @@ export const SignNote = ({ consultation, beforeSign, onSigned, hasChart = false 
         <p className="text-xs leading-relaxed text-[#5C3A00]">Rilegga e corregga i campi segnati: alla firma la nota diventa un referto sotto la sua responsabilità e potrà essere inviata o pubblicata.</p>
       </div>
       <button onClick={() => setOpen(true)} className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-night px-5 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5" data-testid="note-sign-btn">
-        <PenLine size={15} /> Firma e conferma la nota
+        <PenLine size={15} /> Rivedi e firma
       </button>
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent className="rounded-[24px]" data-testid="note-sign-dialog">

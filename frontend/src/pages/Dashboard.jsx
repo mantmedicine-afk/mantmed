@@ -1,6 +1,5 @@
 import { toast } from "sonner";
 import { useCallback, useEffect, useState } from "react";
-import { motion } from "framer-motion";
 import { api, CLINICS, errMsg } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { TopBar } from "@/components/dash/TopBar";
@@ -8,7 +7,6 @@ import { Marquee } from "@/components/dash/Marquee";
 import { Hero } from "@/components/dash/Hero";
 import { Agenda } from "@/components/dash/Agenda";
 import { WaitingList } from "@/components/dash/WaitingList";
-import { ConsultHub } from "@/components/dash/ConsultHub";
 import { RecentNotes } from "@/components/dash/RecentNotes";
 import { ConsultationOverlay } from "@/components/dash/ConsultationOverlay";
 import { PassportSection } from "@/components/dash/PassportSection";
@@ -29,17 +27,19 @@ import { SupportReplies } from "@/components/support/SupportReplies";
 import { SignatureReminder } from "@/components/signature/SignatureReminder";
 import { usePoll } from "@/hooks/usePoll";
 import { useNavigate, useParams, Navigate } from "react-router-dom";
-import { LayoutDashboard, Users, MessagesSquare, PersonStanding, ReceiptText, Settings } from "lucide-react";
+import { Sun, Users, MessagesSquare, ReceiptText, Settings, Wrench } from "lucide-react";
 import { AppShell } from "@/components/nav/AppShell";
-import { PageTitle, VisitsList, PatientFolder, TsCard, SettingsExtras } from "@/components/nav/sections";
+import { PageTitle, VisitsList, PatientFolder, SettingsExtras } from "@/components/nav/sections";
+import { ToolsPage } from "@/components/nav/ToolsPage";
+import { NextPatient, TodoBox, Fold, pickNext } from "@/components/today/Today";
 import Account from "@/pages/Account";
 import { ProcessingProvider, useProcessing } from "@/lib/processing";
 
-const SECTIONS = ["agenda", "pazienti", "messaggi", "visite", "cassa", "impostazioni"];
+const SECTIONS = ["agenda", "pazienti", "messaggi", "visite", "cassa", "impostazioni", "strumenti"];
 
 const isToday = (iso) => new Date(iso).toDateString() === new Date().toDateString();
+const isTodayDate = (d) => d === new Date().toLocaleDateString("sv-SE");
 
-const col = (d) => ({ initial: { opacity: 0, y: 24 }, animate: { opacity: 1, y: 0 }, transition: { delay: d, duration: 0.7, ease: [0.22, 1, 0.36, 1] } });
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -76,7 +76,9 @@ export default function Dashboard() {
     load();
   }, [load]);
 
-  const next = waiting.find((w) => w.status === "in_studio") ?? waiting[0] ?? null;
+  const next = pickNext(waiting, appointments.filter((a) => a.date === undefined || isTodayDate(a.date)));
+  const [requests, setRequests] = useState(0);
+  usePoll(() => api.apptRequests().then((r) => setRequests(r.filter((x) => !x.status || x.status === "pending").length)).catch(() => {}), []);
   const ticker = [
     ...CLINICS.map((c) => `${c} · ${appointments.filter((a) => a.clinic === c).length} visite`),
     `${waiting.length} pazienti in sala d'attesa`,
@@ -90,10 +92,11 @@ export default function Dashboard() {
   const start = (patient) => setOverlay({ open: true, patient: patient ?? null, initial: null });
   const { sezione = "agenda" } = useParams();
   const [folder, setFolder] = useState(null);
+  const [showVisits, setShowVisits] = useState(false);
   const openVisit = (c) => setOverlay({ open: true, patient: null, initial: c });
   const navTo = useNavigate();
   const search = {
-    onPatient: (id) => { setOverlay((o) => (o.open ? { ...o, open: false } : o)); navTo("/app/pazienti"); setFolder(id); window.scrollTo({ top: 0, behavior: "smooth" }); },
+    onPatient: (id) => { setOverlay((o) => (o.open ? { ...o, open: false } : o)); setPassportId(id); },
     onReport: async (id) => {
       try { openVisit(notes.find((c) => c.id === id) ?? await api.getConsultation(id)); } catch (e) { toast.error(errMsg(e)); }
     },
@@ -104,12 +107,12 @@ export default function Dashboard() {
     },
   };
   const items = [
-    { id: "agenda", to: "/app", end: true, label: "Dashboard / Agenda", icon: LayoutDashboard },
-    { id: "pazienti", to: "/app/pazienti", label: "Pazienti & Cartelle", icon: Users },
-    { id: "messaggi", to: "/app/messaggi", label: "Messaggi / Chat", icon: MessagesSquare, badge: unread + aiQueued },
-    { id: "visite", to: "/app/visite", label: "Bodychart / Visite", icon: PersonStanding },
-    { id: "cassa", to: "/app/cassa", label: "Fatturazione & Tessera Sanitaria", icon: ReceiptText },
-    { id: "impostazioni", to: "/app/impostazioni", label: "Impostazioni Account", icon: Settings },
+    { id: "agenda", to: "/app", end: true, label: "Oggi", icon: Sun },
+    { id: "pazienti", to: "/app/pazienti", label: "Pazienti", icon: Users },
+    { id: "messaggi", to: "/app/messaggi", label: "Messaggi", icon: MessagesSquare, badge: unread + aiQueued },
+    { id: "cassa", to: "/app/cassa", label: "Cassa", icon: ReceiptText },
+    { id: "impostazioni", to: "/app/impostazioni", label: "Impostazioni", icon: Settings },
+    { id: "strumenti", to: "/app/strumenti", label: "Strumenti", icon: Wrench, bottom: true },
   ];
   if (!SECTIONS.includes(sezione)) return <Navigate to="/app" replace />;
 
@@ -120,33 +123,44 @@ export default function Dashboard() {
     <div className="min-h-screen overflow-x-clip bg-paper" data-testid="dashboard" data-section={sezione}>
       <TopBar onCompliance={() => setCompliance(true)} onFeedback={() => setFeedback(true)} onTour={() => setTour(true)} unread={unread} search={search} />
       {sezione === "agenda" && <>
-      <Marquee items={ticker} />
-      <Hero total={appointments.length} waiting={waiting.length} name={shortName} income={income} />
-      <AbsenceBanner />
-      <div className="mx-auto max-w-[1440px] px-5 lg:px-8"><SupportReplies /></div>
+      <div className="mx-auto max-w-[1280px] space-y-3 px-5 pt-4 lg:px-8"><AbsenceBanner /><SupportReplies /></div>
       <SignatureReminder />
-      <main className="mx-auto grid max-w-[1440px] grid-cols-1 gap-5 px-5 pb-10 lg:grid-cols-12 lg:px-8">
-        <motion.div {...col(0.35)} className="order-2 min-w-0 lg:order-1 lg:col-span-4"><Agenda appointments={appointments} onChange={load} patients={patients} onPassport={setPassportId} /></motion.div>
-        <motion.div {...col(0.45)} className="order-1 min-w-0 lg:order-2 lg:col-span-4"><ConsultHub next={next} onStart={start} /></motion.div>
-        <motion.div {...col(0.55)} className="order-3 min-w-0 lg:col-span-4"><WaitingList waiting={waiting} onChange={load} onStart={start} patients={patients} onPassport={setPassportId} /></motion.div>
+      <main className="mx-auto max-w-[1280px] space-y-5 px-5 pb-10 pt-4 lg:px-8" data-testid="today-page">
+        <NextPatient next={next} age={patients.find((p) => p.id === next?.patient_id)?.age_label} onStart={start} onOpen={() => setPassportId(next.patient_id)} />
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+          <div className="min-w-0 lg:col-span-7"><Agenda appointments={appointments} onChange={load} patients={patients} onPassport={setPassportId} /></div>
+          <div className="min-w-0 space-y-5 lg:col-span-5">
+            <TodoBox notes={notes} unread={unread + aiQueued} requests={requests} onSign={openVisit} onMessages={() => navTo("/app/messaggi")}
+              onRequests={() => document.getElementById("today-requests")?.scrollIntoView({ behavior: "smooth" })} onTeam={() => navTo("/app/pazienti")} />
+            <WaitingList waiting={waiting} onChange={load} onStart={start} patients={patients} onPassport={setPassportId} />
+          </div>
+        </div>
+        <div id="today-requests"><Fold title={`Richieste dal portale${requests ? ` · ${requests}` : ""}`} testId="today-requests-fold" defaultOpen={requests > 0}><PortalRequests onChange={load} /></Fold></div>
+        <RecentNotes items={notes.filter((c) => isToday(c.created_at))} onOpen={openVisit} />
       </main>
-      <RecentNotes items={notes.filter((c) => isToday(c.created_at))} onOpen={openVisit} />
-      <PortalRequests onChange={load} />
-      <BetaMetrics refreshKey={cashKey} onFeedback={() => setFeedback(true)} />
+      <Marquee items={ticker} />
       </>}
+      {sezione === "strumenti" && <ToolsPage onCompliance={() => setCompliance(true)} stats={<div className="space-y-5"><Hero total={appointments.length} waiting={waiting.length} name={shortName} income={income} /><BetaMetrics refreshKey={cashKey} onFeedback={() => setFeedback(true)} /></div>} />}
       {sezione === "pazienti" && <>
         <PageTitle kicker="Archivio clinico" title="Pazienti" it="& cartelle cliniche" />
         <div className="mx-auto max-w-[1440px] space-y-5 pb-12" data-testid="patients-page">
+          <div className="flex gap-2 px-5 lg:px-8" role="tablist">
+            <button role="tab" aria-selected={!showVisits} onClick={() => setShowVisits(false)} className={`h-11 rounded-xl px-5 text-[15px] font-medium ${!showVisits ? "bg-[#0A192F] text-white" : "bg-[#F2F2EF] text-[#0A192F]"}`} data-testid="patients-tab-list">Pazienti</button>
+            <button role="tab" aria-selected={showVisits} onClick={() => setShowVisits(true)} className={`h-11 rounded-xl px-5 text-[15px] font-medium ${showVisits ? "bg-[#0A192F] text-white" : "bg-[#F2F2EF] text-[#0A192F]"}`} data-testid="patients-tab-visits">Tutte le visite</button>
+          </div>
+          {showVisits ? <VisitsList notes={notes} onOpen={openVisit} /> : <>
           {folder && <div className="px-5 lg:px-8" id="patient-folder"><PatientFolder patient={patients.find((p) => p.id === folder)} notes={notes} onOpenVisit={openVisit} onPassport={setPassportId} onClose={() => setFolder(null)} /></div>}
           <NetworkSearch />
           <PassportSection patients={patients} onOpen={(id) => { setFolder(id); window.scrollTo({ top: 0, behavior: "smooth" }); }} onAdd={() => setEditPatient({})} />
+          </>}
         </div>
       </>}
       {sezione === "messaggi" && <div className="pt-4"><DoctorMessages onRead={loadUnread} /></div>}
       {sezione === "visite" && <><PageTitle kicker="Diario clinico" title="Visite" it="e Bodychart" /><VisitsList notes={notes} onOpen={openVisit} /></>}
-      {sezione === "cassa" && <><PageTitle kicker="Amministrazione" title="Fatturazione" it="& Tessera Sanitaria" /><TsCard /><CashRegister refreshKey={cashKey} /></>}
+      {sezione === "cassa" && <><PageTitle kicker="Amministrazione" title="Cassa" it="ricevute e incassi" /><CashRegister refreshKey={cashKey} /></>}
       {sezione === "impostazioni" && <Account role="doctor" embedded extras={<SettingsExtras onCompliance={() => setCompliance(true)} onFeedback={() => setFeedback(true)} onTour={() => setTour(true)} />} />}
-      {passportId && <Passport key={`${passportId}-${passportKey}`} patientId={passportId} onClose={() => { setPassportId(null); load(); }} onEdit={setEditPatient} />}
+      {passportId && <Passport key={`${passportId}-${passportKey}`} patientId={passportId} onClose={() => { setPassportId(null); load(); }} onEdit={setEditPatient}
+        onStart={(p) => { setPassportId(null); start({ name: p.name, patient_id: p.id }); }} onOpenVisit={(c) => { setPassportId(null); openVisit(c); }} />}
       <PatientDialog value={editPatient} onClose={() => setEditPatient(null)} onSaved={() => { load(); setPassportKey((k) => k + 1); }} />
       {compliance && <CompliancePanel onClose={() => setCompliance(false)} />}
       <FeedbackDialog open={feedback} onClose={() => setFeedback(false)} onSent={() => setCashKey((k) => k + 1)} />

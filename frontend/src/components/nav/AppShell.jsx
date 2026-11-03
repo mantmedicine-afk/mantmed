@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { Menu, X, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Menu, X, LogOut, PanelLeftClose, PanelLeftOpen, MoreHorizontal } from "lucide-react";
 import { LogoMark } from "@/components/dash/Logo";
 import { MantAIButton } from "@/components/mantai/MantAI";
 import { useAuth } from "@/lib/auth";
@@ -10,7 +10,7 @@ const ShellCtx = createContext({ open: () => {} });
 export const MenuButton = ({ dark }) => {
   const { open } = useContext(ShellCtx);
   return (
-    <button onClick={open} className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors lg:hidden ${dark ? "border border-[#C9CCD3]/30 text-white hover:border-white" : "border border-slate-200 text-night hover:border-night"}`} aria-label="Apri il menu di navigazione" data-testid="sidebar-open-btn">
+    <button onClick={open} className={`grid h-11 w-11 shrink-0 place-items-center rounded-full transition-colors md:hidden ${dark ? "border border-[#C9CCD3]/30 text-white hover:border-white" : "border border-slate-200 text-night hover:border-night"}`} aria-label="Apri il menu di navigazione" data-testid="sidebar-open-btn">
       <Menu size={18} />
     </button>
   );
@@ -41,7 +41,8 @@ const Panel = ({ items, area, onNav, onClose, mini, onToggle }) => {
         {onClose && <button onClick={onClose} className="grid h-10 w-10 place-items-center rounded-full border border-white/20 hover:bg-white hover:text-night" aria-label="Chiudi menu" data-testid="sidebar-close-btn"><X size={17} /></button>}
       </div>
       <nav className={`mt-8 flex-1 space-y-1.5 overflow-y-auto pl-3`} aria-label="Navigazione principale" data-testid="sidebar-nav">
-        {items.map((it) => <Item key={it.id} it={it} onNav={onNav} mini={mini} />)}
+        {items.filter((it) => !it.bottom).map((it) => <Item key={it.id} it={it} onNav={onNav} mini={mini} />)}
+        {items.some((it) => it.bottom) && <div className="!mt-4 border-t border-white/10 pt-3">{items.filter((it) => it.bottom).map((it) => <Item key={it.id} it={it} onNav={onNav} mini={mini} />)}</div>}
       </nav>
       <MantAIButton variant="sidebar" view={user?.role === "parent" ? "patient" : "doctor"} mini={mini} />
       {onToggle && (
@@ -64,6 +65,20 @@ const Panel = ({ items, area, onNav, onClose, mini, onToggle }) => {
 
 const KEY = "mantmed.sidebar.mini";
 
+/** Smartphone: barra fissa in basso con le 4 voci principali + "Altro" (apre il menu completo). */
+const BottomBar = ({ items, onMore }) => (
+  <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-[#DCDDDF] bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden" aria-label="Navigazione rapida" data-testid="bottom-nav">
+    {items.filter((it) => !it.bottom).slice(0, 4).map((it) => (
+      <NavLink key={it.id} to={it.to} end={it.end} data-testid={`bottom-link-${it.id}`}
+        className={({ isActive }) => `relative flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${isActive ? "text-[#0A192F]" : "text-slate-500"}`}>
+        <it.icon size={20} />{it.short ?? it.label}
+        {it.badge > 0 && <span className="absolute right-[22%] top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white">{it.badge > 9 ? "9+" : it.badge}</span>}
+      </NavLink>
+    ))}
+    <button onClick={onMore} className="flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-slate-500" data-testid="bottom-link-altro"><MoreHorizontal size={20} /> Altro</button>
+  </nav>
+);
+
 export const AppShell = ({ items, area, children }) => {
   const [open, setOpen] = useState(false);
   const [mini, setMini] = useState(() => { try { return localStorage.getItem(KEY) === "1"; } catch { return false; } });
@@ -78,6 +93,7 @@ export const AppShell = ({ items, area, children }) => {
   }, [open]);
   return (
     <ShellCtx.Provider value={{ open: () => setOpen(true) }}>
+      <aside className={`fixed inset-y-0 left-0 z-40 hidden transition-[width] duration-300 ease-out md:block lg:hidden w-[84px]`} data-testid="sidebar-tablet"><Panel items={items} area={area} mini /></aside>
       <aside className={`fixed inset-y-0 left-0 z-40 hidden transition-[width] duration-300 ease-out lg:block ${mini ? "w-[84px]" : "w-[264px]"}`} data-testid="sidebar" data-mini={mini}><Panel items={items} area={area} mini={mini} onToggle={toggle} /></aside>
       <div className={`fixed inset-0 z-[55] lg:hidden ${open ? "" : "pointer-events-none"}`} aria-hidden={!open}>
         <div onClick={() => setOpen(false)} className={`absolute inset-0 bg-[#0A192F]/50 backdrop-blur-sm transition-opacity duration-300 ${open ? "opacity-100" : "opacity-0"}`} data-testid="sidebar-backdrop" />
@@ -85,7 +101,8 @@ export const AppShell = ({ items, area, children }) => {
           <Panel items={items} area={area} onNav={() => setOpen(false)} onClose={() => setOpen(false)} />
         </div>
       </div>
-      <div className={`transition-[padding] duration-300 ease-out ${mini ? "lg:pl-[84px]" : "lg:pl-[264px]"}`}>{children}</div>
+      <BottomBar items={items} onMore={() => setOpen(true)} />
+      <div className={`app-min min-h-screen pb-[72px] transition-[padding] duration-300 ease-out md:pb-0 md:pl-[84px] ${mini ? "lg:pl-[84px]" : "lg:pl-[264px]"}`}>{children}</div>
     </ShellCtx.Provider>
   );
 };

@@ -2,29 +2,29 @@ import { AudioLines, CalendarDays, FolderOpen, MessagesSquare, PersonStanding, S
 
 export const DOCTOR_STEPS = [
   {
-    video: "doctor-1", to: "/app", targets: ["agenda-panel"], icon: CalendarDays, kicker: "Benvenuto su MantMed", title: "La sua giornata, in un colpo d'occhio",
-    text: "La Dashboard riunisce l'Agenda del giorno divisa per sede, la sala d'attesa e il prossimo paziente.",
-    points: ["Scelga lo studio dalle schede in alto per vedere solo le sue visite", "Il pulsante + aggiunge un appuntamento; tocchi una visita per modificarla o annullarla", "Le prenotazioni pagate dal Portale Paziente compaiono con \"Pagato online\""],
+    video: "doctor-1", to: "/app", targets: ["next-patient-card"], icon: CalendarDays, kicker: "Oggi", title: "La giornata parte dal prossimo paziente",
+    text: "All'apertura vede subito il prossimo paziente con età, orario e motivo. Sotto: agenda dello studio, sala d'attesa e il riquadro «Da fare».",
+    points: ["Nell'agenda scelga lo studio dalle schede in alto", "Tocchi il nome del prossimo paziente per aprirne la scheda", "Statistiche e metriche sono in Strumenti › Statistiche"],
   },
   {
-    video: "doctor-2", to: "/app", targets: ["consult-hub"], icon: AudioLines, kicker: "MantAI", title: "Parli con il paziente, MantAI scrive",
-    text: "Da \"Avvia Consultazione\" scelga il paziente e attivi la registrazione: MantAI trascrive la visita e la struttura in nota clinica in tempo reale.",
+    video: "doctor-2", to: "/app", targets: ["start-consultation-btn"], icon: AudioLines, kicker: "MantAI", title: "Parli con il paziente, MantAI scrive",
+    text: "Un solo pulsante, «Inizia visita»: MantAI trascrive e prepara la bozza della nota, sempre etichettata. Lei la rilegge con «Rivedi e firma».",
     points: ["Anamnesi, esame obiettivo, diagnosi e terapia compilati secondo il suo modello", "Meno tastiera, più contatto visivo con la famiglia", "Ogni nota è una bozza: la rivede e la firma prima del referto PDF"],
   },
   {
-    video: "doctor-3", to: "/app/visite", targets: ["visit-row-*", "visits-page"], icon: PersonStanding, kicker: "Bodychart Interattivo", title: "Annotazioni anatomiche in pochi tocchi",
-    text: "Apra una visita e scelga \"Bodychart\" per segnare lesioni, dolori o reperti direttamente sulla figura anatomica.",
-    points: ["Zoom sulle regioni del corpo e pin colorati per categoria (lesione, dolore, cicatrice…)", "Su tablet scatti una foto e la alleghi al singolo pin per documentare l'evoluzione", "Storico per confrontare le visite nel tempo"],
+    video: "doctor-3", to: "/app/pazienti", targets: ["patients-page"], icon: PersonStanding, kicker: "Scheda paziente", title: "Tutto il paziente in un posto",
+    text: "Nella scheda: panoramica, visite e referti, bilanci, bodychart, passaporto sanitario, documenti e Squadra. Con Ctrl/Cmd+K trova un paziente anche per codice fiscale.",
+    points: ["La Bodychart della scheda mostra il confronto tra visite e le foto di ogni reperto", "«Inizia visita» è anche in testa alla scheda", "Le allergie sono sempre in evidenza nell'intestazione"],
   },
   {
-    video: "doctor-4", to: "/app/pazienti", targets: ["team-network-search"], icon: ShieldCheck, kicker: "Medicina di Squadra", title: "Cartelle collegate, con il consenso del genitore",
-    text: "Cerchi un paziente seguito da un collega con il codice fiscale: con la delega firmata dal genitore vede referti, visite e bilanci della squadra.",
-    points: ["Badge verde \"Consenso Privacy Attivo\" quando la delega è valida", "Senza delega invii una \"Richiesta di autorizzazione\" al Portale Paziente", "Note di squadra condivise e ogni accesso registrato nel log GDPR"],
+    video: "doctor-4", to: "/app", targets: ["todo-box"], icon: ShieldCheck, kicker: "Da fare", title: "Note da firmare e messaggi, a un clic",
+    text: "Il riquadro «Da fare» mostra solo ciò che aspetta lei: note da firmare, messaggi, richieste dal portale. Ogni voce porta direttamente all'azione.",
+    points: ["«Rivedi e firma» apre la nota in bozza con l'etichetta MantAI", "I messaggi portano alla conversazione con la famiglia", "La Medicina di Squadra è nella scheda di ogni paziente"],
   },
   {
-    video: "doctor-5", to: "/app/impostazioni?sezione=vetrina", targets: ["account-section-vetrina"], icon: Store, kicker: "Vetrina e fatturazione", title: "Si faccia trovare, incassi senza pensieri",
-    text: "Nella Vetrina Pubblica pubblichi foto, presentazione, servizi e disponibilità: le famiglie la trovano nella rete MantMed e prenotano online.",
-    points: ["Attivi \"Pubblica\" e condivida il link della sua vetrina", "In Fatturazione & Tessera Sanitaria trova incassi, ricevute ed export per il commercialista"],
+    video: "doctor-5", to: "/app/strumenti", targets: ["tools-page"], icon: Store, kicker: "Cassa e Strumenti", title: "Il resto, quando serve",
+    text: "In Cassa: ricevute e incassi. In Strumenti: statistiche, modelli di visita e bilanci, Tessera Sanitaria, esportazioni, pannello GDPR e vetrina.",
+    points: ["In Cassa trova incassi, ricevute ed esportazione per il commercialista", "La vetrina pubblica e il pannello GDPR sono in Strumenti"],
     extra: { to: "/app/cassa", label: "Apri Fatturazione & TS" },
   },
 ];

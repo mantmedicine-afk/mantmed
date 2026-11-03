@@ -11,12 +11,30 @@ import { GrowthChart } from "./GrowthChart";
 import { CheckpointWizard, CheckpointResult } from "./CheckpointWizard";
 import { TeamPanel } from "@/components/team/TeamPanel";
 import { AILabel } from "@/components/mantai/AILabel";
+import { BodychartHistory } from "@/components/bodychart/BodychartHistory";
 
-const TABS = [["crescita", "Crescita"], ["visite", "Visite"], ["checkpoint", "Check-point benessere"], ["rete", "Medicina di squadra"], ["privacy", "Privacy e consensi"]];
+const TABS = [["panoramica", "Panoramica"], ["visite", "Visite e referti"], ["bilanci", "Bilanci"], ["bodychart", "Bodychart"], ["crescita", "Passaporto sanitario"], ["privacy", "Documenti"], ["rete", "Squadra"]];
 
-export const Passport = ({ patientId, onClose, onEdit }) => {
+const Overview = ({ data, syncing, onSync, onTab }) => {
+  const last = data.consultations?.[0];
+  const box = "rounded-2xl border border-[#DCDDDF] bg-white p-5";
+  return (
+    <div className="grid gap-4 lg:grid-cols-3" data-testid="passport-overview">
+      <div className={box}><div className="text-sm text-slate-500">Ultima visita</div>
+        {last ? <><div className="mt-1 text-lg font-semibold">{last.note?.motivo_visita || "Visita"}</div><div className="text-[15px] text-slate-600">{new Date(last.created_at).toLocaleDateString("it-IT")} · {last.note?.diagnosi || "—"}</div>
+          <button onClick={() => onTab("visite")} className="mt-3 min-h-[44px] text-[15px] font-medium text-[#3B6CF6]" data-testid="passport-overview-visits">Tutte le visite →</button></> : <div className="mt-1 text-[15px] text-slate-600">Nessuna visita registrata.</div>}
+      </div>
+      <div className={box}><div className="text-sm text-slate-500">In sintesi</div>
+        <ul className="mt-2 space-y-1 text-[15px]"><li>{data.consultations?.length ?? 0} visite</li><li>{data.measurements?.length ?? 0} misurazioni di crescita</li><li>{data.checkpoints?.length ?? 0} check-point di benessere</li></ul>
+      </div>
+      <div className={box}><SyncPanel data={data} syncing={syncing} onSync={onSync} /></div>
+    </div>
+  );
+};
+
+export const Passport = ({ patientId, onClose, onEdit, onStart, onOpenVisit }) => {
   const [data, setData] = useState(null);
-  const [tab, setTab] = useState("crescita");
+  const [tab, setTab] = useState("panoramica");
   const [syncing, setSyncing] = useState(false);
   const load = useCallback(async () => {
     setSyncing(true);
@@ -29,52 +47,52 @@ export const Passport = ({ patientId, onClose, onEdit }) => {
 
   const p = data?.patient;
   return (
-    <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }} className="fixed inset-0 z-50 overflow-auto bg-paper" data-testid="passport-overlay" data-lenis-prevent>
-      <header className="grain relative overflow-hidden bg-night text-white">
-        <div className="relative z-10 mx-auto max-w-[1280px] px-5 pb-8 pt-6 lg:px-10">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className="app-min fixed inset-0 z-50 overflow-auto bg-[#FBFBF8]" data-testid="passport-overlay" data-lenis-prevent>
+      <header className="border-b border-[#DCDDDF] bg-[#F2F2EF] text-[#0A192F]">
+        <div className="mx-auto max-w-[1280px] px-5 pb-6 pt-5 lg:px-10">
           <div className="flex items-center justify-between">
-            <div className="text-[11px] uppercase tracking-[0.22em] text-slate-300">Passaporto sanitario dinamico</div>
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Scheda paziente</div>
             <div className="flex items-center gap-2">
               {p && <InviteButton p={p} onSent={load} />}
-              <button onClick={onClose} className="grid h-11 w-11 place-items-center rounded-full border border-white/20 transition-colors hover:bg-white hover:text-night" data-testid="passport-close-btn" aria-label="Chiudi"><X size={18} /></button>
+              <button onClick={onClose} className="grid h-11 w-11 place-items-center rounded-xl border border-[#C9CCD3] bg-white transition-colors hover:border-[#0A192F]" data-testid="passport-close-btn" aria-label="Chiudi"><X size={18} /></button>
             </div>
           </div>
           {p && (
-            <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <h2 className="font-display text-5xl leading-none lg:text-6xl" data-testid="passport-name">{p.name}</h2>
-                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-300">
+            <div className="mt-4 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+              <div className="min-w-0">
+                <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl" data-testid="passport-name">{p.name}</h2>
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[15px] text-slate-600">
                   <span data-testid="passport-age">{p.age_label}</span><span>{p.sex === "F" ? "Femmina" : "Maschio"}</span>
                   <span>nata/o il {new Date(p.birth_date).toLocaleDateString("it-IT")}</span>{p.fiscal_code && <span className="font-mono" data-testid="passport-cf">CF {p.fiscal_code}</span>}{p.guardian && <span>{p.guardian}</span>}
-                  <button onClick={() => onEdit(p)} className="flex items-center gap-1 text-[#A9C2FF] hover:text-white" data-testid="passport-edit-btn"><Pencil size={13} /> Modifica</button>
+                  <button onClick={() => onEdit(p)} className="flex min-h-[44px] items-center gap-1 font-medium text-[#3B6CF6]" data-testid="passport-edit-btn"><Pencil size={13} /> Modifica</button>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button onClick={() => setTab("privacy")} className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${p.consent_at ? "bg-emerald-400/15 text-emerald-200" : "bg-red-500/20 text-red-200"}`} data-testid="passport-consent-badge">{p.consent_at ? <ShieldCheck size={13} /> : <ShieldAlert size={13} />} {p.consent_at ? "Consenso privacy valido" : "Consenso privacy mancante"}</button>
-                  {p.allergies && <span className="flex items-center gap-1.5 rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold text-red-200" data-testid="passport-allergies"><AlertCircle size={13} /> Allergie: {p.allergies}</span>}
-                  {p.notes && <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-slate-200">{p.notes}</span>}
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {p.allergies && <span className="flex items-center gap-1.5 rounded-xl bg-rose-100 px-3 py-1.5 text-sm font-semibold text-rose-900 ring-1 ring-rose-300" data-testid="passport-allergies"><AlertCircle size={15} /> Allergie: {p.allergies}</span>}
+                  <button onClick={() => setTab("privacy")} className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold ${p.consent_at ? "bg-emerald-50 text-emerald-800" : "bg-red-100 text-red-800"}`} data-testid="passport-consent-badge">{p.consent_at ? <ShieldCheck size={14} /> : <ShieldAlert size={14} />} {p.consent_at ? "Consenso privacy valido" : "Consenso privacy mancante"}</button>
+                  {p.notes && <span className="rounded-xl bg-white px-3 py-1.5 text-sm text-slate-600">{p.notes}</span>}
                 </div>
               </div>
-              <SyncPanel data={data} syncing={syncing} onSync={load} />
+              {onStart && <button onClick={() => onStart(p)} className="flex h-14 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#0A192F] px-8 text-base font-semibold text-white hover:bg-[#13284A]" data-testid="passport-start-visit-btn"><Sparkles size={18} /> Inizia visita</button>}
             </div>
           )}
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1280px] px-5 py-8 lg:px-10">
-        <div className="flex gap-1 overflow-x-auto rounded-2xl bg-slate-100 p-1 sm:inline-flex" role="tablist">
+      <main className="mx-auto max-w-[1280px] px-5 py-6 lg:px-10">
+        <div className="-mx-1 flex gap-1 overflow-x-auto px-1" role="tablist">
           {TABS.map(([id, l]) => (
-            <button key={id} onClick={() => setTab(id)} className={`relative shrink-0 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors ${tab === id ? "text-white" : "text-slate-600 hover:text-night"}`} data-testid={`passport-tab-${id}`}>
-              {tab === id && <motion.span layoutId="passport-tab" className="absolute inset-0 rounded-xl bg-night" />}
-              <span className="relative">{l}</span>
-            </button>
+            <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`min-h-[44px] shrink-0 rounded-xl px-4 text-[15px] font-medium transition-colors ${tab === id ? "bg-[#0A192F] text-white" : "bg-[#F2F2EF] text-[#0A192F] hover:bg-[#E8E8E4]"}`} data-testid={`passport-tab-${id}`}>{l}</button>
           ))}
         </div>
         <div className="mt-6">
-          {!data ? <div className="h-60 animate-pulse rounded-3xl bg-slate-100" /> : (
+          {!data ? <div className="h-60 animate-pulse rounded-2xl bg-[#F2F2EF]" /> : (
             <>
+              {tab === "panoramica" && <Overview data={data} syncing={syncing} onSync={load} onTab={setTab} />}
               {tab === "crescita" && <GrowthChart patient={p} measurements={data.measurements ?? []} onAdded={load} />}
-              {tab === "visite" && <Visits items={data.consultations ?? []} payments={data.payments ?? []} />}
-              {tab === "checkpoint" && <Checkpoints patient={p} items={data.checkpoints ?? []} onDone={load} />}
+              {tab === "visite" && <Visits items={data.consultations ?? []} payments={data.payments ?? []} onOpen={onOpenVisit} />}
+              {tab === "bilanci" && <div className="space-y-6"><Checkpoints patient={p} items={data.checkpoints ?? []} onDone={load} />
+                <div><h3 className="mb-3 text-lg font-semibold">Visite di bilancio</h3><Visits items={(data.consultations ?? []).filter((c) => /bilancio/i.test(c.template_name || ""))} payments={data.payments ?? []} onOpen={onOpenVisit} /></div></div>}
+              {tab === "bodychart" && <BodychartHistory patientId={patientId} />}
               {tab === "rete" && <TeamPanel patientId={patientId} />}
               {tab === "privacy" && <ConsentsTab patient={p} items={data.consents ?? []} onChange={load} />}
             </>
@@ -86,20 +104,20 @@ export const Passport = ({ patientId, onClose, onEdit }) => {
 };
 
 const SyncPanel = ({ data, syncing, onSync }) => (
-  <div className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-md lg:min-w-[380px]" data-testid="passport-sync">
+  <div className="text-[#0A192F]" data-testid="passport-sync">
     <div className="flex items-center justify-between gap-3">
-      <span className="flex items-center gap-2 text-sm"><Cloud size={16} className="text-[#A9C2FF]" /> Storico sincronizzato in cloud</span>
-      <button onClick={onSync} className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-night" data-testid="passport-sync-btn"><RefreshCw size={13} className={syncing ? "animate-spin" : ""} /> Sincronizza</button>
+      <span className="flex items-center gap-2 text-sm"><Cloud size={16} className="text-[#3B6CF6]" /> Storico sincronizzato in cloud</span>
+      <button onClick={onSync} className="flex items-center gap-1.5 min-h-[44px] rounded-xl bg-[#0A192F] px-3 text-xs font-semibold text-white" data-testid="passport-sync-btn"><RefreshCw size={13} className={syncing ? "animate-spin" : ""} /> Sincronizza</button>
     </div>
     <div className="mt-3 grid grid-cols-2 gap-2">
       {(data?.clinics ?? []).filter((c) => CLINICS.includes(c.clinic)).map((c) => (
-        <div key={c.clinic} className="rounded-2xl bg-white/5 px-3 py-2">
-          <div className="text-xs text-slate-300">{c.clinic}</div>
-          <div className="mt-0.5 font-mono text-xs text-white">{c.visits} visite · {c.measurements} misure · {c.checkpoints} check</div>
+        <div key={c.clinic} className="rounded-2xl bg-[#F2F2EF] px-3 py-2">
+          <div className="text-xs text-slate-500">{c.clinic}</div>
+          <div className="mt-0.5 font-mono text-xs text-[#0A192F]">{c.visits} visite · {c.measurements} misure · {c.checkpoints} check</div>
         </div>
       ))}
     </div>
-    <div className="mt-2 text-[11px] text-slate-300" data-testid="passport-synced-at">Ultima sincronizzazione: {data?.synced_at ? new Date(data.synced_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—"}</div>
+    <div className="mt-2 text-[11px] text-slate-500" data-testid="passport-synced-at">Ultima sincronizzazione: {data?.synced_at ? new Date(data.synced_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—"}</div>
   </div>
 );
 
@@ -131,7 +149,7 @@ const PortalToggle = ({ c }) => {
   );
 };
 
-const Visits = ({ items, payments = [] }) => {
+const Visits = ({ items, payments = [], onOpen }) => {
   const pdf = async (id) => {
     try { await api.downloadReport(id); toast.success("Referto PDF scaricato"); } catch (e) { toast.error(errMsg(e)); }
   };
@@ -152,6 +170,7 @@ const Visits = ({ items, payments = [] }) => {
               ))}
             </div>
             <div className="flex flex-wrap gap-2">
+              {onOpen && <button onClick={() => onOpen(c)} className="flex min-h-[44px] items-center gap-2 rounded-xl bg-[#0A192F] px-4 text-sm font-medium text-white" data-testid={`passport-visit-open-${c.id}`}>Apri nota e bodychart</button>}
               <PortalToggle c={c} />
               <button onClick={() => pdf(c.id)} className="flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-night hover:border-night" data-testid={`passport-visit-pdf-${c.id}`}><FileDown size={15} /> Referto PDF</button>
             </div>
