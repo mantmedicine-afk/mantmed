@@ -15,7 +15,7 @@ export const Logo = () => (
     <LogoMark />
     <div className="leading-none">
       <div className="font-display text-[26px] tracking-tight text-night">MantMed</div>
-      <div className="mt-1 text-[10px] font-medium uppercase tracking-[0.22em] text-slate-500">pediatria d'eccellenza</div>
+      <div className="mt-1 text-[10px] font-medium uppercase tracking-[0.22em] text-slate-500">Workspace clinico · Pediatria specialistica</div>
     </div>
   </div>
 );

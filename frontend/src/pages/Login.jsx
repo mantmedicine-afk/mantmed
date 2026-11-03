@@ -35,7 +35,7 @@ const useWelcome = () => {
 
 const inputCls = "mt-1.5 w-full rounded-2xl border bg-white/5 px-4 py-3.5 text-white outline-none transition-colors placeholder:text-slate-400 focus:bg-white/10";
 
-export default function Login({ subtitle = "Studio medico specialistico · Pediatria", note = "Accesso protetto per i medici MantMed", signup = true, parent = false }) {
+export default function Login({ subtitle = "Workspace clinico · Pediatria specialistica", note = "Accesso protetto per i medici MantMed", signup = true, parent = false }) {
   const { login, verify2fa, reason } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -97,6 +97,11 @@ export default function Login({ subtitle = "Studio medico specialistico · Pedia
             </form>
           )}
         </motion.div>
+        {signup && !parent && (
+          <p className="mt-5 text-center text-sm" data-testid="login-parent-link-wrap">
+            <Link to="/portale" className="text-slate-300 underline decoration-[#C9CCD3]/60 underline-offset-4 transition-colors hover:text-white hover:decoration-white" data-testid="login-parent-link">Sei un genitore? Accedi all'area pazienti</Link>
+          </p>
+        )}
         {signup && (
           <div className="mt-5 flex flex-wrap justify-center gap-2 text-sm" data-testid="login-signup-links">
             <span className="text-slate-300">Nuovo su MantMed?</span>

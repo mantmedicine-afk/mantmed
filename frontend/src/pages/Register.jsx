@@ -18,7 +18,7 @@ const DOCTOR_FIELDS = [
   ["phone", "Telefono", "es. +39 333 1234567", "tel"], ["studio_address", "Sede dello studio", "es. Via Roma 1, Reggio Calabria", "text", true],
 ];
 const PARENT_FIELDS = [
-  ["first_name", "Nome", "es. Giulia"], ["last_name", "Cognome", "es. Russo"], ["child_fiscal_code", "Codice fiscale del bambino", "16 caratteri, es. RSSMRA…", "text", true],
+  ["first_name", "Nome del genitore / tutore", "Il suo nome, es. Giulia"], ["last_name", "Cognome del genitore / tutore", "Il suo cognome, es. Russo"], ["child_fiscal_code", "Codice fiscale del bambino", "16 caratteri, es. RSSMRA…", "text", true],
   ["email", "Email (la stessa comunicata allo studio)", "es. nome@email.it", "email"], ["phone", "Cellulare", "es. 333 1234567", "tel"],
 ];
 
