@@ -403,3 +403,10 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Portale Famiglia: header chiaro, menu semplificato (Home, Appuntamenti, Documenti, Messaggi, Trova specialista, Impostazioni in basso; etichette brevi su mobile), copertina chiara, sfondi #FBFBF8/#F2F2EF
 - Test: iteration_48 frontend 100%
 - Backlog: rigenerare immagini anteprima del tour Portale (mostrano ancora il vecchio stile scuro)
+
+## Implemented (2026-11-03, nuova schermata Oggi)
+- components/oggi/ (OggiScreen, Panels, AgendaList, data.js): intestazione + filtro Tutti/Centro/Provincia, barra sottile "Prossimo paziente" (Cartella / Inizia visita con logo MantAI), dettaglio visita selezionata, Da fare (note da firmare, messaggi, richieste portale se presenti), agenda raggruppata per studio con linea "Ora", puntini stato/allergie, legenda, navigazione da tastiera
+- Su richiesta utente: stessa shell/palette/font delle altre sezioni (niente palette grigio/cammello, niente top bar o tab bar dedicate). Sala d'attesa e ticker rimossi da Oggi; Richieste dal portale spostate in /app/messaggi
+- Inizia visita apre la vera ConsultationOverlay (consenso + registrazione)
+- Pagine pubbliche: lasciate invariate su richiesta
+- Test: iteration_49 frontend OK

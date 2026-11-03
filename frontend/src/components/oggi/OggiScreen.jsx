@@ -38,7 +38,7 @@ export const OggiScreen = ({ appointments, patients, notes, unread, requests, on
   const next = today.find((a) => !isDone(a) && a.time >= now) ?? null;
   const firstFuture = shown.find((a) => a.time > now);
   const lastPastGroup = [...groups].reverse().find((g) => g.items.length && g.items[g.items.length - 1].time <= now);
-  const nowBefore = shown.length && shown[0].time <= now ? (firstFuture ? firstFuture.id : lastPastGroup && `end-${lastPastGroup.clinic}`) : null;
+  const nowBefore = !shown.length ? null : shown[0].time > now ? shown[0].id : firstFuture ? firstFuture.id : lastPastGroup && `end-${lastPastGroup.clinic}`;
   const sel = shown.find((a) => a.id === selected) ?? (next && shown.includes(next) ? next : shown[0]);
 
   const toSign = notes.filter(needsSignature);

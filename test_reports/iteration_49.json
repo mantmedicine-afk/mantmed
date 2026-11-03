@@ -1,0 +1,32 @@
+{
+  "summary": "Frontend-only test of the new Oggi doctor screen inside the standard AppShell. Tested at the real clock (22:06, all visits past, empty next-bar) and with the Playwright clock mocked to 10:05 (populated next-bar). Almost all requested items pass: shell/sidebar, date and greeting (Buongiorno at 10:05, Buonasera at 22:06), Tutti/Centro/Provincia filter hiding the other group, dark 52px next-bar, Cartella button opening the passport (Francesco Bruno), Inizia visita opening the real ConsultationOverlay (consent 'Consenso privacy valido' shown when a patient is set, free-name setup when none), clicking a row updates the detail panel (aria-pressed), allergies shown for Aurora Ricci (Amoxicillina) and Ginevra Marino (Acari della polvere), ArrowUp/ArrowDown/Home/End move focus and selection across groups, Apri cartella opens the passport, exactly one now-line placed right before the first future visit (or after the last group when all visits are past), legend shown, Note da firmare opens a note with note-sign-btn, Messaggi navigates to /app/messaggi, no waiting room. Responsive: no horizontal overflow at 390/768/1440, panels stack at 390 and sit side by side at 768+, the mobile bottom tab bar does not cover the legend. Regression: pazienti, messaggi, cassa, impostazioni, strumenti all render (data-section correct). The oggi-todo-requests item could NOT be tested because there are 0 pending portal requests in the DB (not seeded by me).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AgendaList now-line", "issue": "When the filtered list contains only future visits (e.g. Provincia at 10:05, first visit 15:00), nowBefore is null, so no 'Ora HH:MM' line shows at all. Expected the line to show at the top, before the first visit.", "selector": "[data-testid='oggi-now-line']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Oggi 390px", "issues": ["The next-bar wraps to 76px and the patient name gets truncated ('Francesco Brun…'); age and reason are hidden. Consider putting the name on its own line on mobile."]},
+      {"screen": "Oggi agenda", "issues": ["Past visits that are not completed (e.g. 10:15–17:15 at 22:06) still show the 'In programma' amber dot. Consider a 'missed/da chiudere' state, or confirm this is intended."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: show the now-line before the first item when every visible visit is in the future (OggiScreen.jsx nowBefore logic).",
+    "Optional: improve the mobile next-bar layout so the patient name isn't truncated.",
+    "Verify oggi-todo-requests by hand once a pending portal request exists (none in the DB during this test)."
+  ],
+  "critical_code_review_comments": [
+    "OggiScreen: `next` is computed from all clinics while the detail fallback uses the filtered list. With Provincia selected, the next-bar shows a Centro patient and the detail shows Alice Conti. This is acceptable, but the behaviour should be a conscious choice.",
+    "OggiScreen: the `today` filter keeps appointments with date==null as today. That's fine if the API always sends a date.",
+    "Files are small and clean (<75 lines each); data-testids are complete."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "97%"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use page.clock.install(time=datetime(2026,11,3,10,5)) before login to get a populated next-bar (seed visits 08:30–17:15; at 10:05 the next visit is Francesco Bruno, 10:15). Visit ids look like oggi-visit-6ad86e64c06e50ff4cd67d53..5c. There are 0 pending portal requests, so oggi-todo-requests is hidden.",
+  "test_credentials": "medico@mantmed.it / Auscula-Studio-2026 (from /app/memory/test_credentials.md)"
+}
