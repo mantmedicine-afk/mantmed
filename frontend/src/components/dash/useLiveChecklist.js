@@ -14,13 +14,12 @@ export const autoTemplate = (ts, reason = "", ageM = null) => {
   if (/bilancio/i.test(reason) && bil.length) {
     const m = reason.match(AGE_RE);
     const months = m ? Number(m[1]) * (/ann/i.test(m[2]) ? 12 : 1) : ageM;
-    if (months != null) {
-      const dist = (t) => (months >= t.age_from && months < t.age_to ? 0 : Math.min(Math.abs(months - t.age_from), Math.abs(months - t.age_to)));
-      return bil.reduce((a, b) => (dist(b) < dist(a) ? b : a));
-    }
+    if (months == null) return bil[0];
+    const dist = (t) => (months >= t.age_from && months < t.age_to ? -1 : Math.min(Math.abs(months - t.age_from), Math.abs(months - t.age_to)));
+    return bil.reduce((a, b) => (dist(b) < dist(a) ? b : a));
   }
   const kind = /certificat|sport|idoneit/i.test(reason) ? "certificato" : /ricontroll|controllo|follow/i.test(reason) ? "controllo"
-    : /febbre|tosse|otite|mal di|acut|malatt|vomito|diarrea|dolore|raffreddore|faringite|eruzione/i.test(reason) ? "acuta" : "prima";
+    : /febbre|tosse|otite|mal di|acut|malatt|vomito|diarrea|dolor|raffreddore|faringite|eruzione/i.test(reason) ? "acuta" : "prima";
   return ts.find((t) => t.kind === kind) ?? ts.find((t) => !t.bilancio) ?? ts[0];
 };
 

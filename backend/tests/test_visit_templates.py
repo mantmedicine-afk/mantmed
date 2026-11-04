@@ -99,8 +99,8 @@ class TestSeeding:
         xs = ped.get(f"{API}/visit-templates").json()
         assert len(xs) >= 1
         base = ped.get(f"{API}/visit-templates/base").json()
-        assert len(base["fields"]) == 9
-        assert {f["gruppo"] for f in base["fields"]} == {"anamnesi", "parametri_vitali", "esame_obiettivo"}
+        assert len(base["fields"]) == 17  # v2: Prima visita pediatrica (motivo/anamnesi in testa, valutazione in fondo)
+        assert {f["gruppo"] for f in base["fields"]} == {"sintomi", "anamnesi", "parametri_vitali", "esame_obiettivo", "altro"}
         S["ped_first"] = xs[0]
 
     def test_no_duplicate_seed_on_concurrent_calls(self, card):

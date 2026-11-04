@@ -27,7 +27,7 @@ export const VisitTemplatesSection = ({ data }) => {
     toast.success("Modello salvato: verrà usato dall'IA nelle prossime visite");
   });
   const create = (copy) => run("new", async () => {
-    const t = await api.createVisitTemplate(copy ? { name: `${draft.name} (copia)`, fields: draft.fields } : { name: "Nuovo modello" });
+    const t = await api.createVisitTemplate(copy ? { name: `${draft.name} (copia)`, fields: draft.fields } : { name: "Nuovo modello", fields: [] });
     setList((xs) => [...xs, t]);
     pick(t);
   });
@@ -63,7 +63,7 @@ export const VisitTemplatesSection = ({ data }) => {
           <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--fg2)]">{title}</div>
           <div className="flex flex-wrap gap-2" data-testid={title === "Modelli" ? "templates-list" : "templates-bilanci-list"}>
             {xs.map((t) => (
-              <button key={t.id} onClick={() => t.id !== curId && leave() && pick(t)} className={`h-10 rounded-full px-4 text-sm font-medium transition-colors ${t.id === curId ? "bg-[var(--accent)] text-[var(--ink)]" : "border border-[var(--hair)] text-[var(--fg)] hover:border-[var(--accent)]"}`} data-testid={`template-pill-${t.id}`}>{(t.id === curId ? draft.name || "Senza nome" : t.name).replace("Bilancio di salute · ", "")} <span className="opacity-60">· {t.id === curId ? draft.fields.length : t.fields.length}</span>{t.id === curId && dirty && <span className="ml-1 text-[var(--fg)]" data-testid="template-dirty-dot">•</span>}</button>
+              <button key={t.id} onClick={() => t.id !== curId && leave() && pick(t)} className={`h-10 rounded-full px-4 text-sm font-medium transition-colors ${t.id === curId ? "bg-[var(--accent)] text-[var(--ink)]" : "border border-[var(--hair)] text-[var(--fg)] hover:border-[var(--accent)]"}`} data-testid={`template-pill-${t.id}`}>{(t.id === curId ? draft.name || "Senza nome" : t.name).replace("Bilancio di salute · ", "")} <span className="opacity-60">· {t.id === curId ? draft.fields.length : t.fields.length}</span>{t.id === curId && dirty && <span className="ml-1 text-[var(--fg)]" data-testid="template-dirty-dot">•</span>}{t.pending_fields?.length > 0 && <span className="ml-1.5 rounded-full bg-[var(--sel)] px-1.5 py-0.5 text-[10px] font-semibold" title="Nuovi campi disponibili" data-testid={`template-pending-badge-${t.id}`}>+{t.pending_fields.length}</span>}</button>
             ))}
             {title === "Modelli" && <button onClick={() => leave() && create(false)} disabled={!!busy} className="flex h-10 items-center gap-1.5 rounded-full border border-dashed border-[var(--hair)] px-4 text-sm text-[var(--fg2)] hover:border-[var(--accent)] hover:text-[var(--fg)]" data-testid="template-new-btn">{busy === "new" ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Nuovo modello</button>}
           </div>

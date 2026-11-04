@@ -55,7 +55,7 @@ class TestSeed:
         assert sorted(t["bilancio"] for t in bil) == sorted(KEYS)
         for t in bil:
             assert (t["age_from"], t["age_to"]) == BANDS[t["bilancio"]], t
-            assert 10 <= len(t["fields"]) <= 13, (t["name"], len(t["fields"]))
+            assert 10 <= len(t["fields"]) <= 19, (t["name"], len(t["fields"]))  # v2: +3 crescita (1-18 mesi) +3 finali
             assert t["name"].startswith("Bilancio di salute")
         S["bil"] = {t["bilancio"]: t for t in bil}
 

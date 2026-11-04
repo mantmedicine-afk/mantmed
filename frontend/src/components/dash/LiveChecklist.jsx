@@ -2,6 +2,8 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Circle, CheckCircle2, ChevronDown, ChevronUp, PenLine } from "lucide-react";
 
+const ORDER = ["Motivo e sintomi", "Anamnesi", "Parametri vitali", "Esame obiettivo", "Accertamenti e altro", "Altro"];
+
 const strip = (preview, label) => (preview.toLowerCase().startsWith(`${label.toLowerCase()}:`) ? preview.slice(label.length + 1).trim() : preview);
 
 const FieldRow = ({ f, v, onSave }) => {
@@ -44,7 +46,7 @@ export const Counter = ({ done, total }) => (
 export const LiveChecklist = ({ models, model, onModel, live, realtime, collapsible = true, bare = false }) => {
   const [collapsed, setCollapsed] = useState(false);
   const done = live.fields.filter((f) => live.values[f.id]).length;
-  const sections = [...new Set(live.fields.map((f) => f.section))];
+  const sections = [...new Set(live.fields.map((f) => f.section))].sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
   return (
     <aside className={`text-left ${bare ? "pr-8" : "rounded-2xl border border-[var(--hair)] p-4"}`} aria-label="Modello di visita" data-testid="live-checklist">
       <div className="flex items-center justify-between gap-2">

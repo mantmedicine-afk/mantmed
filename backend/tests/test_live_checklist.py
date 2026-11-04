@@ -1,4 +1,4 @@
-# Live checklist (Visita in corso): checklists, MantAI settings, live chunk, start with checklist (real + demo)
+# Live checklist (Visita in corso): checklist da modelli di visita (checklist_id='template' + template_id), MantAI settings, live chunk, start with checklist (real + demo)
 import json
 import os
 import time
@@ -11,6 +11,20 @@ BASE_URL = os.environ.get("REACT_APP_BACKEND_URL").rstrip("/")
 DOCTOR = ("medico@mantmed.it", "Auscula-Studio-2026")
 CARDIO = ("cardiologo.demo@example.com", "Cardio-Demo-2026")
 CHUNK = "/tmp/chunk.mp3"
+CREATED = []  # consultazioni create dai test: eliminate a fine modulo
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _cleanup_consults():
+    yield
+    if CREATED:
+        from bson import ObjectId
+        from dotenv import dotenv_values
+        from pymongo import MongoClient
+        e = dotenv_values("/app/backend/.env")
+        db = MongoClient(e["MONGO_URL"])[e["DB_NAME"]]
+        db.consultations.delete_many({"_id": {"$in": [ObjectId(i) for i in CREATED]}})
+        db.consult_jobs.delete_many({"consultation_id": {"$in": CREATED}})
 
 
 def login(creds):
@@ -30,20 +44,24 @@ def doc():
     s.put(f"{BASE_URL}/api/mantai-settings", json={"demo": False, "realtime": orig.get("realtime", True)})
 
 
+def tpl(s, pred):
+    return next(t for t in s.get(f"{BASE_URL}/api/visit-templates").json() if pred(t))
+
+
 class TestChecklists:
-    def test_four_models(self, doc):
-        r = doc.get(f"{BASE_URL}/api/checklists")
+    # La checklist ora usa i modelli di visita del medico (campi con id/titolo/gruppo/required)
+    def test_templates_have_checklist_fields(self, doc):
+        r = doc.get(f"{BASE_URL}/api/visit-templates")
         assert r.status_code == 200
-        xs = {c["id"]: c for c in r.json()}
-        assert {k: len(v["fields"]) for k, v in xs.items()} == {"bilancio": 12, "acuta": 12, "controllo": 8, "certificato": 8}
-        for c in xs.values():
-            for f in c["fields"]:
-                assert {"id", "section", "label", "required"} <= set(f)
-        assert xs["bilancio"]["name"] == "Bilancio di salute"
-        assert sum(f["required"] for f in xs["bilancio"]["fields"]) == 8
+        kinds = {t["kind"]: t for t in r.json() if t.get("kind")}
+        assert {"prima", "acuta", "controllo", "certificato"} <= set(kinds)
+        for t in r.json():
+            for f in t["fields"]:
+                assert {"id", "titolo", "gruppo"} <= set(f) and isinstance(f.get("required", False), bool)  # vecchi campi salvati senza required
+        assert sum(f["required"] for f in kinds["acuta"]["fields"]) == 5
 
     def test_requires_auth(self):
-        assert requests.get(f"{BASE_URL}/api/checklists").status_code in (401, 403)
+        assert requests.get(f"{BASE_URL}/api/visit-templates").status_code in (401, 403)
 
 
 class TestSettings:
@@ -88,8 +106,10 @@ class TestLiveChunk:
     @pytest.mark.skipif(not os.path.exists(CHUNK), reason="no TTS chunk")
     def test_real_chunk_then_start(self, doc):
         doc.put(f"{BASE_URL}/api/mantai-settings", json={"demo": False})
-        fields = [f for f in doc.get(f"{BASE_URL}/api/checklists").json() if f["id"] == "bilancio"][0]["fields"]
-        empty = [{"id": f["id"], "label": f["label"], "hint": f["hint"]} for f in fields if f["id"] != "sonno"]
+        t = tpl(doc, lambda t: t.get("bilancio") == "6m")
+        fields = t["fields"]
+        sonno_id = next(f["id"] for f in fields if f["titolo"] == "Sonno")
+        empty = [{"id": f["id"], "label": f["titolo"], "hint": f["hint"]} for f in fields if f["id"] != sonno_id]
         sid = str(uuid.uuid4())
         with open(CHUNK, "rb") as fh:
             r = doc.post(f"{BASE_URL}/api/consultations/live/chunk", files={"audio": ("blocco-0.mp3", fh, "audio/mpeg")},
@@ -98,16 +118,17 @@ class TestLiveChunk:
         d = r.json()
         print("chunk:", d)
         assert d["seq"] == 0 and d["words"] > 3
-        assert all(x["id"] != "sonno" for x in d["detected"])  # only empty fields
+        assert all(x["id"] != sonno_id for x in d["detected"])  # only empty fields
         # incomplete chunk transcript -> 409
         r409 = doc.post(f"{BASE_URL}/api/consultations/start", data={"patient_name": "TEST_Live Checklist", "paper_consent": "true",
-                        "checklist_id": "bilancio", "live_session_id": sid, "live_chunks": 2})
+                        "checklist_id": "template", "template_id": t["id"], "live_session_id": sid, "live_chunks": 2})
         assert r409.status_code == 409
         r = doc.post(f"{BASE_URL}/api/consultations/start", data={
-            "patient_name": "TEST_Live Checklist", "paper_consent": "true", "checklist_id": "bilancio",
-            "checklist_manual": json.dumps({"sonno": "TEST_Dorme 10 ore"}), "live_session_id": sid, "live_chunks": 1}, timeout=60)
+            "patient_name": "TEST_Live Checklist", "paper_consent": "true", "checklist_id": "template", "template_id": t["id"],
+            "checklist_manual": json.dumps({sonno_id: "TEST_Dorme 10 ore"}), "live_session_id": sid, "live_chunks": 1}, timeout=60)
         assert r.status_code == 200, r.text
         c = r.json()
+        CREATED.append(c["id"])
         assert c["status"] == "processing"
         for _ in range(40):
             time.sleep(4)
@@ -117,8 +138,8 @@ class TestLiveChunk:
         assert c["status"] == "ready", c["status"]
         sez = c["note"]["sezioni"]
         titles = [s["titolo"] for s in sez]
-        assert titles == [f["label"] for f in fields]
-        sonno = sez[1]
+        assert titles == [f["titolo"] for f in fields]
+        sonno = sez[titles.index("Sonno")]
         assert sonno["fonte"] == "manuale" and sonno["testo"] == "TEST_Dorme 10 ore"
         assert any(s["fonte"] == "ai" for s in sez)
         for s in sez:
@@ -130,20 +151,26 @@ class TestLiveChunk:
 class TestDemo:
     def test_demo_start_ready(self, doc):
         assert doc.put(f"{BASE_URL}/api/mantai-settings", json={"demo": True}).json()["demo"] is True
+        t = tpl(doc, lambda t: t.get("kind") == "acuta")
+        ids = {f["titolo"]: f["id"] for f in t["fields"]}
         try:
             r = doc.post(f"{BASE_URL}/api/consultations/start", data={
-                "patient_name": "TEST_Demo Checklist", "paper_consent": "true", "checklist_id": "acuta",
-                "checklist_manual": json.dumps({"terapia": "TEST_Ibuprofene"}),
-                "checklist_demo": json.dumps({"motivo": "x", "febbre": "x"})})
+                "patient_name": "TEST_Demo Checklist", "paper_consent": "true", "checklist_id": "template", "template_id": t["id"],
+                "checklist_manual": json.dumps({ids["Terapia"]: "TEST_Ibuprofene"}),
+                "checklist_demo": json.dumps({ids["Febbre"]: "x", ids["Diagnosi"]: "x"})})
             assert r.status_code == 200, r.text
             c = r.json()
+            CREATED.append(c["id"])
             assert c["status"] == "ready"
             sez = c["note"]["sezioni"]
-            assert len(sez) == 12
-            t = [s for s in sez if s["titolo"] == "Terapia"][0]
-            assert t["fonte"] == "manuale" and t["testo"] == "TEST_Ibuprofene"
+            assert c["template_id"] == t["id"]
+            assert [s["titolo"] for s in sez] == [f["titolo"] for f in t["fields"]]
+            assert len(sez) == 17
+            ter = [s for s in sez if s["titolo"] == "Terapia"][0]
+            assert ter["fonte"] == "manuale" and ter["testo"] == "TEST_Ibuprofene"
             assert sum(s["fonte"] == "ai" for s in sez) == 2
-            assert sum(s["mancante"] for s in sez) == 9
+            assert sum(s["mancante"] for s in sez) == 14
+            assert all(s["testo"] == "Non rilevato" for s in sez if s["mancante"])
             print("CREATED_DEMO", c["id"])
         finally:
             assert doc.put(f"{BASE_URL}/api/mantai-settings", json={"demo": False}).json()["demo"] is False

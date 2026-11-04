@@ -77,7 +77,6 @@ export const api = {
     fd.append("empty_fields", JSON.stringify(emptyFields));
     return http.post("/consultations/live/chunk", fd, { timeout: 60000 }).then((r) => r.data);
   },
-  checklists: () => http.get("/checklists").then((r) => r.data),
   mantaiSettings: () => http.get("/mantai-settings").then((r) => r.data),
   saveMantaiSettings: (b) => http.put("/mantai-settings", b).then((r) => r.data),
   uploadAudioPart: (blob, i) => {

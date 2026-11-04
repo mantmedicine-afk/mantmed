@@ -471,3 +471,8 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - live_checklist.py: 4 modelli esempio, /api/checklists, /api/mantai-settings (realtime, demo solo account demo), /api/consultations/live/chunk (Whisper blocco 30s + gpt-5.4-mini sui campi vuoti), live_sessions cifrate con TTL 12h
 - start_consultation: checklist_id/manual, live_session_id+live_chunks (niente ritrascrizione), demo senza AI; job applica apply_checklist (manuale > AI, Non rilevato)
 - Frontend: useRecorder blocchi, useLiveChecklist (coda+retry), LiveChecklist panel/sheet, MissingDialog, NoteEditor icone fonte e campi mancanti ambra; Area personale > Impostazioni MantAI
+
+## 2026-06 Modelli di visita v2 (fix: modifiche non applicate)
+- visit_templates.py: campo required, bilanci con crescita (1-18 mesi) + valutazione/indicazioni/prossimo bilancio, Prima visita pediatrica ampliata, nuovi modelli Malattia acuta/Controllo/Certificato sportivo (kind); upgrade_once (templates_v=2): aggiorna i non modificati, pending_fields per i modificati (Aggiungi/Ignora), elimina Nuovo modello duplicato
+- Checklist della visita usa i modelli del medico (checklist_id='template'); scelta automatica autoTemplate; riga Modello di visita + Cambia in Chi stai visitando
+- Rimossi i 4 modelli fissi e /api/checklists

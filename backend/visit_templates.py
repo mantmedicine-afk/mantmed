@@ -307,6 +307,13 @@ def build_visit_templates(db, tdb, specialty_of, llm_json):
                                                  {"$set": {"templates_v": TEMPLATES_VERSION}})
         if not won:
             return
+        try:
+            await _upgrade(owner)
+        except Exception:
+            logger.exception("Aggiornamento modelli non riuscito: verrà ritentato")
+            await db.users.update_one({"_id": ObjectId(owner)}, {"$unset": {"templates_v": ""}})
+
+    async def _upgrade(owner):
         spec = await specialty_of(owner)
         docs = await tdb.visit_templates.find().to_list(None)
         old_prima = next((d for d in docs if d.get("seed") or (d.get("name") == "Prima visita" and not d.get("bilancio"))), None)
