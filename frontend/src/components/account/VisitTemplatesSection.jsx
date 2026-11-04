@@ -15,7 +15,7 @@ export const VisitTemplatesSection = ({ data }) => {
   const [busy, setBusy] = useState("");
   const pick = (t) => { setCurId(t.id); setDraft({ name: t.name, fields: t.fields.map((f) => ({ ...f })) }); };
   const saved = list?.find((x) => x.id === curId);
-  const sig = (t) => JSON.stringify({ name: t.name, fields: t.fields.map(({ titolo, gruppo, hint }) => ({ titolo, gruppo, hint })) });
+  const sig = (t) => JSON.stringify({ name: t.name, fields: t.fields.map(({ titolo, gruppo, hint, required }) => ({ titolo, gruppo, hint, required: Boolean(required) })) });
   const dirty = Boolean(saved && draft && sig(saved) !== sig(draft));
   const leave = () => !dirty || window.confirm("Ci sono modifiche non salvate a questo modello: vuole scartarle?");
   useEffect(() => { api.visitTemplates().then((xs) => { setList(xs); if (xs[0]) pick(xs[0]); }).catch((e) => toast.error(errMsg(e))); }, []);
@@ -41,9 +41,16 @@ export const VisitTemplatesSection = ({ data }) => {
   });
   const reset = () => run("reset", async () => {
     const key = saved?.bilancio;
-    const b = key ? (await api.visitBilanci()).find((x) => x.key === key) : await api.visitTemplateBase();
+    const b = key ? (await api.visitBilanci()).find((x) => x.key === key) : await api.visitTemplateBase(saved?.kind);
     setDraft((d) => ({ ...d, fields: b.fields }));
     toast.success(`Campi base di ${key ? b.name : b.specialty} caricati: salvi per confermare`);
+  });
+
+  const pend = (action) => run(`pend-${action}`, async () => {
+    const t = await api.visitTemplatePending(curId, action);
+    setList((xs) => xs.map((x) => (x.id === t.id ? t : x)));
+    if (action === "add") setDraft((d) => ({ ...d, fields: [...d.fields, ...saved.pending_fields] }));
+    toast.success(action === "add" ? "Nuovi campi aggiunti in fondo al modello" : "Nuovi campi ignorati");
   });
 
   return (
@@ -72,6 +79,19 @@ export const VisitTemplatesSection = ({ data }) => {
             <button onClick={reset} disabled={!!busy} className="flex h-11 items-center gap-1.5 rounded-full border border-[var(--hair)] px-4 text-sm text-[var(--fg)] hover:border-[var(--accent)]" data-testid="template-reset-btn">{busy === "reset" ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />} Ripristina modello base</button>
             <button onClick={remove} disabled={!!busy || list.length < 2} className="flex h-11 items-center gap-1.5 rounded-full border border-[var(--alert)] px-4 text-sm text-[var(--alert)] hover:border-[var(--alert)] disabled:opacity-40" data-testid="template-delete-btn"><Trash2 size={14} /> Elimina</button>
           </div>
+          {saved?.pending_fields?.length > 0 && (
+            <div className="rounded-2xl border border-[var(--hair)] bg-[var(--sel)] p-4" data-testid="template-pending">
+              <div className="font-semibold text-[var(--fg)]">Sono disponibili nuovi campi per i tuoi modelli</div>
+              <ul className="mt-2 flex flex-wrap gap-1.5" data-testid="template-pending-list">
+                {saved.pending_fields.map((f) => <li key={f.id} className="rounded-full bg-[var(--surface)] px-3 py-1 text-xs text-[var(--fg)]">{f.titolo}{f.required ? " *" : ""}</li>)}
+              </ul>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button onClick={() => pend("add")} disabled={!!busy || dirty} className="h-10 rounded-full bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--ink)] disabled:opacity-50" data-testid="template-pending-add">Aggiungi i nuovi campi</button>
+                <button onClick={() => pend("ignore")} disabled={!!busy} className="h-10 rounded-full border border-[var(--hair)] px-4 text-sm text-[var(--fg)]" data-testid="template-pending-ignore">Ignora</button>
+              </div>
+              {dirty && <p className="mt-2 text-xs text-[var(--fg2)]">Salvi prima le modifiche in corso.</p>}
+            </div>
+          )}
           <TemplateFields fields={draft.fields} onChange={(fields) => setDraft((d) => ({ ...d, fields }))} />
           <button onClick={save} disabled={!!busy || !draft.name.trim() || draft.fields.some((f) => !f.titolo.trim())} className="flex h-11 items-center gap-2 rounded-full bg-[var(--accent)] px-6 text-sm font-semibold text-[var(--ink)] transition-transform hover:-translate-y-0.5 disabled:opacity-50" data-testid="template-save-btn">
             {busy === "save" && <Loader2 size={15} className="animate-spin" />} Salva modello

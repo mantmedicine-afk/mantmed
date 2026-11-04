@@ -84,16 +84,18 @@ def checklist_fields(model_id: str) -> List[dict]:
     return [{"gruppo": GROUP_OF.get(f["section"], "altro"), "titolo": f["label"], "hint": f["hint"]} for f in c["fields"]] if c else []
 
 
-def apply_checklist(sezioni: list, model_id: str, manual: Dict[str, str]) -> list:
-    """Manuale prima dell'IA; i campi vuoti restano 'Non rilevato' (mai inventati). Stesso ordine del modello."""
-    c = BY_ID.get(model_id)
-    if not c:
+SECTION = {"anamnesi": "Anamnesi", "sintomi": "Motivo e sintomi", "parametri_vitali": "Parametri vitali", "esame_obiettivo": "Esame obiettivo", "altro": "Accertamenti e altro"}
+
+
+def apply_checklist(sezioni: list, fields: list, manual: Dict[str, str]) -> list:
+    """Campi del modello del medico: manuale prima dell'IA; vuoti = 'Non rilevato' (mai inventati). Stesso ordine del modello."""
+    if not fields:
         return sezioni
     by_title = {s.get("titolo", "").strip().lower(): s for s in sezioni}
     out = []
-    for f in c["fields"]:
-        s = dict(by_title.get(f["label"].lower()) or {"gruppo": GROUP_OF.get(f["section"], "altro"), "titolo": f["label"], "testo": ""})
-        m = (manual or {}).get(f["id"], "").strip()
+    for f in fields:
+        s = dict(by_title.get(f["titolo"].strip().lower()) or {"gruppo": f.get("gruppo", "altro"), "titolo": f["titolo"], "testo": ""})
+        m = (manual or {}).get(f.get("id", ""), "").strip()
         ai = (s.get("testo") or "").strip()
         if m:
             s.update(testo=m, fonte="manuale", mancante=False)
@@ -101,16 +103,15 @@ def apply_checklist(sezioni: list, model_id: str, manual: Dict[str, str]) -> lis
             s.update(testo=ai, fonte="ai", mancante=False)
         else:
             s.update(testo="Non rilevato", fonte="", mancante=True)
-        s["sezione"] = f["section"]
+        s["sezione"] = SECTION.get(f.get("gruppo"), "")
         out.append(s)
     return out
 
 
-def demo_sezioni(model_id: str, manual: Dict[str, str], ticked: Dict[str, str]) -> list:
-    """Solo i campi spuntati durante la demo ricevono il dato finto; gli altri restano 'Non rilevato'."""
-    c = BY_ID.get(model_id) or CHECKLISTS[0]
-    fake = [{"gruppo": GROUP_OF.get(f["section"], "altro"), "titolo": f["label"], "testo": f["demo"] if f["id"] in ticked else ""} for f in c["fields"]]
-    return apply_checklist(fake, c["id"], manual)
+def demo_sezioni(fields: list, manual: Dict[str, str], ticked: Dict[str, str]) -> list:
+    """Modalità dimostrativa: solo i campi spuntati ricevono il dato finto mostrato in visita."""
+    fake = [{"gruppo": f.get("gruppo", "altro"), "titolo": f["titolo"], "testo": ticked.get(f.get("id", ""), "")} for f in fields]
+    return apply_checklist(fake, fields, manual)
 
 
 DETECT_SYSTEM = (

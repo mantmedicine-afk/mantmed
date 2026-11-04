@@ -131,6 +131,43 @@ BILANCI = [
         (V, "Pressione arteriosa", "mmHg con percentile"), (V, "BMI e curva di crescita", ""), (E, "Stadio puberale (Tanner)", ""),
         (E, "Colonna vertebrale", "Test di Adams"), (E, "Acuità visiva", ""), (E, "Cute", "Acne"), (O, "Educazione alla salute", "Affettività e sessualità, sicurezza online, guida")]),
 ]
+R = True  # campo obbligatorio
+GROWTH = [(V, "Peso", "kg e percentile", R), (V, "Lunghezza", "cm e percentile", R), (V, "Circonferenza cranica", "cm e percentile", R)]
+BILANCIO_END = [(O, "Valutazione complessiva", "Crescita e sviluppo", R), (O, "Indicazioni ai genitori", "", R), (O, "Prossimo bilancio", "")]
+EARLY = {"1m", "3m", "6m", "9m", "12m", "18m"}
+
+
+def bilancio_rows(key, rows):
+    """Bilanci 1-18 mesi: crescita subito dopo l'anamnesi; tutti: valutazione e indicazioni in fondo."""
+    rows = list(rows)
+    if key in EARLY:
+        cut = max((i + 1 for i, r in enumerate(rows) if r[0] == A), default=0)
+        rows = rows[:cut] + GROWTH + rows[cut:]
+    return rows + BILANCIO_END
+
+
+PRIMA_PED_HEAD = [(S, "Motivo della visita", "", R), (A, "Anamnesi familiare", ""), (A, "Anamnesi fisiologica", "Gravidanza, parto, allattamento"),
+                  (A, "Anamnesi patologica remota", "")]
+PRIMA_PED_END = [(O, "Diagnosi/Valutazione", "", R), (O, "Terapia", ""), (O, "Indicazioni ai genitori", "", R)]
+
+EXTRA = {
+    "acuta": ("Malattia acuta", [
+        (S, "Sintomo principale, esordio e durata", "", R), (S, "Febbre", "Massima, durata, antipiretici"), (S, "Altri sintomi", ""),
+        (A, "Alimentazione, idratazione e diuresi", "", R), (A, "Contatti con malati", ""), (A, "Farmaci già assunti", ""),
+        (V, "Temperatura, FC, FR e SpO2", ""), (V, "Peso", "kg"), (E, "Condizioni generali e idratazione", "", R), (E, "Orecchie e faringe", "Otoscopia, faringe"),
+        (E, "Torace e auscultazione", ""), (E, "Addome", ""), (O, "Test rapidi", "Strepto test, PCR, stick urine"), (O, "Diagnosi", "", R),
+        (O, "Terapia", "Dose mg/kg, durata"), (O, "Segni di allarme spiegati ai genitori", "", R), (O, "Ricontrollo", "")]),
+    "controllo": ("Controllo", [
+        (S, "Motivo e riferimento alla visita precedente", "", R), (S, "Evoluzione dei sintomi", "", R), (A, "Aderenza alla terapia ed effetti collaterali", ""),
+        (V, "Parametri utili", ""), (E, "Esame obiettivo mirato", "", R), (O, "Esiti degli esami", ""),
+        (O, "Valutazione", "Guarito / in miglioramento / invariato / peggiorato", R), (O, "Modifica della terapia", ""), (O, "Prossimo controllo", "")]),
+    "certificato": ("Certificato sportivo non agonistico", [
+        (A, "Anamnesi personale e familiare cardiologica", "", R), (V, "Peso e altezza", ""), (V, "Pressione arteriosa", "mmHg", R),
+        (V, "Frequenza cardiaca", "bpm", R), (E, "Auscultazione cardiaca", "", R), (E, "ECG a riposo", ""),
+        (O, "Esito", "Idoneo / non idoneo / da approfondire", R), (O, "Validità", "")]),
+}
+TEMPLATES_VERSION = 2
+
 GENERIC = [(A, "Anamnesi patologica remota", ""), (A, "Farmaci in uso", ""), (A, "Allergie", ""), (V, "Pressione arteriosa", "mmHg"),
            (V, "Frequenza cardiaca", "bpm"), (V, "Peso e BMI", ""), (E, "Esame obiettivo generale", ""), (E, "Esame obiettivo di distretto", ""),
            (E, "Esami strumentali", "")]
@@ -141,6 +178,7 @@ class TField(BaseModel):
     titolo: str
     gruppo: Literal["anamnesi", "sintomi", "parametri_vitali", "esame_obiettivo", "altro"] = "esame_obiettivo"
     hint: str = ""
+    required: bool = False
 
     @field_validator("titolo")
     @classmethod
@@ -170,7 +208,17 @@ class TemplateIn(BaseModel):
 
 
 def _mk(rows):
-    return [TField(titolo=t, gruppo=g, hint=h).model_dump() for g, t, h in rows]
+    return [TField(titolo=r[1], gruppo=r[0], hint=r[2], required=len(r) > 3 and r[3]).model_dump() for r in rows]
+
+
+def prima_rows(rows):
+    """Prima visita pediatrica: motivo e anamnesi all'inizio, peso/altezza nei parametri, valutazione in fondo."""
+    have = {r[1].lower() for r in rows}
+    head = [r for r in PRIMA_PED_HEAD if r[1].lower() not in have]
+    body = list(rows)
+    cut = max((i + 1 for i, r in enumerate(body) if r[0] == V), default=len(body))
+    body = body[:cut] + [(V, "Peso e altezza con percentili", "")] + body[cut:]
+    return head + body + PRIMA_PED_END
 
 
 def library_for(spec: str):
@@ -208,7 +256,7 @@ def build_visit_templates(db, tdb, specialty_of, llm_json):
     async def base_fields(spec: str) -> list:
         rows = library_for(spec)
         if rows:
-            return _mk(rows)
+            return _mk(prima_rows(rows) if re.search(r"pediatr|neonatolog", spec or "", re.I) else rows)
         key = spec.strip().lower()
         cached = await db.visit_template_bases.find_one({"spec": key})
         if cached:
@@ -229,8 +277,60 @@ def build_visit_templates(db, tdb, specialty_of, llm_json):
         return _mk(GENERIC)
 
     def out(d):
+        kind = d.get("kind") or ("prima" if d.get("seed") or (d.get("name") == "Prima visita" and not d.get("bilancio")) else None)
         return {"id": str(d["_id"]), "name": d["name"], "fields": d.get("fields") or [], "updated_at": d.get("updated_at"),
-                "bilancio": d.get("bilancio"), "age_from": d.get("age_from"), "age_to": d.get("age_to")}
+                "bilancio": d.get("bilancio"), "age_from": d.get("age_from"), "age_to": d.get("age_to"), "kind": kind,
+                "pending_fields": d.get("pending_fields") or []}
+
+    def untouched(d) -> bool:
+        return not d.get("modified") and d.get("updated_at") == d.get("created_at")
+
+    def same_fields(a, b) -> bool:
+        k = lambda xs: [(f.get("titolo"), f.get("gruppo"), f.get("hint", "")) for f in xs or []]  # noqa: E731
+        return k(a) == k(b)
+
+    async def base_for(d, spec) -> Optional[list]:
+        if d.get("bilancio"):
+            row = next((x for x in BILANCI if x[0] == d["bilancio"]), None)
+            return _mk(bilancio_rows(row[0], row[4])) if row else None
+        kind = d.get("kind") or ("prima" if d.get("seed") or (d.get("name") == "Prima visita" and not d.get("bilancio")) else None)
+        if kind in EXTRA:
+            return _mk(EXTRA[kind][1])
+        return await base_fields(spec) if kind == "prima" else None
+
+    async def upgrade_once():
+        """Versione 2 dei modelli: aggiorna i non modificati, propone i nuovi campi agli altri, aggiunge i nuovi modelli."""
+        owner = OWNER.get()
+        if not ObjectId.is_valid(owner):
+            return
+        won = await db.users.find_one_and_update({"_id": ObjectId(owner), "$or": [{"templates_v": {"$exists": False}}, {"templates_v": {"$lt": TEMPLATES_VERSION}}]},
+                                                 {"$set": {"templates_v": TEMPLATES_VERSION}})
+        if not won:
+            return
+        spec = await specialty_of(owner)
+        docs = await tdb.visit_templates.find().to_list(None)
+        old_prima = next((d for d in docs if d.get("seed") or (d.get("name") == "Prima visita" and not d.get("bilancio"))), None)
+        old_prima_fields = list(old_prima.get("fields") or []) if old_prima else None
+        for d in docs:
+            base = await base_for(d, spec)
+            if not base:
+                continue
+            if untouched(d):
+                await tdb.visit_templates.update_one({"_id": d["_id"]}, {"$set": {"fields": base}})
+                continue
+            have = {(f.get("titolo") or "").strip().lower() for f in d.get("fields") or []}
+            added = [f for f in base if f["titolo"].lower() not in have]
+            if added:
+                await tdb.visit_templates.update_one({"_id": d["_id"]}, {"$set": {"pending_fields": added}})
+        for d in docs:  # «Nuovo modello» identico alla Prima visita e mai modificato
+            if d is not old_prima and not d.get("bilancio") and not d.get("kind") and d.get("name") == "Nuovo modello" and untouched(d) \
+                    and old_prima_fields is not None and same_fields(d.get("fields"), old_prima_fields):
+                await tdb.visit_templates.delete_one({"_id": d["_id"]})
+        now = datetime.now(timezone.utc)
+        for i, (kind, (name, rows)) in enumerate(EXTRA.items()):
+            if not any(d.get("kind") == kind for d in docs):
+                ts = (now.replace(microsecond=0) + timedelta(seconds=1 + i)).isoformat()
+                await tdb.visit_templates.insert_one({"name": name, "fields": _mk(rows), "kind": kind, "created_at": ts, "updated_at": ts})
 
     async def import_bilanci(keys=None) -> int:
         await db.visit_templates.create_index([("owner_id", 1), ("bilancio", 1)], unique=True, name="owner_bilancio",
@@ -243,7 +343,7 @@ def build_visit_templates(db, tdb, specialty_of, llm_json):
             ts = (now.replace(microsecond=0) + timedelta(seconds=1 + i)).isoformat()
             try:
                 res = await tdb.visit_templates.update_one({"bilancio": key}, {"$setOnInsert": {
-                    "name": name, "fields": _mk(rows), "bilancio": key, "age_from": a, "age_to": b, "created_at": ts, "updated_at": ts}}, upsert=True)
+                    "name": name, "fields": _mk(bilancio_rows(key, rows)), "bilancio": key, "age_from": a, "age_to": b, "created_at": ts, "updated_at": ts}}, upsert=True)
                 n += bool(res.upserted_id)
             except DuplicateKeyError:
                 pass
@@ -269,13 +369,14 @@ def build_visit_templates(db, tdb, specialty_of, llm_json):
             except Exception:
                 logger.info("Modello iniziale già creato da una richiesta concorrente")
         await seed_bilanci_once()
+        await upgrade_once()
         docs = await tdb.visit_templates.find().sort("created_at", 1).to_list(None)
         return sorted(docs, key=lambda d: (bool(d.get("bilancio")), d.get("age_from") or 0))
 
     @r.get("/bilanci")
     async def bilanci_library():
         have = {d["bilancio"] async for d in tdb.visit_templates.find({"bilancio": {"$ne": None}}, {"bilancio": 1})}
-        return [{"key": k, "name": n, "age_from": a, "age_to": b, "fields": _mk(rows), "imported": k in have} for k, n, a, b, rows in BILANCI]
+        return [{"key": k, "name": n, "age_from": a, "age_to": b, "fields": _mk(bilancio_rows(k, rows)), "imported": k in have} for k, n, a, b, rows in BILANCI]
 
     class BilanciIn(BaseModel):
         keys: List[str]
@@ -301,9 +402,23 @@ def build_visit_templates(db, tdb, specialty_of, llm_json):
         return [out(d) for d in await ensure()]
 
     @r.get("/base")
-    async def base():
+    async def base(kind: Optional[str] = None):
         spec = await specialty_of(OWNER.get())
+        if kind in EXTRA:
+            return {"specialty": EXTRA[kind][0], "fields": _mk(EXTRA[kind][1])}
         return {"specialty": spec, "fields": await base_fields(spec)}
+
+    class PendingIn(BaseModel):
+        action: Literal["add", "ignore"]
+
+    @r.post("/{tid}/pending")
+    async def pending(tid: str, body: PendingIn):
+        d = await get_one(tid)
+        upd = {"pending_fields": []}
+        if body.action == "add":
+            upd.update(fields=(d.get("fields") or []) + (d.get("pending_fields") or []), modified=True, updated_at=datetime.now(timezone.utc).isoformat())
+        await tdb.visit_templates.update_one({"_id": ObjectId(tid)}, {"$set": upd})
+        return out(await get_one(tid))
 
     @r.post("")
     async def create(body: TemplateIn):
@@ -316,7 +431,7 @@ def build_visit_templates(db, tdb, specialty_of, llm_json):
     @r.put("/{tid}")
     async def update(tid: str, body: TemplateIn):
         await get_one(tid)
-        upd = {"name": body.name, "updated_at": datetime.now(timezone.utc).isoformat()}
+        upd = {"name": body.name, "updated_at": datetime.now(timezone.utc).isoformat(), "modified": True}
         if body.fields is not None:
             upd["fields"] = [f.model_dump() for f in body.fields]
         await tdb.visit_templates.update_one({"_id": ObjectId(tid)}, {"$set": upd})

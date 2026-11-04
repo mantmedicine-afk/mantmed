@@ -4,8 +4,30 @@ import { api } from "@/lib/api";
 const RETRIES = 3;
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}`);
 
-// Regola per scegliere il modello dal motivo della visita in agenda
-export const pickChecklist = (models, reason = "") => models.find((m) => m.id !== "acuta" && new RegExp(m.match, "i").test(reason)) ?? models.find((m) => m.id === "acuta") ?? models[0];
+const SECTION = { anamnesi: "Anamnesi", sintomi: "Motivo e sintomi", parametri_vitali: "Parametri vitali", esame_obiettivo: "Esame obiettivo", altro: "Accertamenti e altro" };
+export const toChecklist = (t) => ({ id: t.id, name: t.name, fields: (t.fields ?? []).map((f) => ({ id: f.id, section: SECTION[f.gruppo] ?? "Altro", label: f.titolo, required: Boolean(f.required), hint: f.hint })) });
+
+const AGE_RE = /(\d+)\s*°?\s*(mese|mesi|anno|anni)/i;
+// Scelta automatica: bilancio per età (dal motivo o dalla data di nascita), altrimenti per tipo di visita
+export const autoTemplate = (ts, reason = "", ageM = null) => {
+  const bil = ts.filter((t) => t.bilancio);
+  if (/bilancio/i.test(reason) && bil.length) {
+    const m = reason.match(AGE_RE);
+    const months = m ? Number(m[1]) * (/ann/i.test(m[2]) ? 12 : 1) : ageM;
+    if (months != null) {
+      const dist = (t) => (months >= t.age_from && months < t.age_to ? 0 : Math.min(Math.abs(months - t.age_from), Math.abs(months - t.age_to)));
+      return bil.reduce((a, b) => (dist(b) < dist(a) ? b : a));
+    }
+  }
+  const kind = /certificat|sport|idoneit/i.test(reason) ? "certificato" : /ricontroll|controllo|follow/i.test(reason) ? "controllo"
+    : /febbre|tosse|otite|mal di|acut|malatt|vomito|diarrea|dolore|raffreddore|faringite|eruzione/i.test(reason) ? "acuta" : "prima";
+  return ts.find((t) => t.kind === kind) ?? ts.find((t) => !t.bilancio) ?? ts[0];
+};
+
+const DEMO = [[/peso/i, "7,4 kg (50° pc)"], [/lunghezza|altezza/i, "66 cm (50° pc)"], [/cranica/i, "43 cm (75° pc)"], [/vaccin/i, "Esavalente 2ª dose eseguita"],
+  [/sviluppo|tappe/i, "Tappe adeguate per l'età"], [/aliment/i, "Allattamento misto, svezzamento iniziato"], [/sonno/i, "Dorme 10 ore"], [/pressione/i, "100/60 mmHg"],
+  [/frequenza cardiaca/i, "82 bpm"], [/motivo|sintomo/i, "Febbre da 2 giorni"], [/diagnosi|valutazione/i, "Nella norma"], [/indicazioni|terapia/i, "Vitamina D 400 UI/die"]];
+const demoText = (label) => (DEMO.find(([re]) => re.test(label))?.[1] ?? "Nella norma");
 
 /** Stato della checklist + coda dei blocchi audio da 30 s (invio in ordine, riprova in background). */
 export const useLiveChecklist = ({ models, model, demo }) => {
@@ -50,7 +72,7 @@ export const useLiveChecklist = ({ models, model, demo }) => {
     if (!demo || !demoOn) return undefined;
     const t = setInterval(() => {
       const next = fieldsRef.current.find((f) => !valuesRef.current[f.id]);
-      if (next) detected([{ id: next.id, preview: `${next.label}: ${next.demo}` }]);
+      if (next) detected([{ id: next.id, preview: demoText(next.label) }]);
     }, 6000);
     return () => clearInterval(t);
   }, [demo, demoOn]);

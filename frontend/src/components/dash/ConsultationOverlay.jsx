@@ -14,7 +14,7 @@ import { MicCheck } from "./MicCheck";
 import { MantAIButton } from "@/components/mantai/MantAI";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { LiveChecklist } from "./LiveChecklist";
-import { useLiveChecklist, pickChecklist } from "./useLiveChecklist";
+import { useLiveChecklist, toChecklist, autoTemplate } from "./useLiveChecklist";
 
 export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, onDone, onAppointmentDone, patients = [], onPatientsChange, onEditPatient }) => {
   const [paper, setPaper] = useState(false);
@@ -34,11 +34,10 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
   const [tplId, setTplId] = useState("");
   const { track } = useProcessing();
   const rec = useRecorder();
-  const [models, setModels] = useState([]);
-  const [model, setModel] = useState("");
   const [cfg, setCfg] = useState({ realtime: true, demo: false });
   const [confirm, setConfirm] = useState(null);
-  const live = useLiveChecklist({ models, model, demo: cfg.demo });
+  const models = templates.map(toChecklist);
+  const live = useLiveChecklist({ models, model: tplId, demo: cfg.demo });
 
   useEffect(() => {
     if (!open) return;
@@ -53,23 +52,24 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
     setConfirm(null);
     live.reset();
     if (!initial) {
-      api.checklists().then((xs) => { setModels(xs); setModel(pickChecklist(xs, `${patient?.visit_type ?? ""} ${patient?.reason ?? ""}`)?.id ?? ""); }).catch(() => setModels([]));
       api.mantaiSettings().then(setCfg).catch(() => {});
     }
     if (!initial) api.visitTemplates().then((xs) => { setTemplates(xs); setTplId((cur) => (xs.some((t) => t.id === cur) ? cur : xs[0]?.id ?? "")); }).catch(() => setTemplates([]));
   }, [open, patient, initial]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (models.length) setModel(pickChecklist(models, `${sel?.visit_type ?? ""} ${sel?.reason ?? ""}`)?.id ?? ""); }, [sel?.id, sel?.name, models.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Bilancio di salute consigliato per l'età del paziente; preselezionato se il motivo della visita è un bilancio
   const linkedPatient = patients.find((p) => p.id === sel?.patient_id);
   const ageM = ageMonths(linkedPatient?.birth_date);
   const suggested = ageM === null ? null : templates.find((t) => t.bilancio && ageM >= t.age_from && ageM < t.age_to);
-  const autoPicked = useRef(false);
+  // Modello scelto in automatico dal motivo in agenda (bilancio per età), finché il medico non lo cambia
+  const userPicked = useRef(false);
+  useEffect(() => { if (open) userPicked.current = false; }, [open]);
   useEffect(() => {
-    if (suggested && /bilancio/i.test(`${sel?.reason ?? ""} ${sel?.visit_type ?? ""}`)) { setTplId(suggested.id); autoPicked.current = true; }
-    else if (autoPicked.current) { setTplId(templates.find((t) => !t.bilancio)?.id ?? templates[0]?.id ?? ""); autoPicked.current = false; }
-  }, [suggested?.id, sel?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  const pickTpl = (id) => { autoPicked.current = false; setTplId(id); };
+    if (!templates.length || userPicked.current) return;
+    const t = autoTemplate(templates, `${sel?.visit_type ?? ""} ${sel?.reason ?? ""}`, ageM);
+    if (t) setTplId(t.id);
+  }, [templates.length, sel?.id, sel?.name, ageM]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pickTpl = (id) => { userPicked.current = true; setTplId(id); };
 
   const name = sel?.name || freeName.trim();
   useEffect(() => { setHint(""); }, [name, paper, manual]);
@@ -95,7 +95,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
       const c = await api.startConsultation({
         patient_name: name, patient_id: sel?.patient_id ?? "", clinic: sel?.clinic ?? "", waiting_id: sel?.id ?? "",
         duration_sec: duration, paper_consent: paper, transcript: transcript ?? "", part_ids: partIds.join(","), template_id: tplId,
-        ...(opts.checklist ? { checklist_id: model, checklist_manual: JSON.stringify(live.manualValues()), ...(opts.demo ? { checklist_demo: JSON.stringify(live.aiValues()) } : {}) } : {}),
+        ...(opts.checklist ? { checklist_id: "template", checklist_manual: JSON.stringify(live.manualValues()), ...(opts.demo ? { checklist_demo: JSON.stringify(live.aiValues()) } : {}) } : {}),
         ...(opts.liveChunks ? { live_session_id: live.session.current, live_chunks: opts.liveChunks } : {}),
       }, null);
       lastBlob.current = null;
@@ -178,11 +178,11 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
         </div>
         <div className="flex flex-1 flex-col justify-center py-8">
           {stage === "setup" && (
-            <Setup {...{ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, hint, sending: sending || starting, starting }} picker={<TemplatePicker templates={templates} value={tplId} onChange={pickTpl} suggested={suggested} ageM={ageM} />} gate={<ConsentGate patient={patients.find((p) => p.id === sel?.patient_id)} free={!sel?.patient_id && Boolean(freeName.trim())} paper={paper} setPaper={setPaper} onSaved={onPatientsChange} />} />
+            <Setup {...{ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, hint, sending: sending || starting, starting }} picker={<ModelRow tpl={templates.find((t) => t.id === tplId)}><TemplatePicker templates={templates} value={tplId} onChange={pickTpl} suggested={suggested} ageM={ageM} /></ModelRow>} gate={<ConsentGate patient={patients.find((p) => p.id === sel?.patient_id)} free={!sel?.patient_id && Boolean(freeName.trim())} paper={paper} setPaper={setPaper} onSaved={onPatientsChange} />} />
           )}
           {(stage === "recording") && (
-            <RecordingLayout panel={<LiveChecklist models={models} model={model} onModel={setModel} live={live} realtime={cfg.realtime || cfg.demo} />}
-              sheetPanel={<LiveChecklist models={models} model={model} onModel={setModel} live={live} realtime={cfg.realtime || cfg.demo} collapsible={false} bare />}
+            <RecordingLayout panel={<LiveChecklist models={models} model={tplId} onModel={pickTpl} live={live} realtime={cfg.realtime || cfg.demo} />}
+              sheetPanel={<LiveChecklist models={models} model={tplId} onModel={pickTpl} live={live} realtime={cfg.realtime || cfg.demo} collapsible={false} bare />}
               counter={`${live.fields.filter((f) => live.values[f.id]).length}/${live.fields.length}`} demo={cfg.demo}>
               <Recording name={name} rec={rec} sending={sending} sendStep={sendStep} onStop={onStop} />
             </RecordingLayout>
@@ -213,6 +213,20 @@ const ageMonths = (bd) => {
   return m >= 0 ? m + (n.getDate() >= b.getDate() ? (n.getDate() - b.getDate()) / 30 : 0) : null;
 };
 const ageLabel = (m) => (m < 24 ? `${Math.floor(m)} mesi` : `${Math.floor(m / 12)} anni`);
+
+const ModelRow = ({ tpl, children }) => {
+  const [open, setOpen] = useState(false);
+  if (!tpl) return null;
+  return (
+    <div className="space-y-3" data-testid="consult-model-row">
+      <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--hair)] px-5 py-3">
+        <span className="min-w-0"><span className="block text-[11px] uppercase tracking-[0.18em] text-[var(--fg2)]">Modello di visita</span><span className="block truncate font-medium" data-testid="consult-model-name">{tpl.name}</span></span>
+        <button onClick={() => setOpen((o) => !o)} aria-expanded={open} className="shrink-0 rounded-full border border-[var(--hair)] px-3 py-1.5 text-sm font-medium" data-testid="consult-model-change">{open ? "Chiudi" : "Cambia"}</button>
+      </div>
+      {open && <div onClick={(e) => e.target.closest("button[data-testid^='consult-template-']") && setOpen(false)}>{children}</div>}
+    </div>
+  );
+};
 
 const TplPill = ({ t, value, onChange, hint }) => (
   <button type="button" onClick={() => onChange(t.id)} className={`rounded-full px-4 py-2 text-sm transition-colors ${t.id === value ? "bg-[var(--accent)] font-semibold text-[var(--fg)]" : hint ? "border border-[var(--accent)] text-[var(--ink)] hover:border-[var(--ink)]" : "border border-[var(--hair)] text-[var(--fg2)] hover:border-[var(--hair)]"}`} data-testid={`consult-template-${t.id}`}>
@@ -259,7 +273,7 @@ const Setup = ({ waiting, sel, setSel, freeName, setFreeName, manual, setManual,
       )}
       <input value={freeName} onChange={(e) => { setFreeName(e.target.value); setSel(null); }} placeholder="Oppure scrivi nome e cognome del paziente" className="w-full rounded-2xl border border-[var(--hair)] bg-transparent px-5 py-4 text-[var(--ink)] placeholder:text-[var(--fg2)] outline-none focus:border-[var(--hair)]" data-testid="consult-free-name-input" />
       {gate}
-      {manual && picker}
+      {picker}
       <button onClick={() => setManual(!manual)} className="flex items-center gap-2 text-sm text-[var(--fg2)] hover:text-[var(--ink)]" data-testid="consult-manual-toggle"><Keyboard size={15} /> {manual ? "Torna alla registrazione vocale" : "Senza microfono? Incolla una trascrizione"}</button>
       {manual && <textarea value={text} onChange={(e) => setText(e.target.value)} rows={5} placeholder="Medico: Buongiorno, cosa la porta qui oggi? Paziente: …" className="w-full rounded-2xl border border-[var(--hair)] bg-[var(--sel)] px-5 py-4 text-[var(--ink)] placeholder:text-[var(--fg2)] outline-none focus:border-[var(--hair)]" data-testid="consult-manual-textarea" />}
       {!manual && <MicCheck />}

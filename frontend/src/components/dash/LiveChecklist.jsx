@@ -52,11 +52,9 @@ export const LiveChecklist = ({ models, model, onModel, live, realtime, collapsi
         {collapsible && <button onClick={() => setCollapsed((c) => !c)} className="grid h-7 w-7 place-items-center rounded-full text-[var(--fg2)] hover:bg-[var(--sel)]" aria-label={collapsed ? "Espandi il modello" : "Comprimi il modello"} aria-expanded={!collapsed} data-testid="live-collapse-btn">{collapsed ? <ChevronDown size={15} /> : <ChevronUp size={15} />}</button>}
       </div>
       {!collapsed && (
-        <div className="mt-2.5 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Scegli il modello" data-testid="live-model-picker">
-          {models.map((m) => (
-            <button key={m.id} role="radio" aria-checked={m.id === model} onClick={() => onModel(m.id)} className={`rounded-full px-2.5 py-1 text-xs transition-colors ${m.id === model ? "bg-[var(--sel)] font-semibold text-[var(--ink)]" : "text-[var(--fg2)] hover:text-[var(--ink)]"}`} data-testid={`live-model-${m.id}`}>{m.name}</button>
-          ))}
-        </div>
+        <select value={model} onChange={(e) => onModel(e.target.value)} aria-label="Scegli il modello" className="mt-2.5 w-full rounded-lg border border-[var(--hair)] px-2.5 py-1.5 text-xs outline-none" data-testid="live-model-picker">
+          {models.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+        </select>
       )}
       <div className="mt-3"><Counter done={done} total={live.fields.length} /></div>
       {!collapsed && <>

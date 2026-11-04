@@ -41,7 +41,7 @@ import unicodedata
 from tenancy import OWNER
 from emergentintegrations.llm.openai import OpenAISpeechToText
 from emergentintegrations.llm.chat import LlmChat, UserMessage
-from live_checklist import build_live, checklist_fields, apply_checklist, demo_sezioni, BY_ID as CHECKLIST_BY_ID
+from live_checklist import build_live, apply_checklist, demo_sezioni
 from auth import build_auth, seed_doctor, seed_admin, require_role, TOUR_VERSION
 from cleanup import build_cleanup
 from visit_templates import build_visit_templates, fields_prompt, map_fields, parse_json
@@ -961,7 +961,7 @@ async def run_consult_job(cid: str, owner: str):
                                            _safe_summary(spec, transcript, f"sum-{cid}"))
         ai.riepilogo = summary
         if ck.get("checklist_id"):
-            ai.sezioni = [NoteSection(**x) for x in apply_checklist([x.model_dump() for x in ai.sezioni], ck["checklist_id"], ck.get("checklist_manual") or {})]
+            ai.sezioni = [NoteSection(**x) for x in apply_checklist([x.model_dump() for x in ai.sezioni], cur.get("template_fields") or [], ck.get("checklist_manual") or {})]
         p = prov.make(prov.note_tipo(cur.get("template_name", ""), cur.get("template_fields"), bool(pv)), prov.GPT)
         p["parti"] = {**({"trascrizione": prov.make("trascrizione", prov.WHISPER)} if files else {}),
                       **({"riassunto_famiglia": prov.make("riassunto_famiglia", prov.GPT)} if summary else {})}
@@ -1048,14 +1048,14 @@ async def start_consultation(
         manual = {str(k): str(v)[:2000] for k, v in (json.loads(checklist_manual) if checklist_manual else {}).items() if str(v).strip()}
     except (ValueError, AttributeError):
         manual = {}
-    checklist_id = checklist_id if checklist_id in CHECKLIST_BY_ID else ""
+    checklist_id = "template" if checklist_id else ""
     live_cfg = await live_settings(user)
     if checklist_id and live_cfg["demo"]:
         try:
             ticked = {str(k): str(v)[:200] for k, v in (json.loads(checklist_demo) if checklist_demo else {}).items()}
         except (ValueError, AttributeError):
             ticked = {}
-        return await _demo_consultation(user, patient_name.strip(), patient_id, clinic, waiting_id, duration_sec, paper_consent, checklist_id, manual, ticked)
+        return await _demo_consultation(user, patient_name.strip(), patient_id, clinic, waiting_id, duration_sec, paper_consent, await resolve_template(template_id or None), manual, ticked)
     if live_session_id and live_chunks and not data and not part_ids.strip():
         acc = await live_transcript(live_session_id, user["id"], live_chunks)
         if acc is None:
@@ -1075,8 +1075,6 @@ async def start_consultation(
     if len(data) > 25 * 1024 * 1024:
         raise HTTPException(413, "Audio oltre 25 MB: per visite molto lunghe divida la registrazione")
     tpl = await resolve_template(template_id or None)
-    if checklist_id:
-        tpl = {**tpl, "id": None, "name": CHECKLIST_BY_ID[checklist_id]["name"], "fields": checklist_fields(checklist_id), "bilancio": checklist_id == "bilancio"}
     note = ClinicalNote(specialita=await doctor_specialty(user["id"]), sezioni=[NoteSection(gruppo=f["gruppo"], titolo=f["titolo"]) for f in tpl["fields"]])
     enrich_growth(note, patient, date.today())
     oid_new = ObjectId()
@@ -1115,15 +1113,14 @@ CHECKLIST_RULE = ("\n\nNota per campi_modello (checklist della visita): scrivi i
                   "Se l'informazione non è stata detta scrivi 'Non riportato'.")
 
 
-async def _demo_consultation(user, name, patient_id, clinic, waiting_id, duration_sec, paper_consent, checklist_id, manual, ticked):
+async def _demo_consultation(user, name, patient_id, clinic, waiting_id, duration_sec, paper_consent, tpl, manual, ticked):
     """Modalità dimostrativa (solo account demo): nota finta già pronta, nessuna chiamata IA."""
-    ck = CHECKLIST_BY_ID[checklist_id]
-    note = ClinicalNote(specialita=await doctor_specialty(user["id"]), sezioni=[NoteSection(**x) for x in demo_sezioni(checklist_id, manual, ticked)],
-                        motivo_visita=ck["name"], riepilogo="Visita dimostrativa: dati di esempio, nessun dato reale.")
+    note = ClinicalNote(specialita=await doctor_specialty(user["id"]), sezioni=[NoteSection(**x) for x in demo_sezioni(tpl["fields"], manual, ticked)],
+                        motivo_visita=tpl["name"], riepilogo="Visita dimostrativa: dati di esempio, nessun dato reale.")
     enrich_growth(note, await get_patient(patient_id), date.today())
     c = Consultation(patient_name=name, patient_id=patient_id, clinic=clinic, waiting_id=waiting_id, transcript="Trascrizione dimostrativa.",
                      note=note, status="ready", duration_sec=duration_sec, paper_consent=paper_consent, doctor_id=user["id"],
-                     template_name=f'{ck["name"]} (demo)', template_fields=checklist_fields(checklist_id), checklist_id=checklist_id, checklist_manual=manual or None)
+                     template_id=tpl["id"], template_name=f'{tpl["name"]} (demo)', template_fields=tpl["fields"], checklist_id="template", checklist_manual=manual or None)
     res = await tdb.consultations.insert_one({**c.to_mongo(), "rev": 0})
     c.id = str(res.inserted_id)
     return c.out()

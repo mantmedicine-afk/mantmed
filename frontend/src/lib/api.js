@@ -87,7 +87,8 @@ export const api = {
     return http.post("/consultations/audio-parts", fd).then((r) => r.data.part_id);
   },
   visitTemplates: () => http.get("/visit-templates").then(list),
-  visitTemplateBase: () => http.get("/visit-templates/base").then((r) => r.data),
+  visitTemplateBase: (kind) => http.get("/visit-templates/base", { params: kind ? { kind } : {} }).then((r) => r.data),
+  visitTemplatePending: (id, action) => http.post(`/visit-templates/${id}/pending`, { action }).then((r) => r.data),
   createVisitTemplate: (b) => http.post("/visit-templates", b).then((r) => r.data),
   saveVisitTemplate: (id, b) => http.put(`/visit-templates/${id}`, b).then((r) => r.data),
   deleteVisitTemplate: (id) => http.delete(`/visit-templates/${id}`).then((r) => r.data),
