@@ -19,10 +19,17 @@ export const demoVaccines = (patients, now = new Date()) => {
   return list.map((p, i) => ({ id: `vac-${i}`, name: p.name, patient_id: p.id, vaccine: vaccineFor(p.m), date: plusDays(now, Math.round((left * i) / Math.max(list.length - 1, 1))) }));
 };
 
-export const demoBilanci = (patients, now = new Date()) => people(patients, now)
-  .map((p) => ({ p, next: MILESTONES.find(([m]) => m > p.m) }))
-  .filter((x) => x.next).slice(0, 5)
-  .map(({ p, next }, i) => ({ id: `bil-${i}`, name: p.name, patient_id: p.id, age: next[1], date: plusDays(now, 2 + i * 3) }));
+const addMonths = (b, m) => { const d = new Date(`${b}T12:00:00`); d.setMonth(d.getMonth() + m); return d; };
+
+// Prossimo bilancio di ogni paziente alla sua data reale: entro 14 giorni, altrimenti i 3 più vicini
+export const demoBilanci = (patients, now = new Date()) => {
+  const list = patients.filter((p) => p.birth_date).map((p) => {
+    const next = MILESTONES.find(([m]) => addMonths(p.birth_date, m) >= now);
+    return next && { name: p.name, patient_id: p.id, age: next[1], when: addMonths(p.birth_date, next[0]) };
+  }).filter(Boolean).sort((x, y) => x.when - y.when);
+  const soon = list.filter((b) => b.when - now <= 14 * 86400000);
+  return (soon.length >= 3 ? soon.slice(0, 5) : list.slice(0, 3)).map((b, i) => ({ ...b, id: `bil-${i}`, date: iso(b.when) }));
+};
 
 export const shortDate = (s) => new Date(`${s}T12:00:00`).toLocaleDateString("it-IT", { day: "numeric", month: "short" });
 

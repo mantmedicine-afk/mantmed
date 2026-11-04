@@ -448,3 +448,8 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Riepilogo a 3 riquadri (visite/note/messaggi), agenda a tutta larghezza con linea Ora per studio, dettaglio visita in pannello laterale
 - Overlay visita: card 'Paziente selezionato' con Cambia
 - Backlog: anteprime video tour aggiornate
+
+## 2026-06 Home a due colonne
+- Pulsante 240/180px 'Avvia MantAI' con logo bianco (public/mantmed-logo-white.png), logo anche nella barra in alto; rinominato ovunque
+- Colonna destra sticky: riepilogo compatto, Vaccinazioni in scadenza (MOCK homeDemo.js, Vedi tutte in pannello), Bilanci di salute da programmare (date reali da data di nascita, Prenota apre AppointmentDialog con data), Pillola del giorno (30 consigli a rotazione)
+- Linea Ora unica; legenda 'Allergie' con puntino rosso; AppointmentDialog ora ha il campo Data

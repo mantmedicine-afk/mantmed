@@ -1,0 +1,30 @@
+{
+  "summary": "Frontend-only test of the redesigned doctor Home (/app) at 1920, 768 and 390, in light and dark theme, with the browser clock fixed at 07:00, 08:30, 10:00, 13:30 and 22:00 (Nov 4 2026, UTC) and at real time. Everything requested works. Start button: 240px at 1920 and 768, 180px at 390, round (border-radius 9999px), dark background, pulsing ring, hover scale 1.04. The logo inside it is /mantmed-logo-white.png at 96x73.8 (40% of the button, ratio 1.30 same as the 480x369 source), transparent, no border. Label reads 'Avvia MantAI'. Clicking opens the consultation overlay and consultation-close-btn closes it. 'Inizia visita' is gone: not in the DOM or source; passport-start-visit-btn and tour steps.js read 'Avvia MantAI'. nav-logo shows next to 'MantMed' at 1920 and 768 (inside the drawer on mobile). Two columns: agenda 710px and side 474px at 1920 (60/40); 422px and 282px at 768. Side order is summary, vaccines, bilanci, pill. Single column at 390 with no horizontal overflow. Vaccines card shows 4 rows; 'Vedi tutte' opens oggi-vaccines-sheet with 8 patients. Bilanci shows 5 rows with Prenota. Prenota on bil-0 opens appointment-dialog prefilled with Alice Conti, 'Bilancio di salute · 18 mesi', 2026-11-06 at 09:00. Saving sent POST 200 and showed the toast 'Appuntamento aggiunto'; the test appointment was then deleted (DELETE 200, verified gone). Pillola del giorno shows text and 'Fonte: …'. oggi-side is position:sticky and stays in view while the agenda scrolls; it scrolls internally because it is about 1120px tall against a 936px max-height. Now line: exactly one per time tested. 07:00 is before the first row, 10:00 is before 10:15, 13:30 is before Provincia 15:00, 22:00 is after the last row (17:15), and 08:30 is after the 08:30 row. With the Provincia filter it moves correctly. Legend reads Fatto / In programma / red dot Allergie. Summary tiles work: visits scrolls to the agenda, sign opens the note editor, messages goes to /app/messaggi. Dark mode is readable.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Home side cards at 768 and 390", "issues": ["The 'Vedi tutte' link (oggi-vaccines-all) wraps onto two lines ('Vedi / tutte') and the title 'Vaccinazioni in scadenza' also wraps. Add whitespace-nowrap/shrink-0 to the action button."]},
+      {"screen": "Home side column at 1920x1080", "issues": ["The side column (about 1120px) is taller than its sticky max-height (100vh-9rem, about 936px). The Pillola del giorno card is only reachable by scrolling inside the column, which is easy to miss. Optional: tighten the card paddings or show only 3 vaccine rows."]},
+      {"screen": "Bilanci da programmare (mock data)", "issues": ["Demo dates don't match patient ages: Alice Conti is 12 months but shows 'Bilancio 18 mesi · dal 6 nov', and Aurora Ricci is 4 years 2 months but shows 'Bilancio 5-6 anni · dal 9 nov'. The milestone comes from the real age, but the date is just today+2+3i, not when the patient reaches that age. A doctor will notice this. Either pick only patients whose next milestone falls within 14 days, or label the item 'in ritardo/da programmare'.", "The card title is 'Bilanci da programmare'; the requirement says 'Bilanci di salute da programmare'."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Stop 'Vedi tutte' from wrapping in the Vaccinazioni card on tablet and mobile (SideCards.jsx, add whitespace-nowrap shrink-0)",
+    "Optional: make the demo bilanci consistent with age (homeDemo.js demoBilanci) and rename the title to 'Bilanci di salute da programmare' if the exact wording is wanted"
+  ],
+  "critical_code_review_comments": [
+    "homeDemo.demoBilanci: the date is plusDays(now, 2+i*3) regardless of birth_date, so the age and milestone shown can be medically inconsistent",
+    "AgendaList rows still show 'Allergia: …' chips. The legend change is done as requested; the row chips are kept, which seems intended.",
+    "AppointmentDialog uses native input type=date and type=time instead of the shadcn calendar (this predates the change)",
+    "The external Emergent scripts (assets.emergent.sh / posthog recorder) throw 'Maximum call stack size exceeded' and hang Playwright page loads in the preview. Tests had to block these routes. This is not app code."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100% of requested features (3 minor design notes)"},
+  "seed_data_creation": "None. One test appointment was created through Prenota (Alice Conti, 2026-11-06) and deleted by its id.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login at /app (the /login route redirects to the landing page). IMPORTANT: block the routes **/ap.emergent.sh/** and **/assets.emergent.sh/** before page.goto, otherwise the posthog recorder recursion hangs page loads and screenshots (especially with page.clock.set_fixed_time). Use page.clock.set_fixed_time('2026-11-04T10:00:00') before goto (UTC browser). Seed has 10 appointments with date null (Centro 08:30-12:00, Provincia 15:00-17:15). Delete appointments with page.request.delete('/api/appointments/{id}') (cookie auth)."
+}

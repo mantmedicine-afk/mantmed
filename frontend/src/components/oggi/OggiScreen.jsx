@@ -65,7 +65,7 @@ export const OggiScreen = ({ appointments, patients, notes, unread, requests, on
         <motion.div {...rise(2)} className="min-w-0">
           <AgendaList groups={groups} patients={patients} now={now} onSelect={setSelected} />
         </motion.div>
-        <aside className="space-y-5 md:sticky md:top-32 md:max-h-[calc(100vh-9rem)] md:overflow-y-auto md:pb-2 md:[scrollbar-width:thin]" data-testid="oggi-side">
+        <aside className="space-y-4 md:sticky md:top-32 md:max-h-[calc(100vh-9rem)] md:overflow-y-auto md:pb-2 md:[scrollbar-width:thin]" data-testid="oggi-side">
           <Summary visits={shown.length} done={shown.filter(isDone).length} toSign={toSign.length} unread={unread} requests={requests}
             onVisits={() => document.getElementById("oggi-agenda")?.scrollIntoView({ behavior: "smooth", block: "start" })}
             onSign={() => (toSign[0] ? onSign(toSign[0]) : nav("/app/visite"))}
