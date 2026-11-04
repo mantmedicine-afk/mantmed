@@ -8,7 +8,7 @@ import { ConsultationOverlay } from "@/components/dash/ConsultationOverlay";
 import { PassportSection } from "@/components/dash/PassportSection";
 import { Passport } from "@/components/dash/Passport";
 import { PatientDialog } from "@/components/dash/PatientDialog";
-import { CashRegister } from "@/components/dash/CashRegister";
+import { CashSection } from "@/components/cash/CashSection";
 import { PortalRequests } from "@/components/dash/PortalRequests";
 import { CompliancePanel } from "@/components/dash/CompliancePanel";
 import { FeedbackDialog } from "@/components/dash/FeedbackDialog";
@@ -114,9 +114,10 @@ export default function Dashboard() {
       { id: "conversazioni", label: "Conversazioni", desc: "Messaggi con le famiglie", icon: MessagesSquare, to: "/app/messaggi#doctor-conversations" },
       { id: "richieste", label: "Richieste dal portale", desc: requests > 0 ? `${requests} da gestire` : "Nessuna in attesa", icon: Inbox, to: "/app/messaggi#today-requests" }] }] },
     { id: "cassa", to: "/app/cassa", label: "Cassa", icon: ReceiptText, menu: [{ links: [
-      { id: "giornaliero", label: "Riepilogo giornaliero", desc: "Incassi del giorno e stampa", icon: CalendarDays, to: "/app/cassa#cash-daily" },
-      { id: "mensile", label: "Export mensile", desc: "PDF per il commercialista", icon: CalendarRange, to: "/app/cassa#cash-monthly" },
-      { id: "movimenti", label: "Movimenti", desc: "Ricevute e pagamenti", icon: Rows3, to: "/app/cassa#cash-movements" }] }] },
+      { id: "home", label: "Home della cassa", desc: "Incassi per studio e fatture recenti", icon: CalendarDays, to: "/app/cassa#cassa-home" },
+      { id: "sts", label: "Sistema TS", desc: "Spese da comunicare e scadenza", icon: Rows3, to: "/app/cassa#cassa-sts" },
+      { id: "commercialista", label: "Per il commercialista", desc: "Riepilogo, PDF e invio", icon: CalendarRange, to: "/app/cassa#cassa-commercialista" },
+      { id: "impostazioni", label: "Impostazioni fiscali", desc: "Regime, dati, tariffario", icon: ReceiptText, to: "/app/cassa#cassa-impostazioni" }] }] },
     { id: "area-personale", to: "/app/area-personale", label: "Area personale", short: "Area", icon: UserCog, mega: true, menu: areaMenu() },
   ];
   if (sezione === "impostazioni" || sezione === "strumenti") return <Navigate to={`/app/area-personale${window.location.search}`} replace />;
@@ -167,7 +168,7 @@ export default function Dashboard() {
       </>}
       {sezione === "messaggi" && <div className="space-y-5 pt-4" id="doctor-conversations">{<div className="mx-auto max-w-[1280px] scroll-mt-24 px-5 lg:px-8" id="today-requests"><Fold title={`Richieste dal portale · ${requests}`} testId="today-requests-fold" defaultOpen={requests > 0}><PortalRequests onChange={load} /></Fold></div>}<DoctorMessages onRead={loadUnread} /></div>}
       {sezione === "visite" && <><PageTitle kicker="Diario clinico" title="Visite" it="e Bodychart" /><VisitsList notes={notes} onOpen={openVisit} /></>}
-      {sezione === "cassa" && <><PageTitle kicker="Amministrazione" title="Cassa" it="ricevute e incassi" /><CashRegister refreshKey={cashKey} /></>}
+      {sezione === "cassa" && <><PageTitle kicker="Amministrazione" title="Cassa" it="fatture e incassi" /><CashSection refreshKey={cashKey} onChange={load} /></>}
       {sezione === "area-personale" && <Account role="doctor" embedded tools={{ onCompliance: () => setCompliance(true), onFeedback: () => setFeedback(true), stats: <div className="space-y-5"><Hero total={appointments.length} waiting={waiting.length} name={shortName} income={income} /><BetaMetrics refreshKey={cashKey} onFeedback={() => setFeedback(true)} /></div> }} />}
       {modals}
     </div>

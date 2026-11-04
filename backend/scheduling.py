@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
+from typing import Literal
 from auth import require_role
 from crypto import unseal_fields
 from mailer import send_email
@@ -72,6 +73,7 @@ class ServiceIn(BaseModel):
     name: str = Field(min_length=2, max_length=60)
     duration: int = Field(ge=5, le=240)
     price: float = Field(default=0, ge=0, le=5000)
+    vat: Literal["esente", "iva22"] = "esente"
 
 
 class ClinicIn(BaseModel):
@@ -91,7 +93,7 @@ class ScheduleIn(BaseModel):
         names = [s.name.strip() for s in v]
         if len(set(n.lower() for n in names)) != len(names):
             raise ValueError("Ogni prestazione deve avere un nome diverso")
-        return [ServiceIn(name=s.name.strip(), duration=s.duration, price=round(s.price, 2)) for s in v]
+        return [ServiceIn(name=s.name.strip(), duration=s.duration, price=round(s.price, 2), vat=s.vat) for s in v]
 
     @field_validator("clinics")
     @classmethod
@@ -192,7 +194,7 @@ def build_scheduling(db, tdb, current_user):
         await db.users.update_one({"_id": u["_id"]}, {"$set": {"schedule": {"hours": {k: v.model_dump() for k, v in body.hours.items()},
                                                                               "services": [s.model_dump() for s in body.services]},
                                                                  "clinics": [c.model_dump() for c in body.clinics],
-                                                                 "billing": {**body.billing.model_dump(), "tax_code": body.billing.tax_code.strip().upper()}}})
+                                                                 "billing": {**(u.get("billing") or {}), **body.billing.model_dump(), "tax_code": body.billing.tax_code.strip().upper()}}})
         return schedule_of(await db.users.find_one({"_id": u["_id"]}))
 
     @portal.get("/slots")

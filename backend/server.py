@@ -20,6 +20,7 @@ from registration import build_registration
 from portal_flow import build_portal_flow
 from scheduling import build_scheduling
 from billing import build_billing
+from invoicing import build_invoicing
 from network import build_network
 from team import build_team
 from ai_replies import build_ai_replies
@@ -1594,7 +1595,7 @@ async def growth_curves(sex: Literal["F", "M"], indicator: Literal["wfa", "lhfa"
 
 # ---------- Registro cassa ----------
 ROME = ZoneInfo("Europe/Rome")
-METHODS = {"contanti": "Contanti", "pos": "POS", "bonifico": "Bonifico", "online": "Pagamento Digitale / Online"}
+METHODS = {"contanti": "Contanti", "carta": "Carta / Bancomat", "bonifico": "Bonifico", "pos": "POS", "online": "Pagamento Digitale / Online"}
 
 
 def today_rome() -> str:
@@ -1608,7 +1609,7 @@ class Payment(BaseDocument):
     clinic: str = ""
     service: str = "Visita pediatrica specialistica"
     amount: float
-    method: Literal["contanti", "pos", "bonifico", "online"]
+    method: Literal["contanti", "carta", "pos", "bonifico", "online"]
     date: str = Field(default_factory=today_rome)
     created_at: str = Field(default_factory=now_iso)
     appointment_id: Optional[str] = None
@@ -1619,6 +1620,7 @@ class Payment(BaseDocument):
     visit_time: Optional[str] = None
     refunded_at: Optional[str] = None
     refund_of: Optional[str] = None
+    invoice_id: Optional[str] = None
     __encrypted__: ClassVar[tuple] = ("service",)
 
 
@@ -1676,6 +1678,8 @@ async def list_payments(start: Optional[str] = None, end: Optional[str] = None, 
 
 @api.delete("/payments/{pid}")
 async def delete_payment(pid: str):
+    if await tdb.payments.count_documents({"_id": oid(pid), "invoice_id": {"$ne": None}, "method": {"$ne": "online"}}):
+        raise HTTPException(409, "Incasso collegato a una fattura: lo annulli dalla fattura in Cassa")
     if await tdb.payments.count_documents({"_id": oid(pid), "method": "online"}):
         raise HTTPException(409, "Gli incassi online si stornano solo con il rimborso automatico all'annullamento della visita")
     res = await tdb.payments.delete_one({"_id": oid(pid)})
@@ -1986,6 +1990,7 @@ reg_router, admin_doctors, portal_router = build_registration(
 public_api.include_router(reg_router)
 bill_doctor, bill_parent, bill_public, refund_online = build_billing(db, current_user, Appointment, Payment, today_rome)
 api.include_router(bill_doctor)
+api.include_router(build_invoicing(db, tdb, current_user, BaseDocument, Payment, today_rome))
 public_api.include_router(bill_parent)
 public_api.include_router(bill_public)
 flow_doctor, flow_parent, flow_public = build_portal_flow(db, tdb, current_user, Appointment, tenant_clinics, refund_online)

@@ -23,7 +23,7 @@ const BEHAVIOR = ({ stats, onCompliance, onFeedback, nav }) => ({
   profilo: { C: ProfessionalProfile }, orari: { C: AvailabilitySection }, modelli: { C: VisitTemplatesSection },
   "mantai-risposte": { C: AiRepliesSection }, "mantai-impostazioni": { C: MantAISettingsSection }, notifiche: { C: NotificationsSection }, sicurezza: { C: SecuritySection },
   statistiche: { node: stats }, "tessera-sanitaria": { node: <TsCard /> },
-  esportazioni: { onClick: () => nav("/app/cassa#cash-monthly") }, gdpr: { onClick: onCompliance }, feedback: { onClick: onFeedback },
+  esportazioni: { onClick: () => nav("/app/cassa#cassa-commercialista") }, gdpr: { onClick: onCompliance }, feedback: { onClick: onFeedback },
 });
 const tiles = (tools) => { const b = BEHAVIOR(tools); return AREA_SECTIONS.map((s) => ({ ...s, ...b[s.id] })); };
 
