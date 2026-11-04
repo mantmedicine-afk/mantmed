@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { Menu, X, LogOut, MoreHorizontal } from "lucide-react";
 import { MantAIButton } from "@/components/mantai/MantAI";
+import { useNavMenu } from "./NavMenu";
 import { useAuth } from "@/lib/auth";
 
 const ShellCtx = createContext({ open: () => {} });
@@ -31,7 +32,7 @@ const Item = ({ it, onNav, mini }) => (
   </NavLink>
 );
 
-const Panel = ({ items, area, onNav, onClose, mini, onToggle }) => {
+const Panel = ({ items, area, onNav, onClose, mini }) => {
   const { user, logout } = useAuth();
   return (
     <div className={`theme-bar flex h-full flex-col pb-5 pt-5 ${mini ? "px-3" : "px-4"}`}>
@@ -44,12 +45,6 @@ const Panel = ({ items, area, onNav, onClose, mini, onToggle }) => {
         {items.some((it) => it.bottom) && <div className="!mt-4 border-t border-[var(--hair)] pt-3">{items.filter((it) => it.bottom).map((it) => <Item key={it.id} it={it} onNav={onNav} mini={mini} />)}</div>}
       </nav>
       <MantAIButton variant="sidebar" view={user?.role === "parent" ? "patient" : "doctor"} mini={mini} />
-      {onToggle && (
-        <button onClick={onToggle} className={`mb-3 flex h-11 items-center gap-2 rounded-2xl text-sm text-[var(--fg2)] transition-colors hover:bg-[var(--sel)] hover:text-[var(--ink)] ${mini ? "justify-center" : "px-3.5"}`}
-          aria-label={mini ? "Espandi la barra laterale" : "Riduci la barra alle icone"} title={mini ? "Espandi" : "Riduci alle icone"} aria-expanded={!mini} data-testid="sidebar-collapse-btn">
-          {mini ? <PanelLeftOpen size={19} /> : <><PanelLeftClose size={19} /> Riduci barra</>}
-        </button>
-      )}
       {mini ? (
         <button onClick={() => logout()} className="grid h-11 w-full place-items-center rounded-2xl border border-[var(--hair)] text-[var(--ink)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--fg)]" aria-label="Esci" title={`Esci · ${user?.name ?? ""}`} data-testid="sidebar-logout-btn"><LogOut size={17} /></button>
       ) : (
@@ -63,9 +58,11 @@ const Panel = ({ items, area, onNav, onClose, mini, onToggle }) => {
 };
 
 
-const HItem = ({ it, mini }) => (
-  <NavLink to={it.to} end={it.end} data-testid={`sidebar-link-${it.id}`} title={mini ? it.label : undefined} aria-label={mini ? it.label : undefined}
-    className={({ isActive }) => `group relative flex h-11 shrink-0 items-center gap-2 rounded-2xl px-3 text-[15px] font-medium transition-colors duration-200 ${isActive ? "bg-[var(--surface)] text-[var(--fg)]" : "text-[var(--fg2)] hover:bg-[var(--sel)] hover:text-[var(--ink)]"}`}>
+const HItem = ({ it, mini }) => {
+  const { open, triggerProps, panel } = useNavMenu(it);
+  return <>
+  <NavLink to={it.to} end={it.end} data-testid={`sidebar-link-${it.id}`} title={mini ? it.label : undefined} aria-label={mini ? it.label : undefined} {...triggerProps}
+    className={({ isActive }) => `group relative flex h-11 shrink-0 items-center gap-2 rounded-2xl px-3 text-[15px] font-medium transition-colors duration-200 ${isActive ? "bg-[var(--surface)] text-[var(--fg)]" : open ? "bg-[var(--sel)] text-[var(--ink)]" : "text-[var(--fg2)] hover:bg-[var(--sel)] hover:text-[var(--ink)]"}`}>
     {({ isActive }) => (
       <>
         <span className={`absolute -bottom-[10px] left-1/2 h-1 w-7 -translate-x-1/2 rounded-t-full bg-[var(--accent)] transition-opacity ${isActive ? "opacity-100" : "opacity-0"}`} />
@@ -75,7 +72,9 @@ const HItem = ({ it, mini }) => (
       </>
     )}
   </NavLink>
-);
+  {panel}
+  </>;
+};
 
 /** Computer e tablet: barra di navigazione orizzontale in cima alla pagina. */
 const useMedia = (q) => {
@@ -108,16 +107,22 @@ const TopNav = ({ items, area, mini: miniPref, testId, extras }) => {
   );
 };
 
+const BottomItem = ({ it }) => {
+  const { open, triggerProps, panel } = useNavMenu(it, "up");
+  return <>
+    <NavLink to={it.to} end={it.end} data-testid={`bottom-link-${it.id}`} {...triggerProps}
+      className={({ isActive }) => `relative flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${isActive || open ? "text-[var(--fg)]" : "text-[var(--fg2)]"} ${open ? "bg-[var(--sel)]" : ""}`}>
+      <it.icon size={20} />{it.short ?? it.label}
+      {it.badge > 0 && <span className="absolute right-[22%] top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-[var(--alert)] px-1 text-[10px] font-bold text-[var(--ink)]">{it.badge > 9 ? "9+" : it.badge}</span>}
+    </NavLink>
+    {panel}
+  </>;
+};
+
 /** Smartphone: barra fissa in basso con le 4 voci principali + "Altro" (apre il menu completo). */
 const BottomBar = ({ items, onMore }) => (
   <nav className="fixed inset-x-0 bottom-0 z-40 theme-bar grid grid-cols-5 border-t border-[var(--hair)] pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden" aria-label="Navigazione rapida" data-testid="bottom-nav">
-    {items.filter((it) => !it.bottom).slice(0, 4).map((it) => (
-      <NavLink key={it.id} to={it.to} end={it.end} data-testid={`bottom-link-${it.id}`}
-        className={({ isActive }) => `relative flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${isActive ? "text-[var(--fg)]" : "text-[var(--fg2)]"}`}>
-        <it.icon size={20} />{it.short ?? it.label}
-        {it.badge > 0 && <span className="absolute right-[22%] top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-[var(--alert)] px-1 text-[10px] font-bold text-[var(--ink)]">{it.badge > 9 ? "9+" : it.badge}</span>}
-      </NavLink>
-    ))}
+    {items.filter((it) => !it.bottom).slice(0, 4).map((it) => <BottomItem key={it.id} it={it} />)}
     <button onClick={onMore} className="flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-[var(--fg2)]" data-testid="bottom-link-altro"><MoreHorizontal size={20} /> Altro</button>
   </nav>
 );
@@ -126,6 +131,11 @@ export const AppShell = ({ items, area, children, barExtras }) => {
   const [open, setOpen] = useState(false);
   const loc = useLocation();
   useEffect(() => { setOpen(false); }, [loc.pathname]);
+  useEffect(() => {
+    if (!loc.hash) return undefined;
+    const t = setTimeout(() => document.getElementById(loc.hash.slice(1))?.scrollIntoView({ behavior: "smooth", block: "start" }), 350);
+    return () => clearTimeout(t);
+  }, [loc.hash, loc.pathname]);
   useEffect(() => {
     if (!open) return undefined;
     const esc = (e) => { if (e.key === "Escape") setOpen(false); };

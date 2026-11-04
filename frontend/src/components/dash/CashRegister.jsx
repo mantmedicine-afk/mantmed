@@ -29,7 +29,7 @@ export const CashRegister = ({ refreshKey }) => {
   };
 
   return (
-    <section className="mx-auto max-w-[1440px] px-5 pb-10 lg:px-8" data-testid="cash-register">
+    <section id="cash-daily" className="mx-auto max-w-[1440px] scroll-mt-24 px-5 pb-10 lg:px-8" data-testid="cash-register">
       <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.1 }} transition={{ duration: 0.6 }}>
         <div className="flex flex-col gap-4 border-t border-[var(--hair)] pt-8 md:flex-row md:items-end md:justify-between">
           <div>
@@ -42,7 +42,7 @@ export const CashRegister = ({ refreshKey }) => {
             <button onClick={exportCsv} className="flex h-11 items-center gap-2 rounded-full bg-[var(--accent)] px-5 text-sm font-medium text-[var(--ink)] transition-transform hover:-translate-y-0.5" data-testid="cash-export-btn"><Download size={15} /> Esporta PDF</button>
           </div>
         </div>
-        <div className="mt-4 flex flex-col gap-3 rounded-3xl border border-[var(--hair)] bg-[var(--surface)] p-4 sm:flex-row sm:items-center sm:justify-between" data-testid="cash-monthly">
+        <div id="cash-monthly" className="mt-4 flex scroll-mt-24 flex-col gap-3 rounded-3xl border border-[var(--hair)] bg-[var(--surface)] p-4 sm:flex-row sm:items-center sm:justify-between" data-testid="cash-monthly">
           <div><div className="text-sm font-medium text-[var(--fg)]">Report mensile per il commercialista</div><div className="text-xs text-[var(--fg2)]">PDF di tutto il mese: incassi in studio (contanti, POS, bonifico), pagamenti online e rimborsi, con riepilogo per metodo.</div></div>
           <div className="flex flex-wrap gap-2">
             <input type="month" value={month} max={todayLocal().slice(0, 7)} onChange={(e) => setMonth(e.target.value || todayLocal().slice(0, 7))} className="h-11 rounded-full border border-[var(--hair)] bg-[var(--surface)] px-4 text-sm text-[var(--fg)] outline-none focus:border-[var(--accent)]" data-testid="cash-month-input" />
@@ -79,7 +79,7 @@ export const CashRegister = ({ refreshKey }) => {
               </div>
             ))}
           </div>
-          <div className="overflow-x-auto rounded-3xl border border-[var(--hair)] bg-[var(--surface)]" data-testid="cash-movements">
+          <div id="cash-movements" className="scroll-mt-24 overflow-x-auto rounded-3xl border border-[var(--hair)] bg-[var(--surface)]" data-testid="cash-movements">
             <table className="w-full min-w-[560px] text-left text-sm">
               <thead className="bg-[var(--accent)] text-[11px] uppercase tracking-[0.14em] text-[var(--ink)]">
                 <tr>{["Ora", "Paziente", "Prestazione", "Studio", "Metodo", "Importo", ""].map((h, i) => <th key={i} className={`px-4 py-2.5 font-semibold ${h === "Importo" ? "text-right" : ""}`}>{h}</th>)}</tr>

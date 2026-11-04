@@ -11,7 +11,7 @@ import { CANCELLED, LONG_DATE, greeting, isDone, nowHM, shortClinic, surname } f
 
 const useNow = () => {
   const [d, setD] = useState(new Date());
-  useEffect(() => { const t = setInterval(() => setD(new Date()), 30000); return () => clearInterval(t); }, []);
+  useEffect(() => { const t = setInterval(() => setD(new Date()), 5000); return () => clearInterval(t); }, []);
   return d;
 };
 
@@ -24,7 +24,7 @@ const Segmented = ({ value, onChange, options }) => (
   </div>
 );
 
-export const OggiScreen = ({ appointments, patients, notes, unread, requests, onStart, onOpenPatient, onSign, top }) => {
+export const OggiScreen = ({ appointments, patients, notes, unread, requests, onStart, onOpenPatient, onSign, onMarkDone, top }) => {
   const { user } = useAuth();
   const nav = useNavigate();
   const date = useNow();
@@ -40,7 +40,7 @@ export const OggiScreen = ({ appointments, patients, notes, unread, requests, on
   const next = today.find((a) => (clinic === "all" || a.clinic === clinic) && !isDone(a)) ?? null;
   const sel = today.find((a) => a.id === selected) ?? null;
   const toSign = notes.filter(needsSignature);
-  const startNext = () => onStart(next ? { name: next.patient_name, patient_id: next.patient_id } : null);
+  const startNext = () => onStart(next ? { name: next.patient_name, patient_id: next.patient_id, appointment_id: next.id } : null);
 
   return (
     <main className="mx-auto max-w-[1440px] space-y-10 px-5 pb-16 pt-8 sm:space-y-12 lg:px-8 lg:pt-10" data-testid="today-page">
@@ -55,7 +55,7 @@ export const OggiScreen = ({ appointments, patients, notes, unread, requests, on
       <div className="grid grid-cols-1 items-start gap-6 [grid-template-areas:'hero'_'summary'_'agenda'_'vera'] md:grid-cols-2 md:[grid-template-areas:'hero_hero'_'agenda_side'] xl:grid-cols-[minmax(0,38fr)_minmax(0,24fr)_minmax(0,38fr)] xl:gap-8 xl:[grid-template-areas:'agenda_hero_side']">
         <motion.section {...rise(1)} className="flex flex-col items-center gap-6 self-start [grid-area:hero] xl:sticky xl:top-24" aria-label="Prossimo paziente" data-testid="oggi-next-bar">
           <StartButton onStart={startNext} />
-          <NextCard next={next} patient={byId[next?.patient_id]} now={now} onOpen={() => onOpenPatient(next.patient_id)} />
+          <NextCard next={next} patient={byId[next?.patient_id]} now={now} onOpen={() => onOpenPatient(next.patient_id)} onDone={() => onMarkDone(next)} />
         </motion.section>
         <motion.div {...rise(2)} className="min-w-0 [grid-area:agenda]">
           <AgendaList groups={groups} patients={patients} now={now} onSelect={setSelected} />

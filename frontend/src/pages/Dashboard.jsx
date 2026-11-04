@@ -22,8 +22,9 @@ import { AbsenceBanner } from "@/components/dash/AbsenceBanner";
 import { SupportReplies } from "@/components/support/SupportReplies";
 import { SignatureReminder } from "@/components/signature/SignatureReminder";
 import { usePoll } from "@/hooks/usePoll";
-import { useNavigate, useParams, Navigate } from "react-router-dom";
-import { Home, Users, MessagesSquare, ReceiptText, UserCog } from "lucide-react";
+import { useNavigate, useParams, Navigate, useLocation } from "react-router-dom";
+import { Home, Users, MessagesSquare, ReceiptText, UserCog, ListChecks, Inbox, CalendarDays, CalendarRange, Rows3 } from "lucide-react";
+import { areaMenu } from "@/components/account/areaSections";
 import { AppShell } from "@/components/nav/AppShell";
 import { PageTitle, VisitsList, PatientFolder } from "@/components/nav/sections";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
@@ -78,6 +79,19 @@ export default function Dashboard() {
   const { sezione = "agenda" } = useParams();
   const [folder, setFolder] = useState(null);
   const [showVisits, setShowVisits] = useState(false);
+  const loc = useLocation();
+  useEffect(() => { if (sezione === "pazienti") setShowVisits(new URLSearchParams(loc.search).get("vista") === "visite"); }, [sezione, loc.search]);
+  const markDone = async (a, { silent = false } = {}) => {
+    const prev = a.status;
+    const set = (status) => setAppointments((xs) => xs.map((x) => (x.id === a.id ? { ...x, status } : x)));
+    set("completato");
+    try { await api.updateAppointment(a.id, { status: "completato" }); } catch (e) { set(prev); toast.error(errMsg(e)); return; }
+    if (silent) return;
+    toast("Visita segnata come fatta", {
+      duration: 6000,
+      action: { label: "Annulla", onClick: () => { set(prev); api.updateAppointment(a.id, { status: prev }).catch((e) => { set("completato"); toast.error(errMsg(e)); }); } },
+    });
+  };
   const openVisit = (c) => setOverlay({ open: true, patient: null, initial: c });
   const navTo = useNavigate();
   const search = {
@@ -93,10 +107,17 @@ export default function Dashboard() {
   };
   const items = [
     { id: "agenda", to: "/app", end: true, label: "Home", icon: Home },
-    { id: "pazienti", to: "/app/pazienti", label: "Pazienti", icon: Users },
-    { id: "messaggi", to: "/app/messaggi", label: "Messaggi", icon: MessagesSquare, badge: unread + aiQueued },
-    { id: "cassa", to: "/app/cassa", label: "Cassa", icon: ReceiptText },
-    { id: "area-personale", to: "/app/area-personale", label: "Area personale", short: "Area", icon: UserCog },
+    { id: "pazienti", to: "/app/pazienti", label: "Pazienti", icon: Users, menu: [{ links: [
+      { id: "elenco", label: "Elenco pazienti", desc: "Cartelle e passaporti", icon: Users, to: "/app/pazienti" },
+      { id: "visite", label: "Tutte le visite", desc: "Diario clinico e note", icon: ListChecks, to: "/app/pazienti?vista=visite" }] }] },
+    { id: "messaggi", to: "/app/messaggi", label: "Messaggi", icon: MessagesSquare, badge: unread + aiQueued, menu: [{ links: [
+      { id: "conversazioni", label: "Conversazioni", desc: "Messaggi con le famiglie", icon: MessagesSquare, to: "/app/messaggi#doctor-conversations" },
+      { id: "richieste", label: "Richieste dal portale", desc: requests > 0 ? `${requests} da gestire` : "Nessuna in attesa", icon: Inbox, to: "/app/messaggi#today-requests" }] }] },
+    { id: "cassa", to: "/app/cassa", label: "Cassa", icon: ReceiptText, menu: [{ links: [
+      { id: "giornaliero", label: "Riepilogo giornaliero", desc: "Incassi del giorno e stampa", icon: CalendarDays, to: "/app/cassa#cash-daily" },
+      { id: "mensile", label: "Export mensile", desc: "PDF per il commercialista", icon: CalendarRange, to: "/app/cassa#cash-monthly" },
+      { id: "movimenti", label: "Movimenti", desc: "Ricevute e pagamenti", icon: Rows3, to: "/app/cassa#cash-movements" }] }] },
+    { id: "area-personale", to: "/app/area-personale", label: "Area personale", short: "Area", icon: UserCog, mega: true, menu: areaMenu() },
   ];
   if (sezione === "impostazioni" || sezione === "strumenti") return <Navigate to={`/app/area-personale${window.location.search}`} replace />;
   if (!SECTIONS.includes(sezione)) return <Navigate to="/app" replace />;
@@ -117,6 +138,7 @@ export default function Dashboard() {
         waiting={waiting}
         onClose={() => setOverlay({ open: false, patient: null, initial: null })}
         onDone={load}
+        onAppointmentDone={(id) => { const a = appointments.find((x) => x.id === id); return a && !["completato", "completed"].includes(a.status) ? markDone(a) : undefined; }}
         onEditPatient={(pid) => setEditPatient(patients.find((p) => p.id === pid) ?? null)}
       />
   </>;
@@ -128,7 +150,7 @@ export default function Dashboard() {
     <div className="min-h-screen overflow-x-clip bg-[var(--bg)]" data-testid="dashboard" data-section={sezione}>
       <TopBar onCompliance={() => setCompliance(true)} onTour={() => setTour(true)} search={search} />
       {sezione === "agenda" && <OggiScreen appointments={appointments} patients={patients} notes={notes} unread={unread + aiQueued} requests={requests}
-        onStart={start} onOpenPatient={setPassportId} onSign={openVisit} top={<><AbsenceBanner /><SupportReplies /><SignatureReminder /></>} />}
+        onStart={start} onOpenPatient={setPassportId} onSign={openVisit} onMarkDone={markDone} top={<><AbsenceBanner /><SupportReplies /><SignatureReminder /></>} />}
       {sezione === "pazienti" && <>
         <PageTitle kicker="Archivio clinico" title="Pazienti" it="& cartelle cliniche" />
         <div className="mx-auto max-w-[1440px] space-y-5 pb-12" data-testid="patients-page">
@@ -143,7 +165,7 @@ export default function Dashboard() {
           </>}
         </div>
       </>}
-      {sezione === "messaggi" && <div className="space-y-5 pt-4">{requests > 0 && <div className="mx-auto max-w-[1280px] px-5 lg:px-8" id="today-requests"><Fold title={`Richieste dal portale · ${requests}`} testId="today-requests-fold" defaultOpen><PortalRequests onChange={load} /></Fold></div>}<DoctorMessages onRead={loadUnread} /></div>}
+      {sezione === "messaggi" && <div className="space-y-5 pt-4" id="doctor-conversations">{requests > 0 && <div className="mx-auto max-w-[1280px] scroll-mt-24 px-5 lg:px-8" id="today-requests"><Fold title={`Richieste dal portale · ${requests}`} testId="today-requests-fold" defaultOpen><PortalRequests onChange={load} /></Fold></div>}<DoctorMessages onRead={loadUnread} /></div>}
       {sezione === "visite" && <><PageTitle kicker="Diario clinico" title="Visite" it="e Bodychart" /><VisitsList notes={notes} onOpen={openVisit} /></>}
       {sezione === "cassa" && <><PageTitle kicker="Amministrazione" title="Cassa" it="ricevute e incassi" /><CashRegister refreshKey={cashKey} /></>}
       {sezione === "area-personale" && <Account role="doctor" embedded tools={{ onCompliance: () => setCompliance(true), onFeedback: () => setFeedback(true), stats: <div className="space-y-5"><Hero total={appointments.length} waiting={waiting.length} name={shortName} income={income} /><BetaMetrics refreshKey={cashKey} onFeedback={() => setFeedback(true)} /></div> }} />}

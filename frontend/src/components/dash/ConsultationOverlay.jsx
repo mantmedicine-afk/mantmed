@@ -13,7 +13,7 @@ import { micError } from "@/lib/mic";
 import { MicCheck } from "./MicCheck";
 import { MantAIButton } from "@/components/mantai/MantAI";
 
-export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, onDone, patients = [], onPatientsChange, onEditPatient }) => {
+export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, onDone, onAppointmentDone, patients = [], onPatientsChange, onEditPatient }) => {
   const [paper, setPaper] = useState(false);
   const [stage, setStage] = useState("setup");
   const [sel, setSel] = useState(null);
@@ -85,6 +85,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
       track(c);
       setResult(c);
       setStage("note");
+      if (sel?.appointment_id) await onAppointmentDone?.(sel.appointment_id);
       onDone();
     } catch (e) {
       const msg = e?.response ? errMsg(e) : e.message;
