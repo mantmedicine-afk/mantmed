@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
 import { TourVideo } from "./TourVideo";
+import { isScrollLocked } from "@/lib/scrollLock";
 import { ArrowLeft, ArrowRight, Check, Compass, ExternalLink, Sparkles, X } from "lucide-react";
 
 const PAD = 10;
@@ -19,11 +20,11 @@ const useTargetRect = (ids, key, active) => {
   const [rect, setRect] = useState(null);
   const scrolled = useRef("");
   useEffect(() => {
-    if (!active) return undefined;
+    if (!active) { scrolled.current = ""; return undefined; }
     let raf = 0;
     const tick = () => {
       const el = find(ids);
-      if (el && scrolled.current !== key) {
+      if (el && scrolled.current !== key && !isScrollLocked()) {
         scrolled.current = key;
         const b = el.getBoundingClientRect();
         if (b.top < 0 || b.bottom > window.innerHeight) window.scrollTo({ top: Math.max(0, b.top + window.scrollY - HEADER - 16), behavior: "smooth" });

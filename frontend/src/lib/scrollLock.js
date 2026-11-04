@@ -29,15 +29,26 @@ const onTouchMove = (e) => {
   if (!canScroll(e.target, dy)) e.preventDefault();
 };
 
+// Rotellina e trackpad (Safari macOS, iPad con trackpad): blocca se nessun contenitore nella finestra può scorrere.
+const onWheel = (e) => {
+  if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY) || !e.cancelable) return;
+  if (!canScroll(e.target, -e.deltaY)) e.preventDefault();
+};
+// Ultima difesa: se il browser fa comunque scorrere la pagina, la riporta dov'era.
+const onScroll = () => { if (saved && window.scrollY !== saved.y) window.scrollTo(0, saved.y); };
+
 export const lockScroll = () => {
   if (count++ > 0) return;
   const y = window.scrollY;
   const { documentElement: html, body } = document;
   saved = { y, html: html.style.cssText, body: body.style.cssText };
+  const gap = window.innerWidth - html.clientWidth;
   Object.assign(html.style, { overflow: "hidden", overscrollBehavior: "none" });
-  Object.assign(body.style, { overflow: "hidden", overscrollBehavior: "none", position: "fixed", top: `-${y}px`, left: "0", right: "0", width: "100%" });
+  Object.assign(body.style, { overflow: "hidden", overscrollBehavior: "none", ...(gap > 0 ? { paddingRight: `${gap}px` } : {}) });  // niente position:fixed: le barre sticky e i menu ancorati restano al loro posto
   document.addEventListener("touchstart", onTouchStart, { passive: true });
   document.addEventListener("touchmove", onTouchMove, { passive: false });
+  document.addEventListener("wheel", onWheel, { passive: false });
+  window.addEventListener("scroll", onScroll);
   lenis?.stop();
 };
 
@@ -48,6 +59,8 @@ export const unlockScroll = () => {
   body.style.cssText = saved.body;
   document.removeEventListener("touchstart", onTouchStart);
   document.removeEventListener("touchmove", onTouchMove);
+  document.removeEventListener("wheel", onWheel);
+  window.removeEventListener("scroll", onScroll);
   window.scrollTo(0, saved.y);
   lenis?.start();
   lenis?.resize();
