@@ -44,7 +44,7 @@ export const lockScroll = () => {
   saved = { y, html: html.style.cssText, body: body.style.cssText };
   const gap = window.innerWidth - html.clientWidth;
   Object.assign(html.style, { overflow: "hidden", overscrollBehavior: "none" });
-  Object.assign(body.style, { overflow: "hidden", overscrollBehavior: "none", ...(gap > 0 ? { paddingRight: `${gap}px` } : {}) });  // niente position:fixed: le barre sticky e i menu ancorati restano al loro posto
+  if (gap > 0) body.style.paddingRight = `${gap}px`;  // solo html bloccato: se anche body fosse overflow:hidden le barre sticky smetterebbero di restare attaccate
   document.addEventListener("touchstart", onTouchStart, { passive: true });
   document.addEventListener("touchmove", onTouchMove, { passive: false });
   document.addEventListener("wheel", onWheel, { passive: false });

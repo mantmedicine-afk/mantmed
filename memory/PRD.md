@@ -491,3 +491,8 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Demo: Aurora Ricci con 13 vaccinazioni e "Asma lieve intermittente" (dati dimostrativi)
 - Test: backend/tests/test_health_passport.py, test_passport_autopublish.py
 - Backlog: FSE parte 2 (doppioni visite/misure, misure incoerenti, sede obbligatoria, icone/filtri elenco pazienti)
+
+## 2026-06 · Blocco scroll overlay (fix trackpad)
+- lib/scrollLock.js: blocco solo su <html> (overflow hidden), handler wheel/touchmove non passivi che bloccano se nessun contenitore interno può scorrere, guardia su window scroll che riporta alla posizione salvata.
+- App.css: `html body[data-scroll-locked]{overflow:visible !important}` per neutralizzare Radix e mantenere le barre sticky (header, colonna Oggi) e i menu ancorati al loro posto.
+- Tour guidato: regressione risolta (iteration_65).
