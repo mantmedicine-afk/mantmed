@@ -10,12 +10,12 @@ export const DOCTOR_STEPS = [
   },
   {
     video: "doctor-1", to: "/app", targets: ["oggi-next-bar"], icon: CalendarDays, kicker: "Home", title: "La giornata parte dal prossimo paziente",
-    text: "Sotto il grande pulsante «Inizia visita» trova il prossimo paziente con età e orario. «Apri cartella» apre subito la sua scheda.",
+    text: "Sotto il grande pulsante «Avvia MantAI» trova il prossimo paziente con età e orario. «Apri cartella» apre subito la sua scheda.",
     points: ["Filtri l'agenda per studio con Tutti / Centro / Provincia", "L'anello che pulsa indica che è tutto pronto per registrare"],
   },
   {
     video: "doctor-2", to: "/app", targets: ["oggi-next-start-btn"], icon: AudioLines, kicker: "MantAI", title: "Parli con il paziente, MantAI scrive",
-    text: "Un solo pulsante rotondo, «Inizia visita», già sul prossimo paziente: MantAI trascrive e prepara la bozza della nota, sempre etichettata. Lei la rilegge con «Rivedi e firma».",
+    text: "Un solo pulsante rotondo, «Avvia MantAI», già sul prossimo paziente: MantAI trascrive e prepara la bozza della nota, sempre etichettata. Lei la rilegge con «Rivedi e firma».",
     points: ["Anamnesi, esame obiettivo, diagnosi e terapia compilati secondo il suo modello", "Ogni nota è una bozza: la rivede e la firma prima del referto PDF"],
   },
   {

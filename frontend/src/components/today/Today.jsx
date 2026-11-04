@@ -18,7 +18,7 @@ export const pickNext = (waiting, appointments) => {
 const StartButton = ({ onClick }) => (
   <button onClick={onClick} className="group mt-7 flex w-full max-w-[460px] flex-col items-center gap-3 rounded-[22px] bg-[var(--accent)] px-8 py-6 text-[var(--ink)] transition-colors hover:bg-[var(--accent)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--accent)]" data-testid="start-consultation-btn">
     <MantAILogo size={44} light />
-    <span className="text-2xl font-semibold tracking-tight sm:text-[28px]">Inizia visita</span>
+    <span className="text-2xl font-semibold tracking-tight sm:text-[28px]">Avvia MantAI</span>
     <span className="text-sm text-[var(--fg2)]">MantAI ascolta la visita e prepara la nota da rivedere</span>
   </button>
 );

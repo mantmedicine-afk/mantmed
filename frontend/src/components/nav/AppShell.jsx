@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { Menu, X, LogOut, PanelLeftClose, PanelLeftOpen, MoreHorizontal } from "lucide-react";
-import { LogoMark } from "@/components/dash/Logo";
 import { MantAIButton } from "@/components/mantai/MantAI";
 import { useAuth } from "@/lib/auth";
 
@@ -37,7 +36,7 @@ const Panel = ({ items, area, onNav, onClose, mini, onToggle }) => {
   return (
     <div className={`theme-bar flex h-full flex-col pb-5 pt-5 ${mini ? "px-3" : "px-4"}`}>
       <div className={`flex items-center gap-2 px-1 ${mini ? "justify-center" : "justify-between"}`}>
-        <div className="flex items-center gap-3"><LogoMark size={36} light />{!mini && <div className="leading-none"><div className="font-display text-2xl">MantMed</div><div className="mt-1 text-[10px] uppercase tracking-[0.22em] text-[var(--fg2)]">{area}</div></div>}</div>
+        <div className="flex items-center gap-3"><img src="/mantmed-logo-white.png" alt="" aria-hidden="true" className="h-8 w-auto shrink-0 object-contain" data-testid="nav-logo" />{!mini && <div className="leading-none"><div className="font-display text-2xl">MantMed</div><div className="mt-1 text-[10px] uppercase tracking-[0.22em] text-[var(--fg2)]">{area}</div></div>}</div>
         {onClose && <button onClick={onClose} className="grid h-10 w-10 place-items-center rounded-full border border-[var(--hair)] hover:bg-[var(--surface)] hover:text-[var(--fg)]" aria-label="Chiudi menu" data-testid="sidebar-close-btn"><X size={17} /></button>}
       </div>
       <nav className={`mt-8 flex-1 space-y-1.5 overflow-y-auto pl-3`} aria-label="Navigazione principale" data-testid="sidebar-nav">
@@ -94,7 +93,7 @@ const TopNav = ({ items, area, mini: miniPref, onToggle, testId, extras }) => {
   return (
     <header className="theme-bar" data-testid={testId} data-mini={miniPref}>
       <div className="flex h-16 items-center gap-4 px-5 lg:px-8">
-        <div className="flex shrink-0 items-center gap-3"><LogoMark size={36} light />{!mini && <div className="leading-none"><div className="font-display text-2xl">MantMed</div><div className="mt-1 text-[10px] uppercase tracking-[0.22em] text-[var(--fg2)]">{area}</div></div>}</div>
+        <div className="flex shrink-0 items-center gap-3"><img src="/mantmed-logo-white.png" alt="" aria-hidden="true" className="h-8 w-auto shrink-0 object-contain" data-testid="nav-logo" />{!mini && <div className="leading-none"><div className="font-display text-2xl">MantMed</div><div className="mt-1 text-[10px] uppercase tracking-[0.22em] text-[var(--fg2)]">{area}</div></div>}</div>
         <nav className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto overflow-y-hidden py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Navigazione principale" data-testid="sidebar-nav">
           {items.filter((it) => !it.bottom).map((it) => <HItem key={it.id} it={it} mini={mini} />)}
           {items.some((it) => it.bottom) && <div className="flex items-center gap-1.5 border-l border-[var(--hair)] pl-1.5">{items.filter((it) => it.bottom).map((it) => <HItem key={it.id} it={it} mini={mini} />)}</div>}

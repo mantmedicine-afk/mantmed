@@ -6,6 +6,9 @@ import { useAuth } from "@/lib/auth";
 import { needsSignature } from "@/components/dash/SignNote";
 import { StartButton, NextLine, Summary, VisitSheet, rise } from "./Panels";
 import { AgendaList } from "./AgendaList";
+import { VaccinesCard, BilanciCard, PillCard } from "./SideCards";
+import { demoVaccines, demoBilanci } from "./homeDemo";
+import { AppointmentDialog } from "@/components/dash/AppointmentDialog";
 import { CANCELLED, LONG_DATE, greeting, isDone, nowHM, shortClinic, surname } from "./data";
 
 const useNow = () => {
@@ -23,13 +26,16 @@ const Segmented = ({ value, onChange, options }) => (
   </div>
 );
 
-export const OggiScreen = ({ appointments, patients, notes, unread, requests, onStart, onOpenPatient, onSign, top }) => {
+export const OggiScreen = ({ appointments, patients, notes, unread, requests, onStart, onOpenPatient, onSign, onBooked, top }) => {
   const { user } = useAuth();
   const nav = useNavigate();
   const date = useNow();
   const now = nowHM(date);
   const [clinic, setClinic] = useState("all");
   const [selected, setSelected] = useState(null);
+  const [booking, setBooking] = useState(null);
+  const vaccines = useMemo(() => demoVaccines(patients), [patients]);
+  const bilanci = useMemo(() => demoBilanci(patients), [patients]);
   const byId = useMemo(() => Object.fromEntries(patients.map((p) => [p.id, p])), [patients]);
 
   const today = useMemo(() => appointments.filter((a) => !CANCELLED.includes(a.status) && (a.date == null || a.date === date.toLocaleDateString("sv-SE")))
@@ -42,7 +48,7 @@ export const OggiScreen = ({ appointments, patients, notes, unread, requests, on
   const startNext = () => onStart(next ? { name: next.patient_name, patient_id: next.patient_id } : null);
 
   return (
-    <main className="mx-auto max-w-[1100px] space-y-10 px-5 pb-16 pt-8 sm:space-y-12 lg:px-8 lg:pt-10" data-testid="today-page">
+    <main className="mx-auto max-w-[1280px] space-y-10 px-5 pb-16 pt-8 sm:space-y-12 lg:px-8 lg:pt-10" data-testid="today-page">
       {top}
       <motion.header {...rise(0)} className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -55,13 +61,21 @@ export const OggiScreen = ({ appointments, patients, notes, unread, requests, on
         <StartButton onStart={startNext} />
         <NextLine next={next} age={byId[next?.patient_id]?.age_label} onOpen={() => onOpenPatient(next.patient_id)} />
       </motion.section>
-      <Summary visits={shown.length} done={shown.filter(isDone).length} toSign={toSign.length} unread={unread} requests={requests}
-        onVisits={() => document.getElementById("oggi-agenda")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-        onSign={() => (toSign[0] ? onSign(toSign[0]) : nav("/app/visite"))}
-        onMessages={() => nav("/app/messaggi")} />
-      <motion.div {...rise(6)}>
-        <AgendaList groups={groups} patients={patients} now={now} onSelect={setSelected} />
-      </motion.div>
+      <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-8">
+        <motion.div {...rise(2)} className="min-w-0">
+          <AgendaList groups={groups} patients={patients} now={now} onSelect={setSelected} />
+        </motion.div>
+        <aside className="space-y-5 md:sticky md:top-32 md:max-h-[calc(100vh-9rem)] md:overflow-y-auto md:pb-2 md:[scrollbar-width:thin]" data-testid="oggi-side">
+          <Summary visits={shown.length} done={shown.filter(isDone).length} toSign={toSign.length} unread={unread} requests={requests}
+            onVisits={() => document.getElementById("oggi-agenda")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            onSign={() => (toSign[0] ? onSign(toSign[0]) : nav("/app/visite"))}
+            onMessages={() => nav("/app/messaggi")} />
+          <VaccinesCard i={6} items={vaccines} onOpen={onOpenPatient} />
+          <BilanciCard i={7} items={bilanci} onBook={(b) => setBooking({ patient_name: b.name, patient_id: b.patient_id, visit_type: `Bilancio di salute · ${b.age}`, date: b.date, clinic: CLINICS[0], time: "09:00" })} />
+          <PillCard i={8} />
+        </aside>
+      </div>
+      <AppointmentDialog value={booking} onClose={() => setBooking(null)} onSaved={onBooked} patients={patients} />
       <VisitSheet appt={sel} patient={byId[sel?.patient_id]} onClose={() => setSelected(null)} onOpen={onOpenPatient} />
     </main>
   );

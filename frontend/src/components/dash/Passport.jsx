@@ -72,7 +72,7 @@ export const Passport = ({ patientId, onClose, onEdit, onStart, onOpenVisit }) =
                   {p.notes && <span className="rounded-xl bg-[var(--surface)] px-3 py-1.5 text-sm text-[var(--fg2)]">{p.notes}</span>}
                 </div>
               </div>
-              {onStart && <button onClick={() => onStart(p)} className="flex h-14 shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-8 text-base font-semibold text-[var(--ink)] hover:bg-[var(--accent)]" data-testid="passport-start-visit-btn"><Sparkles size={18} /> Inizia visita</button>}
+              {onStart && <button onClick={() => onStart(p)} className="flex h-14 shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-8 text-base font-semibold text-[var(--ink)] hover:bg-[var(--accent)]" data-testid="passport-start-visit-btn"><Sparkles size={18} /> Avvia MantAI</button>}
             </div>
           )}
         </div>

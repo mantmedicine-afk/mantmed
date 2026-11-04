@@ -128,7 +128,7 @@ export default function Dashboard() {
     <div className="min-h-screen overflow-x-clip bg-[var(--bg)]" data-testid="dashboard" data-section={sezione}>
       <TopBar onCompliance={() => setCompliance(true)} onTour={() => setTour(true)} search={search} />
       {sezione === "agenda" && <OggiScreen appointments={appointments} patients={patients} notes={notes} unread={unread + aiQueued} requests={requests}
-        onStart={start} onOpenPatient={setPassportId} onSign={openVisit} top={<><AbsenceBanner /><SupportReplies /><SignatureReminder /></>} />}
+        onStart={start} onOpenPatient={setPassportId} onSign={openVisit} onBooked={load} top={<><AbsenceBanner /><SupportReplies /><SignatureReminder /></>} />}
       {sezione === "pazienti" && <>
         <PageTitle kicker="Archivio clinico" title="Pazienti" it="& cartelle cliniche" />
         <div className="mx-auto max-w-[1440px] space-y-5 pb-12" data-testid="patients-page">

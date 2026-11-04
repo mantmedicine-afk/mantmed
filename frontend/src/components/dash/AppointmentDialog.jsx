@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { api, CLINICS, errMsg } from "@/lib/api";
 import { PatientSelect } from "./PatientSelect";
 
-const empty = () => ({ clinic: CLINICS[0], time: "09:00", patient_name: "", patient_id: null, visit_type: "Visita pediatrica", duration: 30, status: "programmato" });
+const empty = () => ({ date: new Date().toLocaleDateString("sv-SE"), clinic: CLINICS[0], time: "09:00", patient_name: "", patient_id: null, visit_type: "Visita pediatrica", duration: 30, status: "programmato" });
 const STATUSES = [["programmato", "Programmato"], ["in_attesa", "In attesa"], ["in_corso", "In corso"], ["completato", "Completato"]];
 
 export const AppointmentDialog = ({ value, onClose, onSaved, patients = [] }) => {
@@ -20,7 +20,7 @@ export const AppointmentDialog = ({ value, onClose, onSaved, patients = [] }) =>
 
   const save = async () => {
     if (!f.patient_name.trim()) return toast.error("Seleziona il paziente");
-    const body = { clinic: f.clinic, time: f.time, patient_name: f.patient_name, patient_id: f.patient_id, visit_type: f.visit_type, duration: Number(f.duration) || 30, status: f.status };
+    const body = { date: f.date, clinic: f.clinic, time: f.time, patient_name: f.patient_name, patient_id: f.patient_id, visit_type: f.visit_type, duration: Number(f.duration) || 30, status: f.status };
     try {
       isEdit ? await api.updateAppointment(value.id, body) : await api.addAppointment(body);
       toast.success(isEdit ? "Appuntamento aggiornato" : "Appuntamento aggiunto");
@@ -41,7 +41,10 @@ export const AppointmentDialog = ({ value, onClose, onSaved, patients = [] }) =>
           <Field label="Paziente"><PatientSelect patients={patients} value={f.patient_id} onChange={(p) => setF((x) => ({ ...x, patient_id: p.id, patient_name: p.name }))} testId="appointment-patient-select" /></Field>
           <Field label="Tipo di visita"><Input value={f.visit_type} onChange={set("visit_type")} data-testid="appointment-type-input" /></Field>
           <div className="grid grid-cols-2 gap-3">
+            <Field label="Data"><Input type="date" value={f.date ?? ""} onChange={set("date")} data-testid="appointment-date-input" /></Field>
             <Field label="Orario"><Input type="time" value={f.time} onChange={set("time")} data-testid="appointment-time-input" /></Field>
+          </div>
+          <div className="grid grid-cols-1 gap-3">
             <Field label="Studio">
               <Select value={f.clinic} onValueChange={set("clinic")}>
                 <SelectTrigger data-testid="appointment-clinic-select"><SelectValue /></SelectTrigger>
