@@ -461,3 +461,8 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 ## 2026-06 Rifiniture Home/barre
 - Tolto Esci dalla barra grigia (resta in barra blu e nel menu mobile), tolto pulsante 'Riduci barra'; tooltip su Cos'e' MantAI
 - Colonne centrale e destra sticky su desktop; riepilogo 72px con numeri grandi; Vera Health con icona; motivo troncato su una riga
+
+## 2026-06 Menu a comparsa e Segna come fatta
+- NavMenu.jsx (hover 150/300ms, tocco 1°apre 2°naviga, tastiera Invio/frecce/Esc), mega menu Area personale (areaSections.js, 5 gruppi), menu Pazienti/Messaggi/Cassa con ancore
+- Card prossimo paziente: Segna come fatta con toast Annulla 6s; Termina in MantAI segna la visita fatta; pillola ambra (--late) oltre 15 min di ritardo
+- Toast spostati sotto la barra (offset 84)

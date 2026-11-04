@@ -24,7 +24,7 @@ export const NextCard = ({ next, patient, now, onOpen, onDone }) => {
               {patient?.allergies && <span className="flex items-center gap-1.5 text-xs font-semibold text-[var(--alert)]" title={patient.allergies} data-testid="oggi-next-allergies"><Dot color="var(--alert)" /> Allergie</span>}
             </div>
             <div className="mt-1 truncate text-center text-sm text-[var(--fg2)]" title={[patient?.age_label, next.visit_type].filter(Boolean).join(" · ")} data-testid="oggi-next-meta">{[patient?.age_label, next.visit_type].filter(Boolean).join(" · ")}</div>
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
               <span className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium tabular-nums transition-colors ${late ? "bg-[var(--late-bg)] text-[var(--late)]" : "bg-[var(--sel)] text-[var(--fg)]"}`} data-late={late} data-testid="oggi-next-when">{next.time} · {timeLeft(next.time, now)}</span>
               {next.patient_id && <button onClick={onOpen} className="flex shrink-0 items-center gap-1 text-sm font-semibold text-[var(--fg)] transition-transform hover:translate-x-0.5" data-testid="oggi-next-folder-btn">Cartella <ArrowRight size={14} /></button>}
             </div>

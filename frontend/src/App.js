@@ -79,7 +79,7 @@ function App() {
         <Route path="/area-riservata" element={<AuthProvider><AccountGate /></AuthProvider>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <Toaster position="top-center" richColors />
+      <Toaster position="top-center" offset={84} richColors />
     </BrowserRouter>
   );
 }

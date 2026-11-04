@@ -23,10 +23,11 @@ export const useNavMenu = (it, place = "down") => {
   const timer = useRef(null);
   const pointer = useRef("mouse");
   const focusFirst = useRef(false);
+  const clicked = useRef(false);
   const loc = useLocation();
   const has = Boolean(it.menu?.length);
 
-  const show = () => { setPos(position(trigger.current, it.mega, place)); setOpen(true); };
+  const show = () => { if (clicked.current || !trigger.current) return; setPos(position(trigger.current, it.mega, place)); setOpen(true); };
   const hide = () => setOpen(false);
   const later = (fn, ms) => { clearTimeout(timer.current); timer.current = setTimeout(fn, ms); };
   const cancel = () => clearTimeout(timer.current);
@@ -53,11 +54,14 @@ export const useNavMenu = (it, place = "down") => {
     "aria-haspopup": "menu",
     "aria-expanded": open,
     onPointerDown: (e) => { pointer.current = e.pointerType; },
-    onPointerEnter: (e) => { if (e.pointerType === "mouse") later(show, 150); },
-    onPointerLeave: (e) => { if (e.pointerType === "mouse") later(hide, 300); },
-    onClick: (e) => { if (pointer.current !== "mouse" && !open) { e.preventDefault(); show(); } },
+    onPointerEnter: (e) => { if (e.pointerType === "mouse") { clicked.current = false; later(show, 150); } },
+    onPointerLeave: (e) => { if (e.pointerType === "mouse") { clicked.current = false; later(hide, 300); } },
+    onClick: (e) => {
+      if (pointer.current !== "mouse" && !open) { e.preventDefault(); show(); return; }
+      if (pointer.current === "mouse") { clicked.current = true; cancel(); hide(); }
+    },
     onKeyDown: (e) => {
-      if ((e.key === "Enter" && !open) || e.key === "ArrowDown") { e.preventDefault(); focusFirst.current = true; if (open) panel.current?.querySelector("a")?.focus(); else show(); }
+      if ((e.key === "Enter" && !open) || e.key === "ArrowDown") { e.preventDefault(); clicked.current = false; focusFirst.current = true; if (open) panel.current?.querySelector("a")?.focus(); else show(); }
     },
   };
 

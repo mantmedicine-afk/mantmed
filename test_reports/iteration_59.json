@@ -1,0 +1,52 @@
+{
+  "summary": "Frontend-only test of (A) hover/touch/keyboard dropdown menus in the top nav bar and (B) the 'Segna come fatta' button, late time pill and Termina flow on the Home 'Prossimo paziente' card. Tested on desktop 1920, tablet 768 (hasTouch) and mobile 390 (hasTouch). Every requested flow works. I found only minor UX and design issues.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "NavMenu (desktop mouse)", "issue": "Clicking an item label (e.g. Cassa or Area personale) navigates correctly, but the 150ms hover timer still fires afterwards because the mouse stays over the item, so the menu opens on top of the page that just loaded. Checked: after clicking sidebar-link-cassa and sidebar-link-area-personale, navmenu-* count was 1 one second later. Suggested fix: on mouse click, call cancel() and block reopening until the next pointerenter.", "selector": "[data-testid=sidebar] [data-testid=sidebar-link-cassa]", "priority": "LOW"},
+      {"component": "Messaggi menu > Richieste dal portale", "issue": "The link goes to /app/messaggi#today-requests, but #today-requests is only rendered when requests > 0. With 0 requests the link opens the conversations page and nothing is scrolled to. The description correctly says 'Nessuna in attesa'.", "selector": "[data-testid=navmenu-link-messaggi-richieste]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Top nav + toasts", "issues": ["Sonner toasts (top-center, e.g. 'Bentornato' and 'Visita segnata come fatta') draw over the dark nav bar and over the open mega menu. They cover the 'Area personale' label and the menu header area. Consider a higher toast offset or a bottom-right position."]},
+      {"screen": "Home NextCard", "issues": ["When the time pill gets wider (the 'in ritardo di 20 min' text, or a patient with allergies), 'Cartella →' wraps onto its own left-aligned line, so the card layout jumps between patients and states."]},
+      {"screen": "Mega menu at tablet 768", "issues": ["The one-line descriptions are cut off ('I modelli che MantAI compi…', 'Registro, consensi e conser…'). This is acceptable but worth a look."]}
+    ]
+  },
+  "passed_tests": [
+    "Desktop: the Home item has no aria-haspopup. Pazienti, Messaggi, Cassa and Area personale have aria-haspopup=menu.",
+    "Hover: a quick 80ms pass does not open the menu. It is still closed at 100ms and open at 400ms. The panel is portalled to BODY, aria-expanded=true, and the item is highlighted.",
+    "Mega menu: 5 group titles (PROFILO, STUDIO E AGENDA, DOCUMENTI, STRUMENTI, ACCOUNT), 12 links in the expected order, 3 columns (lefts at 297/585/873), 880px wide, centred under the item.",
+    "Moving the mouse from the item into the panel keeps it open. After leaving both, it is still open at 150ms and closed at 600ms, with aria-expanded back to false.",
+    "Links: profilo -> ?sezione=profilo (account-section-profilo); orari -> account-section-orari; bilanci -> modelli section; gdpr -> compliance-panel opens; feedback -> feedback dialog opens (also on a second try); esportazioni -> /app/cassa#cash-monthly.",
+    "Cassa menu: giornaliero, mensile and movimenti go to the right hash and scroll. Scrolling is limited by the short page height at 1080.",
+    "Pazienti menu: visite -> ?vista=visite with patients-tab-visits aria-selected=true; elenco -> patients-tab-list selected. Messaggi menu: conversazioni -> #doctor-conversations.",
+    "Clicking an item label navigates to its main page (/app/cassa, /app/area-personale).",
+    "Keyboard: Enter opens the menu and focuses the first link (profilo). ArrowDown/ArrowUp move focus and wrap. Esc closes and returns focus to the trigger. ArrowDown also opens. Enter while open navigates. Enter on a focused link navigates (cassa mensile). Enter on Home navigates with no menu.",
+    "Tablet 768 touch: for all 4 items the first tap opens the menu and the second tap navigates. Tapping a link navigates and closes the menu. Tapping outside closes it. Home navigates on the first tap. The mega menu is clamped to 744px.",
+    "Mobile 390 touch: bottom-link pazienti, messaggi and cassa open the menu above the bottom bar on the first tap and navigate on the second. Tapping a menu link works.",
+    "Segna come fatta: shows toast 'Visita segnata come fatta' with an Annulla button. Francesco Bruno's agenda dot turns green, the counter goes from 'di cui 3 fatte' to 'di cui 4 fatte', the card animates to Ginevra Marino and the API status becomes completato. Annulla restores the card, the counter and API status programmato.",
+    "Late pill (page.clock): at 10:35, data-late=true, 'in ritardo di 20 min', day colours #6E4A12 on rgba(166,116,40,.22) and night colours #E2BE84 on rgba(214,170,98,.18). Both are amber and readable, not red. At 10:20 data-late=false ('in ritardo di 5 min', normal colours). The threshold works: 15 min -> false, 16 min -> true. At 10:15 the pill shows 'adesso'. Marking the late patient done gives the next patient a normal pill.",
+    "Termina flow: Avvia MantAI from Home preselects Francesco Bruno. Manual transcript + 'Genera nota clinica' -> the toast 'Visita segnata come fatta' appears after about 5s and the appointment becomes completato. I then restored it with PATCH to programmato."
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "(Low) NavMenu: suppress the hover-open after a mouse click on the trigger (cancel the timer in onClick for mouse and do not reopen until the next pointerenter).",
+    "(Low) Messaggi > Richieste dal portale: always render the #today-requests anchor (with an empty state), or route the link somewhere useful when there are 0 requests.",
+    "(Low) Keep toasts from covering the nav bar and the open menus (offset or position).",
+    "(Low) NextCard: keep the pill and Cartella on one row, or centre them consistently, so the layout does not jump when the pill text gets longer."
+  ],
+  "critical_code_review_comments": [
+    "NavMenu.useNavMenu: the pointer.current default is 'mouse' and it is only updated on pointerdown. This is fine. However, onPointerEnter starts the show timer even when the user clicks straight away, which causes the reopen after navigation described above.",
+    "NavMenu closes on any window scroll (passive listener). Scrolling inside the panel itself is fine because it is a scrollable element, not the window. But on mobile, if a hash link causes a smooth scroll, the location change already closes the menu, so this is OK.",
+    "Dashboard.markDone: the Annulla handler restores the previous status. If the user marks a second visit done within 6s, each toast keeps its own closure, which is correct.",
+    "The Termina path calls onAppointmentDone with the appointments from the current render. This is fine because the overlay re-renders with fresh props."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100% of requested flows pass; 2 low-priority UX bugs and 3 minor design issues"},
+  "test_credentials": "medico@mantmed.it / Auscula-Studio-2026 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "The Termina test created one consultation, which could not be removed: id 6aeafa92e1f8560214febe68 for Francesco Bruno, with a transcript starting with 'TEST_'. There is no DELETE endpoint for consultations, so the main agent or user may need to remove it manually. All appointment statuses I changed were restored: Francesco Bruno is back to programmato, and the other 9 appointments are unchanged.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login is at /app, not /login. The host contains 'app', so build URLs from the BASE constant rather than splitting on '/app'. Scope the desktop nav with [data-testid=sidebar] and the tablet nav with [data-testid=sidebar-tablet]. The theme toggle is [data-testid=sidebar] [data-testid=theme-toggle-btn]. For touch tests, use browser.new_context(has_touch=True, is_mobile=True). page.clock jumps of more than about 1h trigger the inactivity logout. The compliance panel closes via compliance-close-btn, not Esc."
+}
