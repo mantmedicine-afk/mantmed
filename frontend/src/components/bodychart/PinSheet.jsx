@@ -20,7 +20,7 @@ export const PinSheet = ({ m, n, isNew, cid, photoMeta, onMeta, history, onChang
   }, [onCancel, onSave]);
   const c = CAT[m.cat];
   return (
-    <div ref={box} className="fixed inset-x-0 bottom-0 z-[70] max-h-[62vh] overflow-y-auto rounded-t-[28px] bg-[var(--surface)] p-4 shadow-[var(--shadow)] ring-2 sm:p-5 lg:static lg:z-auto lg:max-h-none lg:rounded-3xl lg:shadow-none"
+    <div ref={box} className="fixed inset-x-0 bottom-0 z-[70] max-h-[62vh] overflow-y-auto overscroll-contain rounded-t-[28px] bg-[var(--surface)] p-4 shadow-[var(--shadow)] ring-2 sm:p-5 lg:static lg:z-auto lg:max-h-none lg:rounded-3xl lg:shadow-none"
       style={{ "--tw-ring-color": c.color }} data-testid="bodychart-marker-editor" role="dialog" aria-label={isNew ? "Nuovo reperto" : `Reperto ${n}`}>
       <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-[var(--hair)] lg:hidden" />
       <div className="flex items-center justify-between gap-2">

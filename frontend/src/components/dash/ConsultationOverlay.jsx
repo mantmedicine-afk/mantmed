@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { X, Mic, Pause, Play, Square, Keyboard, Loader2, LayoutTemplate } from "lucide-react";
 import { api, errMsg } from "@/lib/api";
+import { useScrollLock, ScrollLock } from "@/lib/scrollLock";
 import { useRecorder, fmtClock } from "@/hooks/useRecorder";
 import { Waveform } from "./Waveform";
 import { NoteEditor } from "./NoteEditor";
@@ -161,13 +162,14 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
     onClose();
   };
 
+  useScrollLock(open);
   if (!open) return null;
   return (
     <motion.div
       initial={{ clipPath: "circle(0% at 50% 60%)" }}
       animate={{ clipPath: "circle(150% at 50% 60%)" }}
       transition={{ duration: 0.8, ease: [0.65, 0, 0.35, 1] }}
-      className="theme-bar grain fixed inset-0 z-50 overflow-auto text-[var(--ink)]"
+      className="theme-bar grain fixed inset-0 z-50 overflow-auto overscroll-contain text-[var(--ink)]"
       data-testid="consultation-overlay"
       data-lenis-prevent
     >
@@ -309,7 +311,8 @@ const RecordingLayout = ({ panel, sheetPanel, counter, demo, children }) => {
 
 const MissingDialog = ({ missing, onBack, onFinish }) => (
   <div className="fixed inset-0 z-[60] grid place-items-center bg-[var(--scrim)] p-5" role="alertdialog" aria-modal="true" aria-labelledby="missing-title" data-testid="live-missing-dialog">
-    <div className="w-full max-w-md rounded-3xl bg-[var(--surface)] p-6 text-[var(--fg)]">
+    <ScrollLock />
+    <div className="max-h-[90dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-3xl bg-[var(--surface)] p-6 text-[var(--fg)]">
       <h3 id="missing-title" className="text-lg font-semibold">Mancano {missing.length} {missing.length === 1 ? "campo" : "campi"}: {missing.map((f) => f.label).join(", ")}</h3>
       <p className="mt-2 text-sm text-[var(--fg2)]">Può tornare alla visita per completarli o terminare comunque: nella nota compariranno come "Non rilevato".</p>
       <div className="mt-6 flex flex-wrap justify-end gap-2">

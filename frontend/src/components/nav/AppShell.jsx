@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { Menu, X, LogOut, MoreHorizontal } from "lucide-react";
 import { MantAIButton } from "@/components/mantai/MantAI";
+import { useScrollLock } from "@/lib/scrollLock";
 import { useNavMenu } from "./NavMenu";
 import { useAuth } from "@/lib/auth";
 
@@ -142,6 +143,7 @@ export const AppShell = ({ items, area, children, barExtras }) => {
     window.addEventListener("keydown", esc);
     return () => window.removeEventListener("keydown", esc);
   }, [open]);
+  useScrollLock(open);
   return (
     <ShellCtx.Provider value={{ open: () => setOpen(true) }}>
       <div className="hidden md:block lg:hidden"><TopNav items={items} area={area} mini testId="sidebar-tablet" extras={barExtras} /></div>

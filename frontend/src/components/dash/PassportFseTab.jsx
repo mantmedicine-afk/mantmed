@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Eye, Users, FileCheck2, FileX2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { FSE_LABEL } from "./ReportStates";
+import { useScrollLock } from "@/lib/scrollLock";
 import { VaccinesEditor } from "./VaccinesEditor";
 
 const box = "rounded-3xl border border-[var(--hair)] bg-[var(--surface)] p-5";
@@ -8,9 +9,11 @@ const STATUS = { attivo: "Attivo: il genitore ha un account", invitato: "Genitor
 const visible = (c) => (c.portal_published || c.report_sent_at) && !c.obscured && !c.portal_hidden_by_parent;
 const when = (c) => new Date(c.created_at).toLocaleDateString("it-IT");
 
-const ParentPreview = ({ patient, items, onClose }) => (
-  <div className="fixed inset-0 z-[60] grid place-items-center bg-[var(--scrim)] p-5" role="dialog" aria-modal="true" aria-label="Anteprima genitore" data-testid="portal-preview">
-    <div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-[var(--bg)] p-6 text-[var(--fg)]">
+const ParentPreview = ({ patient, items, onClose }) => {
+  useScrollLock();
+  return (
+  <div className="fixed inset-0 z-[60] grid place-items-center bg-[var(--scrim)] p-5" role="dialog" aria-modal="true" aria-label="Anteprima genitore" data-testid="portal-preview" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="max-h-[85vh] w-full max-w-lg overflow-y-auto overscroll-contain rounded-3xl bg-[var(--bg)] p-6 text-[var(--fg)]">
       <div className="text-[11px] uppercase tracking-[0.22em] text-[var(--fg2)]">Come lo vede il genitore</div>
       <h3 className="mt-1 text-2xl font-semibold">Passaporto di {patient.name}</h3>
       <p className="mt-1 text-sm text-[var(--fg2)]">{patient.age_label} · curve di crescita e referti pubblicati</p>
@@ -21,7 +24,8 @@ const ParentPreview = ({ patient, items, onClose }) => (
       <button onClick={onClose} className="mt-5 h-11 w-full rounded-full border border-[var(--hair)] text-sm font-medium" data-testid="portal-preview-close">Chiudi anteprima</button>
     </div>
   </div>
-);
+  );
+};
 
 export const PassportFseTab = ({ data, onEdit, onTab }) => {
   const [preview, setPreview] = useState(false);

@@ -3,9 +3,11 @@ import { toast } from "sonner";
 import { KeyRound, Loader2, Timer } from "lucide-react";
 import { api, errMsg } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useScrollLock } from "@/lib/scrollLock";
 
 export const IdleWarning = () => {
   const { warnLeft, stayActive, logout } = useAuth();
+  useScrollLock(warnLeft != null);
   if (warnLeft == null) return null;
   return (
     <div className="fixed inset-0 z-[80] grid place-items-center bg-[var(--scrim)] px-5 backdrop-blur-md" data-testid="idle-warning">

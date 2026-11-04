@@ -5,6 +5,7 @@ import { X, RefreshCw, Cloud, FileDown, Sparkles, AlertCircle, Pencil, ShieldChe
 import { ConsentDialog } from "./ConsentDialog";
 import { SignedDocsList } from "@/components/signature/SignedDocs";
 import { http } from "@/lib/api";
+import { useScrollLock } from "@/lib/scrollLock";
 import { api, CLINICS, errMsg, eur } from "@/lib/api";
 import { methodLabel } from "./CashPanel";
 import { GrowthChart } from "./GrowthChart";
@@ -40,6 +41,7 @@ export const Passport = ({ patientId, onClose, onEdit, onStart, onOpenVisit }) =
   const [tab, setTabState] = useState(() => sessionStorage.getItem(`passport-tab-${patientId}`) || "panoramica");
   const setTab = (t) => { sessionStorage.setItem(`passport-tab-${patientId}`, t); setTabState(t); };
   const [syncing, setSyncing] = useState(false);
+  useScrollLock();
   const load = useCallback(async () => {
     setSyncing(true);
     try { setData(await api.passport(patientId)); } catch (e) { toast.error(errMsg(e)); }
@@ -51,7 +53,7 @@ export const Passport = ({ patientId, onClose, onEdit, onStart, onOpenVisit }) =
 
   const p = data?.patient;
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className="app-min fixed inset-0 z-50 overflow-auto bg-[var(--bg)]" data-testid="passport-overlay" data-lenis-prevent>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className="app-min fixed inset-0 z-50 overflow-auto overscroll-contain bg-[var(--bg)]" data-testid="passport-overlay" data-lenis-prevent>
       <header className="border-b border-[var(--hair)] bg-[var(--raised)] text-[var(--fg)]">
         <div className="mx-auto max-w-[1280px] px-5 pb-6 pt-5 lg:px-10">
           <div className="flex items-center justify-between">

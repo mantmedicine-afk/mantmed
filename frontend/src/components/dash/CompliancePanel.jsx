@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { X, Lock, ShieldCheck, Server, FileCheck2, AlertTriangle, CheckCircle2, ScrollText } from "lucide-react";
 import { http } from "@/lib/api";
+import { useScrollLock } from "@/lib/scrollLock";
 import { TwoFactorCard } from "./Security";
 
 const ACTION = { accesso_passaporto: "Accesso al passaporto", referto_pdf: "Referto PDF generato", referto_email: "Referto inviato via email", consenso_registrato: "Consenso registrato", consenso_revocato: "Consenso revocato",
@@ -34,6 +35,7 @@ const STEPS = [
 ];
 
 export const CompliancePanel = ({ onClose }) => {
+  useScrollLock();
   const [d, setD] = useState(null);
   useEffect(() => {
     http.get("/compliance/status").then((r) => setD(r.data)).catch(() => setD(null));
@@ -43,7 +45,7 @@ export const CompliancePanel = ({ onClose }) => {
   const encDocs = enc?.collections?.reduce((s, c) => s + c.encrypted, 0) ?? 0;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="fixed inset-0 z-50 overflow-auto bg-[var(--bg)]" data-testid="compliance-panel" data-lenis-prevent>
+    <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="fixed inset-0 z-50 overflow-auto overscroll-contain bg-[var(--bg)]" data-testid="compliance-panel" data-lenis-prevent>
       <header className="grain relative bg-[var(--accent)] text-[var(--ink)]">
         <div className="relative z-10 mx-auto flex max-w-[1280px] items-start justify-between px-5 py-8 lg:px-10">
           <div>

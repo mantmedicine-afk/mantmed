@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Maximize2, Play, X } from "lucide-react";
+import { useScrollLock } from "@/lib/scrollLock";
 
 const src = (id, ext) => `${process.env.PUBLIC_URL || ""}/tour/${id}.${ext}`;
 const Sources = ({ id }) => <><source src={src(id, "webm")} type="video/webm" /><source src={src(id, "mp4")} type="video/mp4" /></>;
@@ -16,6 +17,7 @@ const saveData = () => {
 };
 
 const Fullscreen = ({ id, title, onClose }) => {
+  useScrollLock();
   useEffect(() => {
     const k = (e) => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } };
     window.addEventListener("keydown", k, true);

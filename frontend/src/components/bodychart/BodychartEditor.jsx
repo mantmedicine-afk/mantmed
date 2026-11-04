@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { X, Save, Loader2, Baby, User, Map as MapIcon, History, ZoomIn, CopyPlus, Sparkles, Check } from "lucide-react";
 import { api, errMsg } from "@/lib/api";
+import { useScrollLock } from "@/lib/scrollLock";
 import { VIEWS, ZOOMS, CAT, uid, isBodyView, isIntimate } from "@/lib/bodychart";
 import { BodyCanvas } from "./BodyCanvas";
 import { Tools, MarkerList } from "./Tools";
@@ -34,6 +35,7 @@ const Proposals = ({ items, onOpen, onDrop }) => items.length > 0 && (
 );
 
 export const BodychartEditor = ({ consultation, defaultKind = "child", onClose, onSaved }) => {
+  useScrollLock();
   const [tab, setTab] = useState("map");
   const [loading, setLoading] = useState(true);
   const [kind, setKind] = useState(defaultKind);
@@ -131,7 +133,7 @@ export const BodychartEditor = ({ consultation, defaultKind = "child", onClose, 
   const carried = prev && prev.markers.some((m) => doc.markers.some((x) => x.lesion_id && x.lesion_id === (m.lesion_id || m.id)));
 
   return (
-    <div className="fixed inset-0 z-[60] overflow-auto bg-[var(--raised)] text-[var(--fg)]" data-testid="bodychart-editor" data-lenis-prevent>
+    <div className="fixed inset-0 z-[60] overflow-auto overscroll-contain bg-[var(--raised)] text-[var(--fg)]" data-testid="bodychart-editor" data-lenis-prevent>
       <div className="sticky top-0 z-10 border-b border-[var(--hair)] bg-[var(--bg)]">
         <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-8">
           <div className="min-w-0"><div className="text-[11px] uppercase tracking-[0.22em] text-[var(--fg2)]">Bodychart · mappa corporea</div><div className="truncate font-display text-2xl">{consultation.patient_name}</div></div>

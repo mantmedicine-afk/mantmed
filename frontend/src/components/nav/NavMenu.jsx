@@ -76,7 +76,7 @@ export const useNavMenu = (it, place = "down") => {
             if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); links[(i + (e.key === "ArrowDown" ? 1 : -1) + links.length) % links.length]?.focus(); }
           }}
           initial={{ opacity: 0, y: place === "up" ? 6 : -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: place === "up" ? 6 : -6 }} transition={{ duration: 0.18, ease: "easeOut" }}
-          className="fixed z-[70] max-h-[min(75vh,640px)] overflow-y-auto rounded-2xl bg-[var(--surface)] p-3 text-[var(--fg)] shadow-[0_24px_60px_-18px_var(--scrim)]" data-testid={`navmenu-${it.id}`}>
+          className="fixed z-[70] max-h-[min(75vh,640px)] overflow-y-auto overscroll-contain rounded-2xl bg-[var(--surface)] p-3 text-[var(--fg)] shadow-[0_24px_60px_-18px_var(--scrim)]" data-testid={`navmenu-${it.id}`}>
           <div className={it.mega ? "gap-2 sm:columns-2 md:columns-3" : ""}>
             {it.menu.map((g, gi) => (
               <div key={g.title ?? gi} className="mb-2 break-inside-avoid">

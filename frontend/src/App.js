@@ -16,6 +16,7 @@ import Verify from "@/pages/Verify";
 import Privacy from "@/pages/Privacy";
 import SharedPassport from "@/pages/SharedPassport";
 import { setClinics } from "@/lib/api";
+import { setLenis, isScrollLocked } from "@/lib/scrollLock";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { IdleWarning } from "@/components/dash/Security";
@@ -56,11 +57,12 @@ const AccountGate = () => {
 
 function App() {
   useEffect(() => {
-    const lenis = new Lenis({ duration: 1.1, smoothWheel: true });
+    const lenis = new Lenis({ duration: 1.1, smoothWheel: true, prevent: () => isScrollLocked() });
+    setLenis(lenis);
     let raf;
     const loop = (t) => { lenis.raf(t); raf = requestAnimationFrame(loop); };
     raf = requestAnimationFrame(loop);
-    return () => { cancelAnimationFrame(raf); lenis.destroy(); };
+    return () => { cancelAnimationFrame(raf); setLenis(null); lenis.destroy(); };
   }, []);
 
   return (
