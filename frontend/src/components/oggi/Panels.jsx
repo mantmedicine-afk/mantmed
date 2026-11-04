@@ -33,10 +33,10 @@ export const StartButton = ({ onStart }) => (
 
 const Stat = ({ id, icon: Icon, value, label, sub, onClick, i }) => (
   <motion.button {...rise(i)} onClick={onClick}
-    className={`${card} group flex items-center gap-3.5 px-5 py-3.5 text-left transition-transform duration-300 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]`} data-testid={`oggi-stat-${id}`}>
-    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--sel)] text-[var(--fg)]"><Icon size={17} /></span>
+    className={`${card} group flex min-h-[72px] items-center gap-4 px-5 py-3 text-left transition-transform duration-300 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]`} data-testid={`oggi-stat-${id}`}>
+    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--sel)] text-[var(--fg)]"><Icon size={17} /></span>
     <span className="flex min-w-0 flex-1 items-center gap-3">
-      <span className="block text-2xl font-semibold tabular-nums tracking-tight text-[var(--fg)]" data-testid={`oggi-stat-${id}-count`}>{value}</span>
+      <span className="block text-[32px] leading-none font-semibold tabular-nums tracking-tight text-[var(--fg)]" data-testid={`oggi-stat-${id}-count`}>{value}</span>
       <span className="block min-w-0 text-sm text-[var(--fg2)]">{label}{sub && <span className="block text-xs" data-testid={`oggi-stat-${id}-sub`}>{sub}</span>}</span>
     </span>
     <ChevronRight size={17} className="text-[var(--fg2)] transition-transform group-hover:translate-x-0.5" aria-hidden="true" />

@@ -457,3 +457,7 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 ## 2026-06 Home a tre colonne
 - Rimossi vaccinazioni/bilanci/pillola; layout agenda | pulsante+card prossimo paziente (sticky) | riepilogo + Vera Health (link esterno, nessun dato inviato)
 - Card prossimo paziente con tempo mancante o ritardo aggiornato ogni 30s
+
+## 2026-06 Rifiniture Home/barre
+- Tolto Esci dalla barra grigia (resta in barra blu e nel menu mobile), tolto pulsante 'Riduci barra'; tooltip su Cos'e' MantAI
+- Colonne centrale e destra sticky su desktop; riepilogo 72px con numeri grandi; Vera Health con icona; motivo troncato su una riga

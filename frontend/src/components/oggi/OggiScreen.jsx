@@ -52,14 +52,15 @@ export const OggiScreen = ({ appointments, patients, notes, unread, requests, on
         </div>
         <Segmented value={clinic} onChange={setClinic} options={[["all", "Tutti"], ...CLINICS.map((c) => [c, shortClinic(c)])]} />
       </motion.header>
-      <div className="grid grid-cols-1 items-start gap-6 [grid-template-areas:'hero'_'summary'_'agenda'_'vera'] md:grid-cols-2 md:[grid-template-areas:'hero_hero'_'agenda_summary'_'agenda_vera'] md:[grid-template-rows:auto_auto_1fr] xl:grid-cols-[minmax(0,38fr)_minmax(0,24fr)_minmax(0,38fr)] xl:gap-8 xl:[grid-template-areas:'agenda_hero_summary'_'agenda_hero_vera'] xl:[grid-template-rows:auto_1fr]">
-        <motion.section {...rise(1)} className="flex flex-col items-center gap-6 self-start [grid-area:hero] xl:sticky xl:top-32" aria-label="Prossimo paziente" data-testid="oggi-next-bar">
+      <div className="grid grid-cols-1 items-start gap-6 [grid-template-areas:'hero'_'summary'_'agenda'_'vera'] md:grid-cols-2 md:[grid-template-areas:'hero_hero'_'agenda_side'] xl:grid-cols-[minmax(0,38fr)_minmax(0,24fr)_minmax(0,38fr)] xl:gap-8 xl:[grid-template-areas:'agenda_hero_side']">
+        <motion.section {...rise(1)} className="flex flex-col items-center gap-6 self-start [grid-area:hero] xl:sticky xl:top-24" aria-label="Prossimo paziente" data-testid="oggi-next-bar">
           <StartButton onStart={startNext} />
           <NextCard next={next} patient={byId[next?.patient_id]} now={now} onOpen={() => onOpenPatient(next.patient_id)} />
         </motion.section>
         <motion.div {...rise(2)} className="min-w-0 [grid-area:agenda]">
           <AgendaList groups={groups} patients={patients} now={now} onSelect={setSelected} />
         </motion.div>
+        <div className="contents md:block md:min-w-0 md:space-y-6 md:self-start md:[grid-area:side] xl:sticky xl:top-24" data-testid="oggi-side">
         <div className="min-w-0 [grid-area:summary]">
           <Summary visits={shown.length} done={shown.filter(isDone).length} toSign={toSign.length} unread={unread} requests={requests}
             onVisits={() => document.getElementById("oggi-agenda")?.scrollIntoView({ behavior: "smooth", block: "start" })}
@@ -67,6 +68,7 @@ export const OggiScreen = ({ appointments, patients, notes, unread, requests, on
             onMessages={() => nav("/app/messaggi")} />
         </div>
         <div className="min-w-0 self-start [grid-area:vera]"><VeraCard i={6} /></div>
+        </div>
       </div>
       <VisitSheet appt={sel} patient={byId[sel?.patient_id]} onClose={() => setSelected(null)} onOpen={onOpenPatient} />
     </main>

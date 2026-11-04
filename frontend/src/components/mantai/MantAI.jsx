@@ -113,7 +113,7 @@ export const MantAIDialog = ({ open, onOpenChange, view = "doctor" }) => {
 
 const TRIGGERS = {
   sidebar: ({ mini, onClick }) => (
-    <button onClick={onClick} title={mini ? "Cos'è MantAI" : undefined} aria-label="Cos'è MantAI" data-testid="mantai-sidebar-btn"
+    <button onClick={onClick} title="Cos'è MantAI" aria-label="Cos'è MantAI" data-testid="mantai-sidebar-btn"
       className={`mb-2 flex h-11 items-center gap-2 rounded-2xl text-sm text-[var(--fg2)] transition-colors hover:bg-[var(--sel)] hover:text-[var(--ink)] ${mini ? "justify-center" : "px-3.5"}`}>
       <MantAIMark size={22} light />{!mini && "Cos'è MantAI"}
     </button>
