@@ -41,6 +41,7 @@ import unicodedata
 from tenancy import OWNER
 from emergentintegrations.llm.openai import OpenAISpeechToText
 from emergentintegrations.llm.chat import LlmChat, UserMessage
+from live_checklist import build_live, checklist_fields, apply_checklist, demo_sezioni, BY_ID as CHECKLIST_BY_ID
 from auth import build_auth, seed_doctor, seed_admin, require_role, TOUR_VERSION
 from cleanup import build_cleanup
 from visit_templates import build_visit_templates, fields_prompt, map_fields, parse_json
@@ -239,6 +240,9 @@ class NoteSection(BaseModel):
     gruppo: Literal["anamnesi", "sintomi", "parametri_vitali", "esame_obiettivo", "altro"] = "esame_obiettivo"
     titolo: str = ""
     testo: str = ""
+    sezione: str = ""  # sezione del modello checklist (es. "Parametri")
+    fonte: Literal["", "ai", "manuale"] = ""
+    mancante: bool = False
 
 
 class ClinicalNote(BaseModel):
@@ -284,10 +288,12 @@ class Consultation(BaseDocument):
     template_name: str = ""
     template_fields: List[dict] = Field(default_factory=list)
     previsit: Optional[dict] = None
+    checklist_id: str = ""
+    checklist_manual: Optional[dict] = None
     ai_provenance: Optional[dict] = Field(default_factory=lambda: {"ai_generated": False})
     ai_snapshot: Optional[dict] = None
     created_at: str = Field(default_factory=now_iso)
-    __encrypted__: ClassVar[tuple] = ("transcript", "note", "report_sent_to", "previsit", "ai_snapshot")
+    __encrypted__: ClassVar[tuple] = ("transcript", "note", "report_sent_to", "previsit", "ai_snapshot", "checklist_manual")
 
     def out(self):
         d = self.model_dump(by_alias=False, exclude={"ai_snapshot"})
@@ -949,9 +955,13 @@ async def run_consult_job(cid: str, owner: str):
         spec = await doctor_specialty(owner)
         cur = unseal_fields(await db.consultations.find_one({"_id": ObjectId(cid)}, {"template_fields": 1, "previsit": 1, "template_name": 1}) or {}, ("previsit",))
         pv = cur.get("previsit")
-        ai, summary = await asyncio.gather(structure_note(transcript, f"consult-{cid}", spec, cur.get("template_fields") or None, previsit_prompt(pv) if pv else ""),
+        ck = unseal_fields(await db.consultations.find_one({"_id": ObjectId(cid)}, {"checklist_id": 1, "checklist_manual": 1}) or {}, ("checklist_manual",))
+        ctx = (previsit_prompt(pv) if pv else "") + (CHECKLIST_RULE if ck.get("checklist_id") else "")
+        ai, summary = await asyncio.gather(structure_note(transcript, f"consult-{cid}", spec, cur.get("template_fields") or None, ctx),
                                            _safe_summary(spec, transcript, f"sum-{cid}"))
         ai.riepilogo = summary
+        if ck.get("checklist_id"):
+            ai.sezioni = [NoteSection(**x) for x in apply_checklist([x.model_dump() for x in ai.sezioni], ck["checklist_id"], ck.get("checklist_manual") or {})]
         p = prov.make(prov.note_tipo(cur.get("template_name", ""), cur.get("template_fields"), bool(pv)), prov.GPT)
         p["parti"] = {**({"trascrizione": prov.make("trascrizione", prov.WHISPER)} if files else {}),
                       **({"riassunto_famiglia": prov.make("riassunto_famiglia", prov.GPT)} if summary else {})}
@@ -1019,6 +1029,7 @@ async def start_consultation(
     patient_name: str = Form(...), patient_id: Optional[str] = Form(None), clinic: str = Form(""), waiting_id: Optional[str] = Form(None),
     duration_sec: int = Form(0), paper_consent: bool = Form(False), transcript: str = Form(""), audio: Optional[UploadFile] = File(None),
     part_ids: str = Form(""), template_id: Optional[str] = Form(None),
+    checklist_id: str = Form(""), checklist_manual: str = Form(""), live_session_id: str = Form(""), live_chunks: int = Form(0),
 ):
     """Crea subito la visita 'in elaborazione' e avvia Whisper + IA in background.
     Visite lunghe: l'audio arriva prima in parti (POST /consultations/audio-parts) e qui si passano i loro id in ordine."""
@@ -1032,6 +1043,20 @@ async def start_consultation(
     if not patient and not paper_consent:
         raise HTTPException(412, "Conferma l'acquisizione del consenso privacy per la visita libera")
     data = await audio.read() if audio else b""
+    try:
+        manual = {str(k): str(v)[:2000] for k, v in (json.loads(checklist_manual) if checklist_manual else {}).items() if str(v).strip()}
+    except (ValueError, AttributeError):
+        manual = {}
+    checklist_id = checklist_id if checklist_id in CHECKLIST_BY_ID else ""
+    live_cfg = await live_settings(user)
+    if checklist_id and live_cfg["demo"]:
+        return await _demo_consultation(user, patient_name.strip(), patient_id, clinic, waiting_id, duration_sec, paper_consent, checklist_id, manual)
+    if live_session_id and live_chunks and not data and not part_ids.strip():
+        acc = await live_transcript(live_session_id, user["id"], live_chunks)
+        if acc is None:
+            raise HTTPException(409, "Trascrizione a blocchi incompleta: invii la registrazione completa")
+        transcript = acc
+        await db.live_sessions.delete_one({"session_id": live_session_id, "owner_id": user["id"]})
     parts = []
     for pid_ in [p for p in part_ids.split(",") if p.strip()][:MAX_PARTS]:
         f_ = await db["consult_audio.files"].find_one({"_id": ObjectId(pid_.strip()), "metadata.owner_id": user["id"], "metadata.kind": "part"}) if ObjectId.is_valid(pid_.strip()) else None
@@ -1045,6 +1070,8 @@ async def start_consultation(
     if len(data) > 25 * 1024 * 1024:
         raise HTTPException(413, "Audio oltre 25 MB: per visite molto lunghe divida la registrazione")
     tpl = await resolve_template(template_id or None)
+    if checklist_id:
+        tpl = {**tpl, "id": None, "name": CHECKLIST_BY_ID[checklist_id]["name"], "fields": checklist_fields(checklist_id), "bilancio": checklist_id == "bilancio"}
     note = ClinicalNote(specialita=await doctor_specialty(user["id"]), sezioni=[NoteSection(gruppo=f["gruppo"], titolo=f["titolo"]) for f in tpl["fields"]])
     enrich_growth(note, patient, date.today())
     oid_new = ObjectId()
@@ -1067,7 +1094,8 @@ async def start_consultation(
                      transcript="" if (data or parts) else transcript.strip(),
                      note=note, status="processing", duration_sec=duration_sec, paper_consent=paper_consent, doctor_id=user["id"],
                      template_id=tpl["id"], template_name=tpl["name"], template_fields=tpl["fields"],
-                     previsit=await latest_previsit(db, patient_id, user["id"]) if tpl.get("bilancio") else None)
+                     previsit=await latest_previsit(db, patient_id, user["id"]) if tpl.get("bilancio") else None,
+                     checklist_id=checklist_id, checklist_manual=manual or None)
     await tdb.consultations.insert_one({**c.to_mongo(), "_id": oid_new, "rev": 0})
     c.id = cid
     if waiting_id and ObjectId.is_valid(waiting_id):
@@ -1075,6 +1103,35 @@ async def start_consultation(
         await tdb.appointments.update_many({"patient_name": patient_name.strip()}, {"$set": {"status": "completato"}})
     spawn_consult_job(cid, user["id"])
     return c.out()
+
+
+CHECKLIST_RULE = ("\n\nNota per campi_modello (checklist della visita): scrivi in OGNI campo il valore completo detto in visita "
+                  "(es. 'Peso: 7,4 kg'), anche se compare già negli altri campi; mai rimandi del tipo 'documentato nel campo...'. "
+                  "Se l'informazione non è stata detta scrivi 'Non riportato'.")
+
+
+async def _demo_consultation(user, name, patient_id, clinic, waiting_id, duration_sec, paper_consent, checklist_id, manual):
+    """Modalità dimostrativa (solo account demo): nota finta già pronta, nessuna chiamata IA."""
+    ck = CHECKLIST_BY_ID[checklist_id]
+    note = ClinicalNote(specialita=await doctor_specialty(user["id"]), sezioni=[NoteSection(**x) for x in demo_sezioni(checklist_id, manual)],
+                        motivo_visita=ck["name"], riepilogo="Visita dimostrativa: dati di esempio, nessun dato reale.")
+    enrich_growth(note, await get_patient(patient_id), date.today())
+    c = Consultation(patient_name=name, patient_id=patient_id, clinic=clinic, waiting_id=waiting_id, transcript="Trascrizione dimostrativa.",
+                     note=note, status="ready", duration_sec=duration_sec, paper_consent=paper_consent, doctor_id=user["id"],
+                     template_name=f'{ck["name"]} (demo)', template_fields=checklist_fields(checklist_id), checklist_id=checklist_id, checklist_manual=manual or None)
+    res = await tdb.consultations.insert_one({**c.to_mongo(), "rev": 0})
+    c.id = str(res.inserted_id)
+    return c.out()
+
+
+async def _whisper_chunk(data: bytes, filename: str) -> str:
+    buf = io.BytesIO(data)
+    buf.name = filename or "blocco.webm"
+    res = await OpenAISpeechToText(api_key=LLM_KEY).transcribe(file=buf, model="whisper-1", response_format="json", language="it", prompt=WHISPER_PROMPT)
+    return HALLUCINATIONS.sub("", (res.text or "").strip()).strip(" .,-")
+
+
+live_router, live_settings, live_transcript = build_live(db, current_user, _whisper_chunk, LLM_KEY, seal, unseal)
 
 
 @api.get("/consultations/{cid}")
@@ -1767,6 +1824,7 @@ async def portal_pdf_for(c: dict):
 
 
 api.include_router(build_beta(db, current_user))
+api.include_router(live_router)
 reg_router, admin_doctors, portal_router = build_registration(
     db, current_user, start_session, {"patient": Patient, "consultation": Consultation, "consent": Consent, "appointment": Appointment, "payment": Payment}, portal_pdf_for)
 public_api.include_router(reg_router)

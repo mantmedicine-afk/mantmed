@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { Copy, Printer, Save, Check, FileDown, Loader2, PersonStanding, IdCard, Sparkles, AlertTriangle, RotateCcw, Plus, X } from "lucide-react";
+import { Copy, Printer, Save, Check, FileDown, Loader2, PersonStanding, IdCard, Sparkles, AlertTriangle, RotateCcw, Plus, X, PenLine } from "lucide-react";
 import { useProcessing } from "@/lib/processing";
 import { SignatureHint } from "@/components/signature/SignatureReminder";
 import { api, errMsg } from "@/lib/api";
@@ -159,12 +159,13 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
               {sections.map((x) => (
                 <div key={x.i} className="block" data-testid={`note-sezione-${x.i}`}>
                   <div className="flex items-center gap-2">
-                    {marked(secKey(x)) && <AIFieldMark testId={`note-ai-mark-sezione-${x.i}`} />}
+                    {marked(secKey(x)) ? <AIFieldMark testId={`note-ai-mark-sezione-${x.i}`} /> : x.fonte === "ai" && <Sparkles size={12} className="shrink-0 text-[var(--fg2)]" aria-label="Compilato da MantAI" title="Compilato da MantAI" data-testid={`note-sezione-ai-${x.i}`} />}
+                    {x.fonte === "manuale" && <PenLine size={12} className="shrink-0 text-[var(--fg2)]" aria-label="Inserito a mano" title="Inserito a mano" data-testid={`note-sezione-manual-${x.i}`} />}
                     <input value={x.titolo} onChange={(e) => setSection(x.i, { titolo: e.target.value })} disabled={processing} className="min-w-0 flex-1 bg-transparent text-xs font-semibold uppercase tracking-[0.18em] text-[var(--fg2)] outline-none focus:text-[var(--fg)]" aria-label="Titolo della voce" data-testid={`note-sezione-title-${x.i}`} />
                     {!processing && <button onClick={() => delSection(x.i)} className="grid h-7 w-7 place-items-center rounded-full text-[var(--fg2)] hover:bg-[var(--raised)] hover:text-[var(--alert)]" aria-label="Rimuovi voce" data-testid={`note-sezione-del-${x.i}`}><X size={14} /></button>}
                   </div>
-                  {processing ? <div className="mt-1.5 flex h-[64px] flex-col justify-center gap-2 rounded-2xl border border-[var(--hair)] bg-[var(--raised)] px-4" data-testid={`note-sezione-loading-${x.i}`}><div className="ai-shimmer h-3 w-11/12 rounded-full" /><div className="ai-shimmer h-3 w-2/3 rounded-full" /></div> : <motion.textarea key={`s${x.i}-${flash}`} initial={glow ? { opacity: 0, y: 6 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} value={x.testo} onChange={(e) => { touch(secKey(x)); setSection(x.i, { testo: e.target.value }); }} rows={2}
-                    className={`mt-1.5 w-full resize-y rounded-2xl border border-[var(--hair)] bg-[var(--raised)] px-4 py-3 text-[15px] leading-relaxed outline-none transition-colors focus:border-[var(--accent)] focus:bg-[var(--surface)] ${glow ? "ai-filled" : ""}`} data-testid={`note-sezione-text-${x.i}`} />}
+                  {processing ? <div className="mt-1.5 flex h-[64px] flex-col justify-center gap-2 rounded-2xl border border-[var(--hair)] bg-[var(--raised)] px-4" data-testid={`note-sezione-loading-${x.i}`}><div className="ai-shimmer h-3 w-11/12 rounded-full" /><div className="ai-shimmer h-3 w-2/3 rounded-full" /></div> : <motion.textarea key={`s${x.i}-${flash}`} initial={glow ? { opacity: 0, y: 6 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} value={x.testo} onChange={(e) => { touch(secKey(x)); setSection(x.i, { testo: e.target.value, mancante: false }); }} rows={2}
+                    className={`mt-1.5 w-full resize-y rounded-2xl border px-4 py-3 text-[15px] leading-relaxed outline-none transition-colors focus:border-[var(--accent)] focus:bg-[var(--surface)] ${x.mancante ? "border-[var(--late)] bg-[var(--late-bg)] text-[var(--late)]" : "border-[var(--hair)] bg-[var(--raised)]"} ${glow ? "ai-filled" : ""}`} data-mancante={x.mancante ? "true" : undefined} data-testid={`note-sezione-text-${x.i}`} />}
                 </div>
               ))}
               {!isPediatric(note) && current.id === "esame" && processing && !sections.length && [1, 2, 3].map((k) => (

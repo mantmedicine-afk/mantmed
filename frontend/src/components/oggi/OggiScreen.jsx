@@ -40,7 +40,7 @@ export const OggiScreen = ({ appointments, patients, notes, unread, requests, on
   const next = today.find((a) => (clinic === "all" || a.clinic === clinic) && !isDone(a)) ?? null;
   const sel = today.find((a) => a.id === selected) ?? null;
   const toSign = notes.filter(needsSignature);
-  const startNext = () => onStart(next ? { name: next.patient_name, patient_id: next.patient_id, appointment_id: next.id } : null);
+  const startNext = () => onStart(next ? { name: next.patient_name, patient_id: next.patient_id, appointment_id: next.id, visit_type: next.visit_type } : null);
 
   return (
     <main className="mx-auto max-w-[1440px] space-y-10 px-5 pb-16 pt-8 sm:space-y-12 lg:px-8 lg:pt-10" data-testid="today-page">

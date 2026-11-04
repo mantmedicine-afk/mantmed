@@ -1,4 +1,4 @@
-import { Stethoscope, CalendarClock, LayoutTemplate, HeartPulse, Sparkles, BellRing, ShieldCheck, BarChart3, CreditCard, Download, FileLock2, MessageSquarePlus } from "lucide-react";
+import { SlidersHorizontal, Stethoscope, CalendarClock, LayoutTemplate, HeartPulse, Sparkles, BellRing, ShieldCheck, BarChart3, CreditCard, Download, FileLock2, MessageSquarePlus } from "lucide-react";
 
 export const AREA_GROUPS = ["Profilo", "Studio e agenda", "Documenti", "Strumenti", "Account"];
 
@@ -10,6 +10,7 @@ export const AREA_SECTIONS = [
   { id: "tessera-sanitaria", group: "Documenti", icon: CreditCard, title: "Tessera Sanitaria", short: "Invio spese al Sistema TS", text: "Invio delle spese sanitarie al Sistema TS." },
   { id: "esportazioni", group: "Documenti", icon: Download, title: "Esportazioni", short: "Registro cassa e copia dati", text: "Registro cassa per il commercialista e copia dei dati (GDPR)." },
   { id: "statistiche", group: "Strumenti", icon: BarChart3, title: "Statistiche", short: "Visite, attesa e incassi", text: "Visite, sala d'attesa, incassi e metriche di utilizzo." },
+  { id: "mantai-impostazioni", group: "Strumenti", icon: SlidersHorizontal, title: "Impostazioni MantAI", short: "Checklist in tempo reale", text: "Checklist in tempo reale durante la visita e altre preferenze di MantAI." },
   { id: "mantai-risposte", group: "Strumenti", icon: Sparkles, title: "MantAI Risposte", short: "Bozze di risposta alle famiglie", text: "Bozze di risposta ai messaggi delle famiglie." },
   { id: "notifiche", group: "Account", icon: BellRing, title: "Notifiche e avvisi", short: "Quali avvisi ricevere", text: "Quali avvisi ricevere e come." },
   { id: "sicurezza", group: "Account", icon: ShieldCheck, title: "Sicurezza e accesso", short: "Password, 2FA e sessioni", text: "Password, verifica in due passaggi e sessioni attive." },

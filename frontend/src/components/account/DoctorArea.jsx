@@ -2,6 +2,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect } from "react";
 import { ChevronLeft } from "lucide-react";
 import { AREA_SECTIONS } from "./areaSections";
+import { MantAISettingsSection } from "./MantAISettingsSection";
 import { DoctorProfile } from "./ProfileForms";
 import { ShowcaseSection } from "./ShowcaseSection";
 import { DoctorSignatureSection } from "./DoctorSignatureSection";
@@ -20,7 +21,7 @@ const ALIAS = { vetrina: "profilo", firma: "profilo", bilanci: "modelli" };
 
 const BEHAVIOR = ({ stats, onCompliance, onFeedback, nav }) => ({
   profilo: { C: ProfessionalProfile }, orari: { C: AvailabilitySection }, modelli: { C: VisitTemplatesSection },
-  "mantai-risposte": { C: AiRepliesSection }, notifiche: { C: NotificationsSection }, sicurezza: { C: SecuritySection },
+  "mantai-risposte": { C: AiRepliesSection }, "mantai-impostazioni": { C: MantAISettingsSection }, notifiche: { C: NotificationsSection }, sicurezza: { C: SecuritySection },
   statistiche: { node: stats }, "tessera-sanitaria": { node: <TsCard /> },
   esportazioni: { onClick: () => nav("/app/cassa#cash-monthly") }, gdpr: { onClick: onCompliance }, feedback: { onClick: onFeedback },
 });

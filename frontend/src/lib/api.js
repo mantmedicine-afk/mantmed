@@ -68,6 +68,18 @@ export const api = {
     }
     return http.post("/consultations/start", fd).then((r) => r.data);
   },
+  liveChunk: (blob, sessionId, seq, emptyFields) => {
+    const fd = new FormData();
+    const ext = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "webm";
+    fd.append("audio", blob, `blocco-${seq}.${ext}`);
+    fd.append("session_id", sessionId);
+    fd.append("seq", String(seq));
+    fd.append("empty_fields", JSON.stringify(emptyFields));
+    return http.post("/consultations/live/chunk", fd, { timeout: 60000 }).then((r) => r.data);
+  },
+  checklists: () => http.get("/checklists").then((r) => r.data),
+  mantaiSettings: () => http.get("/mantai-settings").then((r) => r.data),
+  saveMantaiSettings: (b) => http.put("/mantai-settings", b).then((r) => r.data),
   uploadAudioPart: (blob, i) => {
     const fd = new FormData();
     const ext = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "webm";
