@@ -71,7 +71,7 @@ const WaitingCard = ({ w, age, onPassport, onCall, onEdit, onRemove, onStart }) 
         {w.priority === "urgente" && <span className="rounded-full bg-[var(--alert-bg)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--alert)]" data-testid={`waiting-priority-${w.id}`}>Urgente</span>}
         <span className={`text-xs ${inStudio ? "text-[var(--fg2)]" : "text-[var(--fg2)]"}`}>{w.clinic}</span>
         <div className="ml-auto flex items-center gap-1">
-          {onPassport && <IconBtn onClick={onPassport} label="Passaporto sanitario" id={`waiting-passport-${w.id}`} dark={inStudio}><BookUser size={14} /></IconBtn>}
+          {onPassport && <IconBtn onClick={onPassport} label="Scheda paziente" id={`waiting-passport-${w.id}`} dark={inStudio}><BookUser size={14} /></IconBtn>}
           <IconBtn onClick={onEdit} label="Modifica" id={`waiting-edit-${w.id}`} dark={inStudio}><Pencil size={14} /></IconBtn>
           <IconBtn onClick={onRemove} label="Rimuovi" id={`waiting-remove-${w.id}`} dark={inStudio}><Trash2 size={14} /></IconBtn>
           <button onClick={onCall} className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors ${inStudio ? "bg-[var(--sel)] text-[var(--ink)] hover:bg-[var(--sel)]" : "bg-[var(--surface)] text-[var(--fg)] ring-1 ring-[var(--hair)] hover:ring-[var(--accent)]"}`} data-testid={`waiting-call-${w.id}`}>

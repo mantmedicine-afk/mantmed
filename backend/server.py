@@ -1803,7 +1803,8 @@ async def record_kind_consent(pid: str, kind: Literal["fse", "passaporto"], body
 
 
 def _norm_name(t: str) -> str:
-    return " ".join(_fold(t).split())
+    """Nome confrontabile: senza prefisso di relazione ('Mamma: …'), accenti e spazi doppi."""
+    return " ".join(_fold((t or "").split(":", 1)[-1]).split())
 
 
 async def fse_reevaluate(pid: str):
@@ -1852,10 +1853,17 @@ async def fse_obscure(cid: str, body: ObscureIn):
     if not doc:
         raise HTTPException(404, "Consultazione non trovata")
     if body.on:
-        upd = {"obscured": True, "portal_published": False, "fse": {**(doc.get("fse") or {}), "status": "oscurato"}}
+        prev = {k: v for k, v in (doc.get("fse") or {}).items() if k != "prev"}
+        upd = {"obscured": True, "portal_published": False, "portal_was_published": bool(doc.get("portal_published")),
+               "fse": {**prev, "status": "oscurato", "prev": prev}}
     else:
+        prev = (doc.get("fse") or {}).get("prev") or {}
         pat = patient_out(await tdb.patients.find_one({"_id": oid(doc["patient_id"])})) if doc.get("patient_id") else {}
-        upd = {"obscured": False, "fse": fse_mod.on_signed({**doc, "obscured": False}, pat) if doc.get("signed_at") else None}
+        if prev.get("status") in ("inviato", "accettato", "errore"):
+            new = prev  # esito già ottenuto: nessun secondo invio
+        else:
+            new = fse_mod.on_signed({**doc, "obscured": False, "fse": prev}, pat) if doc.get("signed_at") else (prev or None)
+        upd = {"obscured": False, "fse": new, "portal_published": bool(doc.get("portal_was_published"))}
     await tdb.consultations.update_one({"_id": doc["_id"]}, {"$set": upd})
     await audit("referto_oscurato" if body.on else "referto_oscuramento_rimosso", doc["patient_name"])
     return Consultation.from_mongo(await tdb.consultations.find_one({"_id": doc["_id"]})).out()

@@ -46,7 +46,7 @@ const PatientFolderBody = ({ patient, notes, onOpenVisit, onPassport, onClose })
     <div className="space-y-4" data-testid={`patient-folder-${patient.id}`}>
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-[28px] bg-[var(--accent)] p-5 text-[var(--ink)]">
         <div><div className="text-[11px] uppercase tracking-[0.2em] text-[var(--fg2)]">Cartella clinica</div><div className="font-display text-3xl">{patient.name}</div></div>
-        <div className="flex flex-wrap gap-2"><button onClick={() => onPassport(patient.id)} className="flex h-11 items-center gap-2 rounded-full bg-[var(--surface)] px-5 text-sm font-semibold text-[var(--fg)] transition-transform hover:-translate-y-0.5" data-testid="patient-folder-passport-btn"><FileText size={15} /> Passaporto sanitario</button>
+        <div className="flex flex-wrap gap-2"><button onClick={() => onPassport(patient.id)} className="flex h-11 items-center gap-2 rounded-full bg-[var(--surface)] px-5 text-sm font-semibold text-[var(--fg)] transition-transform hover:-translate-y-0.5" data-testid="patient-folder-passport-btn"><FileText size={15} /> Scheda paziente</button>
           <button onClick={onClose} className="grid h-11 w-11 place-items-center rounded-full border border-[var(--hair)] hover:bg-[var(--surface)] hover:text-[var(--fg)]" aria-label="Chiudi cartella" data-testid="patient-folder-close"><X size={16} /></button></div>
       </div>
 <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">

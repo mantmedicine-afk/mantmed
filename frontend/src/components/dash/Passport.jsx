@@ -37,7 +37,8 @@ const Overview = ({ data, syncing, onSync, onTab }) => {
 
 export const Passport = ({ patientId, onClose, onEdit, onStart, onOpenVisit }) => {
   const [data, setData] = useState(null);
-  const [tab, setTab] = useState("panoramica");
+  const [tab, setTabState] = useState(() => sessionStorage.getItem(`passport-tab-${patientId}`) || "panoramica");
+  const setTab = (t) => { sessionStorage.setItem(`passport-tab-${patientId}`, t); setTabState(t); };
   const [syncing, setSyncing] = useState(false);
   const load = useCallback(async () => {
     setSyncing(true);

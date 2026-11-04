@@ -1,0 +1,48 @@
+{
+  "summary": "Tested PART 1 of the FSE 2.0 (simulated) + Passaporto reorganisation end-to-end on demo patient Pietro Fontana (backed up with mongoexport and restored afterwards). Backend: 10/10 pytest pass (passport payload portal/fse/consents, kind consents fse/passaporto + validation, sign -> non_inviato with reason, re-evaluation on PATCH -> in_coda -> inviato -> accettato, invalid CF -> errore, retry, 409 for draft retry/publish, obscure/unobscure, publish obscured -> 409, /fse/pending, revoke). Frontend: tab order/names correct, Crescita shows the chart, header shows 3 consent badges, Visite e referti shows 3 badges per report, draft shows 'Verifica e firma prima il referto' with Pubblica disabled, publish/obscure/unobscure/Invia al FSE work and update badges, deadline text shown, consents register/history/revoke work, Passaporto e FSE tab (status, preview, visible/hidden lists, shares, consent state, missing data + 'Completa i dati' -> PatientDialog with patient-guardian-cf-input, sends list) works, Home oggi-stat-fse tile shows count + 'scadenza più vicina' and goes to /app/pazienti?vista=visite. Main defect: the signer/guardian mismatch warning is a false positive for every demo patient, because guardian is stored as 'Mamma: Ilaria Fontana'.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/patients/{pid}/passport (consents[].signer_mismatch)", "issue": "False positive. patient.guardian holds a relation prefix ('Mamma: Ilaria Fontana', 'Papà: Luca Lombardi' on all demo patients), and _norm_name(signer_name) is compared to the whole string. A consent signed by the real mother 'Ilaria Fontana' therefore gets signer_mismatch=true, and so does the existing privacy consent. Fix: before comparing, strip the 'Mamma:/Papà:/Tutore:...' prefix (text before ':') from the guardian, or keep the guardian's name in a separate field.", "priority": "HIGH"},
+      {"endpoint": "fse.advance / POST /api/consents/{id}/revoke (kind fse)", "issue": "Revoking the FSE consent leaves already queued reports in_coda, and they still advance to inviato/accettato. Reproduced: the legacy report was in_coda, the FSE consent was revoked, the next passport read gave 'accettato' with fse.consent=false. Fix: on FSE consent revoke, move in_coda reports back to non_inviato with a reason, or check the consent in advance() before sending.", "priority": "MEDIUM"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/consultations/{cid}/obscure {on:false}", "issue": "Removing the obscuring from a report that was already inviato/accettato calls on_signed again, which puts it back in_coda and sends it a second time. The previous FSE outcome is lost. It also does not restore portal_published (obscuring cleared it)."},
+      {"endpoint": "FSE simulation", "issue": "The state only advances when someone reads GET /patients/{pid}/passport. /fse/pending (Home tile) counts in_coda reports until the patient record is opened. This is acceptable for a mock but worth noting."},
+      {"endpoint": "POST /api/consultations/{cid}/fse/retry on legacy signed notes", "issue": "signed_at is set to created_at, so the deadline is already past ('scaduta da 110 g'). Reports signed before the connector existed also have fse=null and are never counted in /fse/pending."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "KindConsents KindForm", "issue": "The signer field is prefilled with patient.guardian including the prefix ('Mamma: Ilaria Fontana'). Typing the real name 'Ilaria Fontana' shows consent-kind-mismatch. The frontend comparison (lowercase only) also differs from the backend _norm_name (accent/whitespace folding).", "selector": "[data-testid=consent-kind-signer-fse], [data-testid=consent-kind-mismatch-fse]", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Passaporto e FSE -> Completa i dati -> Salva", "issue": "After the PatientDialog is saved, the Scheda paziente goes back to the Panoramica tab instead of staying on 'Passaporto e FSE', so the user doesn't see the missing-data box turn complete.", "affected_selectors": ["fse-complete-link", "patient-save-btn", "passport-tab-passaporto"]},
+      {"flow": "Home oggi-stat-fse click", "issue": "It goes to /app/pazienti?vista=visite, but that list has no FSE status or filter, so the user can't see which reports are pending. Probably part 2 (filters/icons).", "affected_selectors": ["oggi-stat-fse"]}
+    ],
+    "design_issues": [
+      {"screen": "Scheda paziente header", "issues": ["The 'Consenso FSE assente' and 'Consenso Passaporto assente' badges use bg-[var(--raised)], which is the same colour as the header background. They look like plain text, not badges like 'Consenso privacy valido'."]},
+      {"screen": "Cartella clinica (Pazienti)", "issues": ["The button that opens the Scheda paziente is still labelled 'Passaporto sanitario', although the tab has been renamed to Crescita / 'Passaporto e FSE'. This may confuse users."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_fse_passport.py", "/app/test_reports/pytest/pytest_fse.xml"],
+  "action_items": [
+    "Fix the signer_mismatch false positive: strip the relation prefix ('Mamma:', 'Papà:', ...) from guardian before comparing, both in the backend and in KindForm. Prefill the signer with the name without the prefix.",
+    "On FSE consent revoke, stop the queued sends (in_coda -> non_inviato with reason), or check the consent in fse.advance.",
+    "On un-obscure, don't requeue reports already accepted/sent. Keep their previous FSE state.",
+    "Keep the 'Passaporto e FSE' tab selected after the patient edit is saved.",
+    "Give the absent consent badges a visible background or border in the header."
+  ],
+  "critical_code_review_comments": [
+    "server.py is 2064 lines; FSE endpoints could move to a router module next to fse.py.",
+    "The passport consents list returns the full signature (base64, up to 400KB each) for every consent, which makes the payload heavy.",
+    "The mismatch check is implemented twice with different normalisation (frontend toLowerCase vs backend _fold). Use the backend flag only, or share the logic."
+  ],
+  "updated_files": ["/app/backend/tests/test_fse_passport.py"],
+  "success_rate": {"backend": "100% of tests pass (10/10); 2 logic defects found by inspection and reproduction", "frontend": "~90% (all flows work; mismatch false positive)"},
+  "seed_data_creation": "None kept. Pietro Fontana (6ad86e64c06e50ff4cd67d4d) patient doc and its 2 consultations were backed up to /tmp/bk_*.json and restored with mongoimport --mode=upsert. Test consents I created were revoked and then deleted by id. /fse/pending is back to count 0.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "test_credentials": "medico@mantmed.it / Auscula-Studio-2026 (from /app/memory/test_credentials.md)",
+  "context_for_next_testing_agent": "Run with -n 0: pytest tests/test_fse_passport.py -n 0. It mutates Pietro Fontana (signs the draft 6ad894264b41e81ff20f7eac, sets CF), so back up first: mongoexport -d mantmed -c patients -q '{\"_id\":{\"$oid\":\"6ad86e64c06e50ff4cd67d4d\"}}' and consultations with patient_id. Restore with mongoimport --mode=upsert, then delete the created consents by id. Scheda paziente is reached via Pazienti -> click patient -> button 'Passaporto sanitario'. Login: landing-login-btn -> login-email-input/login-password-input/login-submit-button.",
+  "rca of the issue": "signer_mismatch: demo guardians are stored as '<Relazione>: <Nome Cognome>' and the comparison uses the full string. Reproduce: register an FSE consent for Pietro Fontana with signer 'Ilaria Fontana' -> consent-mismatch shown. Revoke leak: fse.advance() doesn't check patient.fse_consent_at, and revoke_consent -> refresh_patient_consent never touches the consultations."
+}

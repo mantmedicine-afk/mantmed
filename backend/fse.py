@@ -54,6 +54,9 @@ def advance(fse: Optional[dict], patient: dict) -> Optional[dict]:
         return fse
     now = _now()
     f = dict(fse)
+    if f.get("status") == "in_coda" and not patient.get("fse_consent_at"):  # consenso revocato: l'invio si ferma
+        f.update(status="non_inviato", reason="Consenso all'alimentazione del FSE revocato")
+        return f
     if f.get("status") == "in_coda" and now - datetime.fromisoformat(f["queued_at"]) >= timedelta(seconds=SEND_AFTER):
         f.update(status="inviato", sent_at=now.isoformat())
         f["history"] = f.get("history", []) + [{"status": "inviato", "at": now.isoformat()}]

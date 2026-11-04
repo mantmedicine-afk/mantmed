@@ -12,7 +12,7 @@ export const KINDS = [
 export const ConsentBadges = ({ p, onOpen }) => (
   <>
     {KINDS.map((k) => (
-      <button key={k.kind} onClick={onOpen} className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold ${p[k.field] ? "bg-[var(--sel)] text-[var(--ok)]" : "bg-[var(--raised)] text-[var(--fg2)]"}`} data-testid={`passport-consent-badge-${k.kind}`}>
+      <button key={k.kind} onClick={onOpen} className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold ${p[k.field] ? "bg-[var(--sel)] text-[var(--ok)]" : "border border-[var(--hair)] bg-[var(--surface)] text-[var(--fg2)]"}`} data-testid={`passport-consent-badge-${k.kind}`}>
         {p[k.field] ? <ShieldCheck size={14} /> : <ShieldAlert size={14} />} {k.short} {p[k.field] ? "valido" : "assente"}
       </button>
     ))}
@@ -23,15 +23,17 @@ export const MismatchNote = ({ c }) => c.signer_mismatch ? (
   <div className="mt-1 flex items-center gap-1.5 text-xs font-medium text-[var(--late)]" data-testid={`consent-mismatch-${c.id}`}><AlertTriangle size={13} /> Il firmatario non corrisponde al genitore in anagrafica</div>
 ) : null;
 
+const plain = (t = "") => t.split(":").pop().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+
 const KindForm = ({ patient, k, onSaved, onCancel }) => {
-  const [f, setF] = useState({ signer_name: patient.guardian || "", signer_relation: "Genitore", method: "firma_tablet", signature: null });
+  const [f, setF] = useState({ signer_name: (patient.guardian || "").split(":").pop().trim(), signer_relation: "Genitore", method: "firma_tablet", signature: null });
   const [busy, setBusy] = useState(false);
   const save = async () => {
     setBusy(true);
     try { await api.consentKind(patient.id, k.kind, f); toast.success("Consenso registrato"); onSaved(); } catch (e) { toast.error(errMsg(e)); }
     setBusy(false);
   };
-  const differs = patient.guardian && f.signer_name.trim().toLowerCase() !== patient.guardian.trim().toLowerCase();
+  const differs = patient.guardian && f.signer_name.trim().length > 1 && plain(f.signer_name) !== plain(patient.guardian);
   return (
     <div className="mt-4 space-y-3" data-testid={`consent-kind-form-${k.kind}`}>
       <div className="grid gap-3 sm:grid-cols-2">

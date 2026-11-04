@@ -476,3 +476,7 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - visit_templates.py: campo required, bilanci con crescita (1-18 mesi) + valutazione/indicazioni/prossimo bilancio, Prima visita pediatrica ampliata, nuovi modelli Malattia acuta/Controllo/Certificato sportivo (kind); upgrade_once (templates_v=2): aggiorna i non modificati, pending_fields per i modificati (Aggiungi/Ignora), elimina Nuovo modello duplicato
 - Checklist della visita usa i modelli del medico (checklist_id='template'); scelta automatica autoTemplate; riga Modello di visita + Cambia in Chi stai visitando
 - Rimossi i 4 modelli fissi e /api/checklists
+
+## 2026-06 FSE 2.0 + Passaporto (parte 1/2)
+- fse.py connettore SIMULATO (in_coda→inviato→accettato/errore, 5 giorni), consensi separati fse/passaporto (Consent.kind), stati referto (ReportStates), tab Passaporto e FSE, badge consensi, avviso firmatario≠genitore, Home tile FSE
+- Parte 2 da fare: doppioni visite/misure, misure incoerenti, sede valida obbligatoria, icone e filtri FSE/Passaporto nell'elenco pazienti, stato FSE nella lista Tutte le visite
