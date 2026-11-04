@@ -79,6 +79,10 @@ export const api = {
   },
   mantaiSettings: () => http.get("/mantai-settings").then((r) => r.data),
   saveMantaiSettings: (b) => http.put("/mantai-settings", b).then((r) => r.data),
+  consentKind: (pid, kind, b) => http.post(`/patients/${pid}/consents/${kind}`, b).then((r) => r.data),
+  fseRetry: (cid) => http.post(`/consultations/${cid}/fse/retry`).then((r) => r.data),
+  obscureReport: (cid, on) => http.post(`/consultations/${cid}/obscure`, { on }).then((r) => r.data),
+  fsePending: () => http.get("/fse/pending").then((r) => r.data),
   uploadAudioPart: (blob, i) => {
     const fd = new FormData();
     const ext = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "webm";

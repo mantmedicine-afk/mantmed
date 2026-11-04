@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { CLINICS } from "@/lib/api";
+import { CLINICS, api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { needsSignature } from "@/components/dash/SignNote";
 import { StartButton, Summary, VisitSheet, rise } from "./Panels";
@@ -31,6 +31,8 @@ export const OggiScreen = ({ appointments, patients, notes, unread, requests, on
   const now = nowHM(date);
   const [clinic, setClinic] = useState("all");
   const [selected, setSelected] = useState(null);
+  const [fse, setFse] = useState(null);
+  useEffect(() => { api.fsePending().then(setFse).catch(() => setFse(null)); }, [appointments]);
   const byId = useMemo(() => Object.fromEntries(patients.map((p) => [p.id, p])), [patients]);
 
   const today = useMemo(() => appointments.filter((a) => !CANCELLED.includes(a.status) && (a.date == null || a.date === date.toLocaleDateString("sv-SE")))
@@ -65,7 +67,7 @@ export const OggiScreen = ({ appointments, patients, notes, unread, requests, on
           <Summary visits={shown.length} done={shown.filter(isDone).length} toSign={toSign.length} unread={unread} requests={requests}
             onVisits={() => document.getElementById("oggi-agenda")?.scrollIntoView({ behavior: "smooth", block: "start" })}
             onSign={() => (toSign[0] ? onSign(toSign[0]) : nav("/app/visite"))}
-            onMessages={() => nav("/app/messaggi")} />
+            onMessages={() => nav("/app/messaggi")} fse={fse} onFse={() => nav("/app/pazienti?vista=visite")} />
         </div>
         <div className="min-w-0 self-start [grid-area:vera]"><VeraCard i={6} /></div>
         </div>

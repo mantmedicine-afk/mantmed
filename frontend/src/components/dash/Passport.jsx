@@ -12,8 +12,11 @@ import { CheckpointWizard, CheckpointResult } from "./CheckpointWizard";
 import { TeamPanel } from "@/components/team/TeamPanel";
 import { AILabel } from "@/components/mantai/AILabel";
 import { BodychartHistory } from "@/components/bodychart/BodychartHistory";
+import { ReportStates } from "./ReportStates";
+import { KindConsents, ConsentBadges, MismatchNote } from "./KindConsents";
+import { PassportFseTab } from "./PassportFseTab";
 
-const TABS = [["panoramica", "Panoramica"], ["visite", "Visite e referti"], ["bilanci", "Bilanci"], ["bodychart", "Bodychart"], ["crescita", "Passaporto sanitario"], ["privacy", "Documenti"], ["rete", "Squadra"]];
+const TABS = [["panoramica", "Panoramica"], ["visite", "Visite e referti"], ["crescita", "Crescita"], ["bilanci", "Bilanci"], ["bodychart", "Bodychart"], ["privacy", "Documenti e consensi"], ["rete", "Squadra"], ["passaporto", "Passaporto e FSE"]];
 
 const Overview = ({ data, syncing, onSync, onTab }) => {
   const last = data.consultations?.[0];
@@ -69,6 +72,7 @@ export const Passport = ({ patientId, onClose, onEdit, onStart, onOpenVisit }) =
                 <div className="mt-2 flex flex-wrap gap-2">
                   {p.allergies && <span className="flex items-center gap-1.5 rounded-xl bg-[var(--alert-bg)] px-3 py-1.5 text-sm font-semibold text-[var(--alert)] ring-1 ring-rose-300" data-testid="passport-allergies"><AlertCircle size={15} /> Allergie: {p.allergies}</span>}
                   <button onClick={() => setTab("privacy")} className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold ${p.consent_at ? "bg-[var(--sel)] text-[var(--ok)]" : "bg-[var(--alert-bg)] text-[var(--alert)]"}`} data-testid="passport-consent-badge">{p.consent_at ? <ShieldCheck size={14} /> : <ShieldAlert size={14} />} {p.consent_at ? "Consenso privacy valido" : "Consenso privacy mancante"}</button>
+                  <ConsentBadges p={p} onOpen={() => setTab("privacy")} />
                   {p.notes && <span className="rounded-xl bg-[var(--surface)] px-3 py-1.5 text-sm text-[var(--fg2)]">{p.notes}</span>}
                 </div>
               </div>
@@ -89,12 +93,13 @@ export const Passport = ({ patientId, onClose, onEdit, onStart, onOpenVisit }) =
             <>
               {tab === "panoramica" && <Overview data={data} syncing={syncing} onSync={load} onTab={setTab} />}
               {tab === "crescita" && <GrowthChart patient={p} measurements={data.measurements ?? []} onAdded={load} />}
-              {tab === "visite" && <Visits items={data.consultations ?? []} payments={data.payments ?? []} onOpen={onOpenVisit} />}
+              {tab === "visite" && <Visits items={data.consultations ?? []} payments={data.payments ?? []} onOpen={onOpenVisit} onChanged={load} />}
               {tab === "bilanci" && <div className="space-y-6"><Checkpoints patient={p} items={data.checkpoints ?? []} onDone={load} />
                 <div><h3 className="mb-3 text-lg font-semibold">Visite di bilancio</h3><Visits items={(data.consultations ?? []).filter((c) => /bilancio/i.test(c.template_name || ""))} payments={data.payments ?? []} onOpen={onOpenVisit} /></div></div>}
               {tab === "bodychart" && <BodychartHistory patientId={patientId} />}
               {tab === "rete" && <TeamPanel patientId={patientId} />}
               {tab === "privacy" && <ConsentsTab patient={p} items={data.consents ?? []} onChange={load} />}
+              {tab === "passaporto" && <PassportFseTab data={data} onEdit={onEdit} onTab={setTab} />}
             </>
           )}
         </div>
@@ -135,21 +140,7 @@ const InviteButton = ({ p, onSent }) => {
   );
 };
 
-const PortalToggle = ({ c }) => {
-  const [on, setOn] = useState(Boolean(c.portal_published || c.report_sent_at));
-  const sent = Boolean(c.report_sent_at);
-  const toggle = async () => {
-    try { await api.publishToPortal(c.id, !on); setOn(!on); toast.success(!on ? "Referto visibile nel Portale Paziente" : "Referto ritirato dal portale"); }
-    catch (e) { toast.error(errMsg(e)); }
-  };
-  return (
-    <button onClick={toggle} disabled={sent} title={sent ? "Già inviato al genitore: visibile nel portale" : ""} className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors disabled:cursor-default ${on ? "bg-[var(--accent)] text-[var(--ink)]" : "border border-[var(--hair)] text-[var(--fg)] hover:border-[var(--accent)]"}`} data-testid={`passport-visit-portal-${c.id}`}>
-      <Globe size={15} /> {on ? "Nel portale" : "Pubblica nel portale"}
-    </button>
-  );
-};
-
-const Visits = ({ items, payments = [], onOpen }) => {
+const Visits = ({ items, payments = [], onOpen, onChanged }) => {
   const pdf = async (id) => {
     try { await api.downloadReport(id); toast.success("Referto PDF scaricato"); } catch (e) { toast.error(errMsg(e)); }
   };
@@ -161,17 +152,17 @@ const Visits = ({ items, payments = [], onOpen }) => {
           <span className="absolute -left-[31px] top-6 h-3 w-3 rounded-full bg-[var(--accent)] ring-4 ring-paper" />
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="flex items-center gap-2 text-xs text-[var(--fg2)]"><span className="font-mono">{new Date(c.created_at).toLocaleDateString("it-IT")}</span><span className="rounded-full bg-[var(--raised)] px-2 py-0.5 text-[var(--fg)]">{c.clinic || "Consultazione libera"}</span></div>
+              <div className="flex items-center gap-2 text-xs text-[var(--fg2)]"><span className="font-mono">{new Date(c.created_at).toLocaleDateString("it-IT")}</span><span className="rounded-full bg-[var(--raised)] px-2 py-0.5 text-[var(--fg)]">{c.clinic || "Sede da indicare"}</span></div>
               <div className="mt-1 font-display text-2xl text-[var(--fg)]">{c.note?.motivo_visita || "Visita"}</div>
               <div className="text-sm text-[var(--fg2)]"><span className="font-semibold text-[var(--fg)]">Diagnosi:</span> {c.note?.diagnosi || "—"}</div>
               <AILabel provenance={c.ai_provenance} view="doctor" className="mt-2" testId={`passport-visit-ai-label-${c.id}`} />
+              <ReportStates c={c} onChanged={onChanged} />
               {payments.filter((x) => x.consultation_id === c.id).map((x) => (
                 <span key={x.id} className="mt-2 mr-2 inline-flex items-center gap-1.5 rounded-full bg-[var(--raised)] px-3 py-1 text-xs font-medium text-[var(--fg)]" data-testid={`passport-payment-${x.id}`}>{eur(x.amount)} · {methodLabel(x.method)}</span>
               ))}
             </div>
             <div className="flex flex-wrap gap-2">
               {onOpen && <button onClick={() => onOpen(c)} className="flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--accent)] px-4 text-sm font-medium text-[var(--ink)]" data-testid={`passport-visit-open-${c.id}`}>Apri nota e bodychart</button>}
-              <PortalToggle c={c} />
               <button onClick={() => pdf(c.id)} className="flex items-center gap-2 rounded-full border border-[var(--hair)] px-4 py-2 text-sm font-medium text-[var(--fg)] hover:border-[var(--accent)]" data-testid={`passport-visit-pdf-${c.id}`}><FileDown size={15} /> Referto PDF</button>
             </div>
           </div>
@@ -199,17 +190,19 @@ const ConsentsTab = ({ patient, items, onChange }) => {
         </div>
         <button onClick={() => setOpen(true)} className="rounded-full bg-[var(--surface)] px-5 py-3 text-sm font-semibold text-[var(--fg)]" data-testid="passport-consent-register-btn">{patient.consent_at ? "Aggiorna consenso" : "Registra consenso"}</button>
       </div>
-      {items.map((c) => (
+      {items.filter((c) => !c.kind || c.kind === "privacy").map((c) => (
         <div key={c.id} className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-[var(--hair)] bg-[var(--surface)] p-5 text-sm" data-testid={`consent-row-${c.id}`}>
           <div>
             <div className="font-medium text-[var(--fg)]">{c.signer_name} · {c.signer_relation} · {c.method === "firma_tablet" ? "firma su tablet" : "modulo cartaceo"}</div>
             <div className="text-[var(--fg2)]">{c.version} · {new Date(c.signed_at).toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" })} · email {c.email_reports ? "sì" : "no"}</div>
+            <MismatchNote c={c} />
           </div>
           {c.signature && <img src={c.signature} alt="Firma" className="h-12 max-w-[160px] rounded-lg border border-[var(--hair)] bg-[var(--surface)] object-contain p-1" />}
           {c.revoked_at ? <span className="text-xs text-[var(--fg2)]">Revocato il {new Date(c.revoked_at).toLocaleDateString("it-IT")}</span>
             : <button onClick={() => revoke(c.id)} className="text-xs font-medium text-[var(--alert)] hover:underline" data-testid={`consent-revoke-${c.id}`}>Revoca</button>}
         </div>
       ))}
+      <KindConsents patient={patient} items={items} onChange={onChange} revoke={revoke} />
       <div className="pt-3">
         <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
           <div>

@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from "framer-motion";
-import { FolderOpen, CalendarCheck, PenLine, MessagesSquare, ChevronRight } from "lucide-react";
+import { FileUp, FolderOpen, CalendarCheck, PenLine, MessagesSquare, ChevronRight } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { isDone, shortClinic } from "./data";
 
@@ -43,11 +43,13 @@ const Stat = ({ id, icon: Icon, value, label, sub, onClick, i }) => (
   </motion.button>
 );
 
-export const Summary = ({ visits, done, toSign, unread, requests, onVisits, onSign, onMessages }) => (
+export const Summary = ({ visits, done, toSign, unread, requests, fse, onVisits, onSign, onMessages, onFse }) => (
   <section className="grid grid-cols-1 gap-3" aria-label="Riepilogo" data-testid="oggi-summary">
     <Stat i={3} id="visits" icon={CalendarCheck} value={visits} label="Visite di oggi" sub={`di cui ${done} ${done === 1 ? "fatta" : "fatte"}`} onClick={onVisits} />
     <Stat i={4} id="sign" icon={PenLine} value={toSign} label="Note da firmare" onClick={onSign} />
     <Stat i={5} id="messages" icon={MessagesSquare} value={unread} label="Messaggi da leggere" sub={requests > 0 ? `+ ${requests} richieste dal portale` : null} onClick={onMessages} />
+    {fse && <Stat i={6} id="fse" icon={FileUp} value={fse.count} label="Referti FSE da inviare"
+      sub={fse.next_deadline ? `scadenza più vicina ${new Date(fse.next_deadline).toLocaleDateString("it-IT", { day: "numeric", month: "short" })}` : fse.count ? null : "tutto inviato"} onClick={onFse} />}
   </section>
 );
 
