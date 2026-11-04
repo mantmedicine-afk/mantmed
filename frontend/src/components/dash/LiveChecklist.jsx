@@ -2,6 +2,8 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Circle, CheckCircle2, ChevronDown, ChevronUp, PenLine } from "lucide-react";
 
+const strip = (preview, label) => (preview.toLowerCase().startsWith(`${label.toLowerCase()}:`) ? preview.slice(label.length + 1).trim() : preview);
+
 const FieldRow = ({ f, v, onSave }) => {
   const [edit, setEdit] = useState(false);
   const [text, setText] = useState("");
@@ -18,7 +20,7 @@ const FieldRow = ({ f, v, onSave }) => {
         </AnimatePresence>
         <span className="min-w-0 flex-1">
           <span className="block text-[13px] leading-snug">{f.label}{f.required && <span className="ml-0.5 text-[var(--fg2)]" aria-label="obbligatorio">*</span>}</span>
-          {done && !edit && <span className="flex items-center gap-1 truncate text-xs text-[var(--fg2)]" data-testid={`live-field-preview-${f.id}`}>{v.status === "manual" && <PenLine size={11} className="shrink-0" aria-label="Scritto a mano" />}<span className="truncate">{v.preview}</span></span>}
+          {done && !edit && <span className="flex items-center gap-1 truncate text-xs text-[var(--fg2)]" data-testid={`live-field-preview-${f.id}`}>{v.status === "manual" && <PenLine size={11} className="shrink-0" aria-label="Scritto a mano" />}<span className="truncate">{strip(v.preview, f.label)}</span></span>}
         </span>
       </button>
       {edit && (
@@ -35,16 +37,16 @@ const FieldRow = ({ f, v, onSave }) => {
 export const Counter = ({ done, total }) => (
   <div data-testid="live-counter">
     <div className="flex items-center justify-between text-xs text-[var(--fg2)]"><span>Campi compilati: <span className="font-semibold tabular-nums text-[var(--ink)]" data-testid="live-counter-value">{done} di {total}</span></span></div>
-    <div className="mt-1.5 h-[3px] overflow-hidden rounded-full bg-[var(--sel)]"><motion.div className="h-full rounded-full bg-[var(--ok)]" animate={{ width: `${total ? (done / total) * 100 : 0}%` }} transition={{ duration: 0.5 }} /></div>
+    <div className="mt-1.5 h-[3px] overflow-hidden rounded-full bg-[var(--sel)]"><motion.div className="h-full rounded-full bg-[var(--ok)]" initial={false} animate={{ width: `${total ? (done / total) * 100 : 0}%` }} transition={{ duration: 0.5 }} /></div>
   </div>
 );
 
-export const LiveChecklist = ({ models, model, onModel, live, realtime, collapsible = true }) => {
+export const LiveChecklist = ({ models, model, onModel, live, realtime, collapsible = true, bare = false }) => {
   const [collapsed, setCollapsed] = useState(false);
   const done = live.fields.filter((f) => live.values[f.id]).length;
   const sections = [...new Set(live.fields.map((f) => f.section))];
   return (
-    <aside className="rounded-2xl border border-[var(--hair)] p-4 text-left" aria-label="Modello di visita" data-testid="live-checklist">
+    <aside className={`text-left ${bare ? "pr-8" : "rounded-2xl border border-[var(--hair)] p-4"}`} aria-label="Modello di visita" data-testid="live-checklist">
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] uppercase tracking-[0.2em] text-[var(--fg2)]">Modello di visita</span>
         {collapsible && <button onClick={() => setCollapsed((c) => !c)} className="grid h-7 w-7 place-items-center rounded-full text-[var(--fg2)] hover:bg-[var(--sel)]" aria-label={collapsed ? "Espandi il modello" : "Comprimi il modello"} aria-expanded={!collapsed} data-testid="live-collapse-btn">{collapsed ? <ChevronDown size={15} /> : <ChevronUp size={15} />}</button>}

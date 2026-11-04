@@ -58,7 +58,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
     }
     if (!initial) api.visitTemplates().then((xs) => { setTemplates(xs); setTplId((cur) => (xs.some((t) => t.id === cur) ? cur : xs[0]?.id ?? "")); }).catch(() => setTemplates([]));
   }, [open, patient, initial]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (models.length && sel) setModel(pickChecklist(models, `${sel.visit_type ?? ""} ${sel.reason ?? ""}`)?.id ?? ""); }, [sel?.id, sel?.name, models.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (models.length) setModel(pickChecklist(models, `${sel?.visit_type ?? ""} ${sel?.reason ?? ""}`)?.id ?? ""); }, [sel?.id, sel?.name, models.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Bilancio di salute consigliato per l'età del paziente; preselezionato se il motivo della visita è un bilancio
   const linkedPatient = patients.find((p) => p.id === sel?.patient_id);
@@ -81,7 +81,8 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
       let partIds = [];
       if (transcript === null && !opts.demo) {
         // le parti (una ogni 10 minuti) vengono caricate una alla volta; in caso di errore si riprende dalla prima non inviata
-        if (rec.state !== "idle") { lastBlob.current = await rec.stop(); uploaded.current = []; }
+        // finish() ha già fermato il registratore: qui rec.state può essere ancora "recording" (closure del render precedente)
+        if (!lastBlob.current?.length) { lastBlob.current = await rec.stop(); uploaded.current = []; }
         const blobs = lastBlob.current ?? [];
         if (!blobs.length) throw new Error("Registrazione vuota");
         for (let i = uploaded.current.length; i < blobs.length; i += 1) {
@@ -94,7 +95,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
       const c = await api.startConsultation({
         patient_name: name, patient_id: sel?.patient_id ?? "", clinic: sel?.clinic ?? "", waiting_id: sel?.id ?? "",
         duration_sec: duration, paper_consent: paper, transcript: transcript ?? "", part_ids: partIds.join(","), template_id: tplId,
-        ...(opts.checklist ? { checklist_id: model, checklist_manual: JSON.stringify(live.manualValues()) } : {}),
+        ...(opts.checklist ? { checklist_id: model, checklist_manual: JSON.stringify(live.manualValues()), ...(opts.demo ? { checklist_demo: JSON.stringify(live.aiValues()) } : {}) } : {}),
         ...(opts.liveChunks ? { live_session_id: live.session.current, live_chunks: opts.liveChunks } : {}),
       }, null);
       lastBlob.current = null;
@@ -181,6 +182,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
           )}
           {(stage === "recording") && (
             <RecordingLayout panel={<LiveChecklist models={models} model={model} onModel={setModel} live={live} realtime={cfg.realtime || cfg.demo} />}
+              sheetPanel={<LiveChecklist models={models} model={model} onModel={setModel} live={live} realtime={cfg.realtime || cfg.demo} collapsible={false} bare />}
               counter={`${live.fields.filter((f) => live.values[f.id]).length}/${live.fields.length}`} demo={cfg.demo}>
               <Recording name={name} rec={rec} sending={sending} sendStep={sendStep} onStop={onStop} />
             </RecordingLayout>
@@ -269,7 +271,7 @@ const Setup = ({ waiting, sel, setSel, freeName, setFreeName, manual, setManual,
   </div>
 );
 
-const RecordingLayout = ({ panel, counter, demo, children }) => {
+const RecordingLayout = ({ panel, sheetPanel, counter, demo, children }) => {
   const [sheet, setSheet] = useState(false);
   return (
     <div className="grid items-start gap-8 md:grid-cols-[minmax(0,1fr)_320px] lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -284,7 +286,7 @@ const RecordingLayout = ({ panel, counter, demo, children }) => {
       <Sheet open={sheet} onOpenChange={setSheet}>
         <SheetContent side="bottom" className="theme-bar bg-[var(--bar)] max-h-[85vh] overflow-y-auto rounded-t-3xl border-0 p-5 text-[var(--ink)]" data-testid="live-sheet">
           <SheetTitle className="sr-only">Modello di visita</SheetTitle>
-          {panel}
+          {sheetPanel}
         </SheetContent>
       </Sheet>
     </div>

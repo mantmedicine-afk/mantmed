@@ -70,5 +70,7 @@ export const useLiveChecklist = ({ models, model, demo }) => {
 
   const manualValues = () => Object.fromEntries(Object.entries(values).filter(([, x]) => x.status === "manual").map(([k, x]) => [k, x.preview]));
 
-  return { values, fields, session, onChunk, flush, reset, setManual, manualValues, setDemoOn };
+  const aiValues = () => Object.fromEntries(Object.entries(values).filter(([, x]) => x.status === "ai").map(([k, x]) => [k, x.preview]));
+
+  return { values, fields, session, onChunk, flush, reset, setManual, manualValues, aiValues, setDemoOn };
 };

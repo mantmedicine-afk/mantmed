@@ -466,3 +466,8 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - NavMenu.jsx (hover 150/300ms, tocco 1°apre 2°naviga, tastiera Invio/frecce/Esc), mega menu Area personale (areaSections.js, 5 gruppi), menu Pazienti/Messaggi/Cassa con ancore
 - Card prossimo paziente: Segna come fatta con toast Annulla 6s; Termina in MantAI segna la visita fatta; pillola ambra (--late) oltre 15 min di ritardo
 - Toast spostati sotto la barra (offset 84)
+
+## 2026-06 Checklist in tempo reale (Visita in corso)
+- live_checklist.py: 4 modelli esempio, /api/checklists, /api/mantai-settings (realtime, demo solo account demo), /api/consultations/live/chunk (Whisper blocco 30s + gpt-5.4-mini sui campi vuoti), live_sessions cifrate con TTL 12h
+- start_consultation: checklist_id/manual, live_session_id+live_chunks (niente ritrascrizione), demo senza AI; job applica apply_checklist (manuale > AI, Non rilevato)
+- Frontend: useRecorder blocchi, useLiveChecklist (coda+retry), LiveChecklist panel/sheet, MissingDialog, NoteEditor icone fonte e campi mancanti ambra; Area personale > Impostazioni MantAI

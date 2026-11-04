@@ -1,0 +1,60 @@
+{
+  "summary": "Tested the live checklist on the 'Visita in corso' screen (backend and frontend, desktop 1920, mobile 390, night mode). I used a fake mic: an injected getUserMedia oscillator plus page.clock at 10:00. Backend: 11/11 pytest pass. This covers 4 models, settings, chunk validation, one real TTS chunk (detected peso, lunghezza, cc, alimentazione), the 409 on incomplete chunks, the chunk-transcript start (sezioni in model order, fonte manuale/ai, mancante 'Non rilevato'), and the demo start (status ready). Frontend: all requested flows work, but I found one CRITICAL bug and fixed it. Whenever the note had to come from the full audio (realtime OFF, or the realtime fallback when the chunk transcript is too short or incomplete), Termina failed with 'Registrazione vuota' and the audio was lost. After my fix, both paths upload /audio-parts and open the note.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "Whisper HALLUCINATIONS filter (server.py:855)", "issue": "A beep was transcribed as 'Sottotitoli e revisione a cura di QTSS'. The regex removes only 'Sottotitoli e revisione', so 'a cura di QTSS' (4 words) passes the <4-word guard, and an LLM note is generated from the hallucination. The live chunk also counted this as words=4. The regex should match the whole phrase, e.g. sottotitoli[^\\n]*|a cura di qtss."},
+      {"endpoint": "live_sessions collection", "issue": "Chunk transcripts are deleted only on a successful chunk-based start. When the visit falls back to full audio, is closed, or is abandoned, the encrypted chunk transcripts stay forever. Add a TTL index on created_at, or delete them in the fallback start too."},
+      {"endpoint": "POST /api/consultations/start (demo)", "issue": "demo_sezioni fills ALL fields with demo values. Fields that were never ticked during the demo recording (e.g. Sviluppo psicomotorio, Peso) still appear filled in the final note. So the demo note never shows 'Non rilevato' or data-mancante, which contradicts the missing dialog text. Suggestion: send the demo-ticked ids and mark the others mancante."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ConsultationOverlay.process (stale closure)", "issue": "FIXED by testing agent. finish() calls rec.stop(), then process(null). process ran `if (rec.state !== 'idle')` with the stale rec.state 'recording' from the closure and called rec.stop() a second time. The second call returns [], which overwrote lastBlob.current. Result: toast 'Registrazione vuota', then the retry stage, and 'Riprova invio' could never succeed because the audio was lost. This affected realtime OFF (every visit) and the realtime fallback (the chunk transcript is too short, which gives a 400, or is incomplete, which gives a 409). The fix changes the guard to `if (!lastBlob.current?.length)`. Verified: the fallback now does audio-parts 200 and start 200, and the note opens. The realtime-off path now works too.", "selector": "[data-testid=live-missing-finish]", "priority": "CRITICAL"},
+      {"component": "LiveChecklist Counter progress bar", "issue": "The motion.div has no initial width, so when the panel opens it renders at full width and animates down to 0. I measured 119px at 0.2s with '0 di 12'. A full green bar flashes briefly. Add initial={{ width: 0 }} or initial={false}.", "selector": "[data-testid=live-counter] .h-full", "priority": "LOW"},
+      {"component": "Model auto-pick on free visit", "issue": "If you open the overlay from Home (Francesco, so bilancio), click Cambia and type a free name, the model stays 'Bilancio di salute'. The sel effect returns early when sel is null. Expected: re-pick (acuta default) or keep it on purpose.", "selector": "[data-testid=consult-preselected-change]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Mobile bottom sheet", "issues": ["The sheet's built-in X close button sits on the border of the inner panel card, next to the panel's collapse chevron. The card inside the sheet gives a double border. Consider hiding the panel border and the collapse button inside the sheet (collapsible={false})."]},
+      {"screen": "Live field preview", "issues": ["The AI or demo preview repeats the label below it ('Alimentazione / svezzamento' / 'Alimentazione / svezzamento: Allattamento misto…'). This wastes the one-line preview. Consider stripping the 'Label:' prefix when it equals the row label."]}
+    ]
+  },
+  "passed_tests": [
+    "GET /api/checklists: bilancio 12 (8 required), acuta 12, controllo 8, certificato 8. Every field has section, label and required. Unauthenticated requests are rejected.",
+    "GET/PUT /api/mantai-settings: shape {realtime, demo, demo_available}. Realtime persists and invalid input returns 422. cardiologo.demo@example.com has demo_available=true.",
+    "live/chunk: an invalid session_id, seq 9999 or empty audio returns 400. A real TTS chunk returns words 36 and detects peso/lunghezza/cc/alimentazione only among the empty fields (sonno excluded).",
+    "Start with live_chunks=2 but only 1 chunk sent returns 409. With live_chunks=1 the visit is processing, then ready: sezioni follow the model order, Sonno has fonte manuale, ai on the detected fields, and the others are mancante 'Non rilevato'.",
+    "Demo start (API) is ready immediately: the manual value wins and the other 11 fields are fonte ai.",
+    "Desktop: Home oggi-next-start-btn preselects Francesco Bruno. The recording sits on the left (x 360-1168), the live-checklist on the right (x 1200, 360 wide). live-model-bilancio is aria-checked. The counter shows '0 di 12'. Required fields show '*'.",
+    "Manual entry: sonno becomes data-state manual with the preview 'Dorme 10 ore' and a pen icon. The counter goes 0 to 1 to 2 (peso via the OK button). Switching to acuta changes the fields (motivo appears, sonno is gone). Switching back keeps the values.",
+    "Collapse hides the picker and fields and shows only the counter. Expanding brings them back.",
+    "Realtime ON: one /live/chunk request at about 31-35s. Termina with required fields empty opens a dialog listing 7 missing labels. 'Torna alla visita' returns to recording, which keeps going (timer 00:37). 'Termina comunque' proceeds.",
+    "Realtime OFF (switch persists after reload): live-off-note is shown and there were 0 chunk requests in 35s.",
+    "Demo UI: the switch works, live-demo-badge is shown, a field is ticked about every 6s with a fake preview, and there are no chunk requests. Clicking an AI field does not open an input. Termina comunque opens the note immediately with note-sezione-ai and note-sezione-manual icons on the right fields. Demo is turned off again (API demo=false).",
+    "Mobile 390: no inline panel. live-sheet-btn shows 'Modello (0/12)', then '(1/12)' after a manual entry in the sheet. The sheet opens with the checklist. No horizontal overflow (390/390).",
+    "Night mode: panel labels rgb(247,249,251) on rgb(22,40,46), sage check rgb(127,184,154). Dialog title rgb(238,242,244) and text rgb(163,177,184) on rgb(23,37,42). All readable."
+  ],
+  "test_report_links": ["/app/backend/tests/test_live_checklist.py", "/app/test_reports/pytest/pytest_live_checklist.xml"],
+  "action_items": [
+    "Review and keep the testing agent's fix in ConsultationOverlay.process (`if (!lastBlob.current?.length)` instead of the stale rec.state check). Without it, realtime-off and fallback visits lose their audio.",
+    "Extend the HALLUCINATIONS regex to cover the whole 'Sottotitoli e revisione a cura di QTSS' phrase.",
+    "Clean up live_sessions on fallback or abandon (TTL index).",
+    "Demo note: mark fields not ticked during the demo as mancante, so the demo shows 'Non rilevato' as the dialog promises.",
+    "(Low) Counter bar: set initial width 0. (Low) Re-pick the model when the patient changes to a free name. (Low) Tidy the sheet's double border and close button."
+  ],
+  "critical_code_review_comments": [
+    "process() reads rec.state from a closure captured before finish() stopped the recorder. Any future code path that calls rec.stop() before process(null) must not rely on rec.state.",
+    "The fallback in process() catches ANY error when opts.liveChunks is set (including 412 or 5xx) and re-uploads the full audio. This is acceptable, but a 412 consent error would double-fail.",
+    "finish() is not guarded against double clicks while the dialog closes and flush runs (sending is only set inside the realtime branch, after rec.stop).",
+    "start_consultation in demo mode skips the waiting deletion and the appointments update_many, while the frontend still calls onAppointmentDone. This is inconsistent but harmless.",
+    "live_chunk: if Whisper raises, the endpoint returns 500 and the frontend retries 3 times with 4s gaps. That is fine, but the failure is not logged with the session or seq."
+  ],
+  "updated_files": ["/app/frontend/src/components/dash/ConsultationOverlay.jsx", "/app/backend/tests/test_live_checklist.py"],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "~92%: all flows pass after the critical fix; 3 low-priority UI issues"},
+  "test_credentials": "medico@mantmed.it / Auscula-Studio-2026; cardiologo.demo@example.com / Cardio-Demo-2026 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Consultations were created and could NOT be deleted (there is no DELETE endpoint): 6aeb00e93cbdfcc3472dcf18 (TEST_Live Checklist), 6aeb00ed3cbdfcc3472dcf1a (TEST_Demo Checklist), 6aeb02b83cbdfcc3472dcf25 (TEST_Demo Checklist UI), 6aeb03413cbdfcc3472dcf2b (TEST_Realtime Off). One is on the real patient Francesco Bruno: 6aeb024d3cbdfcc3472dcf22 (fallback test, beep audio, 'Non rilevato' note). I restored the Francesco Bruno appointment 6ad86e64c06e50ff4cd67d56 to programmato. Final settings for medico: realtime=true, demo=false.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Fake mic: page.add_init_script overrides navigator.mediaDevices.getUserMedia with an AudioContext oscillator into a MediaStreamDestination, plus grant_permissions(['microphone']). A beep makes Whisper hallucinate 'Sottotitoli e revisione a cura di QTSS'. Run the backend tests with -n 0, because the settings tests toggle shared user state. /tmp/chunk.mp3 is a TTS Italian bilancio clip. To avoid touching real patients, use oggi-next-start-btn, then consult-preselected-change, then consult-free-name-input, then consent-paper-checkbox."
+}

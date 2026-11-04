@@ -106,9 +106,10 @@ def apply_checklist(sezioni: list, model_id: str, manual: Dict[str, str]) -> lis
     return out
 
 
-def demo_sezioni(model_id: str, manual: Dict[str, str]) -> list:
+def demo_sezioni(model_id: str, manual: Dict[str, str], ticked: Dict[str, str]) -> list:
+    """Solo i campi spuntati durante la demo ricevono il dato finto; gli altri restano 'Non rilevato'."""
     c = BY_ID.get(model_id) or CHECKLISTS[0]
-    fake = [{"gruppo": GROUP_OF.get(f["section"], "altro"), "titolo": f["label"], "testo": f["demo"]} for f in c["fields"]]
+    fake = [{"gruppo": GROUP_OF.get(f["section"], "altro"), "titolo": f["label"], "testo": f["demo"] if f["id"] in ticked else ""} for f in c["fields"]]
     return apply_checklist(fake, c["id"], manual)
 
 
@@ -126,6 +127,7 @@ class LiveSettings(BaseModel):
 
 def build_live(db, current_user, whisper, llm_key, seal, unseal):
     r = APIRouter()
+    ttl_ready = {"done": False}
 
     def is_demo_account(u: dict) -> bool:
         email = (u.get("email") or "").strip().lower()
@@ -174,8 +176,11 @@ def build_live(db, current_user, whisper, llm_key, seal, unseal):
         if not data or len(data) > 25 * 1024 * 1024:
             raise HTTPException(400, "Blocco audio vuoto o troppo grande")
         text = await whisper(data, audio.filename or f"blocco-{seq}.webm")
+        if not ttl_ready["done"]:  # trascrizioni a blocchi abbandonate: eliminate dopo 12 ore
+            await db.live_sessions.create_index("expires_at", expireAfterSeconds=12 * 3600)
+            ttl_ready["done"] = True
         await db.live_sessions.update_one({"session_id": session_id, "owner_id": user["id"]},
-                                          {"$set": {f"chunks.{seq}": seal(text)}, "$setOnInsert": {"created_at": datetime.now(timezone.utc).isoformat()}},
+                                          {"$set": {f"chunks.{seq}": seal(text)}, "$setOnInsert": {"expires_at": datetime.now(timezone.utc)}},
                                           upsert=True)
         try:
             empty = [f for f in json.loads(empty_fields) if isinstance(f, dict) and f.get("id")][:40]

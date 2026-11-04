@@ -852,7 +852,7 @@ _TASKS: set = set()
 audio_fs = AsyncIOMotorGridFSBucket(db, bucket_name="consult_audio")
 JOB_TTL_DAYS = 7
 # Frasi tipiche che Whisper "inventa" su audio muto o rumore
-HALLUCINATIONS = re.compile(r"amara\.org|sottotitoli (creati|a cura|e revisione)|grazie per la visione|iscriviti al canale|grazie a tutti per l.ascolto|^\W*(grazie|ciao|buongiorno)\W*$", re.I)
+HALLUCINATIONS = re.compile(r"amara\.org|sottotitoli[^\n]*|a cura di qtss|grazie per la visione|iscriviti al canale|grazie a tutti per l.ascolto|^\W*(grazie|ciao|buongiorno)\W*$", re.I)
 
 
 class AIJobError(RuntimeError):
@@ -1030,6 +1030,7 @@ async def start_consultation(
     duration_sec: int = Form(0), paper_consent: bool = Form(False), transcript: str = Form(""), audio: Optional[UploadFile] = File(None),
     part_ids: str = Form(""), template_id: Optional[str] = Form(None),
     checklist_id: str = Form(""), checklist_manual: str = Form(""), live_session_id: str = Form(""), live_chunks: int = Form(0),
+    checklist_demo: str = Form(""),
 ):
     """Crea subito la visita 'in elaborazione' e avvia Whisper + IA in background.
     Visite lunghe: l'audio arriva prima in parti (POST /consultations/audio-parts) e qui si passano i loro id in ordine."""
@@ -1050,7 +1051,11 @@ async def start_consultation(
     checklist_id = checklist_id if checklist_id in CHECKLIST_BY_ID else ""
     live_cfg = await live_settings(user)
     if checklist_id and live_cfg["demo"]:
-        return await _demo_consultation(user, patient_name.strip(), patient_id, clinic, waiting_id, duration_sec, paper_consent, checklist_id, manual)
+        try:
+            ticked = {str(k): str(v)[:200] for k, v in (json.loads(checklist_demo) if checklist_demo else {}).items()}
+        except (ValueError, AttributeError):
+            ticked = {}
+        return await _demo_consultation(user, patient_name.strip(), patient_id, clinic, waiting_id, duration_sec, paper_consent, checklist_id, manual, ticked)
     if live_session_id and live_chunks and not data and not part_ids.strip():
         acc = await live_transcript(live_session_id, user["id"], live_chunks)
         if acc is None:
@@ -1110,10 +1115,10 @@ CHECKLIST_RULE = ("\n\nNota per campi_modello (checklist della visita): scrivi i
                   "Se l'informazione non è stata detta scrivi 'Non riportato'.")
 
 
-async def _demo_consultation(user, name, patient_id, clinic, waiting_id, duration_sec, paper_consent, checklist_id, manual):
+async def _demo_consultation(user, name, patient_id, clinic, waiting_id, duration_sec, paper_consent, checklist_id, manual, ticked):
     """Modalità dimostrativa (solo account demo): nota finta già pronta, nessuna chiamata IA."""
     ck = CHECKLIST_BY_ID[checklist_id]
-    note = ClinicalNote(specialita=await doctor_specialty(user["id"]), sezioni=[NoteSection(**x) for x in demo_sezioni(checklist_id, manual)],
+    note = ClinicalNote(specialita=await doctor_specialty(user["id"]), sezioni=[NoteSection(**x) for x in demo_sezioni(checklist_id, manual, ticked)],
                         motivo_visita=ck["name"], riepilogo="Visita dimostrativa: dati di esempio, nessun dato reale.")
     enrich_growth(note, await get_patient(patient_id), date.today())
     c = Consultation(patient_name=name, patient_id=patient_id, clinic=clinic, waiting_id=waiting_id, transcript="Trascrizione dimostrativa.",
