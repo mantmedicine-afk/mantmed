@@ -86,7 +86,7 @@ export default function SharedPassport() {
       {!gone && view && (
         <main className="mx-auto max-w-[1100px] space-y-5">
           <div><h1 className="text-3xl font-semibold text-[var(--fg)]" data-testid="shared-child-name">{view.data.child.name}</h1>
-            <div className="text-sm text-[var(--fg2)]">{view.data.child.age_label} · nata/o il {day(view.data.child.birth_date)} · {view.scope === "full" ? "Passaporto completo" : "Solo riepilogo"}</div>
+            <div className="text-sm text-[var(--fg2)]">{view.data.child.age_label} · {view.data.child.sex === "F" ? "nata" : "nato"} il {day(view.data.child.birth_date)} · {view.scope === "full" ? "Passaporto completo" : "Solo riepilogo"}</div>
             {view.data.contact && <div className="text-sm text-[var(--fg2)]" data-testid="shared-contact">Genitore: {view.data.contact.name}{view.data.contact.phone ? ` · ${view.data.contact.phone}` : ""}</div>}</div>
           <DoctorBar view={view} />
           <PassportBody data={view.data} onPdf={view.scope === "full" ? pdf : undefined} />

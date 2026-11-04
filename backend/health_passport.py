@@ -172,13 +172,16 @@ def build_health_passport(db, tdb, current_user, parent_user, models, pdf_for, a
         months = age_months(birth)
         summary = {k: [] for _, k in FIELDS}
         visits, done_b, meas, vacc, drugs = [], [], [], [], []
+        seen, used = set(), set()  # le copie importate da un altro passaporto non si ripetono
         for link, raw in group:
             p = unseal_fields(raw, SEALED)
             doc_name = names[link["owner_id"]]
             meta = p.get("field_meta") or {}
             for f, k in FIELDS:
                 v = (p.get(f) or "").strip()
-                if v:
+                if v and (k, v.lower()) not in seen:
+                    seen.add((k, v.lower()))
+                    used.add(doc_name)
                     m = meta.get(f) or {}
                     summary[k].append({"value": v, "by": m.get("by") or doc_name, "at": m.get("at") or p.get("created_at")})
             q = {"patient_id": link["patient_id"], "owner_id": link["owner_id"]}
@@ -187,6 +190,7 @@ def build_health_passport(db, tdb, current_user, parent_user, models, pdf_for, a
                 x = Consultation.from_mongo(c).out()
                 if shared and x.get("portal_hidden_by_parent"):
                     continue
+                used.add(doc_name)
                 n = x.get("note") or {}
                 at = x.get("signed_at") or x["created_at"]
                 kind = x.get("template_name") or n.get("motivo_visita") or "Visita"
@@ -201,15 +205,23 @@ def build_health_passport(db, tdb, current_user, parent_user, models, pdf_for, a
                         if (d.get("nome") or "").strip() and isinstance(days, (int, float)) and \
                                 datetime.fromisoformat(x["created_at"]) + timedelta(days=days) >= _now():
                             drugs.append({"value": f"{d['nome'].strip()}" + (f" · {drug_text(d)}" if drug_text(d) else ""), "by": doc_name, "at": at, "source": "referto"})
-            async for m in db.measurements.find(q):
+            async for m in db.measurements.find({**q, "source": {"$ne": "passaporto"}}):
                 mm = Measurement.from_mongo(m).out()
+                if ("m", mm["date"], mm["weight"], mm["height"], mm["hc"]) in seen:
+                    continue
+                seen.add(("m", mm["date"], mm["weight"], mm["height"], mm["hc"]))
+                used.add(doc_name)
                 am = age_months(birth, date.fromisoformat(mm["date"]))
                 meas.append({"id": mm["id"], "date": mm["date"], "age_months": round(am, 1), "age_label": age_label(am), "weight": mm["weight"],
                              "height": mm["height"], "hc": mm["hc"], "clinic": mm.get("clinic", ""), "by": doc_name,
                              "source": "visita" if mm.get("consultation_id") else "inserita in studio",
                              "pct": {"peso": mixed_pct("wfa", sex, am, mm["weight"]), "altezza": mixed_pct("lhfa", sex, am, mm["height"]),
                                      "cc": mixed_pct("hcfa", sex, am, mm["hc"]) if am <= SWITCH else None}})
-            async for v in db.vaccinations.find(q):
+            async for v in db.vaccinations.find({**q, "source": {"$ne": "passaporto"}}):
+                if ("v", v["code"], v.get("dose")) in seen and v["code"] in VNAME:
+                    continue
+                seen.add(("v", v["code"], v.get("dose")))
+                used.add(doc_name)
                 s = unseal_fields(v, ("name",))
                 vacc.append({"id": str(v["_id"]), "code": v["code"], "name": s.get("name") or VNAME.get(v["code"], v["code"]), "dose": v.get("dose"),
                              "date": v["date"], "by": v.get("by_name") or doc_name, "at": v.get("created_at")})
@@ -225,7 +237,7 @@ def build_health_passport(db, tdb, current_user, parent_user, models, pdf_for, a
                 "growth": g, "visits": sorted(visits, key=lambda v: v["date"], reverse=True),
                 "bilanci": {"done": sorted(done_b, key=lambda b: b["date"], reverse=True),
                             "next": {"name": nb[1], "from": add_months(birth, nb[2])} if nb else None},
-                "doctors": sorted(set(names.values())), "updated_at": _iso(_now())}
+                "doctors": sorted(used or {names[group[0][0]["owner_id"]]}), "updated_at": _iso(_now())}
 
     async def parent_contact(parent_id: str) -> dict:
         u = await db.users.find_one({"_id": ObjectId(parent_id)}) or {}
@@ -349,7 +361,6 @@ def build_health_passport(db, tdb, current_user, parent_user, models, pdf_for, a
         since = _iso(_now() - timedelta(minutes=10))
         if await db.passport_attempts.count_documents({"ip": ip, "at": {"$gt": since}}) >= 20:
             raise HTTPException(429, "Troppi tentativi. Riprovi tra qualche minuto.")
-        await db.passport_attempts.insert_one({"ip": ip, "at": _iso(_now()), "created": _now()})
         s = await live_share(token)
         if not s:
             raise HTTPException(410, GONE)
@@ -357,6 +368,7 @@ def build_health_passport(db, tdb, current_user, parent_user, models, pdf_for, a
             raise HTTPException(429, "Troppi codici errati: accesso bloccato per 15 minuti")
         code = unseal_fields({"code": s["code"]}, ("code",))["code"]
         if not hmac.compare_digest(code, body.code.strip()):
+            await db.passport_attempts.insert_one({"ip": ip, "at": _iso(_now()), "created": _now()})
             fails = s.get("fails", 0) + 1
             upd = {"fails": 0, "locked_until": _iso(_now() + timedelta(minutes=15))} if fails >= 5 else {"fails": fails}
             await db.passport_shares.update_one({"_id": s["_id"]}, {"$set": upd})
@@ -411,8 +423,11 @@ def build_health_passport(db, tdb, current_user, parent_user, models, pdf_for, a
             pid, created, fill = str(res.inserted_id), True, body
         data = await assemble(s["parent_id"], s["patient_id"], shared=True)
         have = {m["date"] async for m in tdb.measurements.find({"patient_id": pid})}
-        new_m = [Measurement(patient_id=pid, date=m["date"], clinic="", weight=m["weight"], height=m["height"], hc=m["hc"], source="passaporto").to_mongo()
-                 for m in data["growth"]["measurements"] if m["date"] not in have]
+        new_m = []
+        for m in data["growth"]["measurements"]:
+            if m["date"] not in have:
+                have.add(m["date"])
+                new_m.append(Measurement(patient_id=pid, date=m["date"], clinic="", weight=m["weight"], height=m["height"], hc=m["hc"], source="passaporto").to_mongo())
         if new_m:
             await tdb.measurements.insert_many(new_m)
         vhave = {(x["code"], x.get("dose")) async for x in tdb.vaccinations.find({"patient_id": pid})}

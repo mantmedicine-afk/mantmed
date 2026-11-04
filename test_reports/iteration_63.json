@@ -1,0 +1,42 @@
+{
+  "summary": "Passaporto sanitario E2E (backend + frontend). Backend: 19/19 pytest pass (new test_health_passport.py 18 + test_passport_autopublish.py 1): payload, consent 412/400, share create/list/revoke, public info + X-Robots-Tag, wrong code 'Tentativi rimasti', summary vs full scoping, no CF in payload, PDF (403 on summary, 404 on hidden, 410 after revoke), hide/unhide, access log (apertura/referto_pdf/importazione + mantmed_doctor flag), import rules (401 anon, 403 allow_import=false, created:true then created:false, no duplicate in cardio folder), vaccinations 409/400/delete/cross-tenant 404, field_meta on PATCH, sign auto-publish with passport_consent_at, robots.txt. Frontend: all requested flows work in UI (menu, red allergy box, chronic, therapies, blood group with 'Inserito da Dott.ssa Tiziana Foti · data', vaccines done/next, 3 growth tabs with '(OMS)' rows, visits with Referto PDF/Nascondi/Mostra, bilanci next, consent step with mandatory checkbox, options, QR+link+6-digit code, two-step revoke, shared page unlock/error/gone, noindex meta, no CF in DOM, promo for anonymous with /registrati/medico, import button for MantMed doctor, not-allowed message, emergency 1080x1920 PNG preview + download, doctor vaccines editor, PatientDialog new fields). ONE HIGH BUG found: after 'Importa nella cartella' the parent's passport shows every item DUPLICATED (allergies, chronic, vaccinations 13->26, measurements 12->24, doctors list gains the importing doctor) — also visible on shared pages and on the emergency card.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/passport-import/{key} + assemble() in health_passport.py", "issue": "Imported patient copies guardian_email (+cf_hash), so registration.link_children auto-links the parent to the new cardiologist folder at next portal load. assemble() then merges both folders WITHOUT dedup: allergies/chronic/therapies shown twice ('Inserito da Passaporto condiviso dal genitore (importato da Dott. Marco Bianchi)'), vaccinations duplicated (same code+dose), measurements duplicated and re-attributed to the importing doctor as '(inserita in studio)', header shows 'Dott. Marco Bianchi, Dott.ssa Tiziana Foti'. Propagates to every new share and to the emergency card PNG (allergy/patologia printed twice). Reproduced via UI and API.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/public/passport/{token}/open", "issue": "Per-IP limit (20/10min) counts successful opens too; in testing it triggered 'Troppi tentativi' before the 5-wrong-code lockout could be observed. Consider counting only failed attempts."},
+      {"endpoint": "POST /api/passport-import/{key}", "issue": "Measurement dedup only uses dates already in target folder; source duplicates on the same date (demo has 5x 18kg on 2026-10-21) are all copied. Import also has no role check beyond the api router (fine if router enforces doctor)."},
+      {"endpoint": "assemble() bilanci next", "issue": "Next bilancio = first BILANCI entry with upper bound > age and not done; for Aurora (4a2m) demo has '5-6 anni' already done so next shown is '8-10 anni' (data-driven, but logic skips any earlier due bilancio check by date)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "EmergencyCard / Highlights / SharedPassport", "issue": "Duplicated allergies/patologie/vaccines rendered after an import (consequence of backend bug above)", "selector": "[data-testid=emergency-preview], [data-testid=passport-allergies-box]", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "VaccinesEditor / PatientDialog", "issues": ["Native <select> and native <input type=date> (browser default picker) instead of shadcn Select/Calendar", "vaccine-delete-<id> deletes immediately without confirmation (revoke has two-step, delete does not)"]},
+      {"screen": "SharedPassport", "issues": ["'nata/o' shown even though sex is known (F)", "Doctor-side 'Condivisioni attive del genitore: Nessuna condivisione attiva' while parent had 3 active passport shares — label may confuse (it lists network shares, not passport shares)"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_health_passport.py", "/app/backend/tests/test_passport_autopublish.py", "/app/test_reports/pytest/pytest_passport.xml"],
+  "action_items": [
+    "HIGH: dedupe in assemble(): summary values by normalized text (keep first/original author), vaccinations by (code,dose), measurements by (date,weight,height,hc); keep original 'by' for imported data; OR do not copy guardian_email on import / do not auto-link folders created via passport-import (created_from='passaporto') — decide product rule, but parent passport and emergency card must not show duplicates",
+    "Consider counting only failed code attempts in the per-IP rate limit for /open",
+    "Optional: confirm step for vaccine delete; use shadcn Select/Calendar in VaccinesEditor/PatientDialog if allowed by 'non cambiare' constraint"
+  ],
+  "critical_code_review_comments": [
+    "health_passport.py assemble(): no dedup across group cartelle (root cause of HIGH bug)",
+    "import_passport copies guardian_email/guardian_fiscal_code -> triggers link_children auto-link to importing doctor without parent action",
+    "open_share rate-limit inserts an attempt for every call including successes",
+    "field_meta 'by' for imported fields is a sentence ('Passaporto condiviso dal genitore (importato da X)') which renders as 'Inserito da Passaporto condiviso...' — awkward wording"
+  ],
+  "updated_files": ["/app/backend/tests/test_health_passport.py", "/app/backend/tests/test_passport_autopublish.py"],
+  "success_rate": {"backend": "100% of API tests (19/19) pass; 1 HIGH data-merge bug found via E2E", "frontend": "~92% (all flows work; duplicate rendering after import)"},
+  "seed_data_creation": "None kept. All TEST shares/access logs/views/attempts, imported cardio patient (+12 measurements, 13 vaccinations, parent children link), TEST vaccination, therapies/blood_group edits + field_meta, hidden flag were cleaned/restored. Parent passport_share_consent was unset to test consent step and re-given via UI (new timestamp). E1's share E7jeue_... and the 'Dott. Mario Bianchi' access entry kept intact.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_health_passport.py tests/test_passport_autopublish.py -n 0. Tests self-clean (shares revoked, imported patient deleted). To reproduce the HIGH bug: open a full allow_import share as cardiologo.demo, import, then log in as genitore.demo and open /portale/passaporto -> duplicates. Cleanup after: delete cardio patient by id + its measurements/vaccinations, $pull the link from genitore.demo users.children. Per-IP passport_attempts may block /open after ~20 calls in 10 min: delete only your ip hash rows.",
+  "rca of the issue": "Import creates patient in doctor's folder with same cf_hash and guardian_email=genitore email -> registration.link_children (runs on parent session) adds it to users.children -> group_of() returns both folders -> assemble() appends items from each folder without dedup. Mitigation: dedup in assemble and/or skip auto-link for created_from passport import."
+}

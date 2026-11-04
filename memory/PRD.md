@@ -480,3 +480,14 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 ## 2026-06 FSE 2.0 + Passaporto (parte 1/2)
 - fse.py connettore SIMULATO (in_coda→inviato→accettato/errore, 5 giorni), consensi separati fse/passaporto (Consent.kind), stati referto (ReportStates), tab Passaporto e FSE, badge consensi, avviso firmatario≠genitore, Home tile FSE
 - Parte 2 da fare: doppioni visite/misure, misure incoerenti, sede valida obbligatoria, icone e filtri FSE/Passaporto nell'elenco pazienti, stato FSE nella lista Tutte le visite
+
+## 2026-11 Passaporto sanitario del bambino (Portale) — iteration_63 PASS (backend 19/19, frontend OK, bug duplicati dopo importazione risolto)
+- backend/health_passport.py: GET /api/portal/passport/{pid} (allergie, patologie croniche, terapie in corso [campo + farmaci attivi dai referti], gruppo sanguigno con "inserito da/quando" via patients.field_meta; vaccinazioni eseguite + prossime da calendario nazionale indicativo; crescita OMS 0-5a + SIEDP/Cacciari 2006 dopo 5a (it_lms.json da pacchetto R childsds); visite pubblicate non oscurate; bilanci fatti + prossimo); unione delle cartelle dello stesso CF senza duplicati
+- Condivisione: consenso esplicito (users.passport_share_consent, 412 senza), POST shares {scope summary|full, duration 24h|7d|30d, allow_import}, token + codice 6 cifre cifrati, revoca, registro accessi (apertura, referto_pdf, importazione, nome medico), blocco 15 min dopo 5 codici errati, limite IP su tentativi falliti
+- Pubblico /p/:token (SharedPassport.jsx): nome+codice, sola lettura, nessun CF, noindex (meta + X-Robots-Tag + robots.txt), "Accesso non più disponibile" per scaduti/revocati; medico MantMed loggato + allow_import -> "Importa nella cartella" (POST /api/passport-import/{key}: crea paziente o completa i dati mancanti, misure e vaccini senza doppioni); altri -> "Gestisci i tuoi pazienti con MantMed"
+- Oscuramento genitore: POST /api/portal/passport/{pid}/visits/{cid}/hide (portal_hidden_by_parent)
+- Scheda emergenza PNG 1080x1920 generata nel browser (EmergencyCard.jsx)
+- Medico: vaccinazioni in scheda paziente (tab Passaporto e FSE, VaccinesEditor), campi patologie/terapie/gruppo sanguigno in PatientDialog; firma nota con consenso Passaporto -> referto pubblicato in automatico
+- Demo: Aurora Ricci con 13 vaccinazioni e "Asma lieve intermittente" (dati dimostrativi)
+- Test: backend/tests/test_health_passport.py, test_passport_autopublish.py
+- Backlog: FSE parte 2 (doppioni visite/misure, misure incoerenti, sede obbligatoria, icone/filtri elenco pazienti)

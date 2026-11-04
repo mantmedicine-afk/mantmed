@@ -17,7 +17,8 @@ export const VaccinesEditor = ({ patientId }) => {
   const add = async () => {
     try { await api.addVaccination(patientId, { ...f, dose: Number(f.dose) }); toast.success("Vaccinazione registrata nel passaporto"); setF((x) => ({ ...x, name: "" })); load(); } catch (e) { toast.error(errMsg(e)); }
   };
-  const del = async (id) => { try { await api.deleteVaccination(id); load(); } catch (e) { toast.error(errMsg(e)); } };
+  const [ask, setAsk] = useState("");
+  const del = async (id) => { if (ask !== id) return setAsk(id); setAsk(""); try { await api.deleteVaccination(id); toast.success("Vaccinazione eliminata"); load(); } catch (e) { toast.error(errMsg(e)); } };
   return (
     <section className={box} data-testid="vaccines-editor">
       <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-[var(--fg2)]"><Syringe size={14} /> Vaccinazioni</div>
@@ -34,7 +35,8 @@ export const VaccinesEditor = ({ patientId }) => {
         {(v?.done ?? []).map((x) => (
           <li key={x.id} className="flex items-center justify-between gap-3 py-2" data-testid={`vaccine-row-${x.id}`}>
             <span><b>{x.name}</b> · dose {x.dose} · {new Date(`${x.date}T12:00:00`).toLocaleDateString("it-IT")}<span className="text-[var(--fg2)]"> · {x.by}</span></span>
-            <button onClick={() => del(x.id)} className="grid h-9 w-9 place-items-center rounded-full text-[var(--fg2)] hover:text-[var(--alert)]" aria-label="Elimina" data-testid={`vaccine-delete-${x.id}`}><Trash2 size={15} /></button>
+            {ask === x.id ? <button onClick={() => del(x.id)} className="h-9 rounded-full bg-[var(--alert)] px-3 text-xs font-semibold text-[var(--ink)]" data-testid={`vaccine-delete-confirm-${x.id}`}>Confermi eliminazione</button>
+              : <button onClick={() => del(x.id)} className="grid h-9 w-9 place-items-center rounded-full text-[var(--fg2)] hover:text-[var(--alert)]" aria-label="Elimina" data-testid={`vaccine-delete-${x.id}`}><Trash2 size={15} /></button>}
           </li>
         ))}
         {v && !v.done.length && <li className="py-2 text-[var(--fg2)]">Nessuna vaccinazione registrata.</li>}
