@@ -453,3 +453,7 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Pulsante 240/180px 'Avvia MantAI' con logo bianco (public/mantmed-logo-white.png), logo anche nella barra in alto; rinominato ovunque
 - Colonna destra sticky: riepilogo compatto, Vaccinazioni in scadenza (MOCK homeDemo.js, Vedi tutte in pannello), Bilanci di salute da programmare (date reali da data di nascita, Prenota apre AppointmentDialog con data), Pillola del giorno (30 consigli a rotazione)
 - Linea Ora unica; legenda 'Allergie' con puntino rosso; AppointmentDialog ora ha il campo Data
+
+## 2026-06 Home a tre colonne
+- Rimossi vaccinazioni/bilanci/pillola; layout agenda | pulsante+card prossimo paziente (sticky) | riepilogo + Vera Health (link esterno, nessun dato inviato)
+- Card prossimo paziente con tempo mancante o ritardo aggiornato ogni 30s

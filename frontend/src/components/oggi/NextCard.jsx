@@ -10,7 +10,7 @@ export const timeLeft = (time, now) => {
 };
 
 export const NextCard = ({ next, patient, now, onOpen }) => (
-  <div className="w-full max-w-[260px] rounded-2xl bg-[var(--surface)] px-5 py-5" data-testid="oggi-next-card">
+  <div className="w-full max-w-[260px] rounded-[16px] bg-[var(--surface)] shadow-[var(--shadow)] px-5 py-5" data-testid="oggi-next-card">
     {next ? <>
       <div className="text-center text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--fg2)]">Prossimo paziente</div>
       <div className="mt-2 flex flex-wrap items-center justify-center gap-x-2 gap-y-1" data-testid="oggi-next-who">
@@ -18,8 +18,8 @@ export const NextCard = ({ next, patient, now, onOpen }) => (
         {patient?.allergies && <span className="flex items-center gap-1.5 text-xs font-semibold text-[var(--alert)]" title={patient.allergies} data-testid="oggi-next-allergies"><Dot color="var(--alert)" /> Allergie</span>}
       </div>
       <div className="mt-1 text-center text-sm text-[var(--fg2)]" data-testid="oggi-next-meta">{[patient?.age_label, next.visit_type].filter(Boolean).join(" · ")}</div>
-      <div className="mt-4 flex items-center justify-between gap-2">
-        <span className="rounded-full bg-[var(--sel)] px-2.5 py-1 text-xs font-medium tabular-nums text-[var(--fg)]" data-testid="oggi-next-when">{next.time} · {timeLeft(next.time, now)}</span>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+        <span className="whitespace-nowrap rounded-full bg-[var(--sel)] px-2.5 py-1 text-xs font-medium tabular-nums text-[var(--fg)]" data-testid="oggi-next-when">{next.time} · {timeLeft(next.time, now)}</span>
         {next.patient_id && <button onClick={onOpen} className="flex shrink-0 items-center gap-1 text-sm font-semibold text-[var(--fg)] transition-transform hover:translate-x-0.5" data-testid="oggi-next-folder-btn">Cartella <ArrowRight size={14} /></button>}
       </div>
     </> : <p className="text-center text-sm text-[var(--fg2)]" data-testid="oggi-next-empty">Nessun'altra visita oggi</p>}
