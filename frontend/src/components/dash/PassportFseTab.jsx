@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Eye, Users, FileCheck2, FileX2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { FSE_LABEL } from "./ReportStates";
+import { VaccinesEditor } from "./VaccinesEditor";
 
 const box = "rounded-3xl border border-[var(--hair)] bg-[var(--surface)] p-5";
 const STATUS = { attivo: "Attivo: il genitore ha un account", invitato: "Genitore invitato: in attesa di registrazione", non_attivo: "Non attivo" };
@@ -55,6 +56,7 @@ export const PassportFseTab = ({ data, onEdit, onTab }) => {
           {sends.length ? sends.map((c) => <li key={c.id} className="flex justify-between gap-3 py-1.5"><span>{when(c)} · {c.note?.motivo_visita || "Visita"}</span><span className="font-medium">{FSE_LABEL[c.obscured ? "oscurato" : c.fse.status]}</span></li>) : <li className="py-1.5 text-[var(--fg2)]">Nessun invio: i referti entrano in coda alla firma.</li>}
         </ul>
       </section>
+      <VaccinesEditor patientId={p.id} />
       {preview && <ParentPreview patient={p} items={shown} onClose={() => setPreview(false)} />}
     </div>
   );

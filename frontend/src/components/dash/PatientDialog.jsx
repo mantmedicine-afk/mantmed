@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { api, errMsg } from "@/lib/api";
 import { Field } from "./AppointmentDialog";
 
-const EMPTY = { name: "", birth_date: "", sex: "F", fiscal_code: "", guardian: "", guardian_email: "", guardian_fiscal_code: "", allergies: "", notes: "" };
+const EMPTY = { name: "", birth_date: "", sex: "F", fiscal_code: "", guardian: "", guardian_email: "", guardian_fiscal_code: "", allergies: "", chronic_conditions: "", therapies: "", blood_group: "", notes: "" };
 
 export const PatientDialog = ({ value, onClose, onSaved }) => {
   const [f, setF] = useState(EMPTY);
@@ -21,7 +21,7 @@ export const PatientDialog = ({ value, onClose, onSaved }) => {
     if (cf && !/^[A-Z0-9]{16}$/.test(cf)) return toast.error("Il codice fiscale deve avere 16 caratteri");
     const mail = (f.guardian_email || "").trim();
     if (mail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) return toast.error("Email del genitore non valida");
-    const body = { name: f.name, birth_date: f.birth_date, sex: f.sex, fiscal_code: cf, guardian: f.guardian, guardian_fiscal_code: (f.guardian_fiscal_code || "").trim().toUpperCase(), guardian_email: mail, allergies: f.allergies, notes: f.notes };
+    const body = { name: f.name, birth_date: f.birth_date, sex: f.sex, fiscal_code: cf, guardian: f.guardian, guardian_fiscal_code: (f.guardian_fiscal_code || "").trim().toUpperCase(), guardian_email: mail, allergies: f.allergies, chronic_conditions: f.chronic_conditions ?? "", therapies: f.therapies ?? "", blood_group: f.blood_group ?? "", notes: f.notes };
     try {
       const p = isEdit ? await api.updatePatient(value.id, body) : await api.addPatient(body);
       toast.success(isEdit ? "Passaporto aggiornato" : "Paziente aggiunto al passaporto sanitario");
@@ -32,7 +32,7 @@ export const PatientDialog = ({ value, onClose, onSaved }) => {
 
   return (
     <Dialog open={Boolean(value)} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="z-[60] rounded-3xl bg-[var(--surface)] sm:max-w-md" data-testid="patient-dialog">
+      <DialogContent className="z-[60] max-h-[92vh] overflow-y-auto rounded-3xl bg-[var(--surface)] sm:max-w-md" data-testid="patient-dialog">
         <DialogHeader><DialogTitle className="font-display text-3xl font-normal text-[var(--fg)]">{isEdit ? "Modifica paziente" : "Nuovo paziente"}</DialogTitle></DialogHeader>
         <div className="grid gap-4">
           <Field label="Nome e cognome"><Input value={f.name} onChange={set("name")} data-testid="patient-name-input" /></Field>
@@ -51,6 +51,11 @@ export const PatientDialog = ({ value, onClose, onSaved }) => {
           <Field label="Codice fiscale del genitore / tutore (per il FSE)"><Input value={f.guardian_fiscal_code ?? ""} onChange={set("guardian_fiscal_code")} maxLength={16} className="font-mono uppercase" data-testid="patient-guardian-cf-input" /></Field>
           <Field label="Email del genitore (per l'invio dei referti)"><Input type="email" value={f.guardian_email} onChange={set("guardian_email")} placeholder="nome@email.it" data-testid="patient-guardian-email-input" /></Field>
           <Field label="Allergie"><Input value={f.allergies} onChange={set("allergies")} data-testid="patient-allergies-input" /></Field>
+          <Field label="Patologie croniche"><Input value={f.chronic_conditions ?? ""} onChange={set("chronic_conditions")} placeholder="es. asma, celiachia" data-testid="patient-chronic-input" /></Field>
+          <div className="grid grid-cols-[1fr_120px] gap-3">
+            <Field label="Terapie in corso"><Input value={f.therapies ?? ""} onChange={set("therapies")} data-testid="patient-therapies-input" /></Field>
+            <Field label="Gruppo sanguigno"><select value={f.blood_group ?? ""} onChange={set("blood_group")} className="h-10 w-full rounded-md border border-[var(--hair)] bg-[var(--surface)] px-2 text-sm text-[var(--fg)]" data-testid="patient-blood-group-select"><option value="">Non noto</option>{["0 Rh+", "0 Rh-", "A Rh+", "A Rh-", "B Rh+", "B Rh-", "AB Rh+", "AB Rh-"].map((g) => <option key={g}>{g}</option>)}</select></Field>
+          </div>
           <Field label="Note cliniche"><Input value={f.notes} onChange={set("notes")} data-testid="patient-notes-input" /></Field>
         </div>
         <div className="mt-2 flex justify-end">

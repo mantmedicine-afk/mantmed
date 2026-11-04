@@ -19,7 +19,8 @@ import { ConsentBanner } from "@/components/portal/ConsentSign";
 import { SignedDocsList } from "@/components/signature/SignedDocs";
 import { ProfileMenu, Caret } from "@/components/auth/ProfileMenu";
 import { useSearchParams, useParams, useNavigate, Navigate } from "react-router-dom";
-import { LayoutGrid, MessagesSquare, Settings, Stethoscope, FolderOpen, Compass } from "lucide-react";
+import { LayoutGrid, MessagesSquare, Settings, Stethoscope, FolderOpen, Compass, BookHeart } from "lucide-react";
+import { HealthPassport } from "@/components/passport/HealthPassport";
 import { AppShell, MenuButton } from "@/components/nav/AppShell";
 import { FeedbackDialog } from "@/components/dash/FeedbackDialog";
 import Account from "@/pages/Account";
@@ -27,7 +28,7 @@ import { GuidedTour } from "@/components/tour/GuidedTour";
 import { PATIENT_STEPS } from "@/components/tour/steps";
 import { useTour } from "@/components/tour/useTour";
 
-const SECTIONS = { panoramica: null, documenti: null, "trova-specialista": null, appuntamenti: "appointments", messaggi: null, impostazioni: null };
+const SECTIONS = { panoramica: null, passaporto: null, documenti: null, "trova-specialista": null, appuntamenti: "appointments", messaggi: null, impostazioni: null };
 const LEGACY = { referti: "visite", ricevute: "ricevute" };
 import { LogoMark } from "@/components/dash/Logo";
 import { api, errMsg, eur } from "@/lib/api";
@@ -257,13 +258,14 @@ export default function Portal() {
     { id: "appuntamenti", to: "/portale/appuntamenti", label: "Appuntamenti", short: "Visite", icon: CalendarClock },
     { id: "documenti", to: "/portale/documenti", label: "Documenti", icon: FolderOpen },
     { id: "messaggi", to: "/portale/messaggi", label: "Messaggi", icon: MessagesSquare, badge: notif.messages_unread },
+    { id: "passaporto", to: "/portale/passaporto", label: "Passaporto sanitario", short: "Passaporto", icon: BookHeart },
     { id: "trova-specialista", to: "/portale/trova-specialista", label: "Trova specialista", short: "Specialisti", icon: Stethoscope },
     { id: "impostazioni", to: "/portale/impostazioni", label: "Impostazioni", icon: Settings, bottom: true },
   ];
   if (LEGACY[sezione]) return <Navigate to={`/portale/documenti?tab=${LEGACY[sezione]}`} replace />;
   if (!(sezione in SECTIONS)) return <Navigate to="/portale" replace />;
   const only = SECTIONS[sezione];
-  const TITLES = { documenti: "Documenti", "trova-specialista": "Trova specialista", appuntamenti: "Appuntamenti", referti: "Referti e bilanci di salute", ricevute: "Ricevute e pagamenti", messaggi: "Messaggi con lo studio" };
+  const TITLES = { passaporto: "Passaporto sanitario", documenti: "Documenti", "trova-specialista": "Trova specialista", appuntamenti: "Appuntamenti", referti: "Referti e bilanci di salute", ricevute: "Ricevute e pagamenti", messaggi: "Messaggi con lo studio" };
   const iconBtn = "grid h-10 w-10 place-items-center rounded-full border border-[var(--hair)] text-[var(--fg2)] transition-colors hover:border-[var(--accent)] hover:text-[var(--fg)]";
   return (
     <AppShell items={items} area="Portale Famiglia">
@@ -294,8 +296,9 @@ export default function Portal() {
         )}
         {sezione === "trova-specialista" && data && <SpecialistsDirectory onBook={(id, slot) => { setReqDoctor(id); setReqPreset(slot ?? null); setReq(children[0]?.patient.id ?? null); if (!children.length) toast.message("Colleghi prima la cartella di suo figlio per prenotare"); }} />}
         {sezione === "panoramica" && children.length > 0 && <h2 className="pt-4 text-lg font-semibold text-[var(--fg)]">La famiglia</h2>}
+        {sezione === "passaporto" && data && <HealthPassport kids={children} />}
         {sezione === "documenti" && data && <DocumentsArea kids={children} onChange={load} addChild={<AddChild onLinked={load} />} />}
-        {!["messaggi", "trova-specialista", "documenti"].includes(sezione) && children.map((c) => <Child key={c.patient.id} c={c} onRequest={setReq} focus={focus} onChange={load} jump={jump} only={only} />)}
+        {!["messaggi", "trova-specialista", "documenti", "passaporto"].includes(sezione) && children.map((c) => <Child key={c.patient.id} c={c} onRequest={setReq} focus={focus} onChange={load} jump={jump} only={only} />)}
         {sezione === "messaggi" && children.length > 0 && <Messages kids={children} openId={openThread} onOpened={() => setOpenThread(null)} onRead={reloadNotif} />}
         <RequestDialog key={`${req}-${reqDoctor}-${reqPreset?.date}${reqPreset?.time}`} open={!!req} initial={req} doctorId={reqDoctor} preset={reqPreset} kids={children} onClose={() => { setReq(null); setReqDoctor(""); setReqPreset(null); }} onSent={load} />
         {data && sezione === "panoramica" && <AddChild onLinked={load} />}

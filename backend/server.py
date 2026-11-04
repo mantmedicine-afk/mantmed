@@ -30,6 +30,7 @@ from previsit import build_previsit, latest_previsit, previsit_prompt
 from support_inbox import build_support_inbox
 from showcase import build_showcase
 from portal_docs import build_portal_docs
+from health_passport import build_health_passport
 from bodychart import build_bodychart, report_payload
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
@@ -332,6 +333,10 @@ class Patient(BaseDocument):
     guardian_email: str = ""
     guardian_fiscal_code: str = ""
     allergies: str = ""
+    chronic_conditions: str = ""
+    therapies: str = ""
+    blood_group: str = ""
+    field_meta: dict = Field(default_factory=dict)
     notes: str = ""
     consent_at: Optional[str] = None
     consent_version: Optional[str] = None
@@ -340,7 +345,8 @@ class Patient(BaseDocument):
     passport_consent_at: Optional[str] = None
     portal_invited_at: Optional[str] = None
     created_at: str = Field(default_factory=now_iso)
-    __encrypted__: ClassVar[tuple] = ("fiscal_code", "guardian", "guardian_email", "guardian_fiscal_code", "allergies", "notes")
+    __encrypted__: ClassVar[tuple] = ("fiscal_code", "guardian", "guardian_email", "guardian_fiscal_code", "allergies", "notes",
+                                      "chronic_conditions", "therapies", "blood_group")
 
 
 class PatientIn(BaseModel):
@@ -352,6 +358,9 @@ class PatientIn(BaseModel):
     guardian_email: str = ""
     guardian_fiscal_code: str = ""
     allergies: str = ""
+    chronic_conditions: str = ""
+    therapies: str = ""
+    blood_group: str = ""
     notes: str = ""
 
 
@@ -364,6 +373,9 @@ class PatientPatch(BaseModel):
     guardian: Optional[str] = None
     guardian_fiscal_code: Optional[str] = None
     allergies: Optional[str] = None
+    chronic_conditions: Optional[str] = None
+    therapies: Optional[str] = None
+    blood_group: Optional[str] = None
     notes: Optional[str] = None
 
 
@@ -606,6 +618,7 @@ async def seed():
     await db.verify_hits.create_index("ip")
     await db.consult_jobs.create_index("expires_at", expireAfterSeconds=0)
     await db.consult_jobs.create_index("consultation_id")
+    await hp_indexes()
 
 
 # ---------- Routes ----------
@@ -1246,7 +1259,10 @@ async def sign_consultation(cid: str, user: dict = Depends(current_user)):
     if not fse_state or fse_state.get("status") in (None, "non_inviato"):
         pat = patient_out(await tdb.patients.find_one({"_id": oid(doc["patient_id"])})) if doc.get("patient_id") else {}
         fse_state = fse_mod.on_signed({**doc, "signed_at": signed_at}, pat) if pat else {"status": "non_inviato", "reason": "Visita senza cartella paziente", "deadline": fse_mod.deadline_from(signed_at)}
-    upd = await tdb.consultations.find_one_and_update({"_id": oid(cid)}, {"$set": {"ai_provenance": p, "signed_at": signed_at, "fse": fse_state}}, return_document=True)
+    auto = {}
+    if doc.get("patient_id") and not doc.get("obscured") and await tdb.patients.find_one({"_id": oid(doc["patient_id"]), "passport_consent_at": {"$ne": None}}, {"_id": 1}):
+        auto = {"portal_published": True}  # consenso Passaporto: il referto firmato entra da solo nel passaporto
+    upd = await tdb.consultations.find_one_and_update({"_id": oid(cid)}, {"$set": {"ai_provenance": p, "signed_at": signed_at, "fse": fse_state, **auto}}, return_document=True)
     await audit("nota_firmata", doc["patient_name"])
     return Consultation.from_mongo(upd).out()
 
@@ -1469,6 +1485,9 @@ async def update_consultation(cid: str, body: ConsultationPatch):
 
 
 # ---------- Passaporto sanitario ----------
+PASSPORT_FIELDS = ("allergies", "chronic_conditions", "therapies", "blood_group")
+
+
 @api.get("/patients")
 async def list_patients():
     docs = await tdb.patients.find().sort("name", 1).to_list(1000)
@@ -1484,19 +1503,25 @@ async def list_patients():
 
 
 @api.post("/patients")
-async def create_patient(body: PatientIn):
+async def create_patient(body: PatientIn, user: dict = Depends(current_user)):
     date.fromisoformat(body.birth_date)
     if body.guardian_email and not EMAIL_RE.match(body.guardian_email.strip()):
         raise HTTPException(400, "Email del genitore non valida")
-    res = await tdb.patients.insert_one({**Patient(**body.model_dump()).to_mongo(), "cf_hash": cf_hash(body.fiscal_code) if body.fiscal_code.strip() else None})
+    meta = {f: {"by": user["name"], "at": now_iso()} for f in PASSPORT_FIELDS if (getattr(body, f) or "").strip()}
+    res = await tdb.patients.insert_one({**Patient(**body.model_dump(), field_meta=meta).to_mongo(), "cf_hash": cf_hash(body.fiscal_code) if body.fiscal_code.strip() else None})
     return patient_out(await tdb.patients.find_one({"_id": res.inserted_id}))
 
 
 @api.patch("/patients/{pid}")
-async def update_patient(pid: str, body: PatientPatch):
+async def update_patient(pid: str, body: PatientPatch, user: dict = Depends(current_user)):
     if body.guardian_email and not EMAIL_RE.match(body.guardian_email.strip()):
         raise HTTPException(400, "Email del genitore non valida")
     upd = Patient.sealed_set(body.model_dump(exclude_none=True))
+    cur = await get_patient(pid)
+    for f in PASSPORT_FIELDS:
+        v = getattr(body, f)
+        if cur and v is not None and v.strip() != (cur.get(f) or "").strip():
+            upd[f"field_meta.{f}"] = {"by": user["name"], "at": now_iso()}
     if body.fiscal_code is not None:
         upd["cf_hash"] = cf_hash(body.fiscal_code) if body.fiscal_code.strip() else None
     doc = await tdb.patients.find_one_and_update({"_id": oid(pid)}, {"$set": upd}, return_document=True)
@@ -1997,6 +2022,11 @@ sc_doctor, sc_public, ensure_doctor_slugs = build_showcase(db, current_user, req
 public_api.include_router(sc_doctor)
 public_api.include_router(sc_public)
 public_api.include_router(build_portal_docs(db, require_role(current_user, "parent"), Consultation, Patient))
+hp_portal, hp_public, hp_doctor, hp_indexes = build_health_passport(db, tdb, current_user, require_role(current_user, "parent"),
+                                                                    {"patient": Patient, "consultation": Consultation, "measurement": Measurement}, portal_pdf_for, age_label)
+public_api.include_router(hp_portal)
+public_api.include_router(hp_public)
+api.include_router(hp_doctor)
 
 
 @public_api.get("/portal/children/{pid}/simple")
