@@ -31,15 +31,6 @@ export const StartButton = ({ onStart }) => (
   </div>
 );
 
-export const NextLine = ({ next, age, onOpen }) => (
-  <p className="text-center text-sm text-[var(--fg2)]" data-testid="oggi-next-line">
-    {next ? <>
-      <span data-testid="oggi-next-who">Prossimo: <span className="font-semibold text-[var(--fg)]">{next.patient_name}</span>{age ? ` · ${age}` : ""} · <span className="tabular-nums" data-testid="oggi-next-when">{next.time}</span></span>
-      {next.patient_id && <> <span aria-hidden="true">·</span> <button onClick={onOpen} className="font-semibold text-[var(--fg)] underline decoration-[var(--hair)] underline-offset-4 transition-colors hover:decoration-[var(--fg)]" data-testid="oggi-next-folder-btn">Apri cartella</button></>}
-    </> : <span data-testid="oggi-next-empty">Nessun'altra visita in programma oggi.</span>}
-  </p>
-);
-
 const Stat = ({ id, icon: Icon, value, label, sub, onClick, i }) => (
   <motion.button {...rise(i)} onClick={onClick}
     className={`${card} group flex items-center gap-3.5 px-5 py-3.5 text-left transition-transform duration-300 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]`} data-testid={`oggi-stat-${id}`}>
