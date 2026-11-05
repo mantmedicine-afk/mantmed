@@ -4,6 +4,7 @@ import { LogoMark } from "@/components/dash/Logo";
 import { LandingHeader, LandingHero, scrollTo } from "@/components/landing/Hero";
 import { LandingHowItWorks, LandingSecurity } from "@/components/landing/Sections";
 import { LandingContact } from "@/components/landing/Contact";
+import { LandingFunctions } from "@/components/landing/Functions";
 
 export default function Landing() {
   const [kind, setKind] = useState("beta");
@@ -14,6 +15,7 @@ export default function Landing() {
       <main>
         <LandingHero onBeta={beta} />
         <LandingHowItWorks />
+        <LandingFunctions />
         <LandingSecurity />
         <LandingContact kind={kind} setKind={setKind} />
       </main>
