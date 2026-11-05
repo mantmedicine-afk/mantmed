@@ -58,8 +58,6 @@ export default function Dashboard() {
   const [unread, setUnread] = useState(0);
   const loadUnread = useCallback(() => api.msgSummary().then(setUnread).catch(() => {}), []);
   usePoll(loadUnread, []);
-  const [aiQueued, setAiQueued] = useState(0);
-  usePoll(() => api.aiQueue().then((q) => setAiQueued(q.count)).catch(() => {}), []);
 
   const load = useCallback(() => {
     api.payments().then((r) => setIncome(r.summary?.total ?? 0)).catch(() => {});
@@ -110,7 +108,7 @@ export default function Dashboard() {
     { id: "pazienti", to: "/app/pazienti", label: "Pazienti", icon: Users, menu: [{ links: [
       { id: "elenco", label: "Elenco pazienti", desc: "Cartelle e passaporti", icon: Users, to: "/app/pazienti" },
       { id: "visite", label: "Tutte le visite", desc: "Diario clinico e note", icon: ListChecks, to: "/app/pazienti?vista=visite" }] }] },
-    { id: "messaggi", to: "/app/messaggi", label: "Messaggi", icon: MessagesSquare, badge: unread + aiQueued, menu: [{ links: [
+    { id: "messaggi", to: "/app/messaggi", label: "Messaggi", icon: MessagesSquare, badge: unread, menu: [{ links: [
       { id: "conversazioni", label: "Conversazioni", desc: "Messaggi con le famiglie", icon: MessagesSquare, to: "/app/messaggi#doctor-conversations" },
       { id: "richieste", label: "Richieste dal portale", desc: requests > 0 ? `${requests} da gestire` : "Nessuna in attesa", icon: Inbox, to: "/app/messaggi#today-requests" }] }] },
     { id: "cassa", to: "/app/cassa", label: "Cassa", icon: ReceiptText, menu: [{ links: [
@@ -150,7 +148,7 @@ export default function Dashboard() {
     <AppShell items={items} area="Studio medico" barExtras={<><TourButton onClick={() => setTour(true)} /><ThemeToggle bar /><LiveClock /></>}>
     <div className="min-h-screen overflow-x-clip bg-[var(--bg)] md:min-h-[calc(100dvh-4rem)]" data-testid="dashboard" data-section={sezione}>
       <TopBar onCompliance={() => setCompliance(true)} onTour={() => setTour(true)} search={search} />
-      {sezione === "agenda" && <OggiScreen appointments={appointments} patients={patients} notes={notes} unread={unread + aiQueued} requests={requests}
+      {sezione === "agenda" && <OggiScreen appointments={appointments} patients={patients} notes={notes} unread={unread} requests={requests}
         onStart={start} onOpenPatient={setPassportId} onSign={openVisit} onMarkDone={markDone} top={<><AbsenceBanner /><SupportReplies /><SignatureReminder /></>} />}
       {sezione === "pazienti" && <>
         <PageTitle kicker="Archivio clinico" title="Pazienti" it="& cartelle cliniche" />
@@ -166,7 +164,7 @@ export default function Dashboard() {
           </>}
         </div>
       </>}
-      {sezione === "messaggi" && <div className="space-y-5 pt-4" id="doctor-conversations">{<div className="mx-auto max-w-[1280px] scroll-mt-24 px-5 lg:px-8" id="today-requests"><Fold title={`Richieste dal portale · ${requests}`} testId="today-requests-fold" defaultOpen={requests > 0}><PortalRequests onChange={load} /></Fold></div>}<DoctorMessages onRead={loadUnread} /></div>}
+      {sezione === "messaggi" && <div className="space-y-5 pt-4" id="doctor-conversations">{<div className="mx-auto max-w-[1280px] scroll-mt-24 px-5 lg:px-8" id="today-requests"><Fold title={`Richieste dal portale · ${requests}`} testId="today-requests-fold" defaultOpen={requests > 0}><PortalRequests onChange={load} /></Fold></div>}<DoctorMessages onRead={loadUnread} onOpenPatient={setPassportId} /></div>}
       {sezione === "visite" && <><PageTitle kicker="Diario clinico" title="Visite" it="e Bodychart" /><VisitsList notes={notes} onOpen={openVisit} /></>}
       {sezione === "cassa" && <><PageTitle kicker="Amministrazione" title="Cassa" it="fatture e incassi" /><CashSection refreshKey={cashKey} onChange={load} /></>}
       {sezione === "area-personale" && <Account role="doctor" embedded tools={{ onCompliance: () => setCompliance(true), onFeedback: () => setFeedback(true), stats: <div className="space-y-5"><Hero total={appointments.length} waiting={waiting.length} name={shortName} income={income} /><BetaMetrics refreshKey={cashKey} onFeedback={() => setFeedback(true)} /></div> }} />}

@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { MessagesSquare, Trophy, Pill, HelpCircle, Stethoscope, Inbox } from "lucide-react";
+import { MessagesSquare, Trophy, Pill, HelpCircle, Stethoscope } from "lucide-react";
 import { api, errMsg } from "@/lib/api";
 import { usePoll } from "@/hooks/usePoll";
-import { Conversation, StatusChip, when } from "./Conversation";
+import { useFillHeight, useScrollLock } from "@/lib/scrollLock";
+import { Conversation } from "./Conversation";
+import { ThreadList, filterThreads } from "./ThreadList";
 import { NewThreadDialog } from "./NewThreadDialog";
 
 const QUICK = [
@@ -12,16 +14,6 @@ const QUICK = [
   { kind: "info", icon: HelpCircle, title: "Informazioni", text: "Orari, documenti, pratiche" },
   { kind: "clinico", icon: Stethoscope, title: "Dubbio clinico", text: "Domande non urgenti al medico" },
 ];
-
-const ThreadRow = ({ t, active, onOpen }) => (
-  <button onClick={() => onOpen(t.id)} className={`w-full rounded-2xl border p-3 text-left transition-colors ${active ? "border-[var(--accent)] bg-[var(--surface)] ring-2 ring-[var(--sel)]" : "border-[var(--hair)] bg-[var(--surface)] hover:border-[var(--accent)]"}`} data-testid={`thread-row-${t.id}`}>
-    <div className="flex items-start justify-between gap-2">
-      <div className="min-w-0"><div className="truncate text-sm font-semibold text-[var(--fg)]">{t.subject}</div><div className="truncate text-xs text-[var(--fg2)]">{t.patient_name} · {t.doctor_name}</div></div>
-      {t.unread > 0 ? <span className="grid h-6 min-w-6 place-items-center rounded-full bg-[var(--alert)] px-1.5 text-[11px] font-bold text-[var(--ink)]" data-testid={`thread-unread-${t.id}`}>{t.unread}</span> : <StatusChip status={t.status} testId={`thread-status-${t.id}`} />}
-    </div>
-    <div className="mt-1 text-[11px] text-[var(--fg2)]">{t.kind_label} · {when(t.last_at)}</div>
-  </button>
-);
 
 export const Messages = ({ kids, openId, onOpened, onRead }) => {
   const [threads, setThreads] = useState(null);
@@ -42,7 +34,15 @@ export const Messages = ({ kids, openId, onOpened, onRead }) => {
   const send = async (body) => {
     try { setData(await api.portalReply(active, body)); loadList(); return true; } catch (e) { toast.error(errMsg(e)); return false; }
   };
-  const list = Array.isArray(threads) ? threads : [];
+  const attach = async (file, body) => {
+    try { setData(await api.portalAttach(active, file, body)); loadList(); return true; } catch (e) { toast.error(errMsg(e)); return false; }
+  };
+  const grid = useRef(null);
+  const fillH = useFillHeight(grid, 48, 440);
+  const [q, setQ] = useState("");
+  const [filter, setFilter] = useState("all");
+  useScrollLock(!!active && window.innerWidth < 768);
+  const list = filterThreads((Array.isArray(threads) ? threads : []).map((x) => ({ ...x, display_name: `${x.doctor_name} · ${x.patient_name}`, parent_name: x.doctor_name })), filter, q);
   const t = data?.thread;
   return (
     <section id="portal-messages" className="scroll-mt-24 rounded-[28px] border border-[var(--hair)] bg-[var(--surface)] p-5 sm:p-7" data-testid="portal-messages">
@@ -56,17 +56,16 @@ export const Messages = ({ kids, openId, onOpened, onRead }) => {
           </button>
         ))}
       </div>
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[340px_1fr]">
-        <div className={`${active ? "hidden lg:block" : ""} space-y-2`} data-testid="thread-list">
-          {threads === null && <div className="h-16 animate-pulse rounded-2xl bg-[var(--raised)]" />}
-          {threads !== null && list.length === 0 && <p className="flex items-center gap-2 rounded-2xl border border-dashed border-[var(--hair)] p-5 text-sm text-[var(--fg2)]" data-testid="thread-list-empty"><Inbox size={16} /> Nessuna conversazione. Usi una richiesta rapida qui sopra per scrivere allo studio.</p>}
-          {list.map((x) => <ThreadRow key={x.id} t={x} active={x.id === active} onOpen={open} />)}
+      <div ref={grid} style={{ height: fillH ?? undefined }} className="mt-6 grid grid-cols-1 grid-rows-[minmax(0,1fr)] gap-4 md:grid-cols-[300px_1fr] lg:grid-cols-[340px_1fr]">
+        <div className={`${active ? "hidden md:block" : ""} h-full min-h-0`}>
+          <ThreadList prefix="thread" threads={threads} list={list} active={active} onOpen={open} q={q} setQ={setQ} filter={filter} setFilter={setFilter}
+            empty="Nessuna conversazione. Usi una richiesta rapida qui sopra per scrivere allo studio." />
         </div>
-        <div className={`${active ? "" : "hidden lg:flex"} overflow-hidden rounded-2xl border border-[var(--hair)] lg:flex lg:flex-col`}>
+        <div className={`${active ? "flex" : "hidden md:flex"} h-full min-h-0 flex-col overflow-hidden border border-[var(--hair)] bg-[var(--surface)] max-md:fixed max-md:inset-0 max-md:z-[60] max-md:h-[100dvh] md:rounded-2xl`} data-testid="portal-conversation-pane">
           {active ? (
-            <Conversation data={data} side="parent" onSend={send} onBack={() => setActive(null)}
-              header={t && <><div className="flex flex-wrap items-center gap-2"><span className="font-semibold text-[var(--fg)]" data-testid="conversation-subject">{t.subject}</span><StatusChip status={t.status} testId="conversation-status" /></div><div className="text-xs text-[var(--fg2)]">{t.patient_name} · {t.doctor_name}</div></>} />
-          ) : <div className="grid min-h-[300px] flex-1 place-items-center p-6 text-center text-sm text-[var(--fg2)]">Selezioni una conversazione per leggerla e rispondere.</div>}
+            <Conversation fill data={data} side="parent" onSend={send} onAttach={attach} onBack={() => setActive(null)}
+              header={t && <><div className="truncate font-semibold text-[var(--fg)]" data-testid="conversation-subject">{t.doctor_name} · {t.patient_name}</div><div className="truncate text-xs text-[var(--fg2)]">{t.subject}</div></>} />
+          ) : <div className="grid flex-1 place-items-center p-6 text-center text-sm text-[var(--fg2)]">Selezioni una conversazione per leggerla e rispondere.</div>}
         </div>
       </div>
       {kind && <NewThreadDialog key={kind} kind={kind} kids={kids} onClose={() => setKind(null)} onSent={(x) => { setKind(null); loadList(); open(x.id); }} />}
