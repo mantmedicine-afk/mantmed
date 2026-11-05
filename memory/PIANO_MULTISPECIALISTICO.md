@@ -23,3 +23,12 @@ Stato:
   report.py/provenance.py/pediatric.js/NoteEditor aggiornati. Verifica: scripts/verify_module_migration.py <db_backup_ripristinato> → 50 visite, 0 differenze. Test iteration_70 100%.
   Fix extra: contrasto pulsanti accent nell'overlay visita (theme.css).
   Nota: il campo base "esame obiettivo" generico arriva al passo 2 insieme ai nuovi moduli.
+
+- Passo 2 COMPLETATO 2026-11-05 (in attesa verifica utente). Backup: /app/backups/2026-11-05_passo2.
+  Campi approvati con modifiche utente: base + allergie, farmaci_in_uso, esame_obiettivo ("Esame obiettivo generale (condizioni generali)", primo in Esame obiettivo anche in Pediatria; vuoti mai nel PDF).
+  Moduli cardiologia/dermatologia/ginecologia v1 in specialty_modules.py (tipi testo/numero/pressione/scelta/data/sino, min/max solo per plausibilità di battitura). Nessun calcolo/farmaci strutturati nei moduli nuovi.
+  Altre voci: NoteSection gruppo "altre_voci" + da_verificare; PDF solo confermate; suggerimento campo personalizzato se >=3 visite (GET /api/settings/module.suggestions).
+  Impostazioni: /api/settings/module (choice, prefs hidden/order, reset, notice-seen, suggestions); note.modulo.nascosti/ordine salvati per visita.
+  Ginecologia minori: consultations.guardian_hidden (filtri portale/email/bodychart/passaporto/simple), POST /consultations/{cid}/guardians.
+  Riepilogo: mai nel portale se riassunto_famiglia è bozza (portal/me e /simple). Foto Bodychart: mai esposte nel portale (condivisione selettiva NON ancora costruita).
+  Test: iteration_71 + tests/test_specialty_modules*.py 17/17.

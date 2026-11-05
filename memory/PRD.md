@@ -546,3 +546,8 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - backend/specialty_modules.py: base comune (motivo, anamnesi, sintomi, diagnosi, terapia, follow-up) + moduli versionati (pediatria v1 con allattamento/svezzamento/TORL/torace/addome + funzioni percentili/dosi/bilanci; generale)
 - ClinicalNote.modulo {id, versione, campi}; lettura retrocompatibile (upgrade_note); migrazione idempotente all'avvio (note_schema=2, visit_templates.module_id); GET /api/specialty-modules
 - Piano completo e vincoli utente: /app/memory/PIANO_MULTISPECIALISTICO.md (passi 2-6 da avviare solo col via dell'utente; nessuna pubblicazione fino a fine passo 6)
+
+## 2026-11 Multispecialistica · Passo 2 (moduli Cardiologia, Dermatologia, Ginecologia)
+- Base comune estesa (allergie, farmaci in uso, esame obiettivo generale); 3 moduli solo documentali (parametri numerici con unità, più misure di pressione, controllo di plausibilità, "Da verificare"); "Altre voci" da confermare; personalizzazione campi (nascondi/riordina/ripristina) e scelta modulo in Area personale > Modelli; avviso una tantum ai medici già registrati
+- Ginecologia di minori riservata ai tutori salvo condivisione esplicita per visita; riepilogo bozza mai nel portale
+- Dettagli e vincoli: /app/memory/PIANO_MULTISPECIALISTICO.md

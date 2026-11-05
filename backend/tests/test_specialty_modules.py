@@ -78,7 +78,7 @@ def test_specialty_modules_catalog(ped):
     r = ped.get(f"{BASE_URL}/api/specialty-modules")
     assert r.status_code == 200
     d = r.json()
-    assert len(d["base"]) == 6
+    assert len(d["base"]) == 9
     ids = {m["id"]: m for m in d["moduli"]}
     assert set(ids) >= {"pediatria", "generale"}
     assert [f["key"] for f in ids["pediatria"]["campi"]] == list(MOD_KEYS)
@@ -176,10 +176,8 @@ def test_card_create_generale(card):
     d = r.json() if r.json().get("status") in ("ready", "failed") else wait(card, STATE["card_new"])
     assert d["status"] == "ready", d.get("ai_error")
     n = d["note"]
-    assert n["modulo"]["id"] == "generale"
-    assert n["modulo"]["campi"] == {}
-    titles = " ".join(x["titolo"].lower() for x in n["sezioni"])
-    assert "pressione" in titles
+    assert n["modulo"]["id"] == "cardiologia"  # dal passaggio 2 il cardiologo usa il modulo Cardiologia
+    assert n["modulo"]["campi"]["pressione"] and "torl" not in n["modulo"]["campi"]
     t = pdf_text(card, STATE["card_new"])
     assert "TORL" not in t and "Allattamento" not in t
 

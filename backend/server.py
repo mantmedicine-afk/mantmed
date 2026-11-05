@@ -895,7 +895,7 @@ async def structure_note(transcript: str, session: str, specialty: str = "Pediat
                 sez.append({"gruppo": g, "titolo": str(d["titolo"])[:80], "testo": str(d.get("testo") or "Non riportato")})
         clean["sezioni"] = map_fields(fields, data.get("campi_modello")) if fields else sez[:20]
     for k in layout["nascosti"]:
-        campi[k] = "" if isinstance(campi.get(k), str) else campi.get(k)
+        campi[k] = {"v": None, "note": "", "verifica": False} if isinstance(campi.get(k), dict) else [] if isinstance(campi.get(k), list) else ""
     clean["modulo"] = {"id": mid, "campi": campi, **layout}
     return ClinicalNote.model_validate(clean)
 
@@ -1522,6 +1522,11 @@ class GuardianShareIn(BaseModel):
 @api.post("/consultations/{cid}/guardians")
 async def share_with_guardians(cid: str, body: GuardianShareIn, user: dict = Depends(current_user)):
     """Scelta esplicita del medico, per la singola visita, di renderla visibile (o di nuovo riservata) ai tutori."""
+    cur = await tdb.consultations.find_one({"_id": oid(cid)}, {"guardian_hidden": 1, "guardian_shared_at": 1})
+    if not cur:
+        raise HTTPException(404, "Consultazione non trovata")
+    if body.share and not cur.get("guardian_hidden"):
+        return Consultation.from_mongo(await tdb.consultations.find_one({"_id": oid(cid)})).out()  # già visibile ai tutori: nessuna modifica
     doc = await tdb.consultations.find_one_and_update({"_id": oid(cid)}, {"$set": {"guardian_hidden": not body.share, "guardian_shared_at": now_iso() if body.share else None}},
                                                       return_document=True)
     if not doc:
@@ -2157,7 +2162,8 @@ async def portal_simple(pid: str, user: dict = Depends(require_role(current_user
     cached = unseal_fields(raw, ("simple",)).get("simple")
     parts = (raw.get("ai_provenance") or {}).get("parti") or {}
     cache = {}
-    base = {"available": True, "consultation_id": c["id"], "created_at": c["created_at"], "clinic": c.get("clinic", ""), "riepilogo": c["note"].get("riepilogo", ""),
+    riep = "" if prov.is_draft(parts.get("riassunto_famiglia")) else c["note"].get("riepilogo", "")  # bozza MantAI non approvata: mai nel portale
+    base = {"available": True, "consultation_id": c["id"], "created_at": c["created_at"], "clinic": c.get("clinic", ""), "riepilogo": riep,
             "riepilogo_provenance": await prov.present(db, parts.get("riassunto_famiglia"), cache),
             "report_provenance": await prov.present(db, {k: v for k, v in (raw.get("ai_provenance") or {}).items() if k != "parti"}, cache)}
     if cached:
@@ -2169,7 +2175,7 @@ async def portal_simple(pid: str, user: dict = Depends(require_role(current_user
         data = await llm_json(
             f"Sei un medico ({spec}) che spiega {who} l'ultima visita in italiano semplice, caldo e rassicurante, senza inventare nulla. "
             f"Dati della visita:\nMotivo: {n.get('motivo_visita','')}\nDiagnosi: {n.get('diagnosi','')}\nTerapia: {n.get('terapia','')}\n"
-            f"Controlli: {n.get('follow_up','')}\nRiepilogo: {n.get('riepilogo','')}\n"
+            f"Controlli: {n.get('follow_up','')}\nRiepilogo: {riep}\n"
             'Rispondi SOLO con JSON: {"diagnosi": "1-2 frasi semplici", "cosa_fare": ["azione concreta", "..."] (max 4), '
             '"quando_tornare": "1 frase", "glossario": [{"termine": "termine tecnico o medico usato nel referto", "spiegazione": "spiegazione semplice in max 20 parole"}] (0-5 termini: solo parole specialistiche davvero presenti nei dati, es. nomi di esami, farmaci, diagnosi o parti del corpo; mai espressioni di uso comune; lista vuota se non ce ne sono)}')
         simple = {"diagnosi": str(data.get("diagnosi") or "")[:400], "cosa_fare": [str(x)[:200] for x in (data.get("cosa_fare") or [])][:4],

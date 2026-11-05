@@ -1,0 +1,33 @@
+{
+  "summary": "Multi-specialty STEP 2 tested end-to-end. Backend: 8/8 pytest pass (catalog 9 base fields, module settings notice/choice/prefs/reset, real-LLM cardiology visit fills pressione list {sis,dia,note} x2, FC/SpO2/peso/altezza {v}, ecg text, allergie base, farmaci [], no BMI, nascosti/ordine stored in note.modulo; structured PDF has only filled fields and sections Anamnesi/Motivo/Parametri/Esame obiettivo/Esami strumentali/Diagnosi e terapia, no BMI/percentili, hidden classe_funzionale absent; altre voci da_verificare=true excluded from PDF, shown after confirm; old pediatric PDF has no new base rows; guardian_hidden toggle -> send-report 409, excluded from /portal/me reports and portal PDF 404, re-share restores; /portal/me riepilogo '' when riassunto_famiglia is draft (verified by temporarily setting draft on an Aurora visit, restored). Frontend: cardiologo notice shows, close hides permanently (survives reload); TEST_Cardio3 tabs Anamnesi/Motivo e sintomi/Parametri/Esame obiettivo/Esami strumentali/Diagnosi e terapia; Parametri numeric inputs with mmHg/bpm/%/kg/cm, pressure rows, add/delete measurement, 1200 sistolica shows plausibility with Confermo/Correggi (Correggi clears); no BMI, no dose calculator; Altre voci card with Conferma/Elimina, save persists (verified via API). Module settings card: select with Automatico+5 modules, 19 field rows, hide/up/down, Salva personalizzazione persists across reload, Generale/auto switching, Ripristina resets. Pediatrician: Anamnesi has Allergie e intolleranze + Farmaci in uso, Esame obiettivo generale (condizioni generali) above TORL, dose calculator present in terapia tab, percentiles in Crescita tab. One privacy gap found by code review in /portal/children/{pid}/simple.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/portal/children/{pid}/simple (server.py ~L2160-2172)", "issue": "Returns base.riepilogo = note.riepilogo without checking prov.is_draft(parti.riassunto_famiglia), and also feeds that riepilogo into the LLM 'In parole semplici' prompt. Leak path: visit already published -> doctor regenerates riepilogo (POST summary sets riassunto_famiglia to draft) and saves -> portal 'simple' view exposes the unapproved AI draft. Violates spec 'Riepilogo never visible in portal while unapproved AI draft'. Fix: riepilogo = '' if prov.is_draft(parts.get('riassunto_famiglia')) and exclude it from the prompt in that case (also consider cache invalidation of 'simple').", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "structure_note (server.py L897-898)", "issue": "Hidden non-text module fields (numero/pressione) keep LLM values instead of being cleared (only str fields are blanked). LLM prompt omits hidden fields so usually empty; low impact."},
+      {"endpoint": "POST /api/consultations/{cid}/guardians", "issue": "share:true sets guardian_shared_at even for visits that were never hidden (non-gynecology); harmless but noisy audit 'visita_condivisa_tutori'."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_specialty_modules_step2.py", "/app/test_reports/pytest/step2.xml"],
+  "action_items": [
+    "Apply riassunto_famiglia draft check to /api/portal/children/{pid}/simple (riepilogo field and LLM prompt input)",
+    "Optional: clear hidden numeric/pressure module fields in structure_note"
+  ],
+  "critical_code_review_comments": [
+    "server.py is 2217 lines - should be split further",
+    "Gynecology minor auto guardian_hidden (visit_setup) verified by code review only (no minor patient for a gynecologist available without altering real data)",
+    "Frequent altre voci suggestions (>=3 visits) not exercised end-to-end (would require 3 confirmed visits)"
+  ],
+  "updated_files": ["/app/backend/tests/test_specialty_modules_step2.py"],
+  "success_rate": {"backend": "100% of tests (1 HIGH issue from code review)", "frontend": "100%"},
+  "seed_data_creation": "Created TEST_Cardio Step2 consultation (deleted in teardown). Temporarily added TEST_ altre voci to TEST_Cardio3 (restored from backup). Temporarily set guardian_hidden on Aurora visit 6adf2520eb717ef5ae18c312 and draft riassunto_famiglia on 6ad8b0f07b044c3a9c2b992f - both restored (guardian_shared_at reset to null). Cardiologo settings restored: choice '', prefs reset; module notice now seen.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest tests/test_specialty_modules_step2.py -p no:xdist -o addopts=''. TEST_Cardio3 id 6aed11352cfcba7784c26c75 (cardiologo). Login testids: login-email-input/login-password-input/login-submit-button. Visits list at /app/pazienti?vista=visite, rows visit-row-{id}; settings at /app/area-personale?sezione=modelli. To re-show module notice unset users.module_notice_seen_at for cardiologo.demo."
+}
