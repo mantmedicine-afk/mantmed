@@ -5,7 +5,7 @@ import { Copy, Printer, Save, Check, FileDown, Loader2, PersonStanding, IdCard, 
 import { useProcessing } from "@/lib/processing";
 import { SignatureHint } from "@/components/signature/SignatureReminder";
 import { api, errMsg } from "@/lib/api";
-import { tabsFor, tabDone, noteToText, isPediatric } from "@/lib/pediatric";
+import { tabsFor, tabDone, noteToText, isPediatric, getField, setField } from "@/lib/pediatric";
 import { GrowthPanel } from "./GrowthPanel";
 import { DoseCalculator } from "./DoseCalculator";
 import { SendToParents } from "./SendToParents";
@@ -303,7 +303,7 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
                   {marked(k) && <AIFieldMark testId={`note-ai-mark-${k}`} />}
                   {!processing ? (
                     <motion.textarea key={`${k}-${flash}`} initial={glow ? { opacity: 0, y: 6 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                      value={note[k] ?? ""} onChange={(e) => { touch(k); setNote((n) => ({ ...n, [k]: e.target.value })); }} rows={k === "terapia" || k === "sintomi" || k === "anamnesi_fisiologica" ? 3 : 2}
+                      value={getField(note, k) ?? ""} onChange={(e) => { touch(k); const v = e.target.value; setNote((n) => setField(n, k, v)); }} rows={k === "terapia" || k === "sintomi" || k === "anamnesi_fisiologica" ? 3 : 2}
                       className={`mt-1.5 w-full resize-y rounded-2xl border border-[var(--hair)] bg-[var(--raised)] px-4 py-3 text-[15px] leading-relaxed outline-none transition-colors focus:border-[var(--accent)] focus:bg-[var(--surface)] ${glow ? "ai-filled" : ""}`} data-testid={`note-section-${k}`} />
                   ) : (
                     <div className={`mt-1.5 flex flex-col justify-center gap-2 rounded-2xl border border-[var(--hair)] bg-[var(--raised)] px-4 ${k === "terapia" || k === "sintomi" || k === "anamnesi_fisiologica" ? "h-[88px]" : "h-[64px]"}`} aria-busy={processing} data-testid={`note-section-${k}-loading`}>

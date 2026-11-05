@@ -10,6 +10,7 @@ from bson import ObjectId
 from pymongo.errors import DuplicateKeyError
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
+from specialty_modules import module_for
 
 logger = logging.getLogger(__name__)
 GROUPS = ("anamnesi", "sintomi", "parametri_vitali", "esame_obiettivo", "altro")
@@ -280,7 +281,7 @@ def build_visit_templates(db, tdb, specialty_of, llm_json):
         kind = d.get("kind") or ("prima" if d.get("seed") or (d.get("name") == "Prima visita" and not d.get("bilancio")) else None)
         return {"id": str(d["_id"]), "name": d["name"], "fields": d.get("fields") or [], "updated_at": d.get("updated_at"),
                 "bilancio": d.get("bilancio"), "age_from": d.get("age_from"), "age_to": d.get("age_to"), "kind": kind,
-                "pending_fields": d.get("pending_fields") or []}
+                "pending_fields": d.get("pending_fields") or [], "module_id": d.get("module_id") or ""}
 
     def untouched(d) -> bool:
         return not d.get("modified") and d.get("updated_at") == d.get("created_at")
@@ -377,6 +378,7 @@ def build_visit_templates(db, tdb, specialty_of, llm_json):
                 logger.info("Modello iniziale già creato da una richiesta concorrente")
         await seed_bilanci_once()
         await upgrade_once()
+        await tdb.visit_templates.update_many({"module_id": {"$exists": False}}, {"$set": {"module_id": module_for(await specialty_of(OWNER.get()))}})
         docs = await tdb.visit_templates.find().sort("created_at", 1).to_list(None)
         return sorted(docs, key=lambda d: (bool(d.get("bilancio")), d.get("age_from") or 0))
 

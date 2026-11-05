@@ -6,7 +6,11 @@ export const TABS = [
   { id: "terapia", n: "05", label: "Diagnosi e terapia", fields: [["diagnosi", "Diagnosi", ""], ["terapia", "Terapia e indicazioni", ""], ["follow_up", "Follow-up", ""]] },
 ];
 
-export const isPediatric = (note) => !note?.specialita || /pediatr|neonatolog/i.test(note.specialita);
+export const MODULE_KEYS = new Set(["allattamento", "svezzamento", "torl", "torace_auscultazione", "addome"]);
+export const getField = (note, k) => (MODULE_KEYS.has(k) ? note?.modulo?.campi?.[k] ?? note?.[k] : note?.[k]);
+export const setField = (n, k, v) => (MODULE_KEYS.has(k) ? { ...n, modulo: { ...(n.modulo ?? { id: "pediatria", versione: 1 }), campi: { ...(n.modulo?.campi ?? {}), [k]: v } } } : { ...n, [k]: v });
+
+export const isPediatric = (note) => (note?.modulo?.id ? note.modulo.id === "pediatria" : !note?.specialita || /pediatr|neonatolog/i.test(note.specialita));
 
 // Struttura neutrale per le altre specializzazioni: campi comuni + voci specialistiche generate dall'IA (note.sezioni)
 const SPECIALIST_TABS = [
@@ -23,7 +27,7 @@ const filled = (v) => Boolean(v && String(v).trim() && String(v).trim() !== "Non
 
 export const tabDone = (tab, note) => {
   if (tab.id === "crescita") return Boolean(note?.crescita?.peso_kg) || (note?.sezioni ?? []).some((x) => x.gruppo === tab.group && filled(x.testo));
-  return tab.fields.some(([k]) => filled(note?.[k])) || (note?.sezioni ?? []).some((x) => x.gruppo === tab.group && filled(x.testo));
+  return tab.fields.some(([k]) => filled(getField(note, k))) || (note?.sezioni ?? []).some((x) => x.gruppo === tab.group && filled(x.testo));
 };
 
 export const bmi = (g) => (g?.peso_kg && g?.altezza_cm ? g.peso_kg / (g.altezza_cm / 100) ** 2 : null);
@@ -46,7 +50,7 @@ export { r1 };
 export const noteToText = (c, note) => {
   const g = note?.crescita ?? {};
   const block = (t, rows) => `${t.toUpperCase()}\n${rows.filter(Boolean).join("\n")}`;
-  const txt = (k, l) => `${l}: ${note?.[k] || "—"}`;
+  const txt = (k, l) => `${l}: ${getField(note, k) || "—"}`;
   const drugs = (note?.farmaci ?? []).map((d) => {
     const x = doseFor(d, g.peso_kg);
     return `• ${d.nome}${x ? ` — ${r1(x.mg)} mg/dose${x.ml ? ` (${r1(x.ml)} ml)` : ""}${d.dosi_giorno ? ` × ${d.dosi_giorno}/die` : ""}${d.giorni ? ` per ${d.giorni} gg` : ""}` : ""}${d.note ? ` · ${d.note}` : ""}`;

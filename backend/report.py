@@ -230,7 +230,9 @@ def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dic
                               ("SPAN", (0, 2), (2, 2)), ("SPAN", (3, 2), (4, 2)), ("VALIGN", (0, 0), (-1, 1), "BOTTOM")]))
 
     spec = (note.get("specialita") or "").strip()
-    ped = not spec or bool(re.search(r"pediatr|neonatolog", spec, re.I))
+    mod = note.get("modulo") or {}
+    ped = mod.get("id") == "pediatria" if mod.get("id") else (not spec or bool(re.search(r"pediatr|neonatolog", spec, re.I)))
+    mf = lambda k: (mod.get("campi") or {}).get(k) or note.get(k)
     sez = [x for x in note.get("sezioni") or [] if (x.get("titolo") or "").strip()]
     extra = lambda *groups: [(x["titolo"][:40], x.get("testo")) for x in sez if x.get("gruppo") in groups]
     vitals = extra("parametri_vitali")
@@ -239,10 +241,10 @@ def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dic
 
     if ped:
         story += section("01", "Anamnesi", [("Fisiologica", note.get("anamnesi_fisiologica")),
-                                            ("Allattamento", note.get("allattamento")), ("Svezzamento", note.get("svezzamento"))] + extra("anamnesi"))
+                                            ("Allattamento", mf("allattamento")), ("Svezzamento", mf("svezzamento"))] + extra("anamnesi"))
         story += section("02", "Motivo della visita e sintomi", [("Motivo", note.get("motivo_visita")), ("Sintomi", note.get("sintomi"))] + extra("sintomi"))
-        story += section("03", "Esame obiettivo", [("TORL", note.get("torl")), ("Torace · Auscultazione", note.get("torace_auscultazione")),
-                                                   ("Addome", note.get("addome"))] + extra("esame_obiettivo", "altro"))
+        story += section("03", "Esame obiettivo", [("TORL", mf("torl")), ("Torace · Auscultazione", mf("torace_auscultazione")),
+                                                   ("Addome", mf("addome"))] + extra("esame_obiettivo", "altro"))
     else:
         story += section("01", "Anamnesi", [("Anamnesi", note.get("anamnesi_fisiologica"))] + extra("anamnesi"))
         story += section("02", "Motivo della visita e sintomi", [("Motivo", note.get("motivo_visita")), ("Sintomi", note.get("sintomi"))] + extra("sintomi"))

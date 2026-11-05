@@ -94,6 +94,7 @@ async def present(db, p: Optional[dict], cache: Optional[dict] = None) -> Option
 def field_values(note: Optional[dict]) -> dict:
     note = note or {}
     out = {k: v for k, v in note.items() if isinstance(v, str) and k != "specialita"}
+    out.update({k: v for k, v in ((note.get("modulo") or {}).get("campi") or {}).items() if isinstance(v, str)})
     for s in note.get("sezioni") or []:
         out[f"sez:{(s.get('titolo') or '').strip().lower()}"] = s.get("testo") or ""
     out["farmaci"] = json.dumps([d.get("nome") for d in note.get("farmaci") or []])

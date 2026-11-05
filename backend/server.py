@@ -34,8 +34,9 @@ from portal_docs import build_portal_docs
 from health_passport import build_health_passport
 from bodychart import build_bodychart, report_payload
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
-from typing import List, Optional, Annotated, Literal, ClassVar
+from pydantic import BaseModel, Field, ConfigDict, BeforeValidator, model_validator
+from typing import List, Optional, Annotated, Literal, ClassVar, Dict
+from specialty_modules import upgrade_note, module_for, module_keys, catalog as modules_catalog
 from datetime import datetime, timezone
 from crypto import seal_fields, unseal_fields, is_sealed, KEY_FINGERPRINT, seal, unseal, seal_bytes, unseal_bytes
 import asyncio
@@ -248,24 +249,32 @@ class NoteSection(BaseModel):
     mancante: bool = False
 
 
+class NoteModule(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = "generale"
+    versione: int = 1
+    campi: Dict[str, str] = Field(default_factory=dict)
+
+
 class ClinicalNote(BaseModel):
     model_config = ConfigDict(extra="ignore")
     specialita: str = ""
+    modulo: NoteModule = Field(default_factory=NoteModule)
     sezioni: List[NoteSection] = Field(default_factory=list)
     anamnesi_fisiologica: str = ""
-    allattamento: str = ""
-    svezzamento: str = ""
     motivo_visita: str = ""
     sintomi: str = ""
-    torl: str = ""
-    torace_auscultazione: str = ""
-    addome: str = ""
     crescita: Growth = Field(default_factory=Growth)
     diagnosi: str = ""
     terapia: str = ""
     farmaci: List[Drug] = Field(default_factory=list)
     follow_up: str = ""
     riepilogo: str = ""  # riassunto in parole semplici per paziente / genitori
+
+    @model_validator(mode="before")
+    @classmethod
+    def _to_modules(cls, v):
+        return upgrade_note(v) if isinstance(v, dict) else v
 
 
 class Consultation(BaseDocument):
@@ -299,6 +308,7 @@ class Consultation(BaseDocument):
     checklist_manual: Optional[dict] = None
     ai_provenance: Optional[dict] = Field(default_factory=lambda: {"ai_generated": False})
     ai_snapshot: Optional[dict] = None
+    note_schema: int = 2
     created_at: str = Field(default_factory=now_iso)
     __encrypted__: ClassVar[tuple] = ("transcript", "note", "report_sent_to", "previsit", "ai_snapshot", "checklist_manual")
 
@@ -441,8 +451,8 @@ async def get_patient(pid: Optional[str]):
 
 
 def enrich_growth(note: ClinicalNote, patient: Optional[dict], visit_day: date):
-    if note.specialita and not is_pediatric(note.specialita):
-        return  # percentili OMS solo per l'età evolutiva
+    if note.modulo.id != "pediatria":
+        return  # percentili OMS solo nel modulo Pediatria
     g = note.crescita
     if patient:
         g.sesso = patient["sex"]
@@ -562,6 +572,30 @@ async def resume_consult_jobs():
     asyncio.ensure_future(ai_migrate())
     asyncio.ensure_future(run_provenance_migration())
     asyncio.ensure_future(run_bodychart_photo_migration())
+    asyncio.ensure_future(run_module_migration())
+
+
+async def run_module_migration():
+    """Cartelle esistenti → base comune + modulo di specialità (schema 2). Idempotente, senza perdita di dati."""
+    try:
+        n = 0
+        async for d in db.consultations.find({"note_schema": {"$ne": 2}}, {"note": 1, "ai_snapshot": 1, "owner_id": 1, "rev": 1}):
+            raw = unseal_fields(d, ("note", "ai_snapshot"))
+            note = dict(raw.get("note") or {})
+            if not (note.get("modulo") or {}).get("id") and not note.get("specialita"):
+                note["modulo"] = {**(note.get("modulo") or {}), "id": module_for(await doctor_specialty(d.get("owner_id")))}
+            sets = {"note": ClinicalNote.model_validate(note).model_dump()}
+            if raw.get("ai_snapshot"):
+                sets["ai_snapshot"] = upgrade_note({**raw["ai_snapshot"], "modulo": sets["note"]["modulo"] | {"campi": {}}})
+            r = await db.consultations.update_one({"_id": d["_id"], "rev": d.get("rev")}, {"$set": {**Consultation.sealed_set(sets), "note_schema": 2}})
+            n += r.modified_count
+        for owner in await db.visit_templates.distinct("owner_id", {"module_id": {"$exists": False}}):
+            await db.visit_templates.update_many({"owner_id": owner, "module_id": {"$exists": False}},
+                                                 {"$set": {"module_id": module_for(await doctor_specialty(owner))}})
+        await db.meta.update_one({"_id": "note_schema"}, {"$set": {"version": 2, "at": now_iso()}}, upsert=True)
+        logger.info("Migrazione cartelle → moduli di specialità: %s visite convertite", n)
+    except Exception:
+        logger.exception("Migrazione moduli di specialità non riuscita")
 
 
 async def run_bodychart_photo_migration():
@@ -631,6 +665,11 @@ async def root():
 @public_api.get("/auth/me")
 async def me(user: dict = Depends(current_user)):
     return user
+
+
+@api.get("/specialty-modules")
+async def specialty_modules():
+    return modules_catalog()
 
 
 @api.get("/clinics")
@@ -758,14 +797,14 @@ async def doctor_specialty(uid: Optional[str]) -> str:
     return clean_specialty(((u or {}).get("profile") or {}).get("specialty") or os.environ.get("DOCTOR_SPECIALTY", "Pediatria"))
 
 
-def note_system(spec: str, fields: Optional[list] = None) -> str:
+def note_system(spec: str, fields: Optional[list] = None, mid: str = "") -> str:
     head = (f"Sei un assistente medico specializzato in {spec}. Estrai le informazioni dalla seguente trascrizione e compilale "
             "nei campi standard pertinenti per questa specifica branca medica. Rispondi SOLO con un JSON valido.\n")
     rules = ("Regole: usa solo informazioni presenti nella trascrizione. Se un campo testuale manca scrivi 'Non riportato'; se un numero manca usa null. "
              "Per i farmaci riporta SOLO quelli prescritti dal medico e SOLO i dosaggi da lui indicati: non proporre mai dosaggi o farmaci non menzionati.")
     drugs = ("farmaci: lista di {nome, mg_kg_dose (numero|null), dosi_giorno (intero|null), concentrazione_mg_ml (numero|null), "
              "max_mg_dose (numero|null), giorni (intero|null), note}.\n")
-    if is_pediatric(spec):
+    if (mid or module_for(spec)) == "pediatria":
         return head + "Chiavi:\n" + NOTE_SYSTEM.split("\n", 1)[1].replace("\nRegole:", "\n" + fields_prompt(fields) + "Regole:", 1) if fields else head + "Chiavi:\n" + NOTE_SYSTEM.split("\n", 1)[1]
     if fields:
         return head + (
@@ -809,15 +848,18 @@ async def _safe_summary(spec: str, transcript: str, session: str) -> str:
         return ""
 
 
-async def structure_note(transcript: str, session: str, specialty: str = "Pediatria", fields: Optional[list] = None, context: str = "") -> ClinicalNote:
+async def structure_note(transcript: str, session: str, specialty: str = "Pediatria", fields: Optional[list] = None, context: str = "",
+                         mid: str = "") -> ClinicalNote:
     spec = clean_specialty(specialty)
-    chat = LlmChat(api_key=LLM_KEY, session_id=session, system_message=note_system(spec, fields)).with_model("openai", "gpt-5.6-terra")
+    mid = mid or module_for(spec)
+    chat = LlmChat(api_key=LLM_KEY, session_id=session, system_message=note_system(spec, fields, mid)).with_model("openai", "gpt-5.6-terra")
     raw = await chat.send_message(UserMessage(text=f"Trascrizione:\n{transcript}{context}"))
     match = re.search(r"\{.*\}", raw, re.S)
     data = json.loads(match.group(0)) if match else {}
     text_keys = [k for k, f in ClinicalNote.model_fields.items() if f.annotation is str]
     clean = {k: str(data.get(k) or "") for k in text_keys}
     clean["specialita"] = spec
+    clean["modulo"] = {"id": mid, "campi": {k: str(data.get(k) or "") for k in module_keys(mid)}}
     clean["crescita"] = data.get("crescita") if isinstance(data.get("crescita"), dict) else {}
     clean["farmaci"] = [d for d in data.get("farmaci") or [] if isinstance(d, dict)]
     sez = []
@@ -977,11 +1019,12 @@ async def run_consult_job(cid: str, owner: str):
             await db.consultations.update_one({"_id": ObjectId(cid), "owner_id": owner, "status": "processing"},
                                               {"$set": Consultation.sealed_set({"transcript": transcript})})
         spec = await doctor_specialty(owner)
-        cur = unseal_fields(await db.consultations.find_one({"_id": ObjectId(cid)}, {"template_fields": 1, "previsit": 1, "template_name": 1}) or {}, ("previsit",))
+        cur = unseal_fields(await db.consultations.find_one({"_id": ObjectId(cid)}, {"template_fields": 1, "previsit": 1, "template_name": 1, "note": 1}) or {}, ("previsit", "note"))
         pv = cur.get("previsit")
+        mid = ((cur.get("note") or {}).get("modulo") or {}).get("id") or ""
         ck = unseal_fields(await db.consultations.find_one({"_id": ObjectId(cid)}, {"checklist_id": 1, "checklist_manual": 1}) or {}, ("checklist_manual",))
         ctx = (previsit_prompt(pv) if pv else "") + (CHECKLIST_RULE if ck.get("checklist_id") else "")
-        ai, summary = await asyncio.gather(structure_note(transcript, f"consult-{cid}", spec, cur.get("template_fields") or None, ctx),
+        ai, summary = await asyncio.gather(structure_note(transcript, f"consult-{cid}", spec, cur.get("template_fields") or None, ctx, mid),
                                            _safe_summary(spec, transcript, f"sum-{cid}"))
         ai.riepilogo = summary
         if ck.get("checklist_id"):
@@ -1474,7 +1517,7 @@ async def update_consultation(cid: str, body: ConsultationPatch):
     sets = {**Consultation.sealed_set({"note": body.note.model_dump()}), "finalized_at": now_iso()}
     text_keys = [k for k, fl in ClinicalNote.model_fields.items() if fl.annotation is str]
     if existing.get("status") == "failed" and not body.growth_only and any(
-            (getattr(body.note, k) or "").strip() not in ("", "Non riportato") for k in text_keys):
+            (v or "").strip() not in ("", "Non riportato") for v in [getattr(body.note, k) for k in text_keys] + list(body.note.modulo.campi.values())):
         sets.update({"status": "ready", "ai_error": ""})  # cartella compilata a mano dal medico
         await _drop_job(cid)
     enrich_growth(body.note, await get_patient(existing.get("patient_id")), date.fromisoformat(existing["created_at"][:10]))
