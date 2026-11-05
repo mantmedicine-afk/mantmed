@@ -132,6 +132,7 @@ def build_invoicing(db, tdb, current_user, BaseDocument, Payment, today_rome):
         paid_at: Optional[str] = None
         payment_id: Optional[str] = None
         cancelled_at: Optional[str] = None
+        sts_action: Optional[str] = None
         legacy: bool = False
         created_at: str = Field(default_factory=_now)
         __encrypted__: ClassVar[tuple] = ("patient_cf", "payer_name", "payer_cf", "company", "lines")
@@ -170,6 +171,7 @@ def build_invoicing(db, tdb, current_user, BaseDocument, Payment, today_rome):
                           sts_status="da_inviare" if pay.receipt_no else None, cancelled_at=pay.refunded_at)
             iid = str((await tdb.invoices.insert_one(inv.to_mongo())).inserted_id)
             await tdb.payments.update_one({"_id": p["_id"]}, {"$set": {"invoice_id": iid}})
+        await tdb.invoices.update_many({"legacy": True, "regime": {"$ne": regime}}, {"$set": {"regime": regime}})
         async for p in tdb.payments.find({"refunded_at": {"$ne": None}, "invoice_id": {"$ne": None}, "refund_of": None}):
             await tdb.invoices.update_one({"_id": ObjectId(p["invoice_id"]), "cancelled_at": None}, {"$set": {"cancelled_at": p["refunded_at"]}})
 
@@ -250,9 +252,13 @@ def build_invoicing(db, tdb, current_user, BaseDocument, Payment, today_rome):
         pid = (c or {}).get("patient_id") or patient_id
         pt = await patient_cf(pid)
         tariffs = {s["name"].lower(): s for s in sch["services"]}
-        t = tariffs.get((service or "").lower()) or next((s for k, s in tariffs.items() if service and (k in service.lower() or service.lower() in k)), None)
+        if c:
+            a = await tdb.appointments.find_one({"date": c["created_at"][:10], **({"patient_id": pid} if pid else {"patient_name": c["patient_name"]})})
+            service = (unseal_fields(a, ("visit_type",)).get("visit_type") if a else "") or service
+        low = (service or "").lower()
+        t = tariffs.get(low) or next((s for k, s in tariffs.items() if low and (k in low or low in k)), None) or (next(iter(tariffs.values()), None) if c else None)
         return {"consultation_id": consultation_id or None, "patient_id": pid or None, "patient_name": (c or {}).get("patient_name") or pt.get("name") or "",
-                "patient_cf": pt.get("fiscal_code") or "", "payer_name": pt.get("guardian") or "", "payer_cf": pt.get("guardian_fiscal_code") or "",
+                "patient_cf": pt.get("fiscal_code") or "", "payer_name": re.sub(r"^[^:]{1,20}:\s*", "", pt.get("guardian") or ""), "payer_cf": pt.get("guardian_fiscal_code") or "",
                 "date": ((c or {}).get("created_at") or today_rome())[:10] if c else today_rome(), "clinic": (c or {}).get("clinic") or "",
                 "lines": [{"description": (t or {}).get("name") or service or "Visita pediatrica", "amount": (t or {}).get("price") or 0, "vat": (t or {}).get("vat") or "esente"}],
                 "stamp_charge": b["stamp_charge"], "regime": b["regime"]}
@@ -320,11 +326,13 @@ def build_invoicing(db, tdb, current_user, BaseDocument, Payment, today_rome):
         d = await load(iid)
         if d.get("cancelled_at"):
             raise HTTPException(409, "Fattura già annullata")
-        if d.get("legacy") and d.get("method") == "online":
-            raise HTTPException(409, "Le ricevute online si annullano con il rimborso automatico all'annullamento della visita")
+        if d.get("legacy"):
+            raise HTTPException(409, "Le ricevute registrate prima della nuova Cassa restano invariate: quelle online si annullano con il rimborso della visita")
         if d.get("payment_id"):
             await tdb.payments.delete_one({"_id": ObjectId(d["payment_id"])})
-        await tdb.invoices.update_one({"_id": d["_id"]}, {"$set": {"cancelled_at": _now(), "sts_status": None if d.get("sts_status") == "da_inviare" else d.get("sts_status")}})
+        sent = d.get("sts_status") == "inviata"
+        await tdb.invoices.update_one({"_id": d["_id"]}, {"$set": {"cancelled_at": _now(), "sts_status": "da_inviare" if sent else None,
+                                                                   "sts_action": "cancellazione" if sent else None}})
         return out(await load(iid))
 
     async def pdf_of(i: dict, u: dict) -> bytes:
@@ -367,7 +375,8 @@ def build_invoicing(db, tdb, current_user, BaseDocument, Payment, today_rome):
 
     # ---------- Sistema Tessera Sanitaria (SIMULAZIONE) ----------
     def sts_items(items: list) -> list:
-        return [i for i in items if i["client_type"] == "persona" and not i["sts_opposition"] and not i["cancelled_at"] and i.get("number")]
+        return [i for i in items if i["client_type"] == "persona" and not i["sts_opposition"] and i.get("number")
+                and (not i["cancelled_at"] or i.get("sts_action") == "cancellazione")]
 
     @r.get("/sts")
     async def sts(year: int):
@@ -398,7 +407,7 @@ def build_invoicing(db, tdb, current_user, BaseDocument, Payment, today_rome):
             if i["sts_status"] == "inviata":
                 continue
             err = sts_check(i)
-            upd = {"sts_status": "errore", "sts_error": err} if err else {"sts_status": "inviata", "sts_error": "", "sts_sent_at": _now()}
+            upd = {"sts_status": "errore", "sts_error": err} if err and not i.get("sts_action") else {"sts_status": "inviata", "sts_error": "", "sts_sent_at": _now()}
             await tdb.invoices.update_one({"_id": ObjectId(i["id"])}, {"$set": upd})
             errors, sent = errors + bool(err), sent + (not err)
         return {"sent": sent, "errors": errors, "simulation": True}
@@ -417,7 +426,7 @@ def build_invoicing(db, tdb, current_user, BaseDocument, Payment, today_rome):
             by_method[p["method"]]["total"] += p["amount"]
             by_method[p["method"]]["count"] += 1
         tot = lambda k: r2(sum(i["totals"][k] for i in valid))
-        persona = sts_items(valid)
+        persona = sts_items(items)
         companies = [i for i in valid if i["client_type"] == "azienda"]
         summary = {"count": len(valid), "cancelled": len(items) - len(valid), **{k: tot(k) for k in ("imponibile", "esente", "iva", "stamp", "ritenuta", "total")},
                    "by_method": [{**m, "total": r2(m["total"])} for m in by_method.values()], "collected": r2(sum(m["total"] for m in by_method.values())),

@@ -21,7 +21,7 @@ export const CompanyFields = ({ company, set }) => {
       <div className="sm:col-span-2"><F label="Ragione sociale" k="name" v={company} set={up} ph="Es. ASD Calcio Gallico" testid="invoice-company-name" /></div>
       <F label="Partita IVA" k="vat" v={company} set={up} ph="11 cifre" upper testid="invoice-company-vat" />
       <F label="Codice fiscale (se diverso)" k="cf" v={company} set={up} ph="Facoltativo" upper testid="invoice-company-cf" />
-      <div className="sm:col-span-2"><F label="Sede" k="address" v={company} set={up} ph="Via, CAP, Città" testid="invoice-company-address" /></div>
+      <div className="sm:col-span-2"><F label="Sede" k="address" v={company} set={up} ph="Via, CAP Città (Prov)" testid="invoice-company-address" /></div>
       <F label="Codice destinatario SdI" k="sdi_code" v={company} set={up} ph="7 caratteri" upper testid="invoice-company-sdi" />
       <F label="oppure PEC" k="pec" v={company} set={up} ph="fatture@pec.it" testid="invoice-company-pec" />
     </div>

@@ -1,0 +1,46 @@
+{
+  "summary": "Test completo della nuova sezione Cassa (fatture, Sistema TS, commercialista, impostazioni fiscali). Backend: 29/29 pytest superati (/app/backend/tests/test_cash_invoicing.py): settings GET/PUT con validazioni CF/P.IVA/email, PUT /settings/schedule non cancella regime/iban/email/IVA tariffe, calcoli preview (ordinario persona 170,80; bollo medico 168,80; azienda ritenuta 20% e netto; forfettario senza IVA/ritenuta; soglia 77,47 senza bollo), validazioni di creazione (genitore+CF, azienda P.IVA/CF + SdI/PEC, metodo obbligatorio, data futura, importo>0), numerazione N/AAAA sequenziale, incasso collegato in /payments (DELETE bloccato 409), pay/cancel (incasso eliminato, numero mantenuto), PDF di 1 pagina con diciture, XML solo per azienda (409 persona), Sistema TS (opposizioni escluse, scadenza 1/2/anno+1, invio simulato inviata/errore, file XML), commercialista (riepilogo, filtro studio, periodo non valido 400, register.pdf, invoices.pdf, invio email reale a delivered@resend.dev = 200 con 2 allegati, 400 senza email). Frontend: tab con hash, card incassi per studio, filtro studio, elenco con stati e azioni (PDF scaricato, Incassata, Annulla con conferma), dialog Nuova fattura (suggerimenti paziente, persona/azienda, tariffario compila importo+IVA, avviso contanti, selettore bollo solo >77,47, opposizione, Già incassata, totali live, Emetti -> lista aggiornata), CashPanel della visita precompilato, Impostazioni (errore P.IVA, salvataggio, nessun banner), STS e Commercialista (periodi, studi, Esporta PDF = 2 file). Nessuna regressione su Home/Pazienti/Messaggi/Visite, mobile 390px senza overflow orizzontale. Problema principale: l'invio al commercialista con un indirizzo rifiutato dal provider restituisce 502 e Cloudflare sostituisce il messaggio: il medico vede un toast in inglese di Cloudflare.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cash/accountant/send (mailer.send_email)", "issue": "Se Resend rifiuta il destinatario (422 undeliverable_recipient, es. commercialista.demo@example.com) il backend restituisce HTTP 502 'Invio email non riuscito'. L'ingress/Cloudflare sostituisce le risposte 502 con la sua pagina, quindi il toast mostra 'The origin web server returned an invalid or incomplete response to Cloudflare...'. Usare un 4xx (es. 400/422) con un messaggio in italiano come 'Indirizzo del commercialista non raggiungibile: lo verifichi in Impostazioni'. Vale anche per gli altri invii email che usano mailer (502/503)."},
+      {"endpoint": "sync_legacy / billing_of (invoicing.py:143,159)", "issue": "Il regime di default è 'forfettario' e la fattura legacy viene creata con il regime valido al momento della sincronizzazione. La ricevuta legacy s.n. del 26/10/2026 è stata sincronizzata prima del salvataggio dei dati fiscali, quindi il suo PDF riporta le diciture del forfettario mentre il medico è in ordinario. Inoltre il PDF dice 'I dati di questa spesa saranno trasmessi al Sistema TS', ma le fatture senza numero sono escluse dall'elenco STS. Ricalcolare il regime per le legacy o omettere la dicitura STS quando manca il numero."},
+      {"endpoint": "GET /api/cash/invoices/draft", "issue": "Dalla visita la prestazione è visitLabel(note), cioè 'Visita pediatrica · motivo' oppure vuota, che non corrisponde mai a nessuna voce del tariffario. La riga diventa quindi 'Visita pediatrica' con importo vuoto. Usare il servizio dell'appuntamento collegato (es. 'Prima visita') o una tariffa di default."},
+      {"endpoint": "GET /api/cash/invoices/draft (payer_name)", "issue": "payer_name viene precompilato con il campo guardian grezzo, ad esempio 'Mamma: Elisa Ricci'. Il prefisso 'Mamma:' finirebbe come intestatario della fattura: va tolto. Il CF del genitore non viene mai precompilato, perché manca guardian_fiscal_code."},
+      {"endpoint": "GET /api/cash/invoices/{id}/xml (fiscal_xml.py)", "issue": "In Sede di Cedente e Cessionario mancano CAP e Comune, obbligatori nello schema FPR12: un SdI reale scarterebbe il file (oggi è solo simulazione). Il bollo a carico del cliente è incluso in ImportoTotaleDocumento ma non compare in nessuna riga (di solito si aggiunge una riga 'Rimborso bollo' con Natura N1)."},
+      {"endpoint": "POST /api/cash/invoices/{id}/cancel", "issue": "Annullando una fattura già 'inviata' al Sistema TS lo stato resta 'inviata': non viene preparata una cancellazione o rettifica STS e la fattura sparisce dall'elenco STS. Inoltre annullare una fattura legacy non online cancella definitivamente l'incasso originale in payments."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AccountantPanel send", "issue": "Toast di errore in inglese di Cloudflare quando l'email viene rifiutata (vedi problema backend sul 502)", "selector": "[data-testid='accountant-send-btn']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Visita -> Crea fattura dalla visita", "issue": "Paziente, data e studio sono precompilati correttamente, ma prestazione e importo non vengono presi dal tariffario (importo 0,00) e l'intestatario ha il prefisso 'Mamma:'", "affected_selectors": ["[data-testid='cash-register-btn']", "[data-testid='invoice-line-amount-0']", "[data-testid='invoice-payer-name']"]}
+    ],
+    "design_issues": [
+      {"screen": "InvoiceDialog", "issues": ["La data usa il date picker nativo del browser (input type=date) invece del calendario shadcn", "Il toast di errore si sovrappone al titolo del dialog"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cash_invoicing.py", "/app/test_reports/pytest/cash_invoicing.xml"],
+  "action_items": [
+    "mailer.send_email: mappare destinatario non consegnabile e altri errori del provider su un 4xx con messaggio in italiano, perché i 502 vengono mascherati da Cloudflare",
+    "invoice draft: togliere prefissi come 'Mamma:'/'Papà:' da payer_name; abbinare la prestazione al servizio dell'appuntamento o a una tariffa di default, così l'importo viene precompilato",
+    "Fatture legacy: usare il regime fiscale attuale (o ricalcolarlo) e non stampare la dicitura STS per le ricevute s.n. escluse dal Sistema TS",
+    "fiscal_xml: aggiungere CAP/Comune (servono campi strutturati per l'indirizzo) e valutare la riga di rimborso bollo",
+    "Opzionale: input data shadcn nell'InvoiceDialog; gestire l'annullamento di fatture già inviate al Sistema TS"
+  ],
+  "critical_code_review_comments": [
+    "invoicing.py: query() chiama sync_legacy() a ogni GET (overview, list, sts, accountant e anche pack più volte), con una scansione di payments a ogni richiesta: meglio un job o una migrazione una tantum",
+    "sts(): esegue query() due volte per lo stesso anno",
+    "pack(): build_invoice_pdf in sequenza per ogni fattura; con migliaia di fatture in un anno register/invoices.pdf e l'invio email possono andare in timeout",
+    "next_number bump avviene prima dell'insert: se l'insert fallisce resta un buco nella numerazione (accettabile ma da sapere)",
+    "La data di 'Incassata' usa today_rome() anche quando la fattura ha una data precedente: corretto per la cassa, ma le card mostrano l'incasso nel giorno del pagamento"
+  ],
+  "updated_files": ["/app/backend/tests/test_cash_invoicing.py"],
+  "success_rate": {"backend": "100% (29/29 pytest; 6 osservazioni minori)", "frontend": "~93% (tutti i flussi funzionano; problemi minori: toast di invio, precompilazione dalla visita)"},
+  "seed_data_creation": "Ho creato fatture TEST_ (3-12/2026 e 1-4/2025), poi le ho annullate e infine cancellate per id direttamente dal DB. I contatori sono stati ripristinati (2026 n=2, contatore 2025 rimosso): la prossima fattura è di nuovo 3/2026. Regime ordinario ed email del commercialista ripristinati. Effetti collaterali rimasti: billing.accountant_last_sent_at aggiornato e un'email reale inviata a delivered@resend.dev; fiscal_saved_at aggiornato dai salvataggi.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Eseguire con: cd /app/backend && python -m pytest tests/test_cash_invoicing.py -n 0 (servono gli scope di modulo). ATTENZIONE: il test consuma numeri di fattura reali (crea e annulla fatture TEST_ 2026 e dell'anno precedente). Il fuso del server è Europe/Rome, mentre date.today() nel container è UTC: vicino a mezzanotte /api/payments usa di default il giorno di Roma. Testid: cash-tab-{home|sts|commercialista|impostazioni}, cash-new-invoice-btn, invoice-*, sts-*, accountant-*, fiscal-*. Visita: /app/visite -> visit-row-* -> cash-register-btn."
+}

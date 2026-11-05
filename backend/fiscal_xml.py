@@ -1,4 +1,5 @@
 """File XML in SIMULAZIONE: fattura elettronica FatturaPA (FPR12) per lo SdI e comunicazione spese al Sistema Tessera Sanitaria."""
+import re
 import xml.etree.ElementTree as ET
 
 MP = {"contanti": "MP01", "bonifico": "MP05", "carta": "MP08", "pos": "MP08", "online": "MP08"}
@@ -26,6 +27,13 @@ def _xml(root) -> bytes:
     return b'<?xml version="1.0" encoding="UTF-8"?>\n' + ET.tostring(root, encoding="utf-8")
 
 
+def _sede(address: str) -> dict:
+    m = re.search(r"(\d{5})\s+([^,(]+?)(?:\s*\((\w{2})\))?\s*$", address or "")
+    street = (address or "")[:m.start()].strip(" ,") if m else address
+    return {"Indirizzo": street or address, "CAP": m.group(1) if m else "00000", "Comune": m.group(2).strip() if m else "ND",
+            "Provincia": m.group(3).upper() if m and m.group(3) else None, "Nazione": "IT"}
+
+
 def fattura_pa(inv: dict, billing: dict, progressive: str) -> bytes:
     t, c, forf = inv["totals"], inv.get("company") or {}, inv["regime"] == "forfettario"
     root = ET.Element("p:FatturaElettronica", {"versione": "FPR12", "xmlns:p": "http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2"})
@@ -34,10 +42,10 @@ def fattura_pa(inv: dict, billing: dict, progressive: str) -> bytes:
                                       "FormatoTrasmissione": "FPR12", "CodiceDestinatario": c.get("sdi_code") or "0000000", "PECDestinatario": None if c.get("sdi_code") else c.get("pec")},
                  "CedentePrestatore": {"DatiAnagrafici": {"IdFiscaleIVA": {"IdPaese": "IT", "IdCodice": billing.get("vat_number")}, "CodiceFiscale": billing.get("tax_code"),
                                                           "Anagrafica": {"Denominazione": billing.get("holder")}, "RegimeFiscale": "RF19" if forf else "RF01"},
-                                       "Sede": {"Indirizzo": billing.get("address"), "Nazione": "IT"}},
+                                       "Sede": _sede(billing.get("address"))},
                  "CessionarioCommittente": {"DatiAnagrafici": {"IdFiscaleIVA": {"IdPaese": "IT", "IdCodice": c.get("vat")} if c.get("vat") else None,
                                                                "CodiceFiscale": c.get("cf"), "Anagrafica": {"Denominazione": c.get("name")}},
-                                            "Sede": {"Indirizzo": c.get("address"), "Nazione": "IT"}}})
+                                            "Sede": _sede(c.get("address"))}})
     body = _sub(root, "FatturaElettronicaBody")
     gen = {"TipoDocumento": "TD01", "Divisa": "EUR", "Data": inv["date"], "Numero": inv["number"]}
     if t["ritenuta"]:
@@ -55,10 +63,14 @@ def fattura_pa(inv: dict, billing: dict, progressive: str) -> bytes:
                                              "PrezzoTotale": f"{l['amount']:.2f}", "AliquotaIVA": rate, "Ritenuta": "SI" if t["ritenuta"] else None, "Natura": natura})
         g = groups.setdefault((rate, natura), 0.0)
         groups[(rate, natura)] = g + l["amount"]
+    if t["stamp"] and t["stamp_charge"] == "paziente":
+        _path(_sub(beni, "DettaglioLinee"), {"NumeroLinea": len(inv["lines"]) + 1, "Descrizione": "Rimborso imposta di bollo", "PrezzoUnitario": f"{t['stamp']:.2f}",
+                                             "PrezzoTotale": f"{t['stamp']:.2f}", "AliquotaIVA": "0.00", "Natura": "N1"})
+        groups[("0.00", "N1")] = t["stamp"]
     for (rate, natura), amount in groups.items():
         tax = round(amount * 0.22, 2) if rate == "22.00" else 0.0
         _path(_sub(beni, "DatiRiepilogo"), {"AliquotaIVA": rate, "Natura": natura, "ImponibileImporto": f"{amount:.2f}", "Imposta": f"{tax:.2f}",
-                                            "RiferimentoNormativo": "Art. 10 c.1 n.18 DPR 633/72" if natura == "N4" else ("Art. 1 c.54-89 L. 190/2014" if natura else None)})
+                                            "RiferimentoNormativo": {"N4": "Art. 10 c.1 n.18 DPR 633/72", "N2.2": "Art. 1 c.54-89 L. 190/2014", "N1": "Art. 15 DPR 633/72"}.get(natura)})
     _path(_sub(body, "DatiPagamento"), {"CondizioniPagamento": "TP02", "DettaglioPagamento": {"ModalitaPagamento": MP.get(inv["method"], "MP01"),
                                                                                              "ImportoPagamento": f"{t['due']:.2f}", "IBAN": billing.get("iban") if inv["method"] == "bonifico" else None}})
     return _xml(root)
@@ -72,5 +84,6 @@ def sts_file(invoices: list, billing: dict) -> bytes:
             "idSpesa": {"pIva": billing.get("vat_number"), "dataEmissione": i["date"], "numDocumentoFiscale": {"dispositivo": 1, "numDocumento": i.get("number")}},
             "dataPagamento": (i.get("paid_at") or i["date"])[:10], "cfCittadino": i.get("patient_cf"),
             "voceSpesa": {"tipoSpesa": "SP", "importo": f"{i['totals']['total']:.2f}"},
-            "pagamentoTracciato": "NO" if i["method"] == "contanti" else "SI", "tipoDocumento": "F", "flagOpposizione": 0})
+            "pagamentoTracciato": "NO" if i["method"] == "contanti" else "SI", "tipoDocumento": "F", "flagOpposizione": 0,
+            "flagOperazione": "C" if i.get("sts_action") == "cancellazione" else "I"})
     return _xml(root)

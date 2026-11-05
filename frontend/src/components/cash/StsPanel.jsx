@@ -57,7 +57,7 @@ export const StsPanel = ({ refreshKey }) => {
                 <td className="px-4 py-2.5 font-mono text-xs">{i.number}</td><td className="px-4 py-2.5 font-mono text-xs">{fmtDate(i.date)}</td>
                 <td className="px-4 py-2.5">{i.patient_name}</td><td className="px-4 py-2.5 font-mono text-xs">{i.patient_cf || "—"}</td>
                 <td className="px-4 py-2.5 font-mono">{eur(i.totals.total)}</td>
-                <td className="px-4 py-2.5"><Badge status={i.sts_status} testid={`sts-status-${i.id}`} />{i.sts_error && <div className="mt-1 text-xs text-[var(--alert)]">{i.sts_error}</div>}</td>
+                <td className="px-4 py-2.5"><Badge status={i.sts_status} testid={`sts-status-${i.id}`} />{i.sts_action === "cancellazione" && <span className="ml-1.5 text-xs text-[var(--fg2)]" data-testid={`sts-cancel-${i.id}`}>{i.sts_status === "inviata" ? "cancellazione comunicata" : "fattura annullata: cancellazione da comunicare"}</span>}{i.sts_error && <div className="mt-1 text-xs text-[var(--alert)]">{i.sts_error}</div>}</td>
               </tr>
             ))}
           </tbody>

@@ -50,7 +50,7 @@ def notes_for(inv: dict) -> list[str]:
     if inv["method"] == "contanti":
         out.append(N_CASH)
     if inv["client_type"] == "persona":
-        out += [N_OPPOSE if inv.get("sts_opposition") else N_STS, N_ANALOG]
+        out += ([N_OPPOSE] if inv.get("sts_opposition") else [N_STS] if inv.get("number") else []) + [N_ANALOG]
     return out
 
 

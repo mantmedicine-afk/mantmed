@@ -13,7 +13,7 @@ const Actions = ({ i, onChange }) => {
       <button onClick={() => run(() => api.invoicePdf(i.id))} className={act} data-testid={`invoice-pdf-${i.id}`}><FileText size={13} /> PDF</button>
       {i.client_type === "azienda" && <button onClick={() => run(() => api.invoiceXml(i.id))} className={act} data-testid={`invoice-xml-${i.id}`}><FileCode2 size={13} /> XML SdI</button>}
       {i.status === "da_incassare" && <button onClick={() => run(() => api.payInvoice(i.id), "Fattura segnata come pagata")} className={act} data-testid={`invoice-pay-${i.id}`}><CheckCircle2 size={13} /> Incassata</button>}
-      {i.status !== "annullata" && !(i.legacy && i.method === "online") && <button onClick={() => window.confirm(`Annullare la fattura ${i.number ?? ""}? Il numero resta occupato.`) && run(() => api.cancelInvoice(i.id), "Fattura annullata")} className={`${act} text-[var(--fg2)] hover:text-[var(--alert)]`} data-testid={`invoice-cancel-${i.id}`}><XCircle size={13} /> Annulla</button>}
+      {i.status !== "annullata" && !i.legacy && <button onClick={() => window.confirm(`Annullare la fattura ${i.number ?? ""}? Il numero resta occupato.`) && run(() => api.cancelInvoice(i.id), "Fattura annullata")} className={`${act} text-[var(--fg2)] hover:text-[var(--alert)]`} data-testid={`invoice-cancel-${i.id}`}><XCircle size={13} /> Annulla</button>}
     </div>
   );
 };

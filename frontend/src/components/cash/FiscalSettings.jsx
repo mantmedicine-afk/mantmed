@@ -5,7 +5,7 @@ import { api, errMsg } from "@/lib/api";
 import { Kicker, Label, Seg, btnMain, card, inp } from "./ui";
 
 const FIELDS = [["holder", "Nome e cognome", "Dott.ssa ..."], ["tax_code", "Codice fiscale", "16 caratteri"], ["vat_number", "Partita IVA", "11 cifre"],
-  ["address", "Indirizzo (domicilio fiscale)", "Via, CAP, Città"], ["order_registration", "Iscrizione all'Ordine", "Es. OMCeO Reggio Calabria n. 1234"], ["iban", "IBAN", "IT.."]];
+  ["address", "Indirizzo (domicilio fiscale)", "Via Roma 1, 89100 Reggio Calabria (RC)"], ["order_registration", "Iscrizione all'Ordine", "Es. OMCeO Reggio Calabria n. 1234"], ["iban", "IBAN", "IT.."]];
 
 const TariffRow = ({ t, i, set, onRemove }) => (
   <div className="grid grid-cols-[1fr_auto] gap-2 sm:grid-cols-[1fr_120px_230px_auto]" data-testid={`tariff-row-${i}`}>
