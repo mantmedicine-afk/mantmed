@@ -1,0 +1,47 @@
+{
+  "summary": "Tested the Messaggi redesign end to end: backend enrichment, receipts, attachments, doctor UI at 1440x800, 1024x700, 768x1024 and 390x844, the MantAI suggestion, the parent portal, and regressions. Backend: 6/6 new pytest tests pass (test_messaging_v2.py) and 6/6 existing tests_messaging.py tests pass. The fields display_name ('Giulia Ricci · mamma di Aurora'), preview ('Allegato' when there is no text), patient_age ('4 anni'), needs_reply and unread are correct. Receipts work both ways: inviato -> consegnato after the other side lists threads -> letto after they open the thread. Attachments: PDF and PNG accepted from both sides, 415 for txt/exe, 413 for >10MB, 404 for wrong thread or attachment id, 401/403 across roles. Files are stored sealed as .bin. Doctor UI: no 'Coda risposte' anywhere. Search, the Tutti/Non letti/Da rispondere filters and the empty state work. The header shows 'Aurora Ricci · 4 anni', the display_name and the subject; 'Scheda paziente' opens the passport overlay. Bubbles: mine on the right and dark (rgb 23,38,43), other on the left and light. The 'Oggi' separator and full-date separators ('Domenica 25 Ottobre') work; 'Ieri' was not seen because there was no data from yesterday. Ticks have data-receipt; letto is sky blue rgb(56,189,248). The attach chip, the client-side type rejection toast and sending all work, and the attachment GET returns 200 application/pdf. At 1440x800 and 1024x700 the page does not scroll (scrollHeight == innerHeight). Mobile: list first, then a full-screen conversation (0,0,390x844) with a back button. MantAI suggestion: the demo has no in_attesa drafts and MantAI risposte is disabled for the demo doctor, so I inserted TEST drafts into a TEST thread. The suggestion shows above the input. 'Usa' fills the textarea and sending goes through /ai-replies/{id}/approve (draft status inviata, edited=true, MantAI label on the bubble). 'Ignora' removes it and it stays gone after the poll. NOTE: the first draft I inserted was approved by another actor 17 s after insertion, before my UI script ran, so another agent was probably testing at the same time. Parent portal: same list and conversation style, filters, search, PNG attachment, own receipts (letto/inviato), no AI suggestion. Regressions OK: Home agenda, the 'Messaggi 1' nav badge and the passport overlay.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/messages/threads/{id}/attachments", "issue": "Unlike d_reply, it does not call HOOKS['doctor_reply'], so pending MantAI drafts are not replaced and ai_pending is not refreshed. Reproduced: after an attachment reply, ai_draft is still returned and the 'Suggerimento MantAI' stays visible; after a text reply it becomes null. It also writes no 'messaggio_portale_risposto' audit entry."},
+      {"endpoint": "GET /api/messages/threads (enrich)", "issue": "display_name takes the relation from patient.guardian ('Mamma: Elisa Ricci') but the name from the parent account (thread.parent_name = 'Giulia Ricci'). The result is 'Giulia Ricci · mamma di Aurora' even though the record says the mamma is Elisa Ricci. The relation should only be used when the guardian name matches parent_name; otherwise fall back to '· per Aurora'."},
+      {"endpoint": "store() attachments", "issue": "The whole upload is read into memory before the size check, and the type is checked only from the client's content-type (no magic-byte check). Anyone can upload any bytes labelled application/pdf."},
+      {"endpoint": "GET /api/*/threads (enrich)", "issue": "N+1 queries: up to 2 DB queries per thread, 200 threads in the doctor list, repeated on every poll. Consider aggregating."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Conversation (auto-scroll)", "issue": "scrollTop is set to scrollHeight when msgs.length changes, before lazy-loaded attachment images have their height. After sending or receiving a photo, the last bubble is partly cut off at the bottom (seen in the portal after a PNG upload).", "selector": "[data-testid=conversation-messages]", "priority": "MEDIUM"},
+      {"component": "Conversation back button", "issue": "It uses lg:hidden, so on a 768-1023px tablet the back arrow shows even though the list is already visible next to it. md:hidden would match the 2-column breakpoint.", "selector": "[data-testid=conversation-back-btn]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Parent portal filters", "issue": "'Da rispondere' uses needs_reply (last_from == parent). For the parent this lists the threads waiting for the doctor, which is the opposite of 'to answer'. The search placeholder 'Cerca genitore, bambino, messaggio' is also the doctor's text, shown in the parent area.", "affected_selectors": ["[data-testid=thread-filter-todo]", "[data-testid=thread-search]"]}
+    ],
+    "design_issues": [
+      {"screen": "Portal list rows", "issues": ["Initials come from 'Dott.ssa Tiziana Foti' and show 'DT'; drop the title to get 'TF'."]},
+      {"screen": "Portal mobile conversation", "issues": ["The UrgencyNotice takes about 120px of the full-screen conversation every time, which leaves little room for reading. Consider making it collapsible or a single line on mobile."]},
+      {"screen": "Doctor 768px", "issues": ["The textarea gets narrow (placeholder wraps over 2 lines) because both columns and the 'Invia' label share the width."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_messaging_v2.py", "/app/backend/tests/test_messaging.py", "/app/test_reports/pytest/pytest_results_iter69.xml", "/app/tests/iter69_make_draft.py", "/app/tests/iter69_insert_draft.py", "/app/tests/iter69_attach_supersede.py"],
+  "action_items": [
+    "d_attach: call HOOKS['doctor_reply'](tid, user) (replace pending drafts) and add the audit entry, as d_reply does",
+    "Conversation: scroll to the bottom again after attachment images load (img onLoad, or a ResizeObserver on the box)",
+    "display_name: use the guardian relation only when the guardian name matches the parent account name, else '· per <bambino>'",
+    "Portal: change the 'Da rispondere' semantics for the parent (e.g. last_from == doctor, or rename it to 'In attesa') and the search placeholder ('Cerca medico, bambino, messaggio')",
+    "Back button: change lg:hidden to md:hidden",
+    "Optional: check uploads by magic bytes and check the size from the stream while reading"
+  ],
+  "critical_code_review_comments": [
+    "messaging.py imports from crypto twice (lines 13 and 17); merge them",
+    "store() does file.read() of the whole payload before the 10MB check; use file.size or read in chunks up to MAX+1",
+    "enrich() runs a find_one on messages and patients per thread; costly for 200 threads polled every few seconds",
+    "Initials in the portal use the doctor name including the title"
+  ],
+  "updated_files": ["/app/backend/tests/test_messaging_v2.py", "/app/tests/iter69_make_draft.py", "/app/tests/iter69_insert_draft.py", "/app/tests/iter69_attach_supersede.py"],
+  "success_rate": {"backend": "100% (12/12 pytest); 1 minor logic gap (attachment reply doesn't replace the draft)", "frontend": "~93% (all requested flows work; image auto-scroll and minor portal semantics)"},
+  "seed_data_creation": "Created 1 TEST_ thread (6aebd06cd17bbe05b0969adb, 'TEST_UI tosse') via the parent API, plus 4 TEST_DRAFT ai_reply_drafts inserted directly (MantAI risposte is disabled for the demo doctor). All deleted by id: thread, messages, msg_files DB records, drafts, notifications. Encrypted blobs in object storage and audit entries for the TEST thread remain. The pytest module cleans up its own thread by id.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Doctor Messaggi lives at /app/messaggi, the portal at /portale/messaggi. In Playwright, log in with page.request.post('/api/auth/login') (cookies are shared). There is no /login form route. MantAI risposte is disabled for the demo doctor, so no real drafts are generated: use /app/tests/iter69_insert_draft.py <tid> on a TEST thread created with iter69_make_draft.py, and clean up with 'python tests/iter69_make_draft.py cleanup <tid>'. Run pytest with -n 0 for module-scoped ordering. Testids: doc-thread-row/name/preview/unread-{id}, doc-thread-filter-{all|unread|todo}, doc-thread-search, doc-conversation-patient(-link), conversation-input/send-btn/attach-btn/file-input/file-chip, msg-receipt-{id}[data-receipt], msg-day-separator, ai-suggestion(-use/-ignore). Portal uses the thread-* prefix. Another agent appears to approve drafts at the same time; act on a draft right after inserting it."
+}

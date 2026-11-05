@@ -37,7 +37,7 @@ const AiLine = ({ m, side }) => (
 const Attachment = ({ a, tid, side, mine }) => {
   const url = api.attachmentUrl(side, tid, a.id);
   return a.type.startsWith("image/") && !a.type.includes("hei") ? (
-    <a href={url} target="_blank" rel="noreferrer" className="mb-2 block overflow-hidden rounded-xl" data-testid={`msg-attachment-${a.id}`}><img src={url} alt={a.name} className="max-h-60 w-full object-cover" loading="lazy" /></a>
+    <a href={url} target="_blank" rel="noreferrer" className="mb-2 block overflow-hidden rounded-xl" data-testid={`msg-attachment-${a.id}`}><img src={url} alt={a.name} className="max-h-60 w-full object-cover" loading="lazy" onLoad={(e) => { const b = e.currentTarget.closest("[data-testid='conversation-messages']"); if (b && b.scrollHeight - b.scrollTop - b.clientHeight < 400) b.scrollTop = b.scrollHeight; }} /></a>
   ) : (
     <a href={url} target="_blank" rel="noreferrer" className={`mb-2 flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium ${mine ? "bg-[var(--sel)]" : "bg-[var(--raised)]"}`} data-testid={`msg-attachment-${a.id}`}>
       <FileText size={16} className="shrink-0" /><span className="min-w-0 truncate">{a.name}</span><span className="shrink-0 opacity-70">{Math.max(1, Math.round(a.size / 1024))} KB</span>

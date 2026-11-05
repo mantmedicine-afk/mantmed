@@ -5,7 +5,7 @@ export const FILTERS = [{ id: "all", label: "Tutti" }, { id: "unread", label: "N
 export const filterThreads = (all, filter, q) => all.filter((t) => (filter === "all" || (filter === "unread" ? t.unread > 0 : t.needs_reply))
   && (!q.trim() || `${t.display_name} ${t.patient_name} ${t.subject} ${t.preview}`.toLowerCase().includes(q.trim().toLowerCase())));
 
-const initials = (s) => (s || "?").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+const initials = (s) => (s || "?").replace(/^(dott\.?ssa|dott\.?|dr\.?|prof\.?ssa|prof\.?)\s+/i, "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 const stamp = (iso) => { const l = dayLabel(iso); return l === "Oggi" ? hm(iso) : l === "Ieri" ? "Ieri" : new Date(iso).toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit" }); };
 
 const Row = ({ t, active, onOpen, prefix }) => (
@@ -24,11 +24,11 @@ const Row = ({ t, active, onOpen, prefix }) => (
   </button>
 );
 
-export const ThreadList = ({ threads, list, active, onOpen, q, setQ, filter, setFilter, prefix = "doc-thread", empty = "Nessuna conversazione in questa vista." }) => (
+export const ThreadList = ({ threads, list, active, onOpen, q, setQ, filter, setFilter, prefix = "doc-thread", empty = "Nessuna conversazione in questa vista.", placeholder = "Cerca genitore, bambino, messaggio" }) => (
   <div className="flex h-full min-h-0 flex-col rounded-2xl border border-[var(--hair)] bg-[var(--surface)]" data-testid={`${prefix}-panel`}>
     <div className="shrink-0 space-y-2 border-b border-[var(--hair)] p-3">
       <label className="flex h-10 items-center gap-2 rounded-full bg-[var(--raised)] px-3 focus-within:ring-2 focus-within:ring-[var(--accent)]">
-        <Search size={15} className="text-[var(--fg2)]" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cerca genitore, bambino, messaggio" className="w-full bg-transparent text-sm text-[var(--fg)] outline-none" data-testid={`${prefix}-search`} />
+        <Search size={15} className="text-[var(--fg2)]" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder} className="w-full bg-transparent text-sm text-[var(--fg)] outline-none" data-testid={`${prefix}-search`} />
       </label>
       <div className="flex gap-1" role="tablist">
         {FILTERS.map((f) => <button key={f.id} role="tab" aria-selected={filter === f.id} onClick={() => setFilter(f.id)} className={`h-8 rounded-full px-3 text-xs font-medium transition-colors ${filter === f.id ? "bg-[var(--accent)] text-[var(--ink)]" : "text-[var(--fg2)] hover:text-[var(--fg)]"}`} data-testid={`${prefix}-filter-${f.id}`}>{f.label}</button>)}

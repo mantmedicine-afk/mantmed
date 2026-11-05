@@ -60,7 +60,7 @@ export const Conversation = ({ data, side, onSend, onAttach, onBack, header, fil
   return (
     <div className={`flex flex-col ${fill ? "h-full min-h-0" : "h-full min-h-[420px]"}`} data-testid="conversation">
       <div className="flex shrink-0 items-center gap-2 border-b border-[var(--hair)] p-4">
-        {onBack && <button onClick={onBack} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--hair)] text-[var(--fg)] lg:hidden" aria-label="Torna all'elenco" data-testid="conversation-back-btn"><ArrowLeft size={16} /></button>}
+        {onBack && <button onClick={onBack} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--hair)] text-[var(--fg)] md:hidden" aria-label="Torna all'elenco" data-testid="conversation-back-btn"><ArrowLeft size={16} /></button>}
         <div className="min-w-0 flex-1">{header}</div>
       </div>
       <div ref={box} className="min-h-0 flex-1 space-y-2.5 overflow-y-auto overscroll-contain bg-[var(--raised)]/60 p-4" style={fill ? undefined : { maxHeight: 460 }} data-testid="conversation-messages" data-lenis-prevent>

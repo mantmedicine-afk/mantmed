@@ -59,6 +59,18 @@ class ReadIn(BaseModel):
     ids: Optional[list[str]] = None
 
 
+def _magic_ok(b: bytes, ctype: str) -> bool:
+    if ctype == "application/pdf":
+        return b[:5] == b"%PDF-"
+    if ctype == "image/jpeg":
+        return b[:3] == b"\xff\xd8\xff"
+    if ctype == "image/png":
+        return b[:8] == b"\x89PNG\r\n\x1a\n"
+    if ctype == "image/webp":
+        return b[:4] == b"RIFF" and b[8:12] == b"WEBP"
+    return b[4:8] == b"ftyp"
+
+
 def _age(bd: Optional[str]) -> str:
     try:
         b = datetime.fromisoformat(bd[:10]).date()
@@ -189,7 +201,9 @@ def build_messaging(db, current_user):
         out["needs_reply"] = t["last_from"] == "parent"
         p = await db.patients.find_one({"_id": ObjectId(t["patient_id"]), "owner_id": t["owner_id"]}) if ObjectId.is_valid(t["patient_id"]) else None
         pu = unseal_fields(p, ("guardian", "name")) if p else {}
-        rel = (pu.get("guardian") or "").split(":")[0].strip().lower() if ":" in (pu.get("guardian") or "") else ""
+        g = pu.get("guardian") or ""
+        gname = g.split(":", 1)[1].strip().lower() if ":" in g else ""
+        rel = g.split(":")[0].strip().lower() if gname and gname == (out["parent_name"] or "").strip().lower() else ""
         child = (out["patient_name"] or "").split(" ")[0]
         out["display_name"] = f"{out['parent_name']} · {rel} di {child}" if rel and len(rel) <= 12 else f"{out['parent_name']} · per {child}"
         out["patient_age"] = _age((p or {}).get("birth_date"))
@@ -316,12 +330,14 @@ def build_messaging(db, current_user):
 
     # ---------- Allegati (foto e PDF, cifrati nello storage) ----------
     async def store(t: dict, file: UploadFile) -> dict:
-        data = await file.read()
+        data = await file.read(MAX_ATTACH + 1)
         ctype = (file.content_type or "").lower()
         if ctype not in ATTACH_TYPES:
             raise HTTPException(415, "Si possono allegare solo foto (JPG, PNG, HEIC, WEBP) o PDF")
         if len(data) > MAX_ATTACH:
             raise HTTPException(413, "File troppo grande: massimo 10 MB")
+        if not _magic_ok(data, ctype):
+            raise HTTPException(415, "Il file non è una foto o un PDF valido")
         path = f"mantmed/messages/{t['_id']}/{uuid.uuid4().hex}.bin"
         await asyncio.to_thread(put_object, path, seal_bytes(data), "application/octet-stream")
         name = re.sub(r"[^\w.\- ]+", "_", file.filename or "allegato")[:80]
@@ -350,7 +366,10 @@ def build_messaging(db, current_user):
     async def d_attach(tid: str, file: UploadFile = File(...), body: str = Form(""), user: dict = Depends(current_user)):
         t = await d_thread_doc(user, tid)
         await add_message(db, t, "doctor", user["name"], body[:4000], attachments=[await store(t, file)])
+        if HOOKS.get("doctor_reply"):
+            await HOOKS["doctor_reply"](tid, user)
         pname = unseal_fields(t, T_SEALED)["patient_name"]
+        await db.audit.insert_one({"action": "messaggio_portale_risposto", "subject": seal_fields({"s": pname}, ("s",))["s"], "at": _now().isoformat(), "owner_id": user["id"]})
         await notify_parents(db, t["patient_id"], t["owner_id"], "reply", f"{user['name']} ha risposto", f"{KIND_LABEL[t['kind']]} · {pname}", ref=tid, only=t["parent_id"])
         return await d_thread(tid, user)
 

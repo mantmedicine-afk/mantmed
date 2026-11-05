@@ -42,7 +42,7 @@ export const Messages = ({ kids, openId, onOpened, onRead }) => {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState("all");
   useScrollLock(!!active && window.innerWidth < 768);
-  const list = filterThreads((Array.isArray(threads) ? threads : []).map((x) => ({ ...x, display_name: `${x.doctor_name} · ${x.patient_name}`, parent_name: x.doctor_name })), filter, q);
+  const list = filterThreads((Array.isArray(threads) ? threads : []).map((x) => ({ ...x, display_name: `${x.doctor_name} · ${x.patient_name}`, parent_name: x.doctor_name, needs_reply: x.last_from === "doctor" })), filter, q);
   const t = data?.thread;
   return (
     <section id="portal-messages" className="scroll-mt-24 rounded-[28px] border border-[var(--hair)] bg-[var(--surface)] p-5 sm:p-7" data-testid="portal-messages">
@@ -58,7 +58,7 @@ export const Messages = ({ kids, openId, onOpened, onRead }) => {
       </div>
       <div ref={grid} style={{ height: fillH ?? undefined }} className="mt-6 grid grid-cols-1 grid-rows-[minmax(0,1fr)] gap-4 md:grid-cols-[300px_1fr] lg:grid-cols-[340px_1fr]">
         <div className={`${active ? "hidden md:block" : ""} h-full min-h-0`}>
-          <ThreadList prefix="thread" threads={threads} list={list} active={active} onOpen={open} q={q} setQ={setQ} filter={filter} setFilter={setFilter}
+          <ThreadList prefix="thread" placeholder="Cerca medico, bambino, messaggio" threads={threads} list={list} active={active} onOpen={open} q={q} setQ={setQ} filter={filter} setFilter={setFilter}
             empty="Nessuna conversazione. Usi una richiesta rapida qui sopra per scrivere allo studio." />
         </div>
         <div className={`${active ? "flex" : "hidden md:flex"} h-full min-h-0 flex-col overflow-hidden border border-[var(--hair)] bg-[var(--surface)] max-md:fixed max-md:inset-0 max-md:z-[60] max-md:h-[100dvh] md:rounded-2xl`} data-testid="portal-conversation-pane">

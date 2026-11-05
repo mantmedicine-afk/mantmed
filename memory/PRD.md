@@ -512,3 +512,10 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Causa: Lenis (scorrimento fluido) intercettava la rotella e faceva scorrere la pagina. Fix comune in lib/scrollLock.js: `isScrollBox` usato da Lenis `prevent` (App.js) per ogni elemento che scorre davvero; App.css overscroll-behavior contain sui contenitori overflow-y-auto/overflow-auto.
 - `useFillHeight` (lib/scrollLock.js): Messaggi (due colonne a tutta altezza, conversazione aperta in fondo) e Agenda Home (scorre al suo interno). AppShell/Dashboard md:min-h-[calc(100dvh-4rem)] per evitare 64px di scorrimento fantasma.
 - Test: iteration_68.
+
+## 2026-06 · Messaggi riorganizzati
+- Eliminata "Coda risposte" (ReplyQueue rimosso; badge Messaggi = solo non letti). Bozza MantAI mostrata come "Suggerimento MantAI · Usa · Ignora" sopra il campo (Usa → /ai-replies/{id}/approve, Ignora → discard).
+- Due colonne (ThreadList con ricerca e filtri Tutti/Non letti/Da rispondere; Conversation con intestazione paziente+età+Scheda paziente, fumetti, separatori Oggi/Ieri, allegati, Invia). Smartphone: conversazione a schermo intero. Stesso stile nel portale genitore.
+- Conferme di lettura: messages.delivered_at (quando l'altra parte carica l'elenco) e read_at (quando apre la conversazione) → receipt inviato/consegnato/letto (spunte grigie/blu).
+- Allegati foto/PDF ≤10 MB, controllo firma file, cifrati (seal_bytes) nello storage, collezione msg_files; endpoint /messages|/portal/threads/{id}/attachments.
+- Test: iteration_69, backend/tests/test_messaging_v2.py.
