@@ -93,7 +93,7 @@ def build_portal_docs(db, parent_user, consultation_model, patient_model):
         out = []
         for c in same:
             doc = await db.users.find_one({"_id": ObjectId(c["owner_id"])}, {"name": 1})
-            async for raw in db.consultations.find({"patient_id": c["patient_id"], "owner_id": c["owner_id"],
+            async for raw in db.consultations.find({"patient_id": c["patient_id"], "owner_id": c["owner_id"], "guardian_hidden": {"$ne": True},
                                                     "$or": [{"report_sent_at": {"$ne": None}}, {"portal_published": True}]}):
                 x = consultation_model.from_mongo(raw).out()
                 out.append({**x, "doctor": (doc or {}).get("name", "")})

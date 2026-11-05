@@ -1,5 +1,6 @@
 import io
 from provenance import mark_pdf, pdf_footer
+from specialty_modules import MODULES, STRUCTURED
 import os
 import re
 from datetime import datetime
@@ -233,22 +234,34 @@ def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dic
     mod = note.get("modulo") or {}
     ped = mod.get("id") == "pediatria" if mod.get("id") else (not spec or bool(re.search(r"pediatr|neonatolog", spec, re.I)))
     mf = lambda k: (mod.get("campi") or {}).get(k) or note.get(k)
-    sez = [x for x in note.get("sezioni") or [] if (x.get("titolo") or "").strip()]
+    hid = set(mod.get("nascosti") or [])
+    keep = lambda rows: [(lbl, v) for k, lbl, v in rows if not (k in hid and not (v or "").strip())]
+    nb = lambda k, lbl: [(lbl, note.get(k))] if (note.get(k) or "").strip() else []  # campi base nuovi: solo se compilati (vecchi referti identici)
+    structured = mod.get("id") in STRUCTURED
+    sez = [x for x in note.get("sezioni") or [] if (x.get("titolo") or "").strip() and not x.get("da_verificare")]
     extra = lambda *groups: [(x["titolo"][:40], x.get("testo")) for x in sez if x.get("gruppo") in groups]
     vitals = extra("parametri_vitali")
     story = [Paragraph("Referto di visita", S["title"]), Paragraph("pediatrica specialistica" if ped else f"specialistica · {spec}", S["titleIt"]),
              Spacer(1, 6 * mm), meta, Spacer(1, 9 * mm)]
 
-    if ped:
-        story += section("01", "Anamnesi", [("Fisiologica", note.get("anamnesi_fisiologica")),
-                                            ("Allattamento", mf("allattamento")), ("Svezzamento", mf("svezzamento"))] + extra("anamnesi"))
+    allerg = nb("allergie", "Allergie e intolleranze") + nb("farmaci_in_uso", "Farmaci in uso")
+    eo = nb("esame_obiettivo", "Esame obiettivo generale")
+    n_ter = None
+    if structured:
+        secs = structured_sections(note, mod, extra, allerg, eo)
+        for i, (title, rows_) in enumerate(secs):
+            story += section(f"{i + 1:02d}", title, rows_)
+        n_ter = f"{len(secs) + 1:02d}"
+    elif ped:
+        story += section("01", "Anamnesi", [("Fisiologica", note.get("anamnesi_fisiologica"))] + keep([("allattamento", "Allattamento", mf("allattamento")),
+                                            ("svezzamento", "Svezzamento", mf("svezzamento"))]) + allerg + extra("anamnesi"))
         story += section("02", "Motivo della visita e sintomi", [("Motivo", note.get("motivo_visita")), ("Sintomi", note.get("sintomi"))] + extra("sintomi"))
-        story += section("03", "Esame obiettivo", [("TORL", mf("torl")), ("Torace · Auscultazione", mf("torace_auscultazione")),
-                                                   ("Addome", mf("addome"))] + extra("esame_obiettivo", "altro"))
+        story += section("03", "Esame obiettivo", eo + keep([("torl", "TORL", mf("torl")), ("torace_auscultazione", "Torace · Auscultazione", mf("torace_auscultazione")),
+                                                   ("addome", "Addome", mf("addome"))]) + extra("esame_obiettivo", "altro"))
     else:
-        story += section("01", "Anamnesi", [("Anamnesi", note.get("anamnesi_fisiologica"))] + extra("anamnesi"))
+        story += section("01", "Anamnesi", [("Anamnesi", note.get("anamnesi_fisiologica"))] + allerg + extra("anamnesi"))
         story += section("02", "Motivo della visita e sintomi", [("Motivo", note.get("motivo_visita")), ("Sintomi", note.get("sintomi"))] + extra("sintomi"))
-        story += section("03", "Esame obiettivo", extra("esame_obiettivo") or [("Esame obiettivo", "Non riportato")])
+        story += section("03", "Esame obiettivo", (eo + extra("esame_obiettivo")) or [("Esame obiettivo", "Non riportato")])
 
     peso, alt, cc = g.get("peso_kg"), g.get("altezza_cm"), g.get("circonferenza_cranica_cm")
     bmi = peso / (alt / 100) ** 2 if peso and alt else None
@@ -266,7 +279,9 @@ def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dic
     rows_g.append(["BMI", f"{fmt(bmi)} kg/m²" if bmi else "—", "—", "—"])
     gw = W - 2 * MX - 42 * mm
     growth = grid(["Parametro", "Valore", "Percentile OMS", "z-score"], rows_g, [gw * 0.34, gw * 0.22, gw * 0.24, gw * 0.20], right=(1, 2, 3))
-    if ped:
+    if structured:
+        pass
+    elif ped:
         story += section("04", "Parametri di crescita", [("Età · sesso", f"{fmt(g.get('eta_mesi'), 'mesi')} · {sesso}"),
                                                          ("Misure e percentili", growth)] + vitals)
     elif peso or alt or vitals:
@@ -294,9 +309,16 @@ def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dic
                                                     [dw * 0.25, dw * 0.15, dw * 0.14, dw * 0.13, dw * 0.19, dw * 0.14], right=(1, 2, 3, 5))))
         if peso:
             rows.append(("", P(f"Dosi calcolate sul peso di {fmt(peso, 'kg')} rilevato in visita.", "small")))
-    rows += [] if ped else extra("altro")
-    rows.append(("Follow-up", note.get("follow_up")))
-    story += section("05" if (ped or peso or alt or vitals) else "04", "Diagnosi e terapia", rows)
+    if structured:
+        rows += [(f["label"], v) for f, v in module_rows(mod, "piano")] + extra("altro")
+        rows += [(f'{x["titolo"][:40]}', x.get("testo")) for x in sez if x.get("gruppo") == "altre_voci"]
+        if (note.get("follow_up") or "").strip():
+            rows.append(("Follow-up", note.get("follow_up")))
+        rows = [(lbl, v) for lbl, v in rows if isinstance(v, Flowable) or (v or "").strip()] or [("Diagnosi", "Non riportato")]
+    else:
+        rows += [] if ped else extra("altro")
+        rows.append(("Follow-up", note.get("follow_up")))
+    story += section(n_ter or ("05" if (ped or peso or alt or vitals) else "04"), "Diagnosi e terapia", rows)
 
     box = lambda label, content: [P(label, "label"), Spacer(1, 2 * mm), content]
     sign = Table([[box("LUOGO", P(info["city"])), box("DATA", P(date_s)), box("TIMBRO DELLO STUDIO", Spacer(1, 24 * mm)),
@@ -312,6 +334,41 @@ def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dic
         story += bodychart_page(bodychart)
     doc.build(story)
     return mark_pdf(buf.getvalue(), aip)
+
+
+def module_value(f: dict, v) -> str:
+    """Valore leggibile, esattamente come registrato (nessun calcolo, nessun giudizio)."""
+    t = f.get("tipo", "testo")
+    if t == "numero":
+        v = v or {}
+        return "" if v.get("v") is None else fmt(v["v"], f.get("unita", "")) + (f' · {v["note"]}' if v.get("note") else "")
+    if t == "pressione":
+        return "\n".join(f'{fmt(x.get("sis"))}/{fmt(x.get("dia"))} mmHg' + (f' · {x["note"]}' if x.get("note") else "")
+                         for x in v or [] if x.get("sis") is not None or x.get("dia") is not None)
+    if t == "data" and v:
+        return datetime.fromisoformat(v).strftime("%d/%m/%Y")
+    return str(v or "").strip()
+
+
+def module_rows(mod: dict, gruppo: str) -> list:
+    order = mod.get("ordine") or []
+    base = [f for f in MODULES[mod["id"]]["campi"] if f["gruppo"] == gruppo]
+    fields = sorted(base, key=lambda f: order.index(f["key"]) if f["key"] in order else len(order) + base.index(f))
+    out = [(f, module_value(f, (mod.get("campi") or {}).get(f["key"]))) for f in fields]
+    return [(f, v) for f, v in out if v]
+
+
+def structured_sections(note: dict, mod: dict, extra, allerg: list, eo: list) -> list:
+    """Moduli Cardiologia/Dermatologia/Ginecologia: nel referto compaiono solo i campi compilati."""
+    m = MODULES[mod["id"]]
+    rows = lambda g: [(f["label"], v) for f, v in module_rows(mod, g)]
+    nz = lambda rs: [(lbl, v) for lbl, v in rs if (v or "").strip() and (v or "").strip() != "Non riportato"]
+    secs = [("Anamnesi", nz([("Anamnesi", note.get("anamnesi_fisiologica"))] + allerg + rows("anamnesi") + extra("anamnesi"))),
+            ("Motivo della visita e sintomi", nz([("Motivo", note.get("motivo_visita")), ("Sintomi", note.get("sintomi"))] + extra("sintomi"))),
+            ("Parametri", nz(rows("parametri") + extra("parametri_vitali"))),
+            ("Esame obiettivo", nz(eo + rows("esame_obiettivo") + extra("esame_obiettivo"))),
+            (m["gruppi"].get("esami", "Esami"), nz(rows("esami")))]
+    return [(t, r) for t, r in secs if r]
 
 
 CAT_LABEL = {"lesione": "Trauma / Lesione", "trauma": "Contusione / Ecchimosi", "dolore": "Dolore", "eruzione": "Dermatite / Eruzione", "nevo": "Nevo / Macchia", "controllo": "Controllo"}

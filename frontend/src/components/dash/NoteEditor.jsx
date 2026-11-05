@@ -14,6 +14,10 @@ import { PrevisitPanel } from "./PrevisitPanel";
 import { BodychartEditor } from "@/components/bodychart/BodychartEditor";
 import { AILabel, AIFieldMark } from "@/components/mantai/AILabel";
 import { SignNote, needsSignature } from "./SignNote";
+import { useModules, isStructured, moduleOf, visibleFields } from "@/lib/modules";
+import { ModuleFields } from "./ModuleFields";
+import { AltreVoci } from "./AltreVoci";
+import { GuardianShare } from "./GuardianShare";
 
 const BR = { position: "bottom-right" };
 const motivo = (n) => (n.motivo_visita && n.motivo_visita !== "Non riportato" ? n.motivo_visita : "");
@@ -148,8 +152,13 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
   const [paste, setPaste] = useState(null);
 
   const g = note.crescita ?? {};
-  const tabs = tabsFor(note);
-  const current = tabs.find((t) => t.id === tab) ?? tabs[0];
+  const cat = useModules();
+  const structured = isStructured(note);
+  const mod = moduleOf(cat, note);
+  const tabs = tabsFor(note, cat);
+  const current = tabs.find((t) => t.id === tab) ?? tabs[0] ?? { id: "", fields: [] };
+  const mFields = structured && current.mgroup ? visibleFields(mod, note, current.mgroup) : [];
+  const setCampo = (k, v) => { touch(k); setNote((n) => ({ ...n, modulo: { ...n.modulo, campi: { ...(n.modulo?.campi ?? {}), [k]: v } } })); };
   const sections = (note.sezioni ?? []).map((x, i) => ({ ...x, i })).filter((x) => x.gruppo === current.group || (current.id === "esame" && x.gruppo === "esame_obiettivo"));
   const setSection = (i, patch) => setNote((n) => ({ ...n, sezioni: (n.sezioni ?? []).map((x, j) => (j === i ? { ...x, ...patch } : x)) }));
   const addSection = () => setNote((n) => ({ ...n, sezioni: [...(n.sezioni ?? []), { gruppo: current.group || "esame_obiettivo", titolo: "Nuova voce", testo: "" }] }));
@@ -183,7 +192,7 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
       const r = await api.updateConsultation(consultation.id, note, processing);
       if (r?.note && r.status !== "processing") setNote(r.note);
       if (r?.status) setC(r);
-      toast.success(r?.status === "processing" ? "Crescita e terapia salvate: il resto lo compila l'IA" : "Cartella pediatrica salvata", BR);
+      toast.success(r?.status === "processing" ? "Crescita e terapia salvate: il resto lo compila l'IA" : isPediatric(note) ? "Cartella pediatrica salvata" : "Cartella salvata", BR);
       onSaved?.();
     }
     catch (e) { toast.error(errMsg(e), BR); }
@@ -200,7 +209,7 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
     setPdfBusy(false);
   };
   const copy = async () => {
-    try { await navigator.clipboard.writeText(noteToText(consultation, note)); toast.success("Nota copiata negli appunti", BR); }
+    try { await navigator.clipboard.writeText(noteToText(consultation, note, cat)); toast.success("Nota copiata negli appunti", BR); }
     catch { toast.error("Copia non consentita dal browser", BR); }
   };
 
@@ -221,7 +230,7 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
       <div className="min-w-0 rounded-3xl bg-[var(--surface)] p-5 text-[var(--fg)] lg:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="text-[11px] uppercase tracking-[0.22em] text-[var(--fg2)]" data-testid="note-specialty">{isPediatric(note) ? "Cartella pediatrica · visita specialistica" : `Cartella clinica · ${note.specialita}`}</div>
+            <div className="text-[11px] uppercase tracking-[0.22em] text-[var(--fg2)]" data-testid="note-specialty">{isPediatric(note) ? "Cartella pediatrica · visita specialistica" : `Cartella clinica · ${mod?.nome && structured ? mod.nome : note.specialita}`}</div>
             <div className="font-display text-3xl">{consultation.patient_name}</div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -230,7 +239,7 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
             </button>
             {consultation.patient_id && onEditPatient && <ActionBtn onClick={() => onEditPatient(consultation.patient_id)} id="note-patient-btn"><IdCard size={15} /> Dati anagrafici</ActionBtn>}
             <ActionBtn onClick={copy} id="note-copy-btn" disabled={!ready}><Copy size={15} /> Copia</ActionBtn>
-            <ActionBtn onClick={() => printNote(consultation, note)} id="note-print-btn" disabled={!ready}><Printer size={15} /> Stampa</ActionBtn>
+            <ActionBtn onClick={() => printNote(consultation, note, cat)} id="note-print-btn" disabled={!ready}><Printer size={15} /> Stampa</ActionBtn>
             <button onClick={save} disabled={saving} className="flex items-center gap-2 rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--ink)] transition-transform hover:-translate-y-0.5 disabled:opacity-60" data-testid="note-save-btn"><Save size={15} /> {saving ? "Salvataggio…" : "Salva"}</button>
           </div>
         </div>
@@ -241,6 +250,7 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
             <span><span className="font-semibold">L’IA sta compilando la cartella.</span> <span className="text-[var(--fg2)]">Nel frattempo può usare Bodychart, Cassa, Crescita e Dati anagrafici: i campi si riempiranno da soli.</span></span>
           </div>
         )}
+        <GuardianShare consultation={consultation} onChange={setC} />
         <SignNote consultation={consultation} hasChart={!!pins} beforeSign={() => api.updateConsultation(consultation.id, note)} onSigned={(r) => { setC(r); setNote(r.note); setTouched(new Set()); onSaved?.(); }} />
         {failed && (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--alert)] bg-[var(--alert-bg)] px-4 py-3 text-sm text-[var(--alert)]" data-testid="note-failed-banner">
@@ -277,8 +287,8 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
         <div className="-mx-1 mt-5 flex gap-1 overflow-x-auto px-1 pb-1 md:mx-0 md:grid md:auto-cols-fr md:grid-flow-col md:overflow-visible md:rounded-2xl md:bg-[var(--raised)] md:p-1" role="tablist" data-testid="note-tabs">
           {tabs.map((t) => {
             const active = t.id === tab;
-            const done = ready && tabDone(t, note);
-            const toCheck = (t.fields ?? []).some(([k]) => marked(k)) || (note.sezioni ?? []).some((x) => (x.gruppo === t.group || (t.id === "esame" && x.gruppo === "esame_obiettivo")) && marked(secKey(x)));
+            const done = ready && tabDone(t, note, cat);
+            const toCheck = (t.fields ?? []).some(([k]) => marked(k)) || (structured && t.mgroup && visibleFields(mod, note, t.mgroup).some((f) => marked(f.key) || note.modulo?.campi?.[f.key]?.verifica)) || (note.sezioni ?? []).some((x) => (x.gruppo === t.group || (t.id === "esame" && x.gruppo === "esame_obiettivo")) && marked(secKey(x)));
             return (
               <button key={t.id} role="tab" aria-selected={active} onClick={() => setTab(t.id)} className={`relative flex shrink-0 items-center gap-2 rounded-2xl px-3.5 py-2.5 text-left text-sm font-medium leading-tight transition-colors md:shrink md:px-2.5 ${active ? "text-[var(--ink)]" : "text-[var(--fg2)] hover:bg-[var(--surface)] hover:text-[var(--fg)]"}`} data-testid={`note-tab-${t.id}`}>
                 {active && <motion.span layoutId="note-tab-pill" className="absolute inset-0 -z-0 rounded-2xl bg-[var(--accent)]" transition={{ type: "spring", stiffness: 380, damping: 32 }} />}
@@ -312,8 +322,10 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
                   )}
                 </label>
               ))}
+              {mFields.length > 0 && <ModuleFields fields={mFields} campi={note.modulo?.campi} onChange={setCampo} processing={processing} marked={marked} />}
               {sectionList}
-              {tab === "terapia" && <DoseCalculator drugs={note.farmaci ?? []} peso={g.peso_kg} set={setDrugs} />}
+              {tab === "terapia" && !structured && <DoseCalculator drugs={note.farmaci ?? []} peso={g.peso_kg} set={setDrugs} />}
+              {tab === "terapia" && structured && <AltreVoci sezioni={note.sezioni} setSection={setSection} delSection={delSection} processing={processing} />}
             </div>
           )}
         </div>
@@ -326,10 +338,10 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
 };
 
 const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
-const printNote = (c, note) => {
+const printNote = (c, note, cat) => {
   const w = window.open("", "_blank");
   if (!w) return toast.error("Consenti i popup per stampare", BR);
-  w.document.write(`<html><head><title>${esc(c.patient_name)}</title></head><body style="font:14px/1.6 Georgia,serif;color:#0B1736;padding:40px;white-space:pre-wrap">${esc(noteToText(c, note))}</body></html>`);
+  w.document.write(`<html><head><title>${esc(c.patient_name)}</title></head><body style="font:14px/1.6 Georgia,serif;color:#0B1736;padding:40px;white-space:pre-wrap">${esc(noteToText(c, note, cat))}</body></html>`);
   w.document.close();
   w.print();
 };

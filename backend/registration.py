@@ -289,7 +289,7 @@ def build_registration(db, current_user, start_session, models, pdf_for):
                                                                                  "receipt_no": {"$ne": None}}).sort("created_at", -1)]
         consents = [Consent.from_mongo(c).out() async for c in db.consents.find({"patient_id": pid, "owner_id": owner}).sort("signed_at", -1)]
         reports = [Consultation.from_mongo(c).out() async for c in db.consultations.find(
-            {"patient_id": pid, "owner_id": owner, "$or": [{"report_sent_at": {"$ne": None}}, {"portal_published": True}]}).sort("created_at", -1)]
+            {"patient_id": pid, "owner_id": owner, "guardian_hidden": {"$ne": True}, "$or": [{"report_sent_at": {"$ne": None}}, {"portal_published": True}]}).sort("created_at", -1)]
         charts = {d["consultation_id"] async for d in db.bodycharts.find({"consultation_id": {"$in": [r["id"] for r in reports]}, "owner_id": owner}, {"consultation_id": 1})}
         pcache = {}
         checkpoints = []
@@ -315,7 +315,7 @@ def build_registration(db, current_user, start_session, models, pdf_for):
                               "method": c["method"], "email_reports": c["email_reports"], "signed_at": c["signed_at"], "revoked_at": c["revoked_at"],
                               "channel": c.get("channel"), "document_id": c.get("document_id")} for c in consents],
                 "reports": [{"id": r["id"], "created_at": r["created_at"], "clinic": r["clinic"], "motivo": (r["note"] or {}).get("motivo_visita", ""),
-                             "diagnosi": (r["note"] or {}).get("diagnosi", ""), "riepilogo": (r["note"] or {}).get("riepilogo", ""), "bodychart": r["id"] in charts,
+                             "diagnosi": (r["note"] or {}).get("diagnosi", ""), "riepilogo": "" if prov.is_draft(((r.get("ai_provenance") or {}).get("parti") or {}).get("riassunto_famiglia")) else (r["note"] or {}).get("riepilogo", ""), "bodychart": r["id"] in charts,
                              "template_name": r.get("template_name", ""), "follow_up": (r["note"] or {}).get("follow_up", ""),
                              "ai_provenance": await prov.present(db, r.get("ai_provenance"), pcache)} for r in reports]}
 
@@ -349,7 +349,7 @@ def build_registration(db, current_user, start_session, models, pdf_for):
         doc = await db.users.find_one({"_id": ObjectId(user["id"])})
         c = await db.consultations.find_one({"_id": ObjectId(cid)}) if ObjectId.is_valid(cid) else None
         allowed = c and any(l["patient_id"] == c.get("patient_id") and l["owner_id"] == c.get("owner_id") for l in doc.get("children", []))
-        if not allowed or not (c.get("report_sent_at") or c.get("portal_published")):
+        if not allowed or c.get("guardian_hidden") or not (c.get("report_sent_at") or c.get("portal_published")):
             raise HTTPException(404, "Referto non disponibile")
         pdf, name = await pdf_for(c)
         await db.audit.insert_one({"action": "referto_portale_scaricato", "subject": seal_fields({"s": c["patient_name"]}, ("s",))["s"],

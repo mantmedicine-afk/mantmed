@@ -1,7 +1,12 @@
+import { isStructured, structuredTabs, moduleOf, visibleFields, valueText, structuredText } from "./modules";
+
+const ALLERGIE = ["allergie", "Allergie e intolleranze", "Come riferite"];
+const FARMACI = ["farmaci_in_uso", "Farmaci in uso", "Come riferiti"];
+const EO = ["esame_obiettivo", "Esame obiettivo generale (condizioni generali)", ""];
 export const TABS = [
-  { id: "anamnesi", n: "01", label: "Anamnesi", fields: [["anamnesi_fisiologica", "Fisiologica", "Gravidanza, parto, sviluppo psicomotorio, vaccinazioni"], ["allattamento", "Allattamento", "Materno, artificiale, misto · durata"], ["svezzamento", "Svezzamento", "Età d'inizio, alimenti introdotti, tolleranza"]] },
+  { id: "anamnesi", n: "01", label: "Anamnesi", fields: [["anamnesi_fisiologica", "Fisiologica", "Gravidanza, parto, sviluppo psicomotorio, vaccinazioni"], ["allattamento", "Allattamento", "Materno, artificiale, misto · durata"], ["svezzamento", "Svezzamento", "Età d'inizio, alimenti introdotti, tolleranza"], ALLERGIE, FARMACI] },
   { id: "motivo", n: "02", label: "Motivo e sintomi", fields: [["motivo_visita", "Motivo della visita", ""], ["sintomi", "Sintomi", "Esordio, durata, febbre, andamento"]] },
-  { id: "esame", n: "03", label: "Esame obiettivo", fields: [["torl", "TORL", "Otoscopia, faringe, rinofaringe, linfonodi"], ["torace_auscultazione", "Torace · Auscultazione", "MV, rumori aggiunti, toni cardiaci"], ["addome", "Addome", "Trattabilità, organomegalie, dolorabilità"]] },
+  { id: "esame", n: "03", label: "Esame obiettivo", fields: [EO, ["torl", "TORL", "Otoscopia, faringe, rinofaringe, linfonodi"], ["torace_auscultazione", "Torace · Auscultazione", "MV, rumori aggiunti, toni cardiaci"], ["addome", "Addome", "Trattabilità, organomegalie, dolorabilità"]] },
   { id: "crescita", n: "04", label: "Crescita", fields: [] },
   { id: "terapia", n: "05", label: "Diagnosi e terapia", fields: [["diagnosi", "Diagnosi", ""], ["terapia", "Terapia e indicazioni", ""], ["follow_up", "Follow-up", ""]] },
 ];
@@ -14,18 +19,31 @@ export const isPediatric = (note) => (note?.modulo?.id ? note.modulo.id === "ped
 
 // Struttura neutrale per le altre specializzazioni: campi comuni + voci specialistiche generate dall'IA (note.sezioni)
 const SPECIALIST_TABS = [
-  { id: "anamnesi", n: "01", label: "Anamnesi", group: "anamnesi", fields: [["anamnesi_fisiologica", "Anamnesi", "Patologica remota e prossima, familiarità, farmaci in uso, allergie"]] },
+  { id: "anamnesi", n: "01", label: "Anamnesi", group: "anamnesi", fields: [["anamnesi_fisiologica", "Anamnesi", "Patologica remota e prossima, familiarità"], ALLERGIE, FARMACI] },
   { id: "motivo", n: "02", label: "Motivo e sintomi", group: "sintomi", fields: [["motivo_visita", "Motivo della visita", ""], ["sintomi", "Sintomi", "Esordio, durata, caratteristiche"]] },
-  { id: "esame", n: "03", label: "Esame obiettivo", group: "esame_obiettivo", fields: [] },
+  { id: "esame", n: "03", label: "Esame obiettivo", group: "esame_obiettivo", fields: [EO] },
   { id: "crescita", n: "04", label: "Parametri", group: "parametri_vitali", fields: [] },
   { id: "terapia", n: "05", label: "Diagnosi e terapia", group: "altro", fields: [["diagnosi", "Diagnosi", ""], ["terapia", "Terapia e indicazioni", ""], ["follow_up", "Follow-up", ""]] },
 ];
 const PED_GROUPS = { anamnesi: "anamnesi", motivo: "sintomi", esame: "esame_obiettivo", crescita: "parametri_vitali", terapia: "altro" };
-export const tabsFor = (note) => (isPediatric(note) ? TABS.map((t) => ({ ...t, group: PED_GROUPS[t.id] })) : SPECIALIST_TABS);
+// Personalizzazione salvata nella visita: campi del modulo nascosti (se vuoti) e riordinati
+const applyLayout = (fields, note) => {
+  const hid = note?.modulo?.nascosti ?? [];
+  const order = note?.modulo?.ordine ?? [];
+  const mods = fields.filter(([k]) => MODULE_KEYS.has(k) && !(hid.includes(k) && !String(getField(note, k) ?? "").trim()))
+    .sort((a, b) => (order.includes(a[0]) ? order.indexOf(a[0]) : 99) - (order.includes(b[0]) ? order.indexOf(b[0]) : 99));
+  let i = 0;
+  return fields.flatMap((f) => (MODULE_KEYS.has(f[0]) ? (i < mods.length ? [mods[i++]] : []) : [f])).concat(mods.slice(i));
+};
+export const tabsFor = (note, cat) => {
+  if (isStructured(note)) return structuredTabs(moduleOf(cat, note), note);
+  return isPediatric(note) ? TABS.map((t) => ({ ...t, group: PED_GROUPS[t.id], fields: applyLayout(t.fields, note) })) : SPECIALIST_TABS;
+};
 
 const filled = (v) => Boolean(v && String(v).trim() && String(v).trim() !== "Non riportato");
 
-export const tabDone = (tab, note) => {
+export const tabDone = (tab, note, cat) => {
+  if (isStructured(note) && visibleFields(moduleOf(cat, note), note, tab.mgroup).some((f) => filled(valueText(f, note.modulo?.campi?.[f.key])))) return true;
   if (tab.id === "crescita") return Boolean(note?.crescita?.peso_kg) || (note?.sezioni ?? []).some((x) => x.gruppo === tab.group && filled(x.testo));
   return tab.fields.some(([k]) => filled(getField(note, k))) || (note?.sezioni ?? []).some((x) => x.gruppo === tab.group && filled(x.testo));
 };
@@ -47,7 +65,8 @@ export const doseFor = (d, peso) => {
 const r1 = (n) => (n == null ? "—" : (Math.round(n * 10) / 10).toLocaleString("it-IT"));
 export { r1 };
 
-export const noteToText = (c, note) => {
+export const noteToText = (c, note, cat) => {
+  if (isStructured(note)) return structuredText(c, note, moduleOf(cat, note));
   const g = note?.crescita ?? {};
   const block = (t, rows) => `${t.toUpperCase()}\n${rows.filter(Boolean).join("\n")}`;
   const txt = (k, l) => `${l}: ${getField(note, k) || "—"}`;

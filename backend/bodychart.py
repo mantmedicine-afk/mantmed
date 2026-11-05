@@ -328,7 +328,7 @@ def build_bodychart(db, current_user, llm_json=None):
         u = await db.users.find_one({"_id": ObjectId(user["id"])})
         c = await db.consultations.find_one({"_id": ObjectId(cid)}) if ObjectId.is_valid(cid) else None
         allowed = c and any(l["patient_id"] == c.get("patient_id") and l["owner_id"] == c.get("owner_id") for l in u.get("children", []))
-        doc = await db.bodycharts.find_one({"consultation_id": cid, "owner_id": c["owner_id"]}) if allowed and (c.get("report_sent_at") or c.get("portal_published")) else None
+        doc = await db.bodycharts.find_one({"consultation_id": cid, "owner_id": c["owner_id"]}) if allowed and not c.get("guardian_hidden") and (c.get("report_sent_at") or c.get("portal_published")) else None
         if not doc:
             raise HTTPException(404, "Bodychart non disponibile")
         o = out(doc)

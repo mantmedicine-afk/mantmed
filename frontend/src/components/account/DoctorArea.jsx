@@ -8,6 +8,7 @@ import { ShowcaseSection } from "./ShowcaseSection";
 import { DoctorSignatureSection } from "./DoctorSignatureSection";
 import { AvailabilitySection } from "./AvailabilitySection";
 import { VisitTemplatesSection } from "./VisitTemplatesSection";
+import { ModuleSettingsCard } from "./ModuleSettingsCard";
 import { AiRepliesSection } from "./AiRepliesSection";
 import { NotificationsSection } from "./NotificationsSection";
 import { SecuritySection } from "./SecuritySection";
@@ -20,7 +21,7 @@ const ProfessionalProfile = (p) => (
 const ALIAS = { vetrina: "profilo", firma: "profilo", bilanci: "modelli" };
 
 const BEHAVIOR = ({ stats, onCompliance, onFeedback, nav }) => ({
-  profilo: { C: ProfessionalProfile }, orari: { C: AvailabilitySection }, modelli: { C: VisitTemplatesSection },
+  profilo: { C: ProfessionalProfile }, orari: { C: AvailabilitySection }, modelli: { C: (p) => <div className="space-y-6"><ModuleSettingsCard /><VisitTemplatesSection {...p} /></div> },
   "mantai-risposte": { C: AiRepliesSection }, "mantai-impostazioni": { C: MantAISettingsSection }, notifiche: { C: NotificationsSection }, sicurezza: { C: SecuritySection },
   statistiche: { node: stats }, "tessera-sanitaria": { node: <TsCard /> },
   esportazioni: { onClick: () => nav("/app/cassa#cassa-commercialista") }, gdpr: { onClick: onCompliance }, feedback: { onClick: onFeedback },

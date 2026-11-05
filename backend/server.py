@@ -35,8 +35,9 @@ from health_passport import build_health_passport
 from bodychart import build_bodychart, report_payload
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, BeforeValidator, model_validator
-from typing import List, Optional, Annotated, Literal, ClassVar, Dict
-from specialty_modules import upgrade_note, module_for, module_keys, catalog as modules_catalog
+from typing import List, Optional, Annotated, Literal, ClassVar, Dict, Any
+from specialty_modules import (upgrade_note, module_for, module_keys, catalog as modules_catalog, STRUCTURED, module_prompt, parse_module,
+                               drop_duplicates, build_module_settings)
 from datetime import datetime, timezone
 from crypto import seal_fields, unseal_fields, is_sealed, KEY_FINGERPRINT, seal, unseal, seal_bytes, unseal_bytes
 import asyncio
@@ -241,19 +242,22 @@ class Drug(BaseModel):
 class NoteSection(BaseModel):
     """Voce specialistica dinamica (es. Cardiologia → 'Pressione arteriosa', Ortopedia → 'Range of motion')."""
     model_config = ConfigDict(extra="ignore")
-    gruppo: Literal["anamnesi", "sintomi", "parametri_vitali", "esame_obiettivo", "altro"] = "esame_obiettivo"
+    gruppo: Literal["anamnesi", "sintomi", "parametri_vitali", "esame_obiettivo", "altro", "altre_voci"] = "esame_obiettivo"
     titolo: str = ""
     testo: str = ""
     sezione: str = ""  # sezione del modello checklist (es. "Parametri")
     fonte: Literal["", "ai", "manuale"] = ""
     mancante: bool = False
+    da_verificare: bool = False  # "Altre voci" aggiunte da MantAI: nel PDF solo dopo conferma del medico
 
 
 class NoteModule(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = "generale"
     versione: int = 1
-    campi: Dict[str, str] = Field(default_factory=dict)
+    campi: Dict[str, Any] = Field(default_factory=dict)
+    nascosti: List[str] = Field(default_factory=list)  # personalizzazione del medico al momento della visita
+    ordine: List[str] = Field(default_factory=list)
 
 
 class ClinicalNote(BaseModel):
@@ -262,8 +266,11 @@ class ClinicalNote(BaseModel):
     modulo: NoteModule = Field(default_factory=NoteModule)
     sezioni: List[NoteSection] = Field(default_factory=list)
     anamnesi_fisiologica: str = ""
+    allergie: str = ""
+    farmaci_in_uso: str = ""
     motivo_visita: str = ""
     sintomi: str = ""
+    esame_obiettivo: str = ""
     crescita: Growth = Field(default_factory=Growth)
     diagnosi: str = ""
     terapia: str = ""
@@ -297,6 +304,8 @@ class Consultation(BaseDocument):
     pdf_exports: int = 0
     portal_published: bool = False
     portal_hidden_by_parent: bool = False
+    guardian_hidden: bool = False  # visita riservata ai tutori (es. Ginecologia di paziente minorenne)
+    guardian_shared_at: Optional[str] = None
     signed_at: Optional[str] = None
     obscured: bool = False
     fse: Optional[dict] = None
@@ -772,6 +781,7 @@ NOTE_SYSTEM = (
     "e compili la CARTELLA PEDIATRICA STANDARD. Rispondi SOLO con un JSON valido con queste chiavi:\n"
     "anamnesi_fisiologica, allattamento, svezzamento, motivo_visita, sintomi, torl, torace_auscultazione, addome, "
     "diagnosi, terapia, follow_up (stringhe in italiano, concise e cliniche);\n"
+    + "{NEW_BASE}" +
     "crescita: {eta_mesi (numero|null), sesso ('M'|'F'|''), peso_kg (numero|null), altezza_cm (numero|null), "
     "circonferenza_cranica_cm (numero|null), percentile_peso, percentile_altezza, percentile_cc (stringhe)};\n"
     "farmaci: lista di {nome, mg_kg_dose (numero|null), dosi_giorno (intero|null), concentrazione_mg_ml (numero|null), "
@@ -780,6 +790,9 @@ NOTE_SYSTEM = (
     "se un numero manca usa null. Per i farmaci riporta SOLO quelli prescritti dal medico e SOLO i dosaggi da lui indicati: "
     "non proporre mai dosaggi o farmaci non menzionati. torl = testa, orecchie, rino, laringe/faringe (otoscopia, faringe, linfonodi)."
 )
+NEW_BASE = ("esame_obiettivo (condizioni generali del paziente ed esame obiettivo generale, solo se descritti), allergie (allergie e intolleranze riferite), "
+            "farmaci_in_uso (farmaci già in uso riferiti): stringhe; se non dette usa \"\" (stringa vuota, non 'Non riportato');\n")
+NOTE_SYSTEM = NOTE_SYSTEM.replace("{NEW_BASE}", NEW_BASE)
 
 
 def clean_specialty(raw: str) -> str:
@@ -797,7 +810,7 @@ async def doctor_specialty(uid: Optional[str]) -> str:
     return clean_specialty(((u or {}).get("profile") or {}).get("specialty") or os.environ.get("DOCTOR_SPECIALTY", "Pediatria"))
 
 
-def note_system(spec: str, fields: Optional[list] = None, mid: str = "") -> str:
+def note_system(spec: str, fields: Optional[list] = None, mid: str = "", hidden: Optional[list] = None) -> str:
     head = (f"Sei un assistente medico specializzato in {spec}. Estrai le informazioni dalla seguente trascrizione e compilale "
             "nei campi standard pertinenti per questa specifica branca medica. Rispondi SOLO con un JSON valido.\n")
     rules = ("Regole: usa solo informazioni presenti nella trascrizione. Se un campo testuale manca scrivi 'Non riportato'; se un numero manca usa null. "
@@ -806,16 +819,23 @@ def note_system(spec: str, fields: Optional[list] = None, mid: str = "") -> str:
              "max_mg_dose (numero|null), giorni (intero|null), note}.\n")
     if (mid or module_for(spec)) == "pediatria":
         return head + "Chiavi:\n" + NOTE_SYSTEM.split("\n", 1)[1].replace("\nRegole:", "\n" + fields_prompt(fields) + "Regole:", 1) if fields else head + "Chiavi:\n" + NOTE_SYSTEM.split("\n", 1)[1]
+    if (mid or module_for(spec)) in STRUCTURED:
+        return head + (
+            "Chiavi:\n"
+            "motivo_visita, anamnesi_fisiologica (anamnesi generale: patologica remota e prossima, familiarità), sintomi, "
+            "diagnosi (solo la diagnosi detta dal medico), terapia, follow_up: stringhe in italiano, concise; \"\" se non dette;\n" + NEW_BASE +
+            module_prompt(mid or module_for(spec), hidden or []) + (fields_prompt(fields) if fields else "") +
+            "Regole: usa solo informazioni presenti nella trascrizione. Non proporre mai farmaci, dosaggi, diagnosi o accertamenti non menzionati.")
     if fields:
         return head + (
             "Chiavi:\n"
-            "anamnesi_fisiologica (anamnesi generale: patologica remota e prossima, familiarità, farmaci in uso, allergie), motivo_visita, sintomi, "
-            "diagnosi, terapia, follow_up (stringhe in italiano, concise e cliniche);\n" + fields_prompt(fields) +
+            "anamnesi_fisiologica (anamnesi generale: patologica remota e prossima, familiarità), motivo_visita, sintomi, "
+            "diagnosi, terapia, follow_up (stringhe in italiano, concise e cliniche);\n" + NEW_BASE + fields_prompt(fields) +
             "crescita: {peso_kg (numero|null), altezza_cm (numero|null)} solo se riportati;\n" + drugs + rules)
     return head + (
         "Chiavi:\n"
-        "anamnesi_fisiologica (anamnesi generale: patologica remota e prossima, familiarità, farmaci in uso, allergie), motivo_visita, sintomi, "
-        "diagnosi, terapia, follow_up (stringhe in italiano, concise e cliniche);\n"
+        "anamnesi_fisiologica (anamnesi generale: patologica remota e prossima, familiarità), motivo_visita, sintomi, "
+        "diagnosi, terapia, follow_up (stringhe in italiano, concise e cliniche);\n" + NEW_BASE +
         f"sezioni: lista di {{gruppo, titolo, testo}} con le voci SPECIFICHE di {spec}. gruppo è uno tra 'anamnesi', 'sintomi', 'esame_obiettivo', 'altro'. "
         f"Per l'esame obiettivo usa i distretti e le manovre tipici di {spec} (es. Cardiologia: Pressione arteriosa, Frequenza cardiaca, Auscultazione cardiaca, ECG; "
         "Ortopedia: Ispezione, Palpazione, Range of motion, Test specifici, Imaging; Dermatologia: Sede e morfologia delle lesioni, Dermatoscopia). "
@@ -849,25 +869,34 @@ async def _safe_summary(spec: str, transcript: str, session: str) -> str:
 
 
 async def structure_note(transcript: str, session: str, specialty: str = "Pediatria", fields: Optional[list] = None, context: str = "",
-                         mid: str = "") -> ClinicalNote:
+                         mid: str = "", layout: Optional[dict] = None) -> ClinicalNote:
     spec = clean_specialty(specialty)
     mid = mid or module_for(spec)
-    chat = LlmChat(api_key=LLM_KEY, session_id=session, system_message=note_system(spec, fields, mid)).with_model("openai", "gpt-5.6-terra")
+    layout = layout or {"nascosti": [], "ordine": []}
+    chat = LlmChat(api_key=LLM_KEY, session_id=session, system_message=note_system(spec, fields, mid, layout["nascosti"])).with_model("openai", "gpt-5.6-terra")
     raw = await chat.send_message(UserMessage(text=f"Trascrizione:\n{transcript}{context}"))
     match = re.search(r"\{.*\}", raw, re.S)
     data = json.loads(match.group(0)) if match else {}
     text_keys = [k for k, f in ClinicalNote.model_fields.items() if f.annotation is str]
     clean = {k: str(data.get(k) or "") for k in text_keys}
     clean["specialita"] = spec
-    clean["modulo"] = {"id": mid, "campi": {k: str(data.get(k) or "") for k in module_keys(mid)}}
     clean["crescita"] = data.get("crescita") if isinstance(data.get("crescita"), dict) else {}
     clean["farmaci"] = [d for d in data.get("farmaci") or [] if isinstance(d, dict)]
-    sez = []
-    for d in data.get("sezioni") or []:
-        if isinstance(d, dict) and str(d.get("titolo") or "").strip():
-            g = d.get("gruppo") if d.get("gruppo") in ("anamnesi", "sintomi", "esame_obiettivo", "altro") else "esame_obiettivo"
-            sez.append({"gruppo": g, "titolo": str(d["titolo"])[:80], "testo": str(d.get("testo") or "Non riportato")})
-    clean["sezioni"] = map_fields(fields, data.get("campi_modello")) if fields else sez[:20]
+    if mid in STRUCTURED:
+        clean["farmaci"] = []  # moduli strutturati: la prescrizione resta nel testo di "Terapia", come detta
+        campi, altre = parse_module(mid, data)
+        clean["sezioni"] = (map_fields(fields, data.get("campi_modello")) if fields else []) + altre
+    else:
+        campi = {k: str(data.get(k) or "") for k in module_keys(mid)}
+        sez = []
+        for d in data.get("sezioni") or []:
+            if isinstance(d, dict) and str(d.get("titolo") or "").strip():
+                g = d.get("gruppo") if d.get("gruppo") in ("anamnesi", "sintomi", "esame_obiettivo", "altro") else "esame_obiettivo"
+                sez.append({"gruppo": g, "titolo": str(d["titolo"])[:80], "testo": str(d.get("testo") or "Non riportato")})
+        clean["sezioni"] = map_fields(fields, data.get("campi_modello")) if fields else sez[:20]
+    for k in layout["nascosti"]:
+        campi[k] = "" if isinstance(campi.get(k), str) else campi.get(k)
+    clean["modulo"] = {"id": mid, "campi": campi, **layout}
     return ClinicalNote.model_validate(clean)
 
 
@@ -877,6 +906,15 @@ async def llm_json(prompt: str) -> dict:
 
 
 tpl_router, resolve_template = build_visit_templates(db, tdb, doctor_specialty, llm_json)
+module_router, doctor_module, module_layout = build_module_settings(db, tdb, doctor_specialty, OWNER.get)
+
+
+async def visit_setup(uid: str, tpl: dict, patient: Optional[dict]) -> dict:
+    """Modulo della visita (scelto dal medico o dalla specialità), sua personalizzazione e campi del modello senza doppioni."""
+    mid = await doctor_module(uid)
+    minor = bool(patient and patient.get("birth_date") and age_months(patient["birth_date"]) < 216)
+    return {"mid": mid, "layout": await module_layout(uid, mid), "fields": drop_duplicates(tpl["fields"], mid),
+            "guardian_hidden": mid == "ginecologia" and minor}
 
 
 @api.post("/consultations")
@@ -890,16 +928,17 @@ async def create_consultation(body: ConsultationIn, user: dict = Depends(current
         raise HTTPException(412, "Conferma l'acquisizione del consenso privacy per la visita libera")
     t0 = time.monotonic()
     tpl = await resolve_template(body.template_id)
+    vs = await visit_setup(user["id"], tpl, patient)
     pv = await latest_previsit(db, body.patient_id, user["id"]) if tpl.get("bilancio") else None
     try:
-        note = await structure_note(body.transcript, f"consult-{uuid.uuid4()}", await doctor_specialty(user["id"]), tpl["fields"],
-                                    previsit_prompt(pv) if pv else "")
+        note = await structure_note(body.transcript, f"consult-{uuid.uuid4()}", await doctor_specialty(user["id"]), vs["fields"] or None,
+                                    previsit_prompt(pv) if pv else "", vs["mid"], vs["layout"])
     except Exception as e:
         logger.exception("Strutturazione fallita")
         raise HTTPException(502, f"Generazione nota fallita: {e}")
     enrich_growth(note, patient, date.today())
     c = Consultation(**body.model_dump(exclude={"template_id"}), note=note, doctor_id=user["id"], ai_sec=round(time.monotonic() - t0, 1),
-                     template_id=tpl["id"], template_name=tpl["name"], template_fields=tpl["fields"], previsit=pv,
+                     template_id=tpl["id"], template_name=tpl["name"], template_fields=vs["fields"], previsit=pv, guardian_hidden=vs["guardian_hidden"],
                      ai_provenance=prov.make(prov.note_tipo(tpl["name"], tpl["fields"], tpl.get("bilancio")), prov.GPT), ai_snapshot=note.model_dump())
     res = await tdb.consultations.insert_one(c.to_mongo())
     c.id = str(res.inserted_id)
@@ -1021,10 +1060,12 @@ async def run_consult_job(cid: str, owner: str):
         spec = await doctor_specialty(owner)
         cur = unseal_fields(await db.consultations.find_one({"_id": ObjectId(cid)}, {"template_fields": 1, "previsit": 1, "template_name": 1, "note": 1}) or {}, ("previsit", "note"))
         pv = cur.get("previsit")
-        mid = ((cur.get("note") or {}).get("modulo") or {}).get("id") or ""
+        cmod = (cur.get("note") or {}).get("modulo") or {}
+        mid = cmod.get("id") or ""
         ck = unseal_fields(await db.consultations.find_one({"_id": ObjectId(cid)}, {"checklist_id": 1, "checklist_manual": 1}) or {}, ("checklist_manual",))
         ctx = (previsit_prompt(pv) if pv else "") + (CHECKLIST_RULE if ck.get("checklist_id") else "")
-        ai, summary = await asyncio.gather(structure_note(transcript, f"consult-{cid}", spec, cur.get("template_fields") or None, ctx, mid),
+        ai, summary = await asyncio.gather(structure_note(transcript, f"consult-{cid}", spec, cur.get("template_fields") or None, ctx, mid,
+                                                          {"nascosti": cmod.get("nascosti") or [], "ordine": cmod.get("ordine") or []}),
                                            _safe_summary(spec, transcript, f"sum-{cid}"))
         ai.riepilogo = summary
         if ck.get("checklist_id"):
@@ -1142,7 +1183,9 @@ async def start_consultation(
     if len(data) > 25 * 1024 * 1024:
         raise HTTPException(413, "Audio oltre 25 MB: per visite molto lunghe divida la registrazione")
     tpl = await resolve_template(template_id or None)
-    note = ClinicalNote(specialita=await doctor_specialty(user["id"]), sezioni=[NoteSection(gruppo=f["gruppo"], titolo=f["titolo"]) for f in tpl["fields"]])
+    vs = await visit_setup(user["id"], tpl, patient)
+    note = ClinicalNote(specialita=await doctor_specialty(user["id"]), modulo={"id": vs["mid"], **vs["layout"]},
+                        sezioni=[NoteSection(gruppo=f["gruppo"], titolo=f["titolo"]) for f in vs["fields"]])
     enrich_growth(note, patient, date.today())
     oid_new = ObjectId()
     cid = str(oid_new)
@@ -1163,7 +1206,7 @@ async def start_consultation(
     c = Consultation(patient_name=patient_name.strip(), patient_id=patient_id, clinic=clinic, waiting_id=waiting_id,
                      transcript="" if (data or parts) else transcript.strip(),
                      note=note, status="processing", duration_sec=duration_sec, paper_consent=paper_consent, doctor_id=user["id"],
-                     template_id=tpl["id"], template_name=tpl["name"], template_fields=tpl["fields"],
+                     template_id=tpl["id"], template_name=tpl["name"], template_fields=vs["fields"], guardian_hidden=vs["guardian_hidden"],
                      previsit=await latest_previsit(db, patient_id, user["id"]) if tpl.get("bilancio") else None,
                      checklist_id=checklist_id, checklist_manual=manual or None)
     await tdb.consultations.insert_one({**c.to_mongo(), "_id": oid_new, "rev": 0})
@@ -1182,7 +1225,9 @@ CHECKLIST_RULE = ("\n\nNota per campi_modello (checklist della visita): scrivi i
 
 async def _demo_consultation(user, name, patient_id, clinic, waiting_id, duration_sec, paper_consent, tpl, manual, ticked):
     """Modalità dimostrativa (solo account demo): nota finta già pronta, nessuna chiamata IA."""
-    note = ClinicalNote(specialita=await doctor_specialty(user["id"]), sezioni=[NoteSection(**x) for x in demo_sezioni(tpl["fields"], manual, ticked)],
+    vs = await visit_setup(user["id"], tpl, await get_patient(patient_id))
+    note = ClinicalNote(specialita=await doctor_specialty(user["id"]), modulo={"id": vs["mid"], **vs["layout"]},
+                        sezioni=[NoteSection(**x) for x in demo_sezioni(vs["fields"], manual, ticked)],
                         motivo_visita=tpl["name"], riepilogo="Visita dimostrativa: dati di esempio, nessun dato reale.")
     enrich_growth(note, await get_patient(patient_id), date.today())
     c = Consultation(patient_name=name, patient_id=patient_id, clinic=clinic, waiting_id=waiting_id, transcript="Trascrizione dimostrativa.",
@@ -1405,6 +1450,8 @@ async def send_report(cid: str, user: dict = Depends(current_user)):
         raise HTTPException(404, "Consultazione non trovata")
     if needs_signature(doc):
         raise HTTPException(409, SIGN_FIRST)
+    if doc.get("guardian_hidden"):
+        raise HTTPException(409, GUARDIAN_HIDDEN)
     c = Consultation.from_mongo(doc).out()
     patient = await get_patient(c.get("patient_id"))
     to = (patient or {}).get("guardian_email", "").strip()
@@ -1465,6 +1512,24 @@ class PortalPublishIn(BaseModel):
     published: bool
 
 
+GUARDIAN_HIDDEN = "Visita riservata: non è visibile ai tutori. La condivida con i tutori dalla cartella se lo ritiene opportuno"
+
+
+class GuardianShareIn(BaseModel):
+    share: bool
+
+
+@api.post("/consultations/{cid}/guardians")
+async def share_with_guardians(cid: str, body: GuardianShareIn, user: dict = Depends(current_user)):
+    """Scelta esplicita del medico, per la singola visita, di renderla visibile (o di nuovo riservata) ai tutori."""
+    doc = await tdb.consultations.find_one_and_update({"_id": oid(cid)}, {"$set": {"guardian_hidden": not body.share, "guardian_shared_at": now_iso() if body.share else None}},
+                                                      return_document=True)
+    if not doc:
+        raise HTTPException(404, "Consultazione non trovata")
+    await audit("visita_condivisa_tutori" if body.share else "visita_riservata_tutori", doc["patient_name"])
+    return Consultation.from_mongo(doc).out()
+
+
 @api.post("/consultations/{cid}/portal")
 async def publish_to_portal(cid: str, body: PortalPublishIn):
     if body.published:
@@ -1478,7 +1543,7 @@ async def publish_to_portal(cid: str, body: PortalPublishIn):
     if not doc:
         raise HTTPException(404, "Consultazione non trovata")
     await audit("referto_portale" if body.published else "referto_portale_ritirato", doc["patient_name"])
-    if body.published and doc.get("patient_id"):
+    if body.published and doc.get("patient_id") and not doc.get("guardian_hidden"):
         visit = datetime.fromisoformat(doc["created_at"]).strftime("%d/%m/%Y")
         await notify_parents(db, doc["patient_id"], doc["owner_id"], "report", "Nuovo referto disponibile", f"{doc['patient_name']} · visita del {visit}", ref=cid, key=f"rep:{cid}",
                              ai_line=report_ai_line(doc))
@@ -2084,7 +2149,7 @@ async def portal_simple(pid: str, user: dict = Depends(require_role(current_user
     link = next((c for c in (u or {}).get("children") or [] if c["patient_id"] == pid), None)
     if not link:
         raise HTTPException(404, "Cartella non collegata al suo account")
-    raw = await db.consultations.find_one({"patient_id": pid, "owner_id": link["owner_id"], "status": {"$ne": "processing"},
+    raw = await db.consultations.find_one({"patient_id": pid, "owner_id": link["owner_id"], "status": {"$ne": "processing"}, "guardian_hidden": {"$ne": True},
                                            "$or": [{"report_sent_at": {"$ne": None}}, {"portal_published": True}]}, sort=[("created_at", -1)])
     if not raw:
         return {"available": False}
@@ -2131,6 +2196,7 @@ public_api.include_router(sd_parent)
 public_api.include_router(sd_public)
 api.include_router(bc_doctor)
 api.include_router(tpl_router)
+api.include_router(module_router)
 public_api.include_router(bc_parent)
 app.include_router(public_api)
 app.include_router(api)

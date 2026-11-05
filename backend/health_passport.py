@@ -185,7 +185,7 @@ def build_health_passport(db, tdb, current_user, parent_user, models, pdf_for, a
                     m = meta.get(f) or {}
                     summary[k].append({"value": v, "by": m.get("by") or doc_name, "at": m.get("at") or p.get("created_at")})
             q = {"patient_id": link["patient_id"], "owner_id": link["owner_id"]}
-            async for c in db.consultations.find({**q, "status": {"$ne": "processing"}, "obscured": {"$ne": True},
+            async for c in db.consultations.find({**q, "status": {"$ne": "processing"}, "obscured": {"$ne": True}, "guardian_hidden": {"$ne": True},
                                                   "$or": [{"report_sent_at": {"$ne": None}}, {"portal_published": True}]}):
                 x = Consultation.from_mongo(c).out()
                 if shared and x.get("portal_hidden_by_parent"):

@@ -19,6 +19,7 @@ import { DOCTOR_STEPS } from "@/components/tour/steps";
 import { useTour } from "@/components/tour/useTour";
 import { DoctorMessages } from "@/components/dash/DoctorMessages";
 import { AbsenceBanner } from "@/components/dash/AbsenceBanner";
+import { ModuleNotice } from "@/components/dash/ModuleNotice";
 import { SupportReplies } from "@/components/support/SupportReplies";
 import { SignatureReminder } from "@/components/signature/SignatureReminder";
 import { usePoll } from "@/hooks/usePoll";
@@ -149,7 +150,7 @@ export default function Dashboard() {
     <div className="min-h-screen overflow-x-clip bg-[var(--bg)] md:min-h-[calc(100dvh-4rem)]" data-testid="dashboard" data-section={sezione}>
       <TopBar onCompliance={() => setCompliance(true)} onTour={() => setTour(true)} search={search} />
       {sezione === "agenda" && <OggiScreen appointments={appointments} patients={patients} notes={notes} unread={unread} requests={requests}
-        onStart={start} onOpenPatient={setPassportId} onSign={openVisit} onMarkDone={markDone} top={<><AbsenceBanner /><SupportReplies /><SignatureReminder /></>} />}
+        onStart={start} onOpenPatient={setPassportId} onSign={openVisit} onMarkDone={markDone} top={<><ModuleNotice /><AbsenceBanner /><SupportReplies /><SignatureReminder /></>} />}
       {sezione === "pazienti" && <>
         <PageTitle kicker="Archivio clinico" title="Pazienti" it="& cartelle cliniche" />
         <div className="mx-auto max-w-[1440px] space-y-5 pb-12" data-testid="patients-page">
