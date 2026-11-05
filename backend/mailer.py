@@ -108,7 +108,11 @@ async def send_email(*, to: str, subject: str, html: str, attachments: list | No
             logger.warning(f"Email paused: {body.get('code')} ({e.response.status_code}): {body.get('message', '')}")
             raise HTTPException(503, "Invio email momentaneamente non disponibile: credito del servizio email esaurito")
         logger.error(f"Email send failed: {e.response.status_code} {e.response.text}")
-        if 400 <= e.response.status_code < 500:
+        if e.response.status_code == 413:
+            raise HTTPException(422, "Allegati troppo grandi per l'email: scelga un periodo più breve")
+        if e.response.status_code == 429:
+            raise HTTPException(429, "Troppi invii ravvicinati: riprovi tra qualche minuto")
+        if e.response.status_code in (400, 422):
             raise HTTPException(422, f"Indirizzo email non raggiungibile ({to}): lo verifichi e riprovi")
         raise HTTPException(502, "Invio email non riuscito")
     except Exception as e:

@@ -254,7 +254,7 @@ class TestAccountant:
     def test_send(self, s):
         r = s.post(f"{API}/cash/accountant/send", json=self.rng())
         print("SEND", r.status_code, r.text[:300])
-        assert r.status_code in (200, 502, 503), r.text
+        assert r.status_code in (200, 422, 503), r.text
 
     def test_send_real_to_resend_sink(self, s, settings):
         try:
@@ -273,3 +273,123 @@ class TestAccountant:
         finally:
             assert s.put(f"{API}/cash/settings", json=settings_body(settings)).status_code == 200
         assert s.get(f"{API}/cash/settings").json()["billing"]["accountant_email"] == settings["billing"]["accountant_email"]
+
+
+# ---------- RETEST iteration_67: correzioni ----------
+class TestRetestFixes:
+    def rng(self):
+        t = date.today()
+        return {"start": f"{t.year}-01-01", "end": t.isoformat()}
+
+    # mailer: destinatario rifiutato -> 422 italiano (no 502 Cloudflare)
+    def test_send_undeliverable_422(self, s, settings):
+        try:
+            assert s.put(f"{API}/cash/settings", json=settings_body(settings, accountant_email="commercialista.demo@example.com")).status_code == 200
+            r = s.post(f"{API}/cash/accountant/send", json=self.rng())
+            print("UNDELIV", r.status_code, r.text[:300])
+            assert r.status_code == 422, r.text[:300]
+            assert "Indirizzo email non raggiungibile" in r.json()["detail"] and "commercialista.demo@example.com" in r.json()["detail"]
+        finally:
+            assert s.put(f"{API}/cash/settings", json=settings_body(settings, accountant_email="delivered@resend.dev")).status_code == 200
+
+    # legacy: regime aggiornato, PDF senza dicitura STS se s.n., annullo 409
+    def test_legacy_regime_pdf_cancel(self, s, settings):
+        items = s.get(f"{API}/cash/invoices", params={"limit": 1000}).json()["items"]
+        legacy = [i for i in items if i["legacy"]]
+        if not legacy:
+            pytest.skip("nessuna fattura legacy")
+        cur = settings["billing"]["regime"]
+        assert all(i["regime"] == cur for i in legacy)
+        other = "forfettario" if cur == "ordinario" else "ordinario"
+        try:
+            assert s.put(f"{API}/cash/settings", json=settings_body(settings, regime=other)).status_code == 200
+            items2 = s.get(f"{API}/cash/invoices", params={"limit": 1000}).json()["items"]
+            assert all(i["regime"] == other for i in items2 if i["legacy"])
+            assert all(i["regime"] == cur for i in items2 if not i["legacy"])
+        finally:
+            assert s.put(f"{API}/cash/settings", json=settings_body(settings)).status_code == 200
+        items3 = s.get(f"{API}/cash/invoices", params={"limit": 1000}).json()["items"]
+        assert all(i["regime"] == cur for i in items3 if i["legacy"])
+        for i in legacy:
+            assert s.post(f"{API}/cash/invoices/{i['id']}/cancel").status_code == 409
+            if not i["number"] and i["client_type"] == "persona":
+                txt = " ".join(pg.extract_text() for pg in PdfReader(io.BytesIO(s.get(f"{API}/cash/invoices/{i['id']}/pdf").content)).pages)
+                low = " ".join(txt.lower().split())
+                assert "sistema ts" not in low and "tessera sanitaria" not in low and "trasmess" not in low, txt
+                if cur == "ordinario":
+                    assert "forfettar" not in low, txt
+
+    # draft: servizio dall'appuntamento del giorno o prima tariffa, payer senza prefisso
+    def test_draft_service_and_payer(self, s, settings):
+        cs = s.get(f"{API}/consultations").json()
+        c = next((x for x in cs if x.get("patient_id")), None)
+        if not c:
+            pytest.skip("nessuna visita")
+        d = s.get(f"{API}/cash/invoices/draft", params={"consultation_id": c["id"]}).json()
+        assert d["lines"][0]["amount"] > 0, d
+        assert ":" not in d["payer_name"] and not d["payer_name"].lower().startswith(("mamma", "papà", "papa")), d
+        tariffs = {t["name"]: t for t in settings["tariffs"]}
+        target = next(n for n in tariffs if n != settings["tariffs"][0]["name"])
+        a = s.post(f"{API}/appointments", json={"clinic": "Studio Centro", "date": c["created_at"][:10], "time": "23:55", "patient_name": c["patient_name"],
+                                               "patient_id": c["patient_id"], "visit_type": target, "notes": "TEST_draft"})
+        assert a.status_code == 200, a.text
+        try:
+            d2 = s.get(f"{API}/cash/invoices/draft", params={"consultation_id": c["id"]}).json()
+            assert d2["lines"][0]["description"] == target and d2["lines"][0]["amount"] == tariffs[target]["price"], d2
+        finally:
+            assert s.delete(f"{API}/appointments/{a.json()['id']}").status_code == 200
+
+    # XML SdI: CAP/Comune e riga rimborso bollo N1
+    def test_xml_sede_and_stamp(self, s, settings):
+        import xml.etree.ElementTree as ET
+        try:
+            assert s.put(f"{API}/cash/settings", json=settings_body(settings, address="Via Roma 1, 89100 Reggio Calabria (RC)")).status_code == 200
+            i = mk(s, azienda(company={"name": "TEST_ASD", "vat": "09876543210", "cf": "", "address": "Via X 1", "sdi_code": "ABC1234", "pec": ""},
+                              lines=[{"description": "Visita", "amount": 120, "vat": "esente"}])).json()
+            assert i["totals"]["stamp"] == 2 and i["totals"]["total"] == 122
+            x = s.get(f"{API}/cash/invoices/{i['id']}/xml").content
+            root = ET.fromstring(x)
+            ced = root.find(".//CedentePrestatore/Sede")
+            assert ced.findtext("CAP") == "89100" and ced.findtext("Comune") == "Reggio Calabria" and ced.findtext("Provincia") == "RC" and ced.findtext("Indirizzo") == "Via Roma 1"
+            ces = root.find(".//CessionarioCommittente/Sede")
+            assert ces.findtext("CAP") == "00000" and ces.findtext("Comune") == "ND"
+            lines = root.findall(".//DettaglioLinee")
+            st = [l for l in lines if l.findtext("Descrizione") == "Rimborso imposta di bollo"]
+            assert len(st) == 1 and st[0].findtext("Natura") == "N1" and st[0].findtext("PrezzoTotale") == "2.00"
+            rie = root.findall(".//DatiRiepilogo")
+            assert any(r.findtext("Natura") == "N1" and r.findtext("ImponibileImporto") == "2.00" for r in rie)
+            tot = sum(float(r.findtext("ImponibileImporto")) + float(r.findtext("Imposta")) for r in rie)
+            assert abs(tot - float(root.findtext(".//ImportoTotaleDocumento"))) < 0.01
+        finally:
+            assert s.put(f"{API}/cash/settings", json=settings_body(settings)).status_code == 200
+
+    # STS: annullo di una fattura già inviata -> cancellazione da comunicare, flag C, poi inviata
+    def test_sts_cancel_after_sent(self, s):
+        y = date.today().year - 1
+        pre = s.get(f"{API}/cash/sts", params={"year": y}).json()
+        if any(not x["patient_name"].startswith("TEST_") for x in pre["items"]):
+            pytest.skip("anno precedente con dati reali")
+        i = mk(s, persona(date=f"{y}-07-10")).json()
+        r = s.post(f"{API}/cash/sts/send", params={"year": y}).json()
+        assert r["sent"] >= 1
+        st = {x["id"]: x for x in s.get(f"{API}/cash/sts", params={"year": y}).json()["items"]}
+        assert st[i["id"]]["sts_status"] == "inviata"
+        c = s.post(f"{API}/cash/invoices/{i['id']}/cancel").json()
+        assert c["status"] == "annullata" and c["sts_status"] == "da_inviare" and c["sts_action"] == "cancellazione"
+        st = {x["id"]: x for x in s.get(f"{API}/cash/sts", params={"year": y}).json()["items"]}
+        assert i["id"] in st and st[i["id"]]["sts_status"] == "da_inviare" and st[i["id"]]["sts_action"] == "cancellazione"
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring(s.get(f"{API}/cash/sts/file", params={"year": y}).content)
+        docs = [d for d in root.findall("documentoSpesa") if d.findtext(".//numDocumento") == i["number"]]
+        assert len(docs) == 1 and docs[0].findtext("flagOperazione") == "C"
+        s.post(f"{API}/cash/sts/send", params={"year": y})
+        st = {x["id"]: x for x in s.get(f"{API}/cash/sts", params={"year": y}).json()["items"]}
+        assert st[i["id"]]["sts_status"] == "inviata" and st[i["id"]]["sts_action"] == "cancellazione"
+        # una fattura annullata mai inviata NON compare
+        j = mk(s, persona(date=f"{y}-07-11", paid=False)).json()
+        s.post(f"{API}/cash/invoices/{j['id']}/cancel")
+        assert j["id"] not in {x["id"] for x in s.get(f"{API}/cash/sts", params={"year": y}).json()["items"]}
+
+    def test_zz_restore_accountant_email(self, s, settings):
+        assert s.put(f"{API}/cash/settings", json=settings_body(settings, accountant_email="delivered@resend.dev")).status_code == 200
+        assert s.get(f"{API}/cash/settings").json()["billing"]["accountant_email"] == "delivered@resend.dev"

@@ -20,6 +20,9 @@ from registration import mail_shell
 from scheduling import schedule_of
 from signed_docs import doctor_signature
 from tenancy import OWNER, tenant_clinics
+from zoneinfo import ZoneInfo
+
+ROME = ZoneInfo("Europe/Rome")
 
 Vat = Literal["esente", "iva22"]
 
@@ -253,10 +256,14 @@ def build_invoicing(db, tdb, current_user, BaseDocument, Payment, today_rome):
         pt = await patient_cf(pid)
         tariffs = {s["name"].lower(): s for s in sch["services"]}
         if c:
-            a = await tdb.appointments.find_one({"date": c["created_at"][:10], **({"patient_id": pid} if pid else {"patient_name": c["patient_name"]})})
+            day = datetime.fromisoformat(c["created_at"]).astimezone(ROME).date().isoformat()
+            a = await tdb.appointments.find_one({"date": day, **({"patient_id": pid} if pid else {"patient_name": c["patient_name"]})})
             service = (unseal_fields(a, ("visit_type",)).get("visit_type") if a else "") or service
         low = (service or "").lower()
-        t = tariffs.get(low) or next((s for k, s in tariffs.items() if low and (k in low or low in k)), None) or (next(iter(tariffs.values()), None) if c else None)
+        words = lambda k: [w for w in re.findall(r"\w+", k) if len(w) >= 5 and w != "visita"]
+        best = max(tariffs.items(), key=lambda kv: sum(w in low for w in words(kv[0])), default=(None, None))
+        t = tariffs.get(low) or next((s for k, s in tariffs.items() if low and (k in low or low in k)), None) \
+            or (best[1] if best[0] and any(w in low for w in words(best[0])) else None) or (next(iter(tariffs.values()), None) if c else None)
         return {"consultation_id": consultation_id or None, "patient_id": pid or None, "patient_name": (c or {}).get("patient_name") or pt.get("name") or "",
                 "patient_cf": pt.get("fiscal_code") or "", "payer_name": re.sub(r"^[^:]{1,20}:\s*", "", pt.get("guardian") or ""), "payer_cf": pt.get("guardian_fiscal_code") or "",
                 "date": ((c or {}).get("created_at") or today_rome())[:10] if c else today_rome(), "clinic": (c or {}).get("clinic") or "",
@@ -406,8 +413,8 @@ def build_invoicing(db, tdb, current_user, BaseDocument, Payment, today_rome):
         for i in sts_items(await query(f"{year}-01-01", f"{year}-12-31")):
             if i["sts_status"] == "inviata":
                 continue
-            err = sts_check(i)
-            upd = {"sts_status": "errore", "sts_error": err} if err and not i.get("sts_action") else {"sts_status": "inviata", "sts_error": "", "sts_sent_at": _now()}
+            err = "" if i.get("sts_action") else sts_check(i)
+            upd = {"sts_status": "errore", "sts_error": err} if err else {"sts_status": "inviata", "sts_error": "", "sts_sent_at": _now()}
             await tdb.invoices.update_one({"_id": ObjectId(i["id"])}, {"$set": upd})
             errors, sent = errors + bool(err), sent + (not err)
         return {"sent": sent, "errors": errors, "simulation": True}

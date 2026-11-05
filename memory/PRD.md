@@ -496,3 +496,14 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - lib/scrollLock.js: blocco solo su <html> (overflow hidden), handler wheel/touchmove non passivi che bloccano se nessun contenitore interno può scorrere, guardia su window scroll che riporta alla posizione salvata.
 - App.css: `html body[data-scroll-locked]{overflow:visible !important}` per neutralizzare Radix e mantenere le barre sticky (header, colonna Oggi) e i menu ancorati al loro posto.
 - Tour guidato: regressione risolta (iteration_65).
+
+## 2026-06 · Cassa riorganizzata (fatture, Sistema TS, commercialista)
+- Backend: invoicing.py (router /api/cash/*), fiscal.py (calcoli bollo/IVA/ritenuta + diciture), invoice_pdf.py (fattura 1 pagina con firma, registro A4, merge PDF con pypdf), fiscal_xml.py (FatturaPA FPR12 e file Sistema TS, SIMULAZIONE).
+- Collezione `invoices` (tenant); fattura pagata => record in `payments` con invoice_id (statistiche esistenti invariate). Ricevute/incassi precedenti sincronizzati come fatture legacy (numero originale, non annullabili). Numerazione: contatore `receipt:{owner}:{anno}` condiviso con le ricevute online.
+- Impostazioni fiscali in billing utente (regime, order_registration, iban, accountant_email, stamp_charge) + vat per servizio nel tariffario; put_schedule ora unisce billing esistente.
+- Frontend: components/cash/* (CashSection con tab #cassa-home/sts/commercialista/impostazioni, InvoiceDialog, CashHome, StsPanel, AccountantPanel, FiscalSettings); CashPanel della visita => "Crea fattura dalla visita".
+- Invio al commercialista: email reale (Emergent email) con registro + fatture allegati. SdI e Sistema TS: SIMULATI.
+- Test: iteration_66/67, backend/tests/test_cash_invoicing.py.
+### Backlog
+- Collegare intermediario reale SdI e invio reale Sistema TS (certificato Sogei).
+- Note di credito per fatture ad aziende; campi strutturati CAP/Comune.

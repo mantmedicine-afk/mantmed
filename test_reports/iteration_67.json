@@ -1,0 +1,36 @@
+{
+  "summary": "Retest mirato delle correzioni della Cassa (iteration_66). Backend: 34 test superati e 1 saltato su /app/backend/tests/test_cash_invoicing.py, inclusa la nuova classe TestRetestFixes (6 test). Il salto è atteso: TestSts.test_deadline_send_file ora trova dati TEST nell'anno precedente. Tutte e 5 le correzioni sono VERIFICATE: (1) l'invio al commercialista con un indirizzo rifiutato (commercialista.demo@example.com) restituisce 422 'Indirizzo email non raggiungibile (commercialista.demo@example.com): lo verifichi e riprovi' e il toast in UI mostra il messaggio in italiano; (2) le fatture legacy seguono il regime attuale (passando a forfettario e tornando a ordinario si aggiornano solo le legacy), l'annullo restituisce 409, il PDF della legacy s.n. non contiene la dicitura Sistema TS né quella del forfettario, e il pulsante Annulla è nascosto nella riga legacy; (3) per il draft dalla visita: con un appuntamento TEST nello stesso giorno con visit_type 'Bilancio di salute' viene scelta quella tariffa con il suo importo; senza appuntamento viene usata la prima tariffa (Prima visita, 120); payer_name non ha più il prefisso 'Mamma:'; (4) XML SdI: la Sede del cedente ha CAP 89100, Comune Reggio Calabria, Provincia RC e Indirizzo 'Via Roma 1'; il cessionario senza CAP usa il fallback 00000/ND; c'è la riga 'Rimborso imposta di bollo' 2.00 con Natura N1, il bollo compare in DatiRiepilogo e la somma del riepilogo coincide con ImportoTotaleDocumento; (5) una fattura già inviata al Sistema TS e poi annullata resta in STS come da_inviare con sts_action=cancellazione, il file contiene flagOperazione C, dopo l'invio diventa inviata e la UI mostra 'cancellazione comunicata'; una fattura annullata mai inviata non compare in STS. Regressione UI OK: tab Home, Sistema TS (selettore anno), Commercialista e Impostazioni, lista fatture con azioni, dialog Nuova fattura (suggerimenti paziente, totali live 120 + 2 di bollo = 122, chiusura).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/cash/invoices/draft", "issue": "L'appuntamento viene cercato con date = consultation.created_at[:10], che è una data UTC, mentre la data dell'appuntamento è nel fuso di Roma. Per le visite create tra mezzanotte e l'1 o le 2 di Roma non si trova l'appuntamento. Gli appuntamenti demo ricorrenti (date=None) non vengono mai abbinati. Spesso visit_type è un motivo (es. 'Bilancio 6° mese · avvio svezzamento') e non il nome di una tariffa: in quel caso si ricade sulla prima tariffa ('Prima visita' 120 €) anche se sarebbe più giusta 'Bilancio di salute' 80 €. È un rischio di importo sbagliato precompilato (resta modificabile)."},
+      {"endpoint": "mailer.send_email", "issue": "Qualsiasi 4xx del provider viene mostrato come 'Indirizzo email non raggiungibile', anche 401 (chiave), 413 (allegati troppo grandi) e 429 (limite di frequenza). Il messaggio può essere fuorviante: conviene distinguere almeno 413 e 429."},
+      {"endpoint": "POST /api/cash/sts/send", "issue": "Se una cancellazione ha un errore in sts_check, viene comunque segnata come inviata ma conteggiata in errors e non in sent: il toast dà numeri incoerenti (caso limite)."},
+      {"endpoint": "fiscal_xml._sede", "issue": "L'indirizzo fiscale salvato ('Via Roma 1, Reggio Calabria') non ha il CAP, quindi l'XML reale userebbe CAP 00000 e Comune ND. Serve un suggerimento in Impostazioni sul formato 'Via, CAP Comune (PV)' oppure campi strutturati."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "InvoiceDialog", "issues": ["Il campo data usa ancora il date picker nativo del browser (input type=date)", "Il toast 'Bentornato' si sovrappone al titolo del dialog"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cash_invoicing.py", "/app/test_reports/pytest/cash_invoicing.xml", "/app/test_reports/pytest/cash_invoicing_retest.xml"],
+  "action_items": [
+    "Opzionale: nel draft, abbinare il giorno dell'appuntamento usando la data di Roma e migliorare l'abbinamento motivo -> tariffa (es. per parola chiave come 'bilancio')",
+    "Opzionale: distinguere i 413 e 429 del provider email dal caso 'indirizzo non raggiungibile'",
+    "Opzionale: aggiungere in Impostazioni un suggerimento sul formato dell'indirizzo con CAP e Comune"
+  ],
+  "critical_code_review_comments": [
+    "invoicing.py: sync_legacy() continua a girare a ogni query() e ora esegue anche update_many sul regime: va bene, ma resta un costo a ogni richiesta",
+    "sts(): esegue query() due volte",
+    "Il XML STS per la cancellazione ripete importo e dati della spesa: va bene per la simulazione, ma il tracciato reale richiede solo idSpesa e flagOperazione C"
+  ],
+  "updated_files": ["/app/backend/tests/test_cash_invoicing.py"],
+  "success_rate": {"backend": "100% (34 superati, 1 saltato come previsto)", "frontend": "100% dei flussi richiesti"},
+  "seed_data_creation": "Ho creato fatture TEST_ (3-9/2026 e 1-4/2025) e un appuntamento TEST temporaneo, poi cancellato via API. Le fatture sono state annullate (incassi eliminati) e poi cancellate per id dal DB. Contatori ripristinati: 2026 n=2 (prossimo numero 3/2026), contatore 2025 rimosso. Regime ordinario e indirizzo originale ripristinati. Email del commercialista impostata a delivered@resend.dev, come richiesto. Effetti collaterali: email reale inviata a delivered@resend.dev, accountant_last_sent_at e fiscal_saved_at aggiornati.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Eseguire con: cd /app/backend && python -m pytest tests/test_cash_invoicing.py -n 0. Il test consuma numeri di fattura reali: a fine giro bisogna cancellare per id le fatture TEST_ e ripristinare db.counters receipt:<owner>:<anno>. Il login medico è su /app/cassa (la route /login porta alla landing). La data del server è 5/11/2026. Il toast sonner si legge con get_by_text, non con [data-sonner-toast]."
+}
