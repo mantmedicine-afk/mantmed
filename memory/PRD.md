@@ -523,3 +523,7 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 ## 2026-06 · Barre superiori sempre visibili
 - La pagina scorre sul documento (nessun <main> con overflow): barra blu (TopNav) sticky top-0 z-40 in AppShell; barra grigia (TopBar) sticky top-0 md:top-16 z-30 con ombra leggera quando scrollY>4 (useScrolled in lib/scrollLock.js). Dialog/menu restano z-50.
 - html.shell-pad: scroll-padding-top 5.5rem (mobile) / 9.5rem (md+); sticky Home/Showcase spostati a xl:top-[9.5rem]; scroll-mt ridotti.
+
+## 2026-06 · Hero della landing semplificato
+- Rimossi card "Refertazione", riga statistiche, "Scopri di più" e la sezione RegisterBand (registrazione resta nella pagina di accesso).
+- Titolo "Lei visita. MantMed scrive." (Instrument Serif, corsivo), sottotitolo nuovo, unico pulsante ambra #E8A33D → #contatti, riga fiducia; a destra screenshot reale della cartella clinica (public/img/cartella-clinica.jpg, dati di esempio) in cornice tablet inclinata. Mobile: titolo 38px, immagine sotto.
