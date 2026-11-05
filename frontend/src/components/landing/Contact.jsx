@@ -2,9 +2,9 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Loader2, Send, Check } from "lucide-react";
+import { Link } from "react-router-dom";
 import { api, errMsg } from "@/lib/api";
 
-const KINDS = [{ id: "beta", label: "Accesso alla beta sul campo" }, { id: "commerciale", label: "Informazioni commerciali" }];
 const EMPTY = { name: "", email: "", specialty: "", specialty_other: "", city: "", message: "", consent: false, website: "" };
 const SPECIALTIES = ["Pediatria", "Cardiologia", "Dermatologia", "Ginecologia", "Ortopedia", "Otorinolaringoiatria", "Oculistica", "Endocrinologia", "Neurologia", "Altro"];
 const input = "h-12 w-full rounded-xl border border-[var(--hair)] bg-[var(--surface)] px-4 text-sm text-[var(--fg)] outline-none transition-colors placeholder:text-[var(--fg2)] focus:border-[var(--accent)]";
@@ -22,7 +22,7 @@ const Sent = ({ onReset }) => (
   </motion.div>
 );
 
-export const LandingContact = ({ kind, setKind }) => {
+export const LandingContact = () => {
   const [f, setF] = useState(EMPTY);
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
@@ -34,7 +34,7 @@ export const LandingContact = ({ kind, setKind }) => {
     setBusy(true);
     try {
       const { specialty_other, ...rest } = f;
-      await api.sendLead({ ...rest, specialty: f.specialty === "Altro" ? `Altro: ${specialty_other.trim()}` : f.specialty, kind });
+      await api.sendLead({ ...rest, specialty: f.specialty === "Altro" ? `Altro: ${specialty_other.trim()}` : f.specialty, kind: "beta" });
       setSent(true); setF(EMPTY);
     }
     catch (err) { toast.error(errMsg(err)); }
@@ -57,14 +57,6 @@ export const LandingContact = ({ kind, setKind }) => {
         <div className="rounded-[28px] border border-[var(--hair)] bg-[var(--surface)] p-6 shadow-sm sm:p-8">
           {sent ? <Sent onReset={() => setSent(false)} /> : (
             <form onSubmit={submit} className="space-y-5" data-testid="lead-form">
-              <div className="grid grid-cols-1 gap-1 rounded-full bg-[var(--raised)] p-1 sm:grid-cols-2" role="radiogroup" aria-label="Tipo di richiesta">
-                {KINDS.map((k) => (
-                  <button key={k.id} type="button" role="radio" aria-checked={kind === k.id} onClick={() => setKind(k.id)} className={`relative h-11 rounded-full px-4 text-sm font-medium transition-colors ${kind === k.id ? "text-[var(--ink)]" : "text-[var(--fg2)] hover:text-[var(--fg)]"}`} data-testid={`lead-kind-${k.id}`}>
-                    {kind === k.id && <motion.span layoutId="lead-kind-pill" className="absolute inset-0 rounded-full bg-[var(--accent)]" transition={{ type: "spring", stiffness: 400, damping: 32 }} />}
-                    <span className="relative">{k.label}</span>
-                  </button>
-                ))}
-              </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Nome e cognome"><input required minLength={2} value={f.name} onChange={set("name")} className={input} placeholder="Dott. Mario Rossi" data-testid="lead-name-input" /></Field>
                 <Field label="Email"><input required type="email" value={f.email} onChange={set("email")} className={input} placeholder="nome@studio.it" data-testid="lead-email-input" /></Field>
@@ -74,16 +66,16 @@ export const LandingContact = ({ kind, setKind }) => {
                     {SPECIALTIES.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </Field>
-                <Field label="Città"><input value={f.city} onChange={set("city")} className={input} placeholder="Reggio Calabria" data-testid="lead-city-input" /></Field>
+                <Field label="Città (facoltativo)"><input value={f.city} onChange={set("city")} className={input} placeholder="Reggio Calabria" data-testid="lead-city-input" /></Field>
                 {f.specialty === "Altro" && <div className="sm:col-span-2"><Field label="Quale specialità?"><input required minLength={2} maxLength={80} value={f.specialty_other} onChange={set("specialty_other")} className={input} placeholder="Es. Reumatologia" autoFocus data-testid="lead-specialty-other-input" /></Field></div>}
               </div>
-              <Field label="Messaggio"><textarea rows={4} value={f.message} onChange={set("message")} maxLength={3000} className={`${input} h-auto resize-none py-3`} placeholder="Quanti studi gestisce, quante visite al giorno, cosa vorrebbe semplificare…" data-testid="lead-message-input" /></Field>
+              <Field label="Messaggio (facoltativo)"><textarea rows={4} value={f.message} onChange={set("message")} maxLength={3000} className={`${input} h-auto resize-none py-3`} placeholder="Quanti studi gestisce, quante visite al giorno, cosa vorrebbe semplificare…" data-testid="lead-message-input" /></Field>
               <input tabIndex={-1} autoComplete="off" value={f.website} onChange={set("website")} className="hidden" aria-hidden="true" name="website" />
               <label className="flex items-start gap-3 text-xs leading-relaxed text-[var(--fg2)]">
                 <input type="checkbox" checked={f.consent} onChange={set("consent")} className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent)]" data-testid="lead-consent-checkbox" />
-                <span>Acconsento al trattamento dei miei dati personali al solo fine di essere ricontattato in merito a questa richiesta (Reg. UE 2016/679). I dati sono conservati cifrati e non vengono ceduti a terzi.</span>
+                <span>Acconsento al trattamento dei miei dati personali al solo fine di essere ricontattato in merito a questa richiesta (Reg. UE 2016/679). I dati sono conservati cifrati e non vengono ceduti a terzi. <Link to="/privacy-policy" target="_blank" className="font-semibold text-[var(--ink)] underline underline-offset-2" data-testid="lead-privacy-link">Informativa privacy</Link></span>
               </label>
-              <button type="submit" disabled={busy} className="flex h-14 w-full items-center justify-center gap-2 rounded-full bg-[var(--accent)] text-sm font-semibold text-[var(--ink)] transition-transform hover:-translate-y-0.5 disabled:opacity-60" data-testid="lead-submit-btn">
+              <button type="submit" disabled={busy} style={{ backgroundColor: "#E8A33D" }} className="flex h-14 w-full items-center justify-center gap-2 rounded-full text-sm font-semibold text-[#1F1606] shadow-[0_10px_24px_-12px_rgba(232,163,61,0.8)] transition-[transform,filter] hover:-translate-y-0.5 hover:brightness-105 disabled:opacity-60" data-testid="lead-submit-btn">
                 {busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} Invia richiesta
               </button>
             </form>

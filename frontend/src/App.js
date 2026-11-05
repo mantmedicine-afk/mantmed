@@ -14,6 +14,7 @@ import ResetPassword from "@/pages/ResetPassword";
 import Portal from "@/pages/Portal";
 import Verify from "@/pages/Verify";
 import Privacy from "@/pages/Privacy";
+import LegalPlaceholder from "@/pages/LegalPlaceholder";
 import SharedPassport from "@/pages/SharedPassport";
 import { setClinics } from "@/lib/api";
 import { setLenis, isScrollLocked, isScrollBox } from "@/lib/scrollLock";
@@ -78,6 +79,8 @@ function App() {
         <Route path="/medico/:slug" element={<DoctorShowcase />} />
         <Route path="/reimposta-password" element={<ResetPassword />} />
         <Route path="/privacy" element={<Privacy />} />
+        <Route path="/privacy-policy" element={<LegalPlaceholder title="Privacy policy" />} />
+        <Route path="/cookie-policy" element={<LegalPlaceholder title="Cookie policy" />} />
         <Route path="/verifica" element={<Verify />} />
         <Route path="/p/:token" element={<SharedPassport />} />
         <Route path="/area-riservata" element={<AuthProvider><AccountGate /></AuthProvider>} />

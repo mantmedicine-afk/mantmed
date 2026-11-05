@@ -535,3 +535,9 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Hero: kicker "Beta sul campo · per medici specialisti", riga specialità sotto la riga fiducia, didascalia "Esempio: visita pediatrica" sotto il tablet.
 - Come funziona 03: "inviare al paziente". Funzioni blocco 1: "Cartella su misura per la sua specialità" (curve mantenute).
 - Modulo beta: Specializzazione = select (10 voci) + campo testo per "Altro" → inviato come "Altro: <testo>".
+
+## 2026-06 · Home: sicurezza, modulo unico, footer legale
+- Sicurezza: 4 punti (Dati in Europa, AES-256, Accesso protetto, Consenso e tracciabilità) + nota titolare del trattamento; rimossa la frase "i dati clinici restano in Europa".
+- Modulo #contatti unico (kind sempre "beta"), Città/Messaggio facoltativi, pulsante ambra, link Informativa privacy (/privacy-policy); contrasto AA verificato (tema chiaro e scuro).
+- Footer: © 2026 MantMed S.r.l.s. (in costituzione) · Milano · link Privacy policy, Cookie policy (pagine segnaposto LegalPlaceholder "In aggiornamento"), Privacy e AI, Area riservata · mantmedicine@gmail.com.
+- Nota: trascrizione audio = OpenAI whisper-1 via proxy Emergent (universal key) → elaborazione fuori UE (USA). Backlog: valutare provider con residenza dati UE.
