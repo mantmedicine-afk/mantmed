@@ -164,7 +164,7 @@ export default function Dashboard() {
           </>}
         </div>
       </>}
-      {sezione === "messaggi" && <div className="space-y-5 pt-4" id="doctor-conversations">{<div className="mx-auto max-w-[1280px] scroll-mt-24 px-5 lg:px-8" id="today-requests"><Fold title={`Richieste dal portale · ${requests}`} testId="today-requests-fold" defaultOpen={requests > 0}><PortalRequests onChange={load} /></Fold></div>}<DoctorMessages onRead={loadUnread} onOpenPatient={setPassportId} /></div>}
+      {sezione === "messaggi" && <div className="space-y-5 pt-4" id="doctor-conversations">{<div className="mx-auto max-w-[1280px] scroll-mt-4 px-5 lg:px-8" id="today-requests"><Fold title={`Richieste dal portale · ${requests}`} testId="today-requests-fold" defaultOpen={requests > 0}><PortalRequests onChange={load} /></Fold></div>}<DoctorMessages onRead={loadUnread} onOpenPatient={setPassportId} /></div>}
       {sezione === "visite" && <><PageTitle kicker="Diario clinico" title="Visite" it="e Bodychart" /><VisitsList notes={notes} onOpen={openVisit} /></>}
       {sezione === "cassa" && <><PageTitle kicker="Amministrazione" title="Cassa" it="fatture e incassi" /><CashSection refreshKey={cashKey} onChange={load} /></>}
       {sezione === "area-personale" && <Account role="doctor" embedded tools={{ onCompliance: () => setCompliance(true), onFeedback: () => setFeedback(true), stats: <div className="space-y-5"><Hero total={appointments.length} waiting={waiting.length} name={shortName} income={income} /><BetaMetrics refreshKey={cashKey} onFeedback={() => setFeedback(true)} /></div> }} />}

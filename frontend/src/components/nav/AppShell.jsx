@@ -144,10 +144,11 @@ export const AppShell = ({ items, area, children, barExtras }) => {
     return () => window.removeEventListener("keydown", esc);
   }, [open]);
   useScrollLock(open);
+  useEffect(() => { document.documentElement.classList.add("shell-pad"); return () => document.documentElement.classList.remove("shell-pad"); }, []);
   return (
     <ShellCtx.Provider value={{ open: () => setOpen(true) }}>
-      <div className="hidden md:block lg:hidden"><TopNav items={items} area={area} mini testId="sidebar-tablet" extras={barExtras} /></div>
-      <div className="hidden lg:block"><TopNav items={items} area={area} mini={false} testId="sidebar" extras={barExtras} /></div>
+      <div className="sticky top-0 z-40 hidden md:block lg:hidden" data-testid="topnav-sticky-tablet"><TopNav items={items} area={area} mini testId="sidebar-tablet" extras={barExtras} /></div>
+      <div className="sticky top-0 z-40 hidden lg:block" data-testid="topnav-sticky"><TopNav items={items} area={area} mini={false} testId="sidebar" extras={barExtras} /></div>
       <div className={`fixed inset-0 z-[55] lg:hidden ${open ? "" : "pointer-events-none"}`} aria-hidden={!open}>
         <div onClick={() => setOpen(false)} className={`absolute inset-0 bg-[var(--scrim)] backdrop-blur-sm transition-opacity duration-300 ${open ? "opacity-100" : "opacity-0"}`} data-testid="sidebar-backdrop" />
         <div className={`absolute inset-y-0 left-0 w-[min(86vw,300px)] transition-transform duration-300 ease-out ${open ? "translate-x-0 shadow-2xl" : "-translate-x-full"}`} data-testid="sidebar-drawer">

@@ -10,6 +10,18 @@ let startX = 0;
 export const setLenis = (l) => { lenis = l; };
 export const isScrollLocked = () => count > 0;
 
+/** true quando la pagina è scorsa di qualche pixel (per l'ombra della barra). */
+export const useScrolled = (min = 4) => {
+  const [s, setS] = useState(false);
+  useEffect(() => {
+    const on = () => setS(window.scrollY > min);
+    on();
+    window.addEventListener("scroll", on, { passive: true });
+    return () => window.removeEventListener("scroll", on);
+  }, [min]);
+  return s;
+};
+
 // Riquadro con scorrimento verticale interno: la rotella resta a lui (lo scorrimento fluido della pagina lo ignora).
 export const isScrollBox = (n) => n instanceof HTMLElement && n.scrollHeight > n.clientHeight + 1 && /(auto|scroll)/.test(getComputedStyle(n).overflowY);
 

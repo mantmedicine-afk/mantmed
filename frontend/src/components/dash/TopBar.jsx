@@ -4,6 +4,7 @@ import { MenuButton } from "@/components/nav/AppShell";
 import { ProfileMenu, Caret } from "@/components/auth/ProfileMenu";
 import { GlobalSearch } from "@/components/search/GlobalSearch";
 import { Weather, TourButton } from "./BarWidgets";
+import { useScrolled } from "@/lib/scrollLock";
 
 const initials = (n) => n.replace(/^(Dott\.ssa|Dott\.|Dr\.)\s*/i, "").split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
 
@@ -12,8 +13,9 @@ const fmtDate = (d) => d.toLocaleDateString("it-IT", { weekday: "long", day: "nu
 export const TopBar = ({ onCompliance, onTour, search }) => {
   const { user } = useAuth();
   const name = user?.name || "Medico";
+  const scrolled = useScrolled();
   return (
-    <header className="sticky top-0 z-40 border-b border-[var(--hair)] bg-[var(--bg)]">
+    <header className={`sticky top-0 z-30 border-b border-[var(--hair)] bg-[var(--bg)] transition-shadow duration-200 md:top-16 ${scrolled ? "shadow-[0_6px_16px_-12px_rgba(0,0,0,0.35)]" : ""}`} data-testid="topbar" data-scrolled={scrolled}>
       <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-3 px-5 py-3 lg:px-8">
         <div className="flex min-w-0 flex-1 items-center gap-3"><MenuButton />{search && <GlobalSearch {...search} />}</div>
         <div className="hidden whitespace-nowrap text-center 2xl:block">

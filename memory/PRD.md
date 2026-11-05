@@ -519,3 +519,7 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Conferme di lettura: messages.delivered_at (quando l'altra parte carica l'elenco) e read_at (quando apre la conversazione) → receipt inviato/consegnato/letto (spunte grigie/blu).
 - Allegati foto/PDF ≤10 MB, controllo firma file, cifrati (seal_bytes) nello storage, collezione msg_files; endpoint /messages|/portal/threads/{id}/attachments.
 - Test: iteration_69, backend/tests/test_messaging_v2.py.
+
+## 2026-06 · Barre superiori sempre visibili
+- La pagina scorre sul documento (nessun <main> con overflow): barra blu (TopNav) sticky top-0 z-40 in AppShell; barra grigia (TopBar) sticky top-0 md:top-16 z-30 con ombra leggera quando scrollY>4 (useScrolled in lib/scrollLock.js). Dialog/menu restano z-50.
+- html.shell-pad: scroll-padding-top 5.5rem (mobile) / 9.5rem (md+); sticky Home/Showcase spostati a xl:top-[9.5rem]; scroll-mt ridotti.

@@ -82,7 +82,7 @@ export const ShowcaseSection = () => {
             <button onClick={() => setPreview((p) => !p)} className="flex h-11 items-center gap-2 rounded-full border border-[var(--hair)] px-5 text-sm text-[var(--fg)] xl:hidden" data-testid="showcase-preview-toggle"><Eye size={15} /> {preview ? "Nascondi anteprima" : "Anteprima"}</button>
           </div>
         </div>
-        <div className={`${preview ? "block" : "hidden"} xl:sticky xl:top-24 xl:block`} data-testid="showcase-preview">
+        <div className={`${preview ? "block" : "hidden"} xl:sticky xl:top-[9.5rem] xl:block`} data-testid="showcase-preview">
           <div className="rounded-[28px] bg-[var(--sel)] p-2">
             <div className="flex items-center gap-1.5 px-3 py-2"><span className="h-2.5 w-2.5 rounded-full bg-rose-300" /><span className="h-2.5 w-2.5 rounded-full bg-[var(--wait)]" /><span className="h-2.5 w-2.5 rounded-full bg-[var(--ok)]" /><span className="ml-3 truncate text-[11px] text-[var(--fg2)]">mantmed · /medico/{d.slug}</span></div>
             <div className="max-h-[75vh] overflow-y-auto rounded-3xl"><ShowcaseView d={d} compact onBook={() => {}} /></div>
