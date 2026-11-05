@@ -5,7 +5,8 @@ import { Loader2, Send, Check } from "lucide-react";
 import { api, errMsg } from "@/lib/api";
 
 const KINDS = [{ id: "beta", label: "Accesso alla beta sul campo" }, { id: "commerciale", label: "Informazioni commerciali" }];
-const EMPTY = { name: "", email: "", specialty: "", city: "", message: "", consent: false, website: "" };
+const EMPTY = { name: "", email: "", specialty: "", specialty_other: "", city: "", message: "", consent: false, website: "" };
+const SPECIALTIES = ["Pediatria", "Cardiologia", "Dermatologia", "Ginecologia", "Ortopedia", "Otorinolaringoiatria", "Oculistica", "Endocrinologia", "Neurologia", "Altro"];
 const input = "h-12 w-full rounded-xl border border-[var(--hair)] bg-[var(--surface)] px-4 text-sm text-[var(--fg)] outline-none transition-colors placeholder:text-[var(--fg2)] focus:border-[var(--accent)]";
 
 const Field = ({ label, children }) => (
@@ -31,7 +32,11 @@ export const LandingContact = ({ kind, setKind }) => {
     e.preventDefault();
     if (!f.consent) return toast.error("Serve il consenso al trattamento dei dati");
     setBusy(true);
-    try { await api.sendLead({ ...f, kind }); setSent(true); setF(EMPTY); }
+    try {
+      const { specialty_other, ...rest } = f;
+      await api.sendLead({ ...rest, specialty: f.specialty === "Altro" ? `Altro: ${specialty_other.trim()}` : f.specialty, kind });
+      setSent(true); setF(EMPTY);
+    }
     catch (err) { toast.error(errMsg(err)); }
     setBusy(false);
   };
@@ -63,8 +68,14 @@ export const LandingContact = ({ kind, setKind }) => {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Nome e cognome"><input required minLength={2} value={f.name} onChange={set("name")} className={input} placeholder="Dott. Mario Rossi" data-testid="lead-name-input" /></Field>
                 <Field label="Email"><input required type="email" value={f.email} onChange={set("email")} className={input} placeholder="nome@studio.it" data-testid="lead-email-input" /></Field>
-                <Field label="Specializzazione"><input required minLength={2} value={f.specialty} onChange={set("specialty")} className={input} placeholder="Pediatria, Cardiologia…" data-testid="lead-specialty-input" /></Field>
+                <Field label="Specializzazione">
+                  <select required value={f.specialty} onChange={set("specialty")} className={`${input} appearance-none bg-[length:16px] bg-[right_1rem_center] bg-no-repeat pr-10 ${f.specialty ? "" : "text-[var(--fg2)]"}`} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")" }} data-testid="lead-specialty-select">
+                    <option value="" disabled>Scelga la specialità</option>
+                    {SPECIALTIES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </Field>
                 <Field label="Città"><input value={f.city} onChange={set("city")} className={input} placeholder="Reggio Calabria" data-testid="lead-city-input" /></Field>
+                {f.specialty === "Altro" && <div className="sm:col-span-2"><Field label="Quale specialità?"><input required minLength={2} maxLength={80} value={f.specialty_other} onChange={set("specialty_other")} className={input} placeholder="Es. Reumatologia" autoFocus data-testid="lead-specialty-other-input" /></Field></div>}
               </div>
               <Field label="Messaggio"><textarea rows={4} value={f.message} onChange={set("message")} maxLength={3000} className={`${input} h-auto resize-none py-3`} placeholder="Quanti studi gestisce, quante visite al giorno, cosa vorrebbe semplificare…" data-testid="lead-message-input" /></Field>
               <input tabIndex={-1} autoComplete="off" value={f.website} onChange={set("website")} className="hidden" aria-hidden="true" name="website" />

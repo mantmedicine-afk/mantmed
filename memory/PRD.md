@@ -530,3 +530,8 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Hero: screenshot rifatto ("Trascrizione · MantAi", tolto pulsante Salva senza etichetta); su mobile ritaglio solo cartella (public/img/cartella-clinica-mobile.jpg via <picture>).
 - "Vantaggi chiave" sostituita da "Come funziona" (#come-funziona, link menu aggiornato): 01 Registra · 02 Rilegga · 03 Consegna con linea di collegamento su desktop. Card Percentili/Agenda/Cassa rimosse (da rifare in sezione separata — backlog).
 - Nuova sezione compatta "Funzioni" (#funzioni, components/landing/Functions.jsx) dopo "Come funziona": Percentili OMS (SVG curve + punto ambra), Agenda multi-studio, Cassa; bordo sottile, sfondo pagina.
+
+## 2026-06 · Home riposizionata per tutti gli specialisti
+- Hero: kicker "Beta sul campo · per medici specialisti", riga specialità sotto la riga fiducia, didascalia "Esempio: visita pediatrica" sotto il tablet.
+- Come funziona 03: "inviare al paziente". Funzioni blocco 1: "Cartella su misura per la sua specialità" (curve mantenute).
+- Modulo beta: Specializzazione = select (10 voci) + campo testo per "Altro" → inviato come "Altro: <testo>".

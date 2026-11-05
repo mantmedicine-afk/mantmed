@@ -41,6 +41,7 @@ const TabletShot = () => (
         <img src="/img/cartella-clinica.jpg" alt="Schermata della cartella clinica di MantMed con dati di esempio: esame obiettivo compilato" className="block aspect-[732/720] w-full rounded-[22px] object-cover object-top sm:aspect-[1180/820]" width="1180" height="820" loading="eager" data-testid="hero-screenshot" />
       </picture>
     </div>
+    <p className="relative mt-5 text-center text-xs text-[var(--fg2)]" data-testid="hero-caption">Esempio: visita pediatrica</p>
   </motion.div>
 );
 
@@ -48,6 +49,7 @@ export const LandingHero = ({ onBeta }) => (
   <section className="grain relative overflow-hidden" data-testid="landing-hero">
     <div className="relative mx-auto grid max-w-[1280px] grid-cols-1 items-center gap-14 px-5 pb-20 pt-14 lg:grid-cols-[1fr_1.15fr] lg:gap-16 lg:px-10 lg:pb-32 lg:pt-24">
       <div>
+        <motion.div {...rise(0)} className="mb-5 text-[11px] uppercase tracking-[0.24em] text-[var(--fg2)]" data-testid="hero-kicker">Beta sul campo · per medici specialisti</motion.div>
         <motion.h1 {...rise(0.05)} className="font-display text-[38px] leading-[1.04] tracking-tight text-[var(--ink)] sm:text-6xl lg:text-7xl" data-testid="hero-title">
           Lei visita. <span className="whitespace-nowrap italic">MantMed scrive.</span>
         </motion.h1>
@@ -57,6 +59,7 @@ export const LandingHero = ({ onBeta }) => (
         <motion.div {...rise(0.2)} className="mt-9">
           <button onClick={onBeta} style={{ backgroundColor: AMBER }} className="flex h-14 items-center gap-2 rounded-full px-7 text-sm font-semibold text-[#1F1606] shadow-[0_10px_24px_-12px_rgba(232,163,61,0.8)] transition-[transform,filter] hover:-translate-y-0.5 hover:brightness-105 active:scale-[0.98]" data-testid="hero-beta-btn">Richiedi accesso beta <ArrowRight size={16} /></button>
           <p className="mt-4 text-xs text-[var(--fg2)]" data-testid="hero-trust-line">Dati cifrati e conservati in UE · Verifica iscrizione all'Ordine</p>
+          <p className="mt-1.5 max-w-md text-xs leading-relaxed text-[var(--fg2)]" data-testid="hero-specialty-line">In uso sul campo in Pediatria. Ci indichi la sua specialità: configuriamo la cartella insieme a lei.</p>
         </motion.div>
       </div>
       <TabletShot />

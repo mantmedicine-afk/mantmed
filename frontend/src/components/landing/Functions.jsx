@@ -15,7 +15,7 @@ const PercentileChart = () => (
 const Icon = ({ as: I }) => <I size={30} strokeWidth={1.25} className="text-[var(--fg2)]" aria-hidden="true" />;
 
 const ITEMS = [
-  { id: "percentili", visual: <PercentileChart />, title: "Percentili OMS", text: "Peso, altezza e circonferenza cranica sulle curve OMS, con z-score aggiornato a ogni visita." },
+  { id: "percentili", visual: <PercentileChart />, title: "Cartella su misura per la sua specialità", text: "Campi, esami e modelli pensati per ogni specialità. In Pediatria: percentili OMS e grafici di crescita inclusi." },
   { id: "agenda", visual: <Icon as={CalendarDays} />, title: "Agenda multi-studio", text: "Più studi in un'unica vista, con la sala d'attesa e il prossimo paziente sempre in primo piano." },
   { id: "cassa", visual: <Icon as={Wallet} />, title: "Cassa", text: "Incasso a fine visita in contanti, POS o bonifico, con riepilogo giornaliero per il commercialista." },
 ];

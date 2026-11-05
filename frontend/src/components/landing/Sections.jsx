@@ -6,7 +6,7 @@ const reveal = (d = 0) => ({ initial: { y: 24 }, whileInView: { y: 0 }, viewport
 const STEPS = [
   { n: "01", title: "Registra", text: "Un tocco all'inizio della visita. Lei parla con il paziente, come sempre." },
   { n: "02", title: "Rilegga", text: "Anamnesi, esame obiettivo, diagnosi e terapia compaiono già al loro posto nella cartella. Lei controlla e corregge." },
-  { n: "03", title: "Consegna", text: "Il referto PDF con l'intestazione dello studio è pronto da stampare o da inviare ai genitori." },
+  { n: "03", title: "Consegna", text: "Il referto PDF con l'intestazione dello studio è pronto da stampare o da inviare al paziente." },
 ];
 
 export const LandingHowItWorks = () => (
