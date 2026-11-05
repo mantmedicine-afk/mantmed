@@ -1,7 +1,8 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { MessagesSquare, Inbox } from "lucide-react";
 import { api, errMsg } from "@/lib/api";
+import { useFillHeight } from "@/lib/scrollLock";
 import { usePoll } from "@/hooks/usePoll";
 import { Conversation, StatusChip, when } from "@/components/portal/Conversation";
 import { ReplyQueue } from "./ReplyQueue";
@@ -20,6 +21,8 @@ const Row = ({ t, active, onOpen }) => (
 );
 
 export const DoctorMessages = ({ onRead }) => {
+  const grid = useRef(null);
+  const fillH = useFillHeight(grid, 40, 280);
   const [threads, setThreads] = useState(null);
   const [active, setActive] = useState(null);
   const [data, setData] = useState(null);
@@ -57,15 +60,15 @@ export const DoctorMessages = ({ onRead }) => {
           </div>
         </div>
         {view === "queue" ? <ReplyQueue queue={queue} reload={() => { loadQueue(); api.msgThreads().then(setThreads).catch(() => {}); }} onOpenThread={openThread} /> :
-        <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[360px_1fr]">
-          <div className={`${active ? "hidden lg:block" : ""} max-h-[560px] space-y-2 overflow-y-auto`} data-testid="doc-thread-list">
+        <div ref={grid} style={{ height: fillH ?? undefined }} className="mt-5 grid grid-cols-1 grid-rows-[minmax(0,1fr)] gap-4 lg:grid-cols-[360px_1fr]" data-testid="doc-messages-grid">
+          <div className={`${active ? "hidden lg:block" : ""} h-full min-h-0 space-y-2 overflow-y-auto overscroll-contain`} data-testid="doc-thread-list" data-lenis-prevent>
             {threads === null && <div className="h-16 animate-pulse rounded-2xl bg-[var(--raised)]" />}
             {threads !== null && list.length === 0 && <p className="flex items-center gap-2 rounded-2xl border border-dashed border-[var(--hair)] p-5 text-sm text-[var(--fg2)]" data-testid="doc-thread-list-empty"><Inbox size={16} /> Nessun messaggio in questa vista.</p>}
             {list.map((x) => <Row key={x.id} t={x} active={x.id === active} onOpen={(id) => { setData(null); setActive(id); }} />)}
           </div>
-          <div className={`${active ? "" : "hidden lg:flex"} overflow-hidden rounded-2xl border border-[var(--hair)] bg-[var(--surface)] lg:flex lg:flex-col`}>
+          <div className={`${active ? "flex" : "hidden lg:flex"} h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-[var(--hair)] bg-[var(--surface)]`} data-testid="doc-conversation-pane">
             {active ? (
-              <Conversation data={data} side="doctor" onSend={send} onBack={() => setActive(null)}
+              <Conversation fill data={data} side="doctor" onSend={send} onBack={() => setActive(null)}
                 header={t && <><div className="flex flex-wrap items-center gap-2"><span className="font-semibold text-[var(--fg)]" data-testid="doc-conversation-subject">{t.subject}</span><span className="text-xs text-[var(--fg2)]">{t.kind_label}</span></div><div className="text-xs text-[var(--fg2)]">{t.patient_name} · scrive {t.parent_name}</div></>} />
             ) : <div className="grid min-h-[300px] flex-1 place-items-center p-6 text-center text-sm text-[var(--fg2)]">Selezioni un messaggio per leggerlo e rispondere. Il genitore vede lo stato Letto appena lo apre.</div>}
           </div>

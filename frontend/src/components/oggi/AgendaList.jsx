@@ -41,8 +41,9 @@ export const AgendaList = ({ groups, patients, now, onSelect }) => {
   const byId = Object.fromEntries(patients.map((p) => [p.id, p]));
   const anchor = nowAnchor(flat, now);
   return (
-    <section className={`${card} scroll-mt-28 p-3 sm:p-5`} aria-label="Agenda di oggi" id="oggi-agenda" data-testid="oggi-agenda">
-      <h2 className="px-4 pt-2 text-lg font-semibold text-[var(--fg)]">Agenda</h2>
+    <section className={`${card} flex max-h-[calc(100dvh-8rem)] scroll-mt-28 flex-col p-3 sm:p-5`} aria-label="Agenda di oggi" id="oggi-agenda" data-testid="oggi-agenda">
+      <h2 className="shrink-0 px-4 pt-2 text-lg font-semibold text-[var(--fg)]">Agenda</h2>
+      <div className="-mx-1 min-h-0 flex-1 overflow-y-auto overscroll-contain px-1" data-testid="oggi-agenda-scroll" data-lenis-prevent>
       {flat.length === 0 && <p className="px-4 py-8 text-sm text-[var(--fg2)]" data-testid="oggi-agenda-empty">Nessuna visita in agenda per oggi.</p>}
       {groups.map((g) => g.items.length > 0 && (
         <div key={g.clinic} className="mt-5" data-testid={`oggi-group-${g.clinic.replace(/\s+/g, "-").toLowerCase()}`}>
@@ -57,7 +58,8 @@ export const AgendaList = ({ groups, patients, now, onSelect }) => {
           </ul>
         </div>
       ))}
-      <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 border-t border-[var(--sel)] px-4 pb-1 pt-4 text-xs text-[var(--fg2)]" data-testid="oggi-legend">
+      </div>
+      <div className="mt-5 flex shrink-0 flex-wrap gap-x-5 gap-y-2 border-t border-[var(--sel)] px-4 pb-1 pt-4 text-xs text-[var(--fg2)]" data-testid="oggi-legend">
         <span className="flex items-center gap-2"><Dot color="var(--ok)" /> Fatto</span>
         <span className="flex items-center gap-2"><Dot color="var(--wait)" /> In programma</span>
         <span className="flex items-center gap-2"><Dot color="var(--alert)" /> Allergie</span>

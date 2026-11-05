@@ -155,7 +155,7 @@ export const AppShell = ({ items, area, children, barExtras }) => {
         </div>
       </div>
       <BottomBar items={items} onMore={() => setOpen(true)} />
-      <div className="app-min min-h-screen pb-[72px] md:pb-0">{children}</div>
+      <div className="app-min min-h-screen pb-[72px] md:min-h-[calc(100dvh-4rem)] md:pb-0">{children}</div>
     </ShellCtx.Provider>
   );
 };

@@ -148,7 +148,7 @@ export default function Dashboard() {
     <ProcessingProvider onSettled={load} onOpen={openVisit}>
     <TrackPending notes={notes} />
     <AppShell items={items} area="Studio medico" barExtras={<><TourButton onClick={() => setTour(true)} /><ThemeToggle bar /><LiveClock /></>}>
-    <div className="min-h-screen overflow-x-clip bg-[var(--bg)]" data-testid="dashboard" data-section={sezione}>
+    <div className="min-h-screen overflow-x-clip bg-[var(--bg)] md:min-h-[calc(100dvh-4rem)]" data-testid="dashboard" data-section={sezione}>
       <TopBar onCompliance={() => setCompliance(true)} onTour={() => setTour(true)} search={search} />
       {sezione === "agenda" && <OggiScreen appointments={appointments} patients={patients} notes={notes} unread={unread + aiQueued} requests={requests}
         onStart={start} onOpenPatient={setPassportId} onSign={openVisit} onMarkDone={markDone} top={<><AbsenceBanner /><SupportReplies /><SignatureReminder /></>} />}

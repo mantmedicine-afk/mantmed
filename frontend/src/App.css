@@ -2,6 +2,7 @@ html.lenis, html.lenis body { height: auto; }
 .lenis.lenis-smooth { scroll-behavior: auto !important; }
 .lenis.lenis-stopped { overflow: hidden; }
 html body[data-scroll-locked] { overflow: visible !important; }
+.overflow-y-auto, .overflow-auto, .overflow-y-scroll { overscroll-behavior: contain; }
 
 .font-display { font-family: "Instrument Serif", Georgia, serif; font-weight: 400; }
 

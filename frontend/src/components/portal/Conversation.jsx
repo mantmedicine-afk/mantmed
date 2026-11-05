@@ -61,12 +61,12 @@ const Bubble = ({ m, mine, side }) => m.from === "system" ? <SystemNote m={m} si
   </div>
 );
 
-export const Conversation = ({ data, side, onSend, onBack, header }) => {
+export const Conversation = ({ data, side, onSend, onBack, header, fill = false }) => {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
-  const end = useRef(null);
+  const box = useRef(null);
   const msgs = Array.isArray(data?.messages) ? data.messages : [];
-  useEffect(() => { end.current?.scrollIntoView({ block: "nearest" }); }, [msgs.length]);
+  useEffect(() => { if (box.current) box.current.scrollTop = box.current.scrollHeight; }, [msgs.length]);
   const send = async (e) => {
     e.preventDefault();
     if (!text.trim()) return;
@@ -76,23 +76,22 @@ export const Conversation = ({ data, side, onSend, onBack, header }) => {
     setBusy(false);
   };
   return (
-    <div className="flex h-full min-h-[420px] flex-col" data-testid="conversation">
-      <div className="flex items-start gap-2 border-b border-[var(--hair)] p-4">
+    <div className={`flex flex-col ${fill ? "h-full min-h-0" : "h-full min-h-[420px]"}`} data-testid="conversation">
+      <div className="flex shrink-0 items-start gap-2 border-b border-[var(--hair)] p-4">
         {onBack && <button onClick={onBack} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--hair)] text-[var(--fg)] lg:hidden" aria-label="Torna all'elenco" data-testid="conversation-back-btn"><ArrowLeft size={16} /></button>}
         <div className="min-w-0 flex-1">{header}</div>
       </div>
-      <div className="flex-1 space-y-3 overflow-y-auto bg-[var(--raised)]/60 p-4" style={{ maxHeight: 460 }} data-testid="conversation-messages">
+      <div ref={box} className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain bg-[var(--raised)]/60 p-4" style={fill ? undefined : { maxHeight: 460 }} data-testid="conversation-messages" data-lenis-prevent>
         {!data && <Loader2 className="animate-spin text-[var(--fg)]" />}
         {msgs.map((m) => <Bubble key={m.id} m={m} mine={m.from === side} side={side} />)}
-        <div ref={end} />
       </div>
       {side === "parent" && <UrgencyNotice ownerId={data?.thread?.owner_id} patientId={data?.thread?.patient_id} className="mx-3 mt-3" />}
-      <form onSubmit={send} className="flex items-end gap-2 border-t border-[var(--hair)] p-3">
+      <form onSubmit={send} className="flex shrink-0 items-end gap-2 border-t border-[var(--hair)] p-3">
         <textarea rows={2} maxLength={4000} value={text} onChange={(e) => setText(e.target.value)} placeholder={side === "doctor" ? "Scriva la risposta al genitore…" : "Scriva un messaggio allo studio…"}
           className="min-h-[48px] flex-1 resize-none rounded-2xl border border-[var(--hair)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--fg)] outline-none focus:border-[var(--accent)]" data-testid="conversation-input" />
         <button disabled={busy || !text.trim()} className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[var(--accent)] text-[var(--ink)] transition-transform hover:-translate-y-0.5 disabled:opacity-50" aria-label="Invia" data-testid="conversation-send-btn">{busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}</button>
       </form>
-      <p className="flex items-center gap-1.5 px-4 pb-3 text-[11px] text-[var(--fg2)]"><Lock size={11} /> Messaggi cifrati AES-256 · {side === "doctor" ? "il genitore riceve una notifica nel portale" : "lo studio riceve una notifica"}</p>
+      <p className="flex shrink-0 items-center gap-1.5 px-4 pb-3 text-[11px] text-[var(--fg2)]"><Lock size={11} /> Messaggi cifrati AES-256 · {side === "doctor" ? "il genitore riceve una notifica nel portale" : "lo studio riceve una notifica"}</p>
     </div>
   );
 };

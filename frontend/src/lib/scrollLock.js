@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 
 // Blocco dello scorrimento della pagina condiviso da tutte le finestre sovrapposte (conteggio per finestre annidate).
 let count = 0;
@@ -9,6 +9,30 @@ let startX = 0;
 
 export const setLenis = (l) => { lenis = l; };
 export const isScrollLocked = () => count > 0;
+
+// Riquadro con scorrimento verticale interno: la rotella resta a lui (lo scorrimento fluido della pagina lo ignora).
+export const isScrollBox = (n) => n instanceof HTMLElement && n.scrollHeight > n.clientHeight + 1 && /(auto|scroll)/.test(getComputedStyle(n).overflowY);
+
+/** Altezza che riempie lo schermo dal bordo superiore del riquadro fino al fondo (meno `gap`), mai sotto `min`. */
+export const useFillHeight = (ref, gap = 24, min = 360) => {
+  const [h, setH] = useState(null);
+  useLayoutEffect(() => {
+    const fit = () => {
+      const el = ref.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      const nav = window.innerWidth < 768 ? 72 : 0;
+      const next = Math.max(min, Math.floor(window.innerHeight - top - gap - nav));
+      setH((p) => (p != null && Math.abs(p - next) < 2 ? p : next));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(document.body);
+    window.addEventListener("resize", fit);
+    return () => { ro.disconnect(); window.removeEventListener("resize", fit); };
+  }, [ref, gap, min]);
+  return h;
+};
 
 // C'è un contenitore (fra gli antenati del tocco) che può ancora scorrere in questa direzione?
 const canScroll = (el, dy) => {
