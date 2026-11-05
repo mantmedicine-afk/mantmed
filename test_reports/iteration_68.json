@@ -1,0 +1,30 @@
+{
+  "summary": "Frontend-only test of the wheel/trackpad + touch scrolling fix (Lenis prevent via isScrollBox + overscroll-behavior contain). Used page.mouse.wheel bursts (6x50 then 40x150 to hit end-of-box) and CDP touch swipes. Every internal scroll box found scrolls itself and the page never moves (window.scrollY unchanged), including after overscroll at the end. Messaggi fills the viewport at 1440x800/1280x720/1024x700 (doc height == viewport), both columns scroll independently, the conversation opens on the last message and the input is always visible. Mobile list -> conversation -> back works and touch swipes scroll the boxes. Portal conversation and notifications pass too. Regressions pass: an open dialog locks the background, the page scrolls again after close, page scroll works over non-scroll areas, and the sticky sub-header stays. RESULTS TABLE (box | scorre | pagina ferma): Home Agenda oggi-agenda-scroll | SI (0->389=max) | SI, hero/side fixed at top 283 | Messaggi doc-thread-list 1440/1280/1024 | SI | SI | Messaggi conversation-messages 1440/1280/1024 | SI (opens at bottom, up/down ok) | SI | Messaggi mobile list (touch) | SI | SI | Messaggi mobile conversation (touch) | SI | SI | GlobalSearch results (Command.List) | SI | SI | Cassa invoice-dialog | SI | SI (backdrop wheel also locked) | ConsultationOverlay (visit/NoteEditor) | SI | SI | NoteEditor note-panel-anamnesi/esame/crescita | SI | SI | Portal conversation-messages desktop | SI | SI | Portal conversation-messages mobile touch | SI | SI | Portal notifications list | SI | SI. Nothing else overflowed with current data: Pazienti grid/folder, Tutte le visite, Cassa table, Area personale and the nav hover menus had 0 scroll boxes at 1440x800, so page scroll is the expected behaviour there and it works. Coda risposte is empty (no drafts), so its list could not be tested with data.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Messaggi conversation pane (doctor)", "issues": ["The message area is very short because the 'Richieste dal portale' fold and the title/filter header take up most of the height: conversation-messages clientHeight is 226px at 1440x800, 146px at 1280x720, 126px at 1024x700 and 103px on mobile 390x844. It works, but at 1024x700 and on mobile only about one bubble is visible. Consider collapsing or shrinking the header above the grid on short viewports."]},
+      {"screen": "Home 1440x800", "issues": ["The agenda card (max-h calc(100dvh-8rem), top at 283px) runs past the bottom of the viewport (bottom ~955px), so the legend under the agenda only shows after a page scroll. Document height is 1019 > 800, so a wheel over the right column scrolls the page (219px). That is correct behaviour, just a note."]},
+      {"screen": "Portal Messaggi mobile", "issues": ["The conversation uses a fixed maxHeight of 460 (no fill), so the input sits below the urgency banner and is off-screen until the page is scrolled. The 'always visible input' requirement was only stated for the doctor desktop/tablet view."]}
+    ]
+  },
+  "test_report_links": ["/app/tests/scroll_scan.py"],
+  "action_items": [
+    "Optional: give the doctor conversation more height on short viewports (1024x700 and mobile have about 100-126px of message area)",
+    "Retest Coda risposte (ReplyQueue max-h-[640px] list and ai-draft-editor) once drafts exist; it could not be exercised with data"
+  ],
+  "critical_code_review_comments": [
+    "isScrollBox is called by Lenis for every node in the event path on every wheel event and uses getComputedStyle. That is acceptable, but it relies on scrollHeight > clientHeight, so an overflow-x-auto wrapper (overflowY computes to auto) with 1-2px of vertical overflow would make Lenis skip it and fall back to native page scroll. This is harmless and was not observed.",
+    "ReplyQueue list (max-h-[640px] overflow-y-auto) is not fill-height like doc-thread-list, so with many drafts at 800px height the Messaggi page would scroll again in queue view",
+    "NotificationBell list (overflow-y-auto, max-h-60vh) has no data-lenis-prevent but works thanks to isScrollBox and the global contain CSS rule"
+  ],
+  "updated_files": ["/app/tests/scroll_scan.py"],
+  "success_rate": {"backend": "N/A", "frontend": "100% of tested scroll boxes (15/15 box/viewport combinations)"},
+  "seed_data_creation": "None. No data created or modified.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Wheel test method: page.mouse.wheel bursts over box center, then read box.scrollTop and window.scrollY. Touch test: CDP Emulation.setTouchEmulationEnabled + Input.dispatchTouchEvent. Generic scanner JS is in /app/tests/scroll_scan.py (tags every element whose overflowY is auto/scroll and that overflows). When a dialog is open, the background boxes correctly don't receive the wheel, so ignore them. Coda risposte is empty in seed data. Desktop nav: use [data-testid=sidebar-link-X]:visible (3 duplicates).",
+  "test_credentials": "medico@mantmed.it / Auscula-Studio-2026; genitore.demo@example.com / Portale-Demo-2026 (from /app/memory/test_credentials.md)"
+}

@@ -1,3 +1,5 @@
+import { useRef } from "react";
+import { useFillHeight } from "@/lib/scrollLock";
 import { Dot, STATUS, card } from "./Panels";
 import { isDone } from "./data";
 
@@ -31,6 +33,9 @@ const nowAnchor = (flat, now) => {
 };
 
 export const AgendaList = ({ groups, patients, now, onSelect }) => {
+  const box = useRef(null);
+  const fit = useFillHeight(box, 64, 360);
+  const wide = typeof window !== "undefined" && window.innerWidth >= 768;
   const flat = groups.flatMap((g) => g.items);
   const refs = [];
   const key = (i) => (e) => {
@@ -41,7 +46,7 @@ export const AgendaList = ({ groups, patients, now, onSelect }) => {
   const byId = Object.fromEntries(patients.map((p) => [p.id, p]));
   const anchor = nowAnchor(flat, now);
   return (
-    <section className={`${card} flex max-h-[calc(100dvh-8rem)] scroll-mt-28 flex-col p-3 sm:p-5`} aria-label="Agenda di oggi" id="oggi-agenda" data-testid="oggi-agenda">
+    <section ref={box} style={wide && fit ? { maxHeight: fit } : undefined} className={`${card} flex max-h-[calc(100dvh-8rem)] scroll-mt-28 flex-col p-3 sm:p-5`} aria-label="Agenda di oggi" id="oggi-agenda" data-testid="oggi-agenda">
       <h2 className="shrink-0 px-4 pt-2 text-lg font-semibold text-[var(--fg)]">Agenda</h2>
       <div className="-mx-1 min-h-0 flex-1 overflow-y-auto overscroll-contain px-1" data-testid="oggi-agenda-scroll" data-lenis-prevent>
       {flat.length === 0 && <p className="px-4 py-8 text-sm text-[var(--fg2)]" data-testid="oggi-agenda-empty">Nessuna visita in agenda per oggi.</p>}

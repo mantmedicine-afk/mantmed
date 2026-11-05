@@ -507,3 +507,8 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 ### Backlog
 - Collegare intermediario reale SdI e invio reale Sistema TS (certificato Sogei).
 - Note di credito per fatture ad aziende; campi strutturati CAP/Comune.
+
+## 2026-06 · Fix scorrimento riquadri interni (rotella/trackpad)
+- Causa: Lenis (scorrimento fluido) intercettava la rotella e faceva scorrere la pagina. Fix comune in lib/scrollLock.js: `isScrollBox` usato da Lenis `prevent` (App.js) per ogni elemento che scorre davvero; App.css overscroll-behavior contain sui contenitori overflow-y-auto/overflow-auto.
+- `useFillHeight` (lib/scrollLock.js): Messaggi (due colonne a tutta altezza, conversazione aperta in fondo) e Agenda Home (scorre al suo interno). AppShell/Dashboard md:min-h-[calc(100dvh-4rem)] per evitare 64px di scorrimento fantasma.
+- Test: iteration_68.
