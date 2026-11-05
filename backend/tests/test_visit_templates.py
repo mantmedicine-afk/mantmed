@@ -243,8 +243,8 @@ class TestConsultation:
         assert d["status"] == "ready", d.get("ai_error")
         n = d["note"]
         assert [x["titolo"] for x in n["sezioni"]] == [f["titolo"] for f in first["fields"]]
-        assert n["torl"] and n["torl"] != "Non riportato"  # standard pediatric chart preserved
-        assert "allattamento" in n and "svezzamento" in n
+        assert n["modulo"]["campi"]["torl"] and n["modulo"]["campi"]["torl"] != "Non riportato"  # standard pediatric chart preserved
+        assert "allattamento" in n["modulo"]["campi"] and "svezzamento" in n["modulo"]["campi"]
         t = pdf_text(ped, cid)
         assert "pediatrica specialistica" in t and "TORL" in t
         vit = [x for x in n["sezioni"] if x["gruppo"] == "parametri_vitali"]

@@ -92,7 +92,7 @@ class TestCardiology:
         assert "pressione" in titles
         assert "auscult" in titles
         assert "ecg" in titles
-        assert not n["torl"] and not n["allattamento"] and not n["svezzamento"]
+        assert n["modulo"]["id"] == "generale" and not any(n["modulo"]["campi"].values())
         g = n["crescita"]
         assert not g.get("percentile_peso") and not g.get("percentile_altezza") and not g.get("percentile_cc")
 
@@ -125,7 +125,7 @@ class TestPediatrics:
         d = wait(ped, STATE["ped"])
         assert d["status"] == "ready", d.get("ai_error")
         n = d["note"]
-        assert n["torl"] and n["torl"] != "Non riportato"
+        assert n["modulo"]["campi"]["torl"] and n["modulo"]["campi"]["torl"] != "Non riportato"
         t = pdf_text(ped, STATE["ped"])
         assert "pediatrica specialistica" in t
         assert "TORL" in t

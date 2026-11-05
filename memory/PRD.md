@@ -541,3 +541,8 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Modulo #contatti unico (kind sempre "beta"), Città/Messaggio facoltativi, pulsante ambra, link Informativa privacy (/privacy-policy); contrasto AA verificato (tema chiaro e scuro).
 - Footer: © 2026 MantMed S.r.l.s. (in costituzione) · Milano · link Privacy policy, Cookie policy (pagine segnaposto LegalPlaceholder "In aggiornamento"), Privacy e AI, Area riservata · mantmedicine@gmail.com.
 - Nota: trascrizione audio = OpenAI whisper-1 via proxy Emergent (universal key) → elaborazione fuori UE (USA). Backlog: valutare provider con residenza dati UE.
+
+## 2026-11 Multispecialistica · Passo 1 (base comune + moduli)
+- backend/specialty_modules.py: base comune (motivo, anamnesi, sintomi, diagnosi, terapia, follow-up) + moduli versionati (pediatria v1 con allattamento/svezzamento/TORL/torace/addome + funzioni percentili/dosi/bilanci; generale)
+- ClinicalNote.modulo {id, versione, campi}; lettura retrocompatibile (upgrade_note); migrazione idempotente all'avvio (note_schema=2, visit_templates.module_id); GET /api/specialty-modules
+- Piano completo e vincoli utente: /app/memory/PIANO_MULTISPECIALISTICO.md (passi 2-6 da avviare solo col via dell'utente; nessuna pubblicazione fino a fine passo 6)

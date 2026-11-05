@@ -1,0 +1,36 @@
+{
+  "summary": "Multi-specialty STEP 1 (base + versioned module note.modulo) tested end-to-end. Backend: 9/9 pytest pass (catalog, list shape, old-visit PDF, new pediatric visit via real LLM, PATCH new and legacy formats, templates module_id for both doctors, cardiologist 'generale' module with sezioni). Read-only migration verifier vs mantmed_pre: 50 visits compared, 0 differences; 52/52 consultations note_schema=2; 0 templates without module_id. Frontend (pediatrician): old visit Aurora Ricci 6adf23bd... opens with TORL value shown and Anamnesi/Esame fields filled; on a fresh TEST visit all 5 module fields show the AI marker (note-ai-mark-*) and the tab dot; editing TORL clears the marker, Save then reopen keeps the value; Copy text includes TORL/Allattamento; Crescita growth panel and Terapia dose calculator (210 mg/dose for 8.4 kg) work. The passport 'Visite e referti' tab lists 16 visits and the PDF download works (200 application/pdf). Cardiologist: generic layout 'Cartella clinica · Cardiologia', Parametri tab, sezioni shown, no pediatric fields. No regression from step 1. One display defect found that is not part of step 1: dark text on dark buttons in the consultation overlay.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PATCH /api/consultations/{id}", "issue": "Legacy-format body (flat keys, no 'modulo') is a full replace: module fields left out of the body are set to ''. This is what happened to the 'Test Modulo' visit 6aed09a9...: its campi are now torl/allattamento/svezzamento/torace = '' and addome = 'Legacy addome', while ai_snapshot still holds the AI values. So the review item 'note-ai-mark-torl on Test Modulo' can no longer be checked; I checked the markers on a fresh TEST visit instead and they work. Also, if a body has both a flat key and modulo.campi, the modulo value wins and the flat edit is dropped without notice."},
+      {"endpoint": "upgrade_note / module_for", "issue": "A legacy note with no modulo and no specialita defaults to 'pediatria' (module_for('') returns 'pediatria'). If a non-pediatric doctor sent such a note, it would be switched to the pediatric module. The frontend always sends modulo, so this is only an edge case."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "ConsultationOverlay / NoteEditor (light theme)", "issues": ["Accent buttons have dark text on a dark background: note-save-btn ('Salva'), generate-pdf-btn ('Genera & Scarica Referto PDF'), 'Firma e firma', 'Crea fattura della visita', the selected 'Femmina' chip and the active tab number. Measured: bg rgb(23,38,43), text rgb(15,26,30), so the text is nearly invisible. Likely cause: theme.css line 103 '.theme-bar .bg-[var(--accent)] { --fg:#0F1A1E; --ink:#0F1A1E }' also matches accent buttons nested inside the light card of the overlay, which sits under a theme-bar container. The same buttons in the passport are readable. This is not caused by step 1 but is visible to the doctor."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_specialty_modules.py", "/app/test_reports/pytest/specialty_modules.xml"],
+  "action_items": [
+    "Fix the contrast of accent buttons inside the consultation overlay (theme.css .theme-bar .bg-[var(--accent)] rule; scope it, e.g. reset it under .bg-[var(--surface)] / .bg-[var(--raised)])",
+    "Optional: in upgrade_note, when a legacy flat key and modulo.campi are both present, let the flat key win (or reject); consider merging legacy partial PATCHes with the existing modulo campi instead of blanking them",
+    "Optional: restore the 'Test Modulo' visit 6aed09a94824dc0d88031197 campi from its ai_snapshot if it is needed as a demo of AI markers",
+    "Update the outdated regression tests that still assert flat note keys (n['torl'] etc.): tests/test_specialty_longvisit.py and tests/test_visit_templates.py"
+  ],
+  "critical_code_review_comments": [
+    "server.py 2150 lines: still far over the 700-line guideline",
+    "upgrade_note line 57: modulo.campi overrides legacy flat keys, so a legacy edit is lost if the client also sends a stale modulo",
+    "run_module_migration matches on rev (optimistic concurrency). It is idempotent via note_schema, but a visit skipped because of a rev race is retried only on the next startup",
+    "PDF (report.py mf) and frontend getField fall back to the flat key, so reading the old format still works"
+  ],
+  "updated_files": ["/app/backend/tests/test_specialty_modules.py"],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "100% functional; 1 design/contrast issue not caused by step 1"},
+  "seed_data_creation": "Created and then deleted by id: TEST_Modulo Ped, TEST_Modulo Card (pytest), TEST_UI Ped Modulo 6aed0aa22ea320a91c80531b, TEST_UI Card Modulo 6aed0aa62ea320a91c80531e. No user data modified (old visits only read; PDFs only generated). mantmed_pre was only read by the verifier script.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Notes now carry note.modulo {id, versione, campi}; pediatric keys live only in campi. Run tests/test_specialty_modules.py (real LLM, about 15s). Verifier: PYTHONPATH=/app/backend python scripts/verify_module_migration.py mantmed_pre (read-only). To open a visit in the UI: /app/pazienti?vista=visite then visit-row-{id}; editor testids are note-tab-*, note-section-{key}, note-ai-mark-{key}, note-save-btn, note-copy-btn. To open the passport: patient-card-{id}, then the 'Scheda paziente' button, then passport-tab-visite."
+}

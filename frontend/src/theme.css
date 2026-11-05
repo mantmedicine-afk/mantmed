@@ -101,6 +101,7 @@
     color: var(--onbar);
 }
 .theme-bar .bg-\[var\(--accent\)\] { --fg: #0F1A1E; --ink: #0F1A1E; --fg2: rgba(15, 26, 30, 0.72); }
+.theme-bar :is(.bg-\[var\(--surface\)\], .bg-\[var\(--raised\)\]) .bg-\[var\(--accent\)\] { --fg: var(--ink-base); --ink: var(--ink-base); --fg2: color-mix(in srgb, var(--ink-base) 90%, transparent); }
 
 html, body { background-color: var(--bg); color: var(--fg); }
 .rounded-3xl.bg-\[var\(--surface\)\], .rounded-\[28px\].bg-\[var\(--surface\)\], .rounded-2xl.bg-\[var\(--surface\)\] { box-shadow: var(--shadow); }
