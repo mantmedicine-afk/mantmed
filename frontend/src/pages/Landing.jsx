@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { LogoMark } from "@/components/dash/Logo";
 import { LandingHeader, LandingHero, scrollTo } from "@/components/landing/Hero";
-import { LandingFeatures, LandingSecurity } from "@/components/landing/Sections";
+import { LandingHowItWorks, LandingSecurity } from "@/components/landing/Sections";
 import { LandingContact } from "@/components/landing/Contact";
 
 export default function Landing() {
@@ -13,7 +13,7 @@ export default function Landing() {
       <LandingHeader />
       <main>
         <LandingHero onBeta={beta} />
-        <LandingFeatures />
+        <LandingHowItWorks />
         <LandingSecurity />
         <LandingContact kind={kind} setKind={setKind} />
       </main>

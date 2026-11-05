@@ -1,36 +1,31 @@
 import { motion } from "framer-motion";
-import { AudioLines, LineChart, FileCheck2, CalendarRange, Wallet, ShieldCheck, KeyRound, Server, FileSignature, ScrollText, TimerReset } from "lucide-react";
+import { ShieldCheck, KeyRound, Server, FileSignature, ScrollText, TimerReset } from "lucide-react";
 
 const reveal = (d = 0) => ({ initial: { y: 24 }, whileInView: { y: 0 }, viewport: { once: true, amount: 0.15 }, transition: { delay: d, duration: 0.7, ease: [0.22, 1, 0.36, 1] } });
 
-const FEATURES = [
-  { id: "trascrizione", icon: AudioLines, title: "MantAi: trascrizione vocale istantanea", text: "Registra la visita con un tocco: la conversazione diventa anamnesi, esame obiettivo, diagnosi e terapia nella cartella pediatrica standard.", span: "md:col-span-2", big: "Parli. Il resto è scritto." },
-  { id: "percentili", icon: LineChart, title: "Percentili pediatrici automatici", text: "Peso, altezza e circonferenza cranica confrontati con le curve OMS, con z-score e grafico di crescita aggiornati a ogni visita." },
-  { id: "pdf", icon: FileCheck2, title: "Referti PDF in 30 secondi", text: "Referto impaginato con intestazione dello studio, pronto da stampare o da inviare ai genitori via email.", big: "30″" },
-  { id: "agenda", icon: CalendarRange, title: "Agenda multi-studio", text: "Studio Centro e Studio Provincia in un'unica vista: appuntamenti, sala d'attesa e prossimo paziente sempre in primo piano." },
-  { id: "cassa", icon: Wallet, title: "Cassa integrata", text: "Incasso a fine visita in contanti, POS o bonifico, con riepilogo giornaliero ed export CSV per il commercialista." },
+const STEPS = [
+  { n: "01", title: "Registra", text: "Un tocco all'inizio della visita. Lei parla con il paziente, come sempre." },
+  { n: "02", title: "Rilegga", text: "Anamnesi, esame obiettivo, diagnosi e terapia compaiono già al loro posto nella cartella. Lei controlla e corregge." },
+  { n: "03", title: "Consegna", text: "Il referto PDF con l'intestazione dello studio è pronto da stampare o da inviare ai genitori." },
 ];
 
-export const LandingFeatures = () => (
-  <section id="vantaggi" className="scroll-mt-20 bg-[var(--raised)]" data-testid="landing-features">
+export const LandingHowItWorks = () => (
+  <section id="come-funziona" className="scroll-mt-20 bg-[var(--raised)]" data-testid="landing-how">
     <div className="mx-auto max-w-[1280px] px-5 py-24 lg:px-10 lg:py-32">
       <motion.div {...reveal()} className="max-w-2xl">
-        <div className="text-[11px] uppercase tracking-[0.24em] text-[var(--fg2)]">Vantaggi chiave</div>
+        <div className="text-[11px] uppercase tracking-[0.24em] text-[var(--fg2)]">Come funziona</div>
         <h2 className="mt-3 font-display text-4xl leading-tight text-[var(--fg)] sm:text-5xl">Meno tastiera, <span className="italic text-[var(--fg2)]">più medicina.</span></h2>
-        <p className="mt-5 text-base text-[var(--fg2)] md:text-lg">Ogni funzione nasce da una visita reale: niente moduli superflui, solo gli strumenti che servono tra un paziente e l'altro.</p>
       </motion.div>
-      <div className="mt-14 grid grid-cols-1 gap-4 md:grid-cols-3">
-        {FEATURES.map((f, i) => (
-          <motion.article key={f.id} {...reveal(i * 0.06)} className={`group relative overflow-hidden rounded-[28px] p-7 transition-transform duration-300 hover:-translate-y-1 ${f.span ?? ""} ${i === 0 ? "grain bg-[var(--accent)] text-[var(--ink)]" : "border border-[var(--hair)] bg-[var(--surface)] text-[var(--fg)]"}`} data-testid={`feature-${f.id}`}>
-            <div className="relative flex items-start justify-between gap-4">
-              <span className={`grid h-12 w-12 place-items-center rounded-2xl ${i === 0 ? "bg-[var(--sel)] text-[var(--ink)]" : "bg-[var(--accent)] text-[var(--ink)]"}`}><f.icon size={20} /></span>
-              {f.big && <span className={`font-display text-5xl leading-none ${i === 0 ? "text-[var(--fg2)]" : "text-[var(--fg)]"}`}>{f.big}</span>}
-            </div>
-            <h3 className="relative mt-10 font-display text-3xl leading-tight">{f.title}</h3>
-            <p className={`relative mt-3 max-w-lg text-sm leading-relaxed ${i === 0 ? "text-[var(--fg2)]" : "text-[var(--fg2)]"}`}>{f.text}</p>
-          </motion.article>
+      <ol className="relative mt-16 grid grid-cols-1 gap-12 md:grid-cols-3 md:gap-10">
+        <span className="absolute left-0 right-0 top-[2.4rem] hidden h-px bg-[var(--hair)] md:block" aria-hidden="true" />
+        {STEPS.map((s, i) => (
+          <motion.li key={s.n} {...reveal(i * 0.1)} className="relative" data-testid={`how-step-${s.n}`}>
+            <span className="relative inline-block bg-[var(--raised)] pr-5 font-display text-7xl leading-none text-[var(--fg)]">{s.n}</span>
+            <h3 className="mt-6 text-xl font-semibold text-[var(--fg)]">{s.title}</h3>
+            <p className="mt-2 max-w-sm text-base leading-relaxed text-[var(--fg2)]">{s.text}</p>
+          </motion.li>
         ))}
-      </div>
+      </ol>
     </div>
   </section>
 );

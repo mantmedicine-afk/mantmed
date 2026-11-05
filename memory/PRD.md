@@ -527,3 +527,5 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 ## 2026-06 · Hero della landing semplificato
 - Rimossi card "Refertazione", riga statistiche, "Scopri di più" e la sezione RegisterBand (registrazione resta nella pagina di accesso).
 - Titolo "Lei visita. MantMed scrive." (Instrument Serif, corsivo), sottotitolo nuovo, unico pulsante ambra #E8A33D → #contatti, riga fiducia; a destra screenshot reale della cartella clinica (public/img/cartella-clinica.jpg, dati di esempio) in cornice tablet inclinata. Mobile: titolo 38px, immagine sotto.
+- Hero: screenshot rifatto ("Trascrizione · MantAi", tolto pulsante Salva senza etichetta); su mobile ritaglio solo cartella (public/img/cartella-clinica-mobile.jpg via <picture>).
+- "Vantaggi chiave" sostituita da "Come funziona" (#come-funziona, link menu aggiornato): 01 Registra · 02 Rilegga · 03 Consegna con linea di collegamento su desktop. Card Percentili/Agenda/Cassa rimosse (da rifare in sezione separata — backlog).

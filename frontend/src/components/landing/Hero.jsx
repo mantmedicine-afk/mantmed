@@ -18,7 +18,7 @@ export const LandingHeader = () => (
         </div>
       </a>
       <nav className="flex items-center gap-2">
-        <button onClick={() => scrollTo("vantaggi")} className="hidden h-10 px-4 text-sm text-[var(--fg2)] transition-colors hover:text-[var(--ink)] md:block" data-testid="nav-features">Vantaggi</button>
+        <button onClick={() => scrollTo("come-funziona")} className="hidden h-10 px-4 text-sm text-[var(--fg2)] transition-colors hover:text-[var(--ink)] md:block" data-testid="nav-how">Come funziona</button>
         <button onClick={() => scrollTo("sicurezza")} className="hidden h-10 px-4 text-sm text-[var(--fg2)] transition-colors hover:text-[var(--ink)] md:block" data-testid="nav-security">Sicurezza</button>
         <button onClick={() => scrollTo("contatti")} className="hidden h-10 px-4 text-sm text-[var(--fg2)] transition-colors hover:text-[var(--ink)] md:block" data-testid="nav-contact">Contatti</button>
         <Link to="/portale" className="hidden h-10 items-center px-3 text-sm text-[var(--fg2)] transition-colors hover:text-[var(--ink)] sm:flex" data-testid="landing-portal-link">Area pazienti</Link>
@@ -36,7 +36,10 @@ const TabletShot = () => (
     <div className="absolute -inset-8 rounded-[48px] bg-[var(--sel)] opacity-70 blur-3xl" aria-hidden="true" />
     <div className="relative rotate-[-2.5deg] rounded-[34px] bg-[#0f1418] p-3 shadow-[0_40px_80px_-30px_rgba(10,20,30,0.55),0_18px_36px_-18px_rgba(10,20,30,0.35)] ring-1 ring-black/40 transition-transform duration-700 hover:rotate-[-1deg] sm:p-4">
       <span className="absolute left-1/2 top-[7px] h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-white/20 sm:top-[9px]" aria-hidden="true" />
-      <img src="/img/cartella-clinica.jpg" alt="Schermata della cartella clinica di MantMed con dati di esempio: trascrizione della visita ed esame obiettivo compilato" className="block aspect-[1180/820] w-full rounded-[22px] object-cover" width="1180" height="820" loading="eager" data-testid="hero-screenshot" />
+      <picture>
+        <source media="(max-width: 639px)" srcSet="/img/cartella-clinica-mobile.jpg" width="732" height="720" />
+        <img src="/img/cartella-clinica.jpg" alt="Schermata della cartella clinica di MantMed con dati di esempio: esame obiettivo compilato" className="block aspect-[732/720] w-full rounded-[22px] object-cover object-top sm:aspect-[1180/820]" width="1180" height="820" loading="eager" data-testid="hero-screenshot" />
+      </picture>
     </div>
   </motion.div>
 );
