@@ -5,7 +5,7 @@ import os
 import re
 from datetime import datetime, timezone, date as Date
 from html import escape as hesc
-from typing import Optional
+from typing import Annotated, List, Optional
 import jwt
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -90,6 +90,7 @@ class DoctorProfileIn(BaseModel):
     first_name: str = Field(min_length=2, max_length=60)
     last_name: str = Field(min_length=2, max_length=60)
     specialty: str = Field(min_length=2, max_length=120)
+    secondary_specialties: List[Annotated[str, Field(min_length=2, max_length=120)]] = Field(default_factory=list, max_length=3)
     order_number: str = Field(min_length=2, max_length=60)
     studio_address: str = Field(min_length=5, max_length=200)
     phone: str = Field(max_length=25)
@@ -153,6 +154,7 @@ def build_account(db, current_user):
         first, last = split_name(u)
         title = (re.match(r"^(Dott\.ssa|Dott\.|Dr\.)", u.get("name", "")) or [None])[0] or "Dott."
         return {"title": title, "first_name": first, "last_name": last, "specialty": p.get("specialty") or (os.environ["DOCTOR_SPECIALTY"] if founder else ""),
+                "secondary_specialties": p.get("secondary_specialties") or [],
                 "order_number": p.get("order_number") or (os.environ["DOCTOR_ORDER_NUMBER"] if founder else ""),
                 "studio_address": p.get("studio_address") or ((u.get("clinics") or [{}])[0].get("address", "")),
                 "phone": p.get("phone") or (os.environ["STUDIO_PHONE"] if founder else ""),
@@ -187,6 +189,7 @@ def build_account(db, current_user):
         d = body.model_dump()
         title = d["title"] if d["title"] in ("Dott.", "Dott.ssa", "Dr.") else "Dott."
         profile = {**(u.get("profile") or {}), **{k: d[k].strip() for k in ("specialty", "order_number", "studio_address", "phone", "contact_email")}}
+        profile["secondary_specialties"] = [x.strip() for x in d["secondary_specialties"] if x.strip() and x.strip() != profile["specialty"]]
         await db.users.update_one({"_id": u["_id"]}, {"$set": {"first_name": d["first_name"].strip(), "last_name": d["last_name"].strip(), "profile": profile,
                                                              "name": f"{title} {d['first_name'].strip()} {d['last_name'].strip()}", "founder": not u.get("profile") or bool(u.get("founder")),
                                                              "profile_edited_at": _now().isoformat(), "phone": seal_fields({"p": d["phone"]}, ("p",))["p"]}})

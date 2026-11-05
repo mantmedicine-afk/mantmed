@@ -18,6 +18,7 @@ from netutil import client_ip
 from tenancy import cf_hash
 from visit_templates import BILANCI
 from portal_docs import drug_text
+from specialty_modules import MODULES
 
 IT = json.loads((Path(__file__).parent / "it_lms.json").read_text())
 SWITCH, IT_TOP = 60, 216
@@ -196,7 +197,7 @@ def build_health_passport(db, tdb, current_user, parent_user, models, pdf_for, a
                 kind = x.get("template_name") or n.get("motivo_visita") or "Visita"
                 visits.append({"id": x["id"], "date": x["created_at"], "doctor": doc_name, "clinic": x.get("clinic", ""), "type": kind,
                                "reason": n.get("motivo_visita", ""), "diagnosis": n.get("diagnosi", ""), "hidden": bool(x.get("portal_hidden_by_parent")),
-                               "by": doc_name, "at": at})
+                               "by": doc_name, "at": at, "module": MODULES.get((n.get("modulo") or {}).get("id"), {}).get("nome", "")})
                 if "bilancio" in f"{x.get('template_name', '')} {n.get('motivo_visita', '')}".lower():
                     done_b.append({"name": x.get("template_name") or n.get("motivo_visita"), "date": x["created_at"], "by": doc_name, "id": x["id"]})
                 if not x.get("portal_hidden_by_parent"):

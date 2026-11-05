@@ -13,6 +13,7 @@ export const useModules = () => {
 };
 
 export const STRUCTURED = ["cardiologia", "dermatologia", "ginecologia"];
+export const MODULE_NAMES = { pediatria: "Pediatria", cardiologia: "Cardiologia", dermatologia: "Dermatologia", ginecologia: "Ginecologia", generale: "Generale" };
 export const isStructured = (note) => STRUCTURED.includes(note?.modulo?.id);
 export const moduleOf = (cat, note) => cat?.moduli?.find((m) => m.id === note?.modulo?.id);
 

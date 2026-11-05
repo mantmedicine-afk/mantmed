@@ -124,6 +124,10 @@ MODULES = {
         "etichette": {}, "gruppi": {}, "campi": [], "funzioni": [],
     },
 }
+SPECIALTIES = ["Pediatria", "Neonatologia", "Cardiologia", "Dermatologia e venereologia", "Ginecologia e ostetricia", "Medicina interna",
+               "Medicina generale", "Allergologia e immunologia clinica", "Endocrinologia", "Gastroenterologia", "Geriatria", "Nefrologia", "Neurologia",
+               "Oftalmologia", "Oncologia", "Ortopedia e traumatologia", "Otorinolaringoiatria", "Pneumologia", "Psichiatria", "Reumatologia",
+               "Urologia", "Chirurgia generale", "Medicina fisica e riabilitativa"]
 STRUCTURED = ("cardiologia", "dermatologia", "ginecologia")  # moduli a campi definiti (con "Altre voci")
 LEGACY_KEYS = {f["key"] for f in MODULES["pediatria"]["campi"]}
 
@@ -247,7 +251,7 @@ def parse_module(mid: str, data: dict) -> tuple:
 
 
 def catalog() -> dict:
-    return {"base": BASE_FIELDS, "moduli": [{k: v for k, v in m.items() if k != "match"} for m in MODULES.values()]}
+    return {"specialita": SPECIALTIES, "base": BASE_FIELDS, "moduli": [{k: v for k, v in m.items() if k != "match"} for m in MODULES.values()]}
 
 
 # ---------- Impostazioni del medico: modulo in uso, personalizzazioni, voci frequenti ----------
@@ -271,6 +275,22 @@ def build_module_settings(db, tdb, specialty_of, current_owner):
 
     async def user_doc(uid):
         return await db.users.find_one({"_id": ObjectId(uid)}, {"module_choice": 1, "module_prefs": 1, "module_notice_seen_at": 1, "profile": 1}) if uid and ObjectId.is_valid(uid) else None
+
+    async def visit_module_options(uid) -> list:
+        """Moduli selezionabili all'inizio della visita: specialità principale, secondarie, Generale."""
+        u = await user_doc(uid) or {}
+        prof = u.get("profile") or {}
+        main = await specialty_of(uid)
+        specs = [main] + [x for x in prof.get("secondary_specialties") or [] if x and x != main]
+        out = {}
+        for sp in specs:
+            mid = module_for(sp)
+            out.setdefault(mid, {"id": mid, "nome": MODULES[mid]["nome"], "specialita": sp if mid != "generale" else main})
+        choice = u.get("module_choice") or ""
+        if choice in MODULES:
+            out.setdefault(choice, {"id": choice, "nome": MODULES[choice]["nome"], "specialita": main if choice == module_for(main) else MODULES[choice]["nome"]})
+        out.setdefault("generale", {"id": "generale", "nome": "Generale", "specialita": main})
+        return list(out.values())
 
     async def doctor_module(uid) -> str:
         u = await user_doc(uid)
@@ -306,7 +326,7 @@ def build_module_settings(db, tdb, specialty_of, current_owner):
         auto = module_for(await specialty_of(uid))
         return {"module_id": mid, "auto": auto, "choice": u.get("module_choice") or "", "nome": MODULES[mid]["nome"],
                 "available": [{"id": m["id"], "nome": m["nome"]} for m in MODULES.values()],
-                "layout": await layout(uid, mid), "suggestions": await suggestions(uid, mid),
+                "layout": await layout(uid, mid), "suggestions": await suggestions(uid, mid), "visit_options": await visit_module_options(uid),
                 "notice": mid in STRUCTURED and not u.get("module_choice") and not u.get("module_notice_seen_at")}
 
     @r.put("")
@@ -353,4 +373,10 @@ def build_module_settings(db, tdb, specialty_of, current_owner):
         await tdb.visit_templates.update_one({"_id": tpl["_id"]}, {"$push": {"fields": field}, "$set": {"modified": True, "updated_at": datetime.now(timezone.utc).isoformat()}})
         return {**await get_settings(), "added_to": tpl["name"]}
 
-    return r, doctor_module, layout
+    @r.get("/layout/{mid}")
+    async def get_layout(mid: str):
+        if mid not in MODULES:
+            raise HTTPException(404, "Modulo non disponibile")
+        return await layout(current_owner(), mid)
+
+    return r, doctor_module, layout, visit_module_options

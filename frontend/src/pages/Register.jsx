@@ -10,11 +10,12 @@ import { VALIDATORS, EMAIL_RE, serverFieldErrors } from "@/lib/validators";
 import { RegisterField, FieldMsg } from "@/components/auth/RegisterField";
 import { CodeStep } from "@/components/auth/CodeStep";
 import { Strength } from "@/components/auth/PasswordRules";
+import { SpecialtyPicker } from "@/components/account/SpecialtyPicker";
 
 const CONSENT_TEXT = "Informativa privacy e consenso al trattamento dei dati sanitari v1.0";
 
 const DOCTOR_FIELDS = [
-  ["first_name", "Nome", "es. Mario"], ["last_name", "Cognome", "es. Rossi"], ["specialty", "Specializzazione", "es. Pediatria"],
+  ["first_name", "Nome", "es. Mario"], ["last_name", "Cognome", "es. Rossi"],
   ["order_number", "Numero iscrizione Ordine", "es. RC 1234"], ["email", "Email professionale", "es. nome@studio.it", "email"],
   ["phone", "Telefono", "es. +39 333 1234567", "tel"], ["studio_address", "Sede dello studio", "es. Via Roma 1, Reggio Calabria", "text", true],
 ];
@@ -80,7 +81,7 @@ export default function Register({ role }) {
   const [invite, setInvite] = useState(null);
   const token = params.get("invito");
   const fields = doctor ? DOCTOR_FIELDS : PARENT_FIELDS;
-  const keys = [...fields.map(([k]) => k), "password", "confirm"];
+  const keys = [...fields.map(([k]) => k), ...(doctor ? ["specialty"] : []), "password", "confirm"];
   const emailCheck = useEmailCheck(f.email, EMAIL_RE.test((f.email || "").trim()));
 
   useEffect(() => {
@@ -143,6 +144,9 @@ export default function Register({ role }) {
                 busy={k === "email" && emailCheck.status === "checking" ? "Verifica disponibilità…" : ""}
                 ok={k === "email" ? (emailCheck.status === "ok" && !errOf(k) ? "Email disponibile" : "") : k === "child_fiscal_code" && f[k]?.length === 16 && !errOf(k) ? "Codice fiscale valido" : ""} />
             ))}
+            {doctor && <SpecialtyPicker main={f.specialty ?? ""} secondary={f.secondary_specialties ?? []} testPrefix="register-specialty" error={errOf("specialty")}
+              inputClass="h-12 w-full rounded-2xl border border-[var(--hair)] bg-[var(--raised)] px-4 text-[15px] outline-none focus:border-[var(--accent)]"
+              onChange={(m, sec) => { setF((p) => ({ ...p, specialty: m, secondary_specialties: sec })); setTouched((t) => ({ ...t, specialty: true })); }} />}
             <RegisterField name="password" label="Password" type="password" autoComplete="new-password" value={f.password} onChange={set("password")} onBlur={blur("password")}
               placeholder="Min. 10 caratteri, lettere, numeri e simbolo" error={errOf("password")} ok={pwOk ? "Password robusta" : ""} />
             <RegisterField name="confirm" label="Conferma password" type="password" autoComplete="new-password" value={f.confirm} onChange={set("confirm")} onBlur={blur("confirm")}

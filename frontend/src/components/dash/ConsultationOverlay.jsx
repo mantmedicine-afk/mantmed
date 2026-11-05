@@ -33,6 +33,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
   const lastBlob = useRef(null);
   const [templates, setTemplates] = useState([]);
   const [tplId, setTplId] = useState("");
+  const [mods, setMods] = useState({ options: [], id: "" });
   const { track } = useProcessing();
   const rec = useRecorder();
   const [cfg, setCfg] = useState({ realtime: true, demo: false });
@@ -54,6 +55,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
     live.reset();
     if (!initial) {
       api.mantaiSettings().then(setCfg).catch(() => {});
+      api.moduleSettings().then((r) => setMods({ options: r.visit_options ?? [], id: r.module_id })).catch(() => setMods({ options: [], id: "" }));
     }
     if (!initial) api.visitTemplates().then((xs) => { setTemplates(xs); setTplId((cur) => (xs.some((t) => t.id === cur) ? cur : xs[0]?.id ?? "")); }).catch(() => setTemplates([]));
   }, [open, patient, initial]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -95,7 +97,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
       setSendStep("Apertura cartella…");
       const c = await api.startConsultation({
         patient_name: name, patient_id: sel?.patient_id ?? "", clinic: sel?.clinic ?? "", waiting_id: sel?.id ?? "",
-        duration_sec: duration, paper_consent: paper, transcript: transcript ?? "", part_ids: partIds.join(","), template_id: tplId,
+        duration_sec: duration, paper_consent: paper, transcript: transcript ?? "", part_ids: partIds.join(","), template_id: tplId, module_id: mods.id,
         ...(opts.checklist ? { checklist_id: "template", checklist_manual: JSON.stringify(live.manualValues()), ...(opts.demo ? { checklist_demo: JSON.stringify(live.aiValues()) } : {}) } : {}),
         ...(opts.liveChunks ? { live_session_id: live.session.current, live_chunks: opts.liveChunks } : {}),
       }, null);
@@ -180,7 +182,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
         </div>
         <div className="flex flex-1 flex-col justify-center py-8">
           {stage === "setup" && (
-            <Setup {...{ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, hint, sending: sending || starting, starting }} picker={<ModelRow tpl={templates.find((t) => t.id === tplId)}><TemplatePicker templates={templates} value={tplId} onChange={pickTpl} suggested={suggested} ageM={ageM} /></ModelRow>} gate={<ConsentGate patient={patients.find((p) => p.id === sel?.patient_id)} free={!sel?.patient_id && Boolean(freeName.trim())} paper={paper} setPaper={setPaper} onSaved={onPatientsChange} />} />
+            <Setup {...{ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, hint, sending: sending || starting, starting }} picker={<><ModulePicker mods={mods} setId={(id) => setMods((m) => ({ ...m, id }))} /><ModelRow tpl={templates.find((t) => t.id === tplId)}><TemplatePicker templates={templates} value={tplId} onChange={pickTpl} suggested={suggested} ageM={ageM} /></ModelRow></>} gate={<ConsentGate patient={patients.find((p) => p.id === sel?.patient_id)} free={!sel?.patient_id && Boolean(freeName.trim())} paper={paper} setPaper={setPaper} onSaved={onPatientsChange} />} />
           )}
           {(stage === "recording") && (
             <RecordingLayout panel={<LiveChecklist models={models} model={tplId} onModel={pickTpl} live={live} realtime={cfg.realtime || cfg.demo} />}
@@ -235,6 +237,16 @@ const TplPill = ({ t, value, onChange, hint }) => (
     {t.name.replace("Bilancio di salute · ", "")} <span className="opacity-60">· {t.fields.length} campi</span>{hint && <span className="ml-1.5 rounded-full bg-[var(--accent)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--fg)]" data-testid="consult-template-suggested">{hint}</span>}
   </button>
 );
+
+// Cartella della visita: preselezionata la specialità principale, cambiabile solo se serve (specialità secondarie o Generale)
+const ModulePicker = ({ mods, setId }) => (mods.options.length > 1 ? (
+  <label className="mb-3 flex flex-wrap items-center gap-2 text-sm" data-testid="consult-module-picker">
+    <span className="text-[11px] uppercase tracking-[0.2em] text-[var(--fg2)]">Cartella</span>
+    <select value={mods.id} onChange={(e) => setId(e.target.value)} className="h-9 rounded-full border border-[var(--hair)] bg-[var(--raised)] px-3 text-sm outline-none focus:border-[var(--accent)]" data-testid="consult-module-select">
+      {mods.options.map((o) => <option key={o.id} value={o.id}>{o.nome}</option>)}
+    </select>
+  </label>
+) : null);
 
 const TemplatePicker = ({ templates, value, onChange, suggested, ageM }) => (templates.length ? (
   <div className="rounded-2xl border border-[var(--hair)] p-4" data-testid="consult-template-picker">

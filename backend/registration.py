@@ -6,7 +6,7 @@ import secrets
 import logging
 from datetime import datetime, timezone, timedelta
 from html import escape as hesc
-from typing import Annotated, Literal, Optional, Union
+from typing import Annotated, List, Literal, Optional, Union
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import Response as RawResponse
@@ -90,6 +90,7 @@ class Base(BaseModel):
 class DoctorSignup(Base):
     role: Literal["doctor"]
     specialty: str = Field(min_length=2, max_length=120)
+    secondary_specialties: List[Annotated[str, Field(min_length=2, max_length=120)]] = Field(default_factory=list, max_length=3)
     order_number: str = Field(min_length=2, max_length=60)
     studio_address: str = Field(min_length=5, max_length=200)
     terms: bool
@@ -220,7 +221,7 @@ def build_registration(db, current_user, start_session, models, pdf_for):
             name = f"Dott. {d['first_name']} {d['last_name']}"
             await db.users.insert_one({**base, "name": name, "role": "doctor", "status": "pending",
                                        "clinics": [{"name": "Studio principale", "address": d["studio_address"]}],
-                                       "profile": {"specialty": d["specialty"], "order_number": d["order_number"], "phone": d["phone"], "studio_address": d["studio_address"]}})
+                                       "profile": {"specialty": d["specialty"], "secondary_specialties": [x for x in d.get("secondary_specialties") or [] if x != d["specialty"]], "order_number": d["order_number"], "phone": d["phone"], "studio_address": d["studio_address"]}})
             try:
                 rows = "".join(f"<p><strong>{k}:</strong> {hesc(v)}</p>" for k, v in (("Medico", name), ("Email", email), ("Specializzazione", d["specialty"]),
                                                                                      ("Iscrizione Ordine", d["order_number"]), ("Telefono", d["phone"]), ("Sede", d["studio_address"])))

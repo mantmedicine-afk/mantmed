@@ -3,6 +3,7 @@ import { Search, FileText, PersonStanding, Landmark, X } from "lucide-react";
 import { BodychartHistory } from "@/components/bodychart/BodychartHistory";
 import { TeamPanel } from "@/components/team/TeamPanel";
 import { api } from "@/lib/api";
+import { MODULE_NAMES } from "@/lib/modules";
 
 const dt = (iso) => new Date(iso).toLocaleDateString("it-IT", { day: "numeric", month: "short", year: "numeric" });
 
@@ -15,7 +16,7 @@ export const PageTitle = ({ kicker, title, it }) => (
 
 const VisitRow = ({ c, onOpen }) => (
   <button onClick={() => onOpen(c)} className="group flex w-full flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--hair)] bg-[var(--surface)] p-4 text-left transition-all hover:-translate-y-0.5 hover:border-[var(--accent)]" data-testid={`visit-row-${c.id}`}>
-    <span className="min-w-0"><span className="block font-medium text-[var(--fg)]">{c.patient_name}</span><span className="block truncate text-sm text-[var(--fg2)]">{c.status === "processing" ? "Elaborazione referto in corso…" : (c.note?.motivo_visita && c.note.motivo_visita !== "Non riportato") ? c.note.motivo_visita : "Visita"} · {c.clinic || "Studio"}</span></span>
+    <span className="min-w-0"><span className="flex flex-wrap items-center gap-2 font-medium text-[var(--fg)]">{c.patient_name}{MODULE_NAMES[c.note?.modulo?.id] && <span className="rounded-full bg-[var(--sel)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]" data-testid={`visit-row-module-${c.id}`}>{MODULE_NAMES[c.note.modulo.id]}</span>}</span><span className="block truncate text-sm text-[var(--fg2)]">{c.status === "processing" ? "Elaborazione referto in corso…" : (c.note?.motivo_visita && c.note.motivo_visita !== "Non riportato") ? c.note.motivo_visita : "Visita"} · {c.clinic || "Studio"}</span></span>
     <span className="flex items-center gap-2 text-xs text-[var(--fg2)]">{dt(c.created_at)} <PersonStanding size={15} className="text-[var(--fg)] transition-transform group-hover:scale-110" /></span>
   </button>
 );

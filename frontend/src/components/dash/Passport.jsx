@@ -16,6 +16,7 @@ import { BodychartHistory } from "@/components/bodychart/BodychartHistory";
 import { ReportStates } from "./ReportStates";
 import { KindConsents, ConsentBadges, MismatchNote } from "./KindConsents";
 import { PassportFseTab } from "./PassportFseTab";
+import { MODULE_NAMES } from "@/lib/modules";
 
 const TABS = [["panoramica", "Panoramica"], ["visite", "Visite e referti"], ["crescita", "Crescita"], ["bilanci", "Bilanci"], ["bodychart", "Bodychart"], ["privacy", "Documenti e consensi"], ["rete", "Squadra"], ["passaporto", "Passaporto e FSE"]];
 
@@ -155,7 +156,7 @@ const Visits = ({ items, payments = [], onOpen, onChanged }) => {
           <span className="absolute -left-[31px] top-6 h-3 w-3 rounded-full bg-[var(--accent)] ring-4 ring-paper" />
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="flex items-center gap-2 text-xs text-[var(--fg2)]"><span className="font-mono">{new Date(c.created_at).toLocaleDateString("it-IT")}</span><span className="rounded-full bg-[var(--raised)] px-2 py-0.5 text-[var(--fg)]">{c.clinic || "Sede da indicare"}</span></div>
+              <div className="flex items-center gap-2 text-xs text-[var(--fg2)]"><span className="font-mono">{new Date(c.created_at).toLocaleDateString("it-IT")}</span><span className="rounded-full bg-[var(--raised)] px-2 py-0.5 text-[var(--fg)]">{c.clinic || "Sede da indicare"}</span>{MODULE_NAMES[c.note?.modulo?.id] && <span className="rounded-full bg-[var(--sel)] px-2 py-0.5 font-semibold text-[var(--fg)]" data-testid={`passport-visit-module-${c.id}`}>{MODULE_NAMES[c.note.modulo.id]}</span>}</div>
               <div className="mt-1 font-display text-2xl text-[var(--fg)]">{c.note?.motivo_visita || "Visita"}</div>
               <div className="text-sm text-[var(--fg2)]"><span className="font-semibold text-[var(--fg)]">Diagnosi:</span> {c.note?.diagnosi || "—"}</div>
               <AILabel provenance={c.ai_provenance} view="doctor" className="mt-2" testId={`passport-visit-ai-label-${c.id}`} />

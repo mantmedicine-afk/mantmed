@@ -336,6 +336,7 @@ class ConsultationIn(BaseModel):
     duration_sec: int = 0
     paper_consent: bool = False
     template_id: Optional[str] = None
+    module_id: str = ""
 
 
 class ConsultationPatch(BaseModel):
@@ -676,7 +677,7 @@ async def me(user: dict = Depends(current_user)):
     return user
 
 
-@api.get("/specialty-modules")
+@public_api.get("/specialty-modules")
 async def specialty_modules():
     return modules_catalog()
 
@@ -906,15 +907,18 @@ async def llm_json(prompt: str) -> dict:
 
 
 tpl_router, resolve_template = build_visit_templates(db, tdb, doctor_specialty, llm_json)
-module_router, doctor_module, module_layout = build_module_settings(db, tdb, doctor_specialty, OWNER.get)
+module_router, doctor_module, module_layout, visit_module_options = build_module_settings(db, tdb, doctor_specialty, OWNER.get)
 
 
-async def visit_setup(uid: str, tpl: dict, patient: Optional[dict]) -> dict:
-    """Modulo della visita (scelto dal medico o dalla specialità), sua personalizzazione e campi del modello senza doppioni."""
-    mid = await doctor_module(uid)
+async def visit_setup(uid: str, tpl: dict, patient: Optional[dict], module_id: str = "") -> dict:
+    """Modulo della visita (menu della visita, altrimenti quello predefinito del medico), personalizzazione e campi del modello senza doppioni."""
+    opts = await visit_module_options(uid)
+    mid = module_id or await doctor_module(uid)
+    if mid not in {o["id"] for o in opts}:
+        raise HTTPException(400, "Modulo non disponibile per le sue specialità")
     minor = bool(patient and patient.get("birth_date") and age_months(patient["birth_date"]) < 216)
     return {"mid": mid, "layout": await module_layout(uid, mid), "fields": drop_duplicates(tpl["fields"], mid),
-            "guardian_hidden": mid == "ginecologia" and minor}
+            "guardian_hidden": mid == "ginecologia" and minor, "specialita": next(o["specialita"] for o in opts if o["id"] == mid)}
 
 
 @api.post("/consultations")
@@ -928,10 +932,10 @@ async def create_consultation(body: ConsultationIn, user: dict = Depends(current
         raise HTTPException(412, "Conferma l'acquisizione del consenso privacy per la visita libera")
     t0 = time.monotonic()
     tpl = await resolve_template(body.template_id)
-    vs = await visit_setup(user["id"], tpl, patient)
+    vs = await visit_setup(user["id"], tpl, patient, body.module_id)
     pv = await latest_previsit(db, body.patient_id, user["id"]) if tpl.get("bilancio") else None
     try:
-        note = await structure_note(body.transcript, f"consult-{uuid.uuid4()}", await doctor_specialty(user["id"]), vs["fields"] or None,
+        note = await structure_note(body.transcript, f"consult-{uuid.uuid4()}", vs["specialita"], vs["fields"] or None,
                                     previsit_prompt(pv) if pv else "", vs["mid"], vs["layout"])
     except Exception as e:
         logger.exception("Strutturazione fallita")
@@ -1060,6 +1064,7 @@ async def run_consult_job(cid: str, owner: str):
         spec = await doctor_specialty(owner)
         cur = unseal_fields(await db.consultations.find_one({"_id": ObjectId(cid)}, {"template_fields": 1, "previsit": 1, "template_name": 1, "note": 1}) or {}, ("previsit", "note"))
         pv = cur.get("previsit")
+        spec = (cur.get("note") or {}).get("specialita") or spec  # specialità della visita (anche secondaria)
         cmod = (cur.get("note") or {}).get("modulo") or {}
         mid = cmod.get("id") or ""
         ck = unseal_fields(await db.consultations.find_one({"_id": ObjectId(cid)}, {"checklist_id": 1, "checklist_manual": 1}) or {}, ("checklist_manual",))
@@ -1138,7 +1143,7 @@ async def start_consultation(
     duration_sec: int = Form(0), paper_consent: bool = Form(False), transcript: str = Form(""), audio: Optional[UploadFile] = File(None),
     part_ids: str = Form(""), template_id: Optional[str] = Form(None),
     checklist_id: str = Form(""), checklist_manual: str = Form(""), live_session_id: str = Form(""), live_chunks: int = Form(0),
-    checklist_demo: str = Form(""),
+    checklist_demo: str = Form(""), module_id: str = Form(""),
 ):
     """Crea subito la visita 'in elaborazione' e avvia Whisper + IA in background.
     Visite lunghe: l'audio arriva prima in parti (POST /consultations/audio-parts) e qui si passano i loro id in ordine."""
@@ -1163,7 +1168,8 @@ async def start_consultation(
             ticked = {str(k): str(v)[:200] for k, v in (json.loads(checklist_demo) if checklist_demo else {}).items()}
         except (ValueError, AttributeError):
             ticked = {}
-        return await _demo_consultation(user, patient_name.strip(), patient_id, clinic, waiting_id, duration_sec, paper_consent, await resolve_template(template_id or None), manual, ticked)
+        return await _demo_consultation(user, patient_name.strip(), patient_id, clinic, waiting_id, duration_sec, paper_consent, await resolve_template(template_id or None), manual, ticked,
+                                        module_id)
     if live_session_id and live_chunks and not data and not part_ids.strip():
         acc = await live_transcript(live_session_id, user["id"], live_chunks)
         if acc is None:
@@ -1183,8 +1189,8 @@ async def start_consultation(
     if len(data) > 25 * 1024 * 1024:
         raise HTTPException(413, "Audio oltre 25 MB: per visite molto lunghe divida la registrazione")
     tpl = await resolve_template(template_id or None)
-    vs = await visit_setup(user["id"], tpl, patient)
-    note = ClinicalNote(specialita=await doctor_specialty(user["id"]), modulo={"id": vs["mid"], **vs["layout"]},
+    vs = await visit_setup(user["id"], tpl, patient, module_id)
+    note = ClinicalNote(specialita=vs["specialita"], modulo={"id": vs["mid"], **vs["layout"]},
                         sezioni=[NoteSection(gruppo=f["gruppo"], titolo=f["titolo"]) for f in vs["fields"]])
     enrich_growth(note, patient, date.today())
     oid_new = ObjectId()
@@ -1223,10 +1229,10 @@ CHECKLIST_RULE = ("\n\nNota per campi_modello (checklist della visita): scrivi i
                   "Se l'informazione non è stata detta scrivi 'Non riportato'.")
 
 
-async def _demo_consultation(user, name, patient_id, clinic, waiting_id, duration_sec, paper_consent, tpl, manual, ticked):
+async def _demo_consultation(user, name, patient_id, clinic, waiting_id, duration_sec, paper_consent, tpl, manual, ticked, module_id=""):
     """Modalità dimostrativa (solo account demo): nota finta già pronta, nessuna chiamata IA."""
-    vs = await visit_setup(user["id"], tpl, await get_patient(patient_id))
-    note = ClinicalNote(specialita=await doctor_specialty(user["id"]), modulo={"id": vs["mid"], **vs["layout"]},
+    vs = await visit_setup(user["id"], tpl, await get_patient(patient_id), module_id)
+    note = ClinicalNote(specialita=vs["specialita"], modulo={"id": vs["mid"], **vs["layout"]},
                         sezioni=[NoteSection(**x) for x in demo_sezioni(vs["fields"], manual, ticked)],
                         motivo_visita=tpl["name"], riepilogo="Visita dimostrativa: dati di esempio, nessun dato reale.")
     enrich_growth(note, await get_patient(patient_id), date.today())
@@ -1477,7 +1483,7 @@ async def send_report(cid: str, user: dict = Depends(current_user)):
         f'<div style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:2px;color:#C9CCD3;margin-top:4px">{hesc(header_line(profile))}</div></td></tr>'
         f'<tr><td style="padding:28px;font-size:15px;line-height:1.6"><p>Gentile {hesc(patient.get("guardian") or ("famiglia" if ped_mail else c["patient_name"]))},</p>'
         f'<p>in allegato trova il referto della visita di <strong>{hesc(c["patient_name"])}</strong> del {day}'
-        f'{" presso lo " + hesc(c["clinic"]) if c.get("clinic") else ""}.</p>' + summary_html +
+        f'{" presso lo " + hesc(c["clinic"]) if c.get("clinic") else ""}.</p>' + summary_html
         + ('<p style="font-size:13px;color:#5B6478">Il referto allegato è stato redatto con il supporto di MantAI e verificato e firmato dal medico.</p>'
            if c["ai_provenance"].get("ai_generated") is True else '') +
         '<p>Per qualsiasi chiarimento può rispondere a questa email o contattare lo studio.</p>'

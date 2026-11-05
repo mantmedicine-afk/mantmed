@@ -17,7 +17,7 @@ export const VisitsTimeline = ({ items, onPdf, onHide }) => (
       <article key={v.id} className={`${card} flex flex-wrap items-start justify-between gap-3 ${v.hidden ? "opacity-60" : ""}`} data-testid={`passport-visit-${v.id}`}>
         <div className="min-w-0">
           <div className="text-xs text-[var(--fg2)]">{day(v.date)} · {v.doctor}{v.clinic ? ` · ${v.clinic}` : ""}</div>
-          <div className="mt-1 text-lg font-semibold text-[var(--fg)]">{v.type}</div>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-lg font-semibold text-[var(--fg)]">{v.type}{v.module && <span className="rounded-full bg-[var(--sel)] px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--fg)]" data-testid={`passport-visit-module-${v.id}`}>{v.module}</span>}</div>
           {v.diagnosis && <div className="text-sm text-[var(--fg2)]"><span className="font-medium text-[var(--fg)]">Diagnosi:</span> {v.diagnosis}</div>}
           <div className="mt-1 text-xs text-[var(--fg2)]">Inserito da {v.by} · firmato il {day(v.at)}</div>
           {v.hidden && <div className="mt-1 text-xs font-medium text-[var(--late)]" data-testid={`passport-visit-hidden-${v.id}`}>Nascosto: non compare nelle condivisioni</div>}

@@ -33,13 +33,17 @@ const Suggestions = ({ items, act }) => (items?.length ? (
 export const ModuleSettingsCard = () => {
   const cat = useModules();
   const [s, setS] = useState(null);
+  const [edit, setEdit] = useState("");
   const [hidden, setHidden] = useState([]);
   const [order, setOrder] = useState([]);
-  const apply = (r) => { setS(r); setHidden(r.layout?.nascosti ?? []); setOrder(r.layout?.ordine ?? []); };
-  useEffect(() => { api.moduleSettings().then(apply).catch(() => {}); }, []);
+  const setLayout = (l) => { setHidden(l?.nascosti ?? []); setOrder(l?.ordine ?? []); };
+  const apply = (r) => { setS(r); setEdit((e) => e || r.module_id); if (!edit || edit === r.module_id) setLayout(r.layout); };
+  useEffect(() => { api.moduleSettings().then(apply).catch(() => {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const pick = async (mid) => { setEdit(mid); try { setLayout(await api.moduleLayout(mid)); } catch (e) { toast.error(errMsg(e)); } };
   const run = async (p, ok) => { try { apply(await p); if (ok) toast.success(ok); } catch (e) { toast.error(errMsg(e)); } };
   if (!s || !cat) return null;
-  const mod = cat.moduli.find((m) => m.id === s.module_id);
+  const editable = (s.visit_options ?? []).filter((o) => o.id !== "generale");
+  const mod = cat.moduli.find((m) => m.id === (edit || s.module_id));
   const keys = (mod?.campi ?? []).map((f) => f.key);
   const ordered = [...keys].sort((a, b) => (order.includes(a) ? order.indexOf(a) : 99 + keys.indexOf(a)) - (order.includes(b) ? order.indexOf(b) : 99 + keys.indexOf(b)));
   const move = (k, d) => { const o = [...ordered]; const i = o.indexOf(k); [o[i], o[i + d]] = [o[i + d], o[i]]; setOrder(o); };
@@ -54,6 +58,12 @@ export const ModuleSettingsCard = () => {
         </select>
       </label>
       <p className="mt-4 flex items-center gap-2 text-sm text-[var(--fg2)]"><Lock size={14} /> Campi base fissi: motivo, anamnesi, allergie, farmaci in uso, sintomi, esame obiettivo, diagnosi, terapia, follow-up.</p>
+      {editable.length > 1 && (
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-sm" data-testid="module-edit-picker">
+          <span className="text-[var(--fg2)]">Personalizza la cartella di:</span>
+          {editable.map((o) => <button key={o.id} onClick={() => pick(o.id)} className={`rounded-full border px-3 py-1.5 ${o.id === mod?.id ? "border-[var(--accent)] bg-[var(--accent)] font-semibold text-[var(--ink)]" : "border-[var(--hair)]"}`} data-testid={`module-edit-${o.id}`}>{o.nome}</button>)}
+        </div>
+      )}
       {keys.length > 0 && (
         <div className="mt-5 grid gap-5 md:grid-cols-2">
           {Object.entries(GROUPS).map(([g, label]) => {
@@ -72,8 +82,8 @@ export const ModuleSettingsCard = () => {
       )}
       {keys.length > 0 && (
         <div className="mt-5 flex flex-wrap gap-2">
-          <button onClick={() => run(api.setModulePrefs(s.module_id, hidden, ordered), "Personalizzazione salvata")} className="flex h-10 items-center rounded-full bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--ink)]" data-testid="module-prefs-save">Salva personalizzazione</button>
-          <button onClick={() => run(api.resetModule(s.module_id), "Modello predefinito ripristinato")} className={btn} data-testid="module-prefs-reset"><RotateCcw size={14} /> Ripristina modello predefinito</button>
+          <button onClick={() => run(api.setModulePrefs(mod.id, hidden, ordered).then((r) => { setLayout(mod.id === r.module_id ? r.layout : { nascosti: hidden, ordine: ordered }); return r; }), "Personalizzazione salvata")} className="flex h-10 items-center rounded-full bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--ink)]" data-testid="module-prefs-save">Salva personalizzazione</button>
+          <button onClick={() => run(api.resetModule(mod.id).then((r) => { setLayout({ nascosti: [], ordine: [] }); return r; }), "Modello predefinito ripristinato")} className={btn} data-testid="module-prefs-reset"><RotateCcw size={14} /> Ripristina modello predefinito</button>
         </div>
       )}
       <Suggestions items={s.suggestions} act={(t, a) => run(api.moduleSuggestion(t, a), a === "add" ? "Campo aggiunto al modello visita" : "Suggerimento ignorato")} />

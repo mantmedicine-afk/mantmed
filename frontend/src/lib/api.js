@@ -134,6 +134,7 @@ export const api = {
   resetModule: (choice) => http.post("/settings/module/reset", { choice }).then((r) => r.data),
   moduleNoticeSeen: () => http.post("/settings/module/notice-seen").then((r) => r.data),
   moduleSuggestion: (titolo, action) => http.post("/settings/module/suggestions", { titolo, action }).then((r) => r.data),
+  moduleLayout: (mid) => http.get(`/settings/module/layout/${mid}`).then((r) => r.data),
   shareWithGuardians: (id, share) => http.post(`/consultations/${id}/guardians`, { share }).then((r) => r.data),
   search: (q, signal) => http.get("/search", { params: { q }, signal }).then((r) => r.data),
   getConsultation: (id) => http.get(`/consultations/${id}`).then((r) => r.data),
