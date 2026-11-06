@@ -3,26 +3,24 @@ import { Plus, X } from "lucide-react";
 import { box, pill, num, out, Verify, Plausible } from "./moduleUi";
 
 const EYES = [["od", "OD · occhio destro"], ["os", "OS · occhio sinistro"]];
-const empty = (f) => ({ od: {}, os: {}, nota: "", incerti: [] });
+const empty = () => ({ od: {}, os: {}, nota: "", incerti: [] });
 
-const Sub = ({ f, x, eye, val, set, unsure }) => {
-  const [ask, setAsk] = useState(false);
+const Sub = ({ f, x, eye, val, set, unsure, onAsk }) => {
   const id = `${f.key}-${eye}-${x.k}`;
-  const bad = () => x.min != null && out(num(val), x.min, x.max);
   return (
     <div className="min-w-0">
       {x.label && <span className="mb-1 block text-[11px] text-[var(--fg2)]">{x.label}</span>}
-      <input value={val} onChange={(e) => set(e.target.value)} onBlur={() => setAsk(bad())} inputMode={x.min != null ? "decimal" : undefined}
+      <input value={val} onChange={(e) => set(e.target.value)} onBlur={() => onAsk(x.min != null && out(num(val), x.min, x.max))} inputMode={x.min != null ? "decimal" : undefined}
         className={`h-11 w-full px-3 text-[15px] outline-none ${box} ${unsure ? "border-[var(--late)]" : ""}`} aria-label={`${f.label} ${eye.toUpperCase()} ${x.label}`} data-testid={`module-eye-${id}`} />
       {unsure && <Verify id={id} />}
-      {ask && <Plausible id={id} value={val} unit={x.k === "mmhg" ? "mmHg" : ""} onKeep={() => setAsk(false)} onFix={() => { setAsk(false); set(""); }} />}
     </div>
   );
 };
 
 // Colonne OD / OS affiancate (su telefono una sotto l'altra); valori come dettati
 export const EyesField = ({ f, v, set }) => {
-  const val = { ...empty(f), ...(v ?? {}) };
+  const [ask, setAsk] = useState(null);
+  const val = { ...empty(), ...(v ?? {}) };
   const single = f.sub?.length === 1 && f.sub[0].k === "v";
   const upd = (eye, k, s) => set({ ...val, [eye]: { ...val[eye], [k]: s }, incerti: (val.incerti ?? []).filter((u) => u !== `${eye}.${k}`) });
   const cols = { 2: "grid-cols-2", 3: "grid-cols-3", 4: "grid-cols-2 sm:grid-cols-4", 5: "grid-cols-2 sm:grid-cols-5", 6: "grid-cols-3" }[f.sub.length] ?? "grid-cols-1";
@@ -36,8 +34,13 @@ export const EyesField = ({ f, v, set }) => {
               <textarea value={val[eye]?.v ?? ""} onChange={(e) => upd(eye, "v", e.target.value)} rows={1} className={`w-full resize-y px-3 py-2.5 text-[15px] outline-none ${box}`} aria-label={`${f.label} ${eye.toUpperCase()}`} data-testid={`module-eye-${f.key}-${eye}-v`} />
             ) : (
               <div className={`grid gap-2 ${cols}`}>
-                {f.sub.map((x) => <Sub key={x.k} f={f} x={x} eye={eye} val={val[eye]?.[x.k] ?? ""} set={(s) => upd(eye, x.k, s)} unsure={(val.incerti ?? []).includes(`${eye}.${x.k}`)} />)}
+                {f.sub.map((x) => <Sub key={x.k} f={f} x={x} eye={eye} val={val[eye]?.[x.k] ?? ""} set={(s) => upd(eye, x.k, s)} unsure={(val.incerti ?? []).includes(`${eye}.${x.k}`)}
+                  onAsk={(bad) => setAsk(bad ? { eye, k: x.k } : (a) => (a?.eye === eye && a?.k === x.k ? null : a))} />)}
               </div>
+            )}
+            {ask?.eye === eye && (
+              <Plausible id={`${f.key}-${eye}-${ask.k}`} value={ask.k === "mmhg" ? val[eye]?.[ask.k] ?? "" : `${f.sub.find((x) => x.k === ask.k)?.label ?? ""} ${val[eye]?.[ask.k] ?? ""}`.trim()} unit={ask.k === "mmhg" ? "mmHg" : ""}
+                onKeep={() => setAsk(null)} onFix={() => { upd(eye, ask.k, ""); setAsk(null); }} />
             )}
           </div>
         ))}

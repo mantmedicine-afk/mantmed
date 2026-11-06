@@ -11,7 +11,7 @@ export const Verify = ({ id, text = "Da verificare" }) => <span className="ml-2 
 // Controllo di plausibilità: solo errori di battitura/trascrizione, nessun giudizio clinico
 export const Plausible = ({ id, value, unit, onKeep, onFix }) => (
   <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-[var(--late)] bg-[var(--late-bg)] px-3 py-2 text-sm text-[var(--late)]" role="alert" data-testid={`module-plausibility-${id}`}>
-    <span>Valore insolito, forse un errore di battitura: conferma {String(value).replace(".", ",")} {unit}?</span>
+    <span>Valore insolito, forse un errore di battitura: conferma {String(value).replace(".", ",")}{unit ? ` ${unit}` : ""}?</span>
     <button type="button" onClick={onKeep} className="rounded-full bg-[var(--surface)] px-3 py-1 text-xs font-semibold text-[var(--fg)]" data-testid={`module-plausibility-keep-${id}`}>Confermo</button>
     <button type="button" onClick={onFix} className="rounded-full border border-[var(--late)] px-3 py-1 text-xs font-semibold" data-testid={`module-plausibility-fix-${id}`}>Correggi</button>
   </div>

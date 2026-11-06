@@ -557,3 +557,4 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 
 ## 2026-11 Stato multispecialistico
 - Passi 1-3 + 6 correzioni feedback completati (iteration_70-73). Utente in verifica manuale in anteprima. Regola 18 anni e dettagli in PIANO_MULTISPECIALISTICO.md. Prossimo: passo 4 solo dopo "via al passaggio 4".
+- 2026-11-06: rifiniture (CF paziente, LDL solo in esami lab, contrasto consenso 8,8:1) + modulo Oftalmologia (OD/OS, prescrizione occhiali/lenti, terapia oculare per occhio). Produzione: solo dati di prova (verifica deployer). Prossimo: passo 4 dopo approvazione.

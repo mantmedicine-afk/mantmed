@@ -50,7 +50,7 @@ SFERA, CIL, ASSE = S("sfera", "Sfera", -30, 30), S("cilindro", "Cilindro", -10, 
 EYE_RULE = ("Campi OD/OS: assegna un valore o un reperto a od o os SOLO se l'occhio è detto chiaramente (destro/OD, sinistro/OS; 'entrambi'/'OO' = stesso testo in od e os). "
             "Se l'occhio non è detto chiaramente lascia od e os vuoti e scrivi il testo in non_specificato: non scegliere mai tu l'occhio. "
             "Valori come dettati (segno, decimali, decimi): nessuna conversione di unità, nessuna correzione della pressione oculare, nessun giudizio. "
-            "I colliri e i farmaci oculari prescritti vanno solo in terapia_oculare (non ripeterli in terapia), con occhio \"OD\", \"OS\", \"OO\" solo se detto, altrimenti \"\".\n")
+            "I colliri e i farmaci oculari prescritti vanno solo in terapia_oculare (non ripeterli in terapia), con occhio \"OD\", \"OS\", \"OO\" solo se detto, altrimenti \"\". Quando tornare a controllo va solo in follow_up; in accertamenti solo gli esami o le visite richiesti.\n")
 MODULES = {
     "pediatria": {
         "id": "pediatria", "versione": 1, "nome": "Pediatria", "match": r"pediatr|neonatolog",

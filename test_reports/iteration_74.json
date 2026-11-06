@@ -1,0 +1,39 @@
+{
+  "summary": "Ophthalmology module (Oftalmologia) + 3 refinements tested end-to-end. Backend: new tests/test_oftalmologia.py 8/8 PASS (schema incl. sub min/max, prism, DIP, contact lens fields; seeded Marco Demo visit with cristallino nota and Lacrime artificiali OO; PATCH persist+restore; live AI run: 'cristallino con lieve opacità' -> campi.cristallino.nota with od/os empty, cornea 'entrambi' -> od+os, numbers kept as dictated '-2,25', axis '90', OS cylinder/axis left empty; timololo OS, lacrime artificiali occhio '' (not said); base note.terapia contains no drops; PDF prints OD:/OS: lines and 'Occhio non specificato:' and skips empty fields). Malformed PATCH (string in occhi / terapia_occhi) is sanitized by clean_value, PDF still 200. Regression: test_cardio_lab_placement PASS; test_mantai_faithfulness flaky (1 of 3 runs failed). Frontend: oculista visit has 5 tabs (Anamnesi, Motivo e sintomi, Esame obiettivo, Esami strumentali, Diagnosi e terapia); OD/OS columns side by side at 1920 and stacked OD-then-OS at 390 with no horizontal overflow; plausibility works for asse 195 / cilindro 12 / addizione 5 / tonometria 90 / sfera -31 (Correggi clears only that sub-field, Confermo keeps the value; +2,25 and 17 do not trigger it); Rimuovi nota, palpebre edit and a new drop row persist after Salva + reload (seeded visit restored through the API afterwards); 'Occhio non indicato' badge and the OD/OS/OO single-select toggle work. Cardiology pressione Correggi clears only the out-of-range sis or dia, numero Correggi clears the value, gyn eta_menarca 99 Correggi works. TeamPanel placeholder 'Codice fiscale del paziente' (placeholder text-transform none). ConsentGate ok color rgb(168,221,190) on the dark overlay (~rgb(15,26,30) + 10% white), so AA passes.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/consultations/start (cardiologia riepilogo)", "issue": "Flaky test_mantai_faithfulness (failed 1 of 3 runs): the riepilogo explained ECG as 'ritmo del cuore che parte dal suo normale centro di comando', so the patient summary used the word 'normale', which the doctor never said. A prompt fix is needed: glossary explanations must not use judgement words."},
+      {"endpoint": "POST /api/consultations/start (oftalmologia)", "issue": "Where the follow-up goes is inconsistent: in the seeded visit 'Controllo tra un anno con campo visivo' went into module accertamenti with base follow_up empty, while in the AI test 'Controllo tra sei mesi' went into base follow_up. Each is a single field, so nothing is duplicated, but the placement should be the same every time."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "EyeFields.jsx Sub -> Plausible", "issue": "At desktop the plausibility alert renders inside the narrow sub-field grid cell (~70px wide in a 4-column refrazione grid). The text wraps into a tall narrow box and the 'Correggi' button overflows the box border. Render the alert below the whole OD/OS sub-grid (col-span-full) or in a popover.", "selector": "[data-testid=module-plausibility-refrazione-od-asse]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Plausibility alert (eye fields)", "issues": ["When the unit is empty the text reads 'conferma 195 ?' with a stray space before '?'"]},
+      {"screen": "Ophthalmology visit header", "issues": ["The 'Bodychart' button shows for Oftalmologia, where it is probably not relevant (minor, product decision)"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_oftalmologia.py", "/app/test_reports/pytest/pytest_oft_iter74.xml", "/app/test_reports/pytest/pytest_regr_iter74.xml"],
+  "action_items": [
+    "Move the Plausible alert in EyeFields Sub out of the narrow grid cell (full width under the eye column) so the Confermo/Correggi buttons do not overflow",
+    "Remove the trailing space in the Plausible text when unit is empty",
+    "Optional: tighten the riepilogo prompt so glossary explanations never use judgement words (normale/alto/basso); faithfulness test is flaky",
+    "Optional: make follow-up placement in oftalmologia deterministic (accertamenti vs base follow_up)"
+  ],
+  "critical_code_review_comments": [
+    "EyeFields.jsx: empty(f) takes an unused parameter",
+    "Plausibility uses Number() after replacing a comma, so dictated forms like '180°' or '-2,25 D' give NaN and are silently skipped (acceptable because the check is typo-only, but worth noting)",
+    "clean_eyes correctly sanitizes malformed input on PATCH; hidden-field reset via clean_value(f, None) yields empty od/os dicts"
+  ],
+  "updated_files": ["/app/backend/tests/test_oftalmologia.py"],
+  "success_rate": {"backend": "100% (oft 8/8, cardio lab 1/1; faithfulness flaky 2/3)", "frontend": "95% (all flows work; 1 layout issue)"},
+  "seed_data_creation": "TEST_OFT_Paziente consult+patient (auto-deleted by test fixture), TEST_CardioUI cardiology consult (deleted by id). Marco Demo seeded visit edited in UI then restored via PATCH from a pre-test backup (cristallino nota, palpebre, terapia_oculare verified restored).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login at /app; 'Salta il tour' = tour-skip-btn. Gyn new visit: home 'Avvia MantAI' -> Giulia Demo is preselected. TeamPanel is on /app/pazienti -> patient. Run pytest with -n 0 for single files. Marco Demo consult id 6aed2716a998ff4c0f9a3db3. Dermatologia module editor not re-tested in UI this iteration (no derm demo account).",
+  "test_credentials": "From /app/memory/test_credentials.md; all demo logins worked; bcrypt $2b$ hash; httpOnly access_token cookie set."
+}

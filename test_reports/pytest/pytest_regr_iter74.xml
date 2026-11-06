@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="2" time="5.033" timestamp="2026-11-06T01:05:27.983955+00:00" hostname="agent-env-f9af9b66-924f-4c3b-b396-d09e1a968def"><testcase classname="tests.test_cardio_lab_placement" name="test_ldl_only_in_lab_field" time="3.870" /><testcase classname="tests.test_mantai_faithfulness" name="test_no_invented_judgements_or_instructions" time="3.788"><failure message="AssertionError: Riepilogo con parole non dette dal medico ['normale']: - Pressione misurata: 150 su 95. Frequenza: 80.  &#10;  - All’auscultazione, toni cardiaci validi. ECG con ritmo sinusale (ritmo del cuore che parte dal suo normale centro di comando).  &#10;  - Colesterolo riportato: 245.  &#10;  - Controllo tra tre mesi.&#10;assert not ['normale']">tests/test_mantai_faithfulness.py:37: in test_no_invented_judgements_or_instructions
+    assert not bad, f"Riepilogo con parole non dette dal medico {bad}: {riep}"
+E   AssertionError: Riepilogo con parole non dette dal medico ['normale']: - Pressione misurata: 150 su 95. Frequenza: 80.  
+E     - All’auscultazione, toni cardiaci validi. ECG con ritmo sinusale (ritmo del cuore che parte dal suo normale centro di comando).  
+E     - Colesterolo riportato: 245.  
+E     - Controllo tra tre mesi.
+E   assert not ['normale']</failure></testcase></testsuite></testsuites>

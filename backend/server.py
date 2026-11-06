@@ -859,7 +859,7 @@ async def patient_summary(spec: str, transcript: str = "", note: Optional[dict] 
     who = "i genitori del bambino (dia del Lei ai genitori e parli del bambino in terza persona)" if ped else "il paziente (gli dia del Lei)"
     system = (f"Sei l'assistente di un medico specializzato in {spec}: scrivi a {who} un riepilogo della visita in italiano semplice. "
               "Il tuo unico compito è RIFORMULARE in parole semplici ciò che il medico ha detto: non sei tu a valutare. Massimo 130 parole, 3-5 frasi brevi o un breve elenco. "
-              "Riporta: cosa il medico ha riscontrato o detto, mantenendo i suoi termini (se tecnici, spiegali tra parentesi senza cambiarne il significato); i valori misurati così come detti, SENZA aggettivi di giudizio "
+              "Riporta: cosa il medico ha riscontrato o detto, mantenendo i suoi termini (se tecnici, spiegali tra parentesi senza cambiarne il significato; la spiegazione dice solo cos'è l'esame o il termine, mai com'è andato, e non usa parole di giudizio come normale, regolare, alto, basso); i valori misurati così come detti, SENZA aggettivi di giudizio "
               "(mai alto, basso, normale, nella norma, elevato, aumentato, buono, preoccupante, a meno che il medico abbia detto proprio quel giudizio per quel dato); "
               "le indicazioni (farmaci, dosi, comportamenti, controlli) SOLO se il medico le ha date esplicitamente, nella stessa forma detta "
               "(non calcolare, convertire o arrotondare dosi; un farmaco che il paziente dice di prendere NON diventa un'indicazione a proseguirlo); "
