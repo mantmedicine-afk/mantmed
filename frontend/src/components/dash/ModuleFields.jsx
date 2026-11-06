@@ -1,23 +1,8 @@
 import { useState } from "react";
-import { Plus, X, AlertCircle } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { AIFieldMark } from "@/components/mantai/AILabel";
-
-const box = "rounded-2xl border border-[var(--hair)] bg-[var(--raised)] focus-within:border-[var(--accent)]";
-const lbl = "text-xs font-semibold uppercase tracking-[0.18em] text-[var(--fg2)]";
-const pill = (on) => `rounded-full border px-3.5 py-1.5 text-sm transition-colors ${on ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--ink)]" : "border-[var(--hair)] text-[var(--fg)] hover:border-[var(--accent)]"}`;
-const num = (s) => (s === "" || s == null ? null : Number(String(s).replace(",", ".")));
-const out = (v, lo, hi) => v != null && (v < lo || v > hi);
-
-const Verify = ({ id }) => <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-[var(--late-bg)] px-2 py-0.5 text-[11px] font-semibold text-[var(--late)]" data-testid={`module-verify-${id}`}><AlertCircle size={11} /> Da verificare</span>;
-
-// Controllo di plausibilità: solo errori di battitura/trascrizione, nessun giudizio clinico
-const Plausible = ({ id, value, unit, onKeep, onFix }) => (
-  <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-[var(--late)] bg-[var(--late-bg)] px-3 py-2 text-sm text-[var(--late)]" role="alert" data-testid={`module-plausibility-${id}`}>
-    <span>Valore insolito, forse un errore di battitura: conferma {String(value).replace(".", ",")} {unit}?</span>
-    <button type="button" onClick={onKeep} className="rounded-full bg-[var(--surface)] px-3 py-1 text-xs font-semibold text-[var(--fg)]" data-testid={`module-plausibility-keep-${id}`}>Confermo</button>
-    <button type="button" onClick={onFix} className="rounded-full border border-[var(--late)] px-3 py-1 text-xs font-semibold" data-testid={`module-plausibility-fix-${id}`}>Correggi</button>
-  </div>
-);
+import { box, lbl, pill, num, out, Verify, Plausible } from "./moduleUi";
+import { EyesField, EyeTherapy } from "./EyeFields";
 
 const NumberField = ({ f, v, set }) => {
   const [ask, setAsk] = useState(false);
@@ -71,6 +56,8 @@ const Choice = ({ f, v, set, options }) => (
 );
 
 const Input = ({ f, v, set }) => {
+  if (f.tipo === "occhi") return <EyesField f={f} v={v} set={set} />;
+  if (f.tipo === "terapia_occhi") return <EyeTherapy f={f} v={v} set={set} />;
   if (f.tipo === "numero") return <NumberField f={f} v={v} set={set} />;
   if (f.tipo === "pressione") return <PressureField f={f} v={v} set={set} />;
   if (f.tipo === "scelta") return <Choice f={f} v={v} set={set} options={f.opzioni ?? []} />;
@@ -81,12 +68,13 @@ const Input = ({ f, v, set }) => {
 
 export const ModuleFields = ({ fields, campi, onChange, processing, marked }) => (
   <div className="space-y-4" data-testid="module-fields">
-    {fields.map((f) => (
+    {fields.map((f, i) => (
       <div key={f.key} className="block" data-testid={`module-row-${f.key}`}>
+        {f.sezione && f.sezione !== fields[i - 1]?.sezione && <div className="mb-3 mt-6 border-b border-[var(--hair)] pb-2 font-display text-lg text-[var(--fg)]" data-testid={`module-section-${f.key}`}>{f.sezione}</div>}
         <span className={lbl}>{f.label}</span>
         {f.hint && <span className="ml-2 text-xs text-[var(--fg2)]">· {f.hint}</span>}
         {marked(f.key) && <AIFieldMark testId={`note-ai-mark-${f.key}`} />}
-        {campi?.[f.key]?.verifica && <Verify id={f.key} />}
+        {campi?.[f.key]?.verifica === true && <Verify id={f.key} />}
         {processing ? <div className="mt-1.5 h-12 rounded-2xl ai-shimmer" /> : <Input f={f} v={campi?.[f.key]} set={(v) => onChange(f.key, v)} />}
       </div>
     ))}

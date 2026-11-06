@@ -372,7 +372,8 @@ def build_visit_templates(db, tdb, specialty_of, llm_json):
         if not await tdb.visit_templates.count_documents({}):
             await db.visit_templates.create_index([("owner_id", 1), ("seed", 1)], unique=True, partialFilterExpression={"seed": True})
             now = datetime.now(timezone.utc).isoformat()
-            doc = {"name": "Prima visita", "fields": await base_fields(await specialty_of(OWNER.get())), "created_at": now, "updated_at": now}
+            spec = await specialty_of(OWNER.get())
+            doc = {"name": "Prima visita", "fields": [] if module_for(spec) in STRUCTURED else await base_fields(spec), "created_at": now, "updated_at": now}
             try:
                 await tdb.visit_templates.update_one({"seed": True}, {"$setOnInsert": doc}, upsert=True)
             except Exception:

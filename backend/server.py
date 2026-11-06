@@ -37,7 +37,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, BeforeValidator, model_validator
 from typing import List, Optional, Annotated, Literal, ClassVar, Dict, Any
 from specialty_modules import (upgrade_note, module_for, module_keys, catalog as modules_catalog, STRUCTURED, module_prompt, parse_module,
-                               drop_duplicates, build_module_settings)
+                               drop_duplicates, build_module_settings, clean_value, module_fields, filled)
 from datetime import datetime, timezone
 from crypto import seal_fields, unseal_fields, is_sealed, KEY_FINGERPRINT, seal, unseal, seal_bytes, unseal_bytes
 import asyncio
@@ -907,8 +907,9 @@ async def structure_note(transcript: str, session: str, specialty: str = "Pediat
                 g = d.get("gruppo") if d.get("gruppo") in ("anamnesi", "sintomi", "esame_obiettivo", "altro") else "esame_obiettivo"
                 sez.append({"gruppo": g, "titolo": str(d["titolo"])[:80], "testo": str(d.get("testo") or "Non riportato")})
         clean["sezioni"] = map_fields(fields, data.get("campi_modello")) if fields else sez[:20]
+    fdef = {f["key"]: f for f in module_fields(mid)}
     for k in layout["nascosti"]:
-        campi[k] = {"v": None, "note": "", "verifica": False} if isinstance(campi.get(k), dict) else [] if isinstance(campi.get(k), list) else ""
+        campi[k] = clean_value(fdef[k], None) if k in fdef and mid in STRUCTURED else ""
     clean["modulo"] = {"id": mid, "campi": campi, **layout}
     return ClinicalNote.model_validate(clean)
 
@@ -1640,7 +1641,7 @@ async def update_consultation(cid: str, body: ConsultationPatch):
     sets = {**Consultation.sealed_set({"note": body.note.model_dump()}), "finalized_at": now_iso()}
     text_keys = [k for k, fl in ClinicalNote.model_fields.items() if fl.annotation is str]
     if existing.get("status") == "failed" and not body.growth_only and any(
-            (v or "").strip() not in ("", "Non riportato") for v in [getattr(body.note, k) for k in text_keys] + list(body.note.modulo.campi.values())):
+            filled(v) for v in [getattr(body.note, k) for k in text_keys] + list(body.note.modulo.campi.values())):
         sets.update({"status": "ready", "ai_error": ""})  # cartella compilata a mano dal medico
         await _drop_job(cid)
     enrich_growth(body.note, await get_patient(existing.get("patient_id")), date.fromisoformat(existing["created_at"][:10]))

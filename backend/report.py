@@ -347,6 +347,13 @@ def module_value(f: dict, v) -> str:
                          for x in v or [] if x.get("sis") is not None or x.get("dia") is not None)
     if t == "data" and v:
         return datetime.fromisoformat(v).strftime("%d/%m/%Y")
+    if t == "occhi":
+        v = v or {}
+        side = lambda e: " · ".join(f'{x["label"]} {(v.get(e) or {}).get(x["k"])}'.strip() for x in f["sub"] if ((v.get(e) or {}).get(x["k"]) or "").strip())
+        rows = [f"{e.upper()}: {side(e)}" for e in ("od", "os") if side(e)]
+        return "\n".join(rows + ([f'Occhio non specificato: {v["nota"]}'] if (v.get("nota") or "").strip() else []))
+    if t == "terapia_occhi":
+        return "\n".join(" · ".join(y for y in (x.get("farmaco"), x.get("occhio") or "occhio non indicato", x.get("posologia")) if y) for x in v or [])
     return str(v or "").strip()
 
 

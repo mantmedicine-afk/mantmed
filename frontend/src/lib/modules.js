@@ -12,8 +12,8 @@ export const useModules = () => {
   return cat;
 };
 
-export const STRUCTURED = ["cardiologia", "dermatologia", "ginecologia"];
-export const MODULE_NAMES = { pediatria: "Pediatria", cardiologia: "Cardiologia", dermatologia: "Dermatologia", ginecologia: "Ginecologia", generale: "Generale" };
+export const STRUCTURED = ["cardiologia", "dermatologia", "ginecologia", "oftalmologia"];
+export const MODULE_NAMES = { pediatria: "Pediatria", cardiologia: "Cardiologia", dermatologia: "Dermatologia", ginecologia: "Ginecologia", oftalmologia: "Oftalmologia", generale: "Generale" };
 export const isStructured = (note) => STRUCTURED.includes(note?.modulo?.id);
 export const moduleOf = (cat, note) => cat?.moduli?.find((m) => m.id === note?.modulo?.id);
 
@@ -22,7 +22,7 @@ const ordered = (fields, note) => {
   const pos = (f, i) => (order.includes(f.key) ? order.indexOf(f.key) : order.length + i);
   return fields.map((f, i) => [f, pos(f, i)]).sort((a, b) => a[1] - b[1]).map(([f]) => f);
 };
-const hasValue = (v) => (Array.isArray(v) ? v.length > 0 : v && typeof v === "object" ? v.v !== null && v.v !== undefined : Boolean(String(v ?? "").trim()));
+const hasValue = (v) => (typeof v === "string" ? Boolean(v.trim()) : Array.isArray(v) ? v.some(hasValue) : v && typeof v === "object" ? Object.entries(v).some(([k, x]) => k !== "verifica" && hasValue(x)) : v != null && v !== false);
 // Campi del modulo visibili per un gruppo: ordine e campi nascosti della personalizzazione salvata nella visita
 export const visibleFields = (mod, note, gruppo) => ordered((mod?.campi ?? []).filter((f) => f.gruppo === gruppo), note)
   .filter((f) => !(note?.modulo?.nascosti ?? []).includes(f.key) || hasValue(note?.modulo?.campi?.[f.key]));
@@ -44,6 +44,11 @@ const r1 = (n) => String(Math.round(n * 10) / 10).replace(".", ",");
 export const valueText = (f, v) => {
   if (f.tipo === "numero") return v?.v == null ? "" : `${r1(v.v)}${f.unita ? ` ${f.unita}` : ""}${v.note ? ` · ${v.note}` : ""}`;
   if (f.tipo === "pressione") return (v ?? []).filter((x) => x.sis != null || x.dia != null).map((x) => `${x.sis ?? "—"}/${x.dia ?? "—"} mmHg${x.note ? ` · ${x.note}` : ""}`).join("; ");
+  if (f.tipo === "occhi") {
+    const side = (e) => (f.sub ?? []).filter((x) => String(v?.[e]?.[x.k] ?? "").trim()).map((x) => `${x.label} ${v[e][x.k]}`.trim()).join(" · ");
+    return [...["od", "os"].filter(side).map((e) => `${e.toUpperCase()}: ${side(e)}`), ...(v?.nota?.trim() ? [`Occhio non specificato: ${v.nota}`] : [])].join(" | ");
+  }
+  if (f.tipo === "terapia_occhi") return (v ?? []).map((x) => [x.farmaco, x.occhio || "occhio non indicato", x.posologia].filter(Boolean).join(" · ")).join("; ");
   if (f.tipo === "data" && v) return new Date(`${v}T12:00:00`).toLocaleDateString("it-IT");
   return String(v ?? "").trim();
 };

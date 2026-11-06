@@ -32,7 +32,25 @@ def N(key, label, gruppo, unita, lo, hi, hint=""):
     return {"key": key, "label": label, "gruppo": gruppo, "tipo": "numero", "unita": unita, "min": lo, "max": hi, "hint": hint}
 
 
+def S(k, label, lo=None, hi=None):
+    return {"k": k, "label": label, **({"min": lo, "max": hi} if lo is not None else {})}
+
+
+def E(key, label, gruppo, sub=None, hint="", sezione=""):
+    """Campo per occhio: colonne OD / OS (sottocampi testuali, scritti come dettati)."""
+    return {"key": key, "label": label, "gruppo": gruppo, "tipo": "occhi", "sub": sub or [S("v", "")], "hint": hint, "sezione": sezione}
+
+
+def X(f, sezione):
+    return {**f, "sezione": sezione}
+
+
 AS_SAID = "Solo se indicata dal medico"
+SFERA, CIL, ASSE = S("sfera", "Sfera", -30, 30), S("cilindro", "Cilindro", -10, 10), S("asse", "Asse", 0, 180)
+EYE_RULE = ("Campi OD/OS: assegna un valore o un reperto a od o os SOLO se l'occhio è detto chiaramente (destro/OD, sinistro/OS; 'entrambi'/'OO' = stesso testo in od e os). "
+            "Se l'occhio non è detto chiaramente lascia od e os vuoti e scrivi il testo in non_specificato: non scegliere mai tu l'occhio. "
+            "Valori come dettati (segno, decimali, decimi): nessuna conversione di unità, nessuna correzione della pressione oculare, nessun giudizio. "
+            "I colliri e i farmaci oculari prescritti vanno solo in terapia_oculare (non ripeterli in terapia), con occhio \"OD\", \"OS\", \"OO\" solo se detto, altrimenti \"\".\n")
 MODULES = {
     "pediatria": {
         "id": "pediatria", "versione": 1, "nome": "Pediatria", "match": r"pediatr|neonatolog",
@@ -120,6 +138,52 @@ MODULES = {
         ],
         "funzioni": ["riservata_ai_tutori_minori"],
     },
+    "oftalmologia": {
+        "id": "oftalmologia", "versione": 1, "nome": "Oftalmologia", "match": r"oftalm|oculist",
+        "etichette": {}, "gruppi": {"esami": "Esami strumentali"}, "regole": EYE_RULE,
+        "campi": [
+            T("patologie_oculari", "Patologie oculari e interventi", "anamnesi", "Come riferiti, non i reperti dell'esame di oggi"),
+            T("correzione_in_uso", "Correzione in uso", "anamnesi", "Occhiali / lenti a contatto, come riferita"),
+            T("colliri_in_uso", "Colliri e farmaci oculari in uso", "anamnesi"),
+            T("familiarita_oculare", "Familiarità oculare", "anamnesi", "Glaucoma, maculopatia, cheratocono"),
+            T("sintomi_visivi", "Sintomi visivi", "anamnesi", "Calo visus, diplopia, miodesopsie, fotopsie, dolore, iperemia · occhio solo se detto"),
+            E("visus_naturale", "Acuità visiva naturale", "esame_obiettivo", hint="Come dettata (es. 4/10), nessuna conversione", sezione="Acuità visiva e refrazione"),
+            E("visus_corretto", "Acuità visiva corretta", "esame_obiettivo", hint="Come dettata, nessuna conversione"),
+            E("refrazione", "Refrazione", "esame_obiettivo", [SFERA, CIL, ASSE, S("addizione", "Addizione", 0, 4)]),
+            {"key": "refrazione_fonte", "label": "Fonte della refrazione", "gruppo": "esame_obiettivo", "tipo": "scelta", "opzioni": ["dettata", "autorefrattometro"], "hint": AS_SAID},
+            E("tonometria", "Tonometria", "esame_obiettivo", [S("mmhg", "mmHg", 0, 80), S("metodo", "Metodo"), S("ora", "Ora")], "Come dettata, nessuna correzione"),
+            E("palpebre", "Palpebre", "esame_obiettivo", sezione="Segmento anteriore"),
+            E("congiuntiva", "Congiuntiva", "esame_obiettivo"),
+            E("cornea", "Cornea", "esame_obiettivo"),
+            E("camera_anteriore", "Camera anteriore", "esame_obiettivo"),
+            E("iride", "Iride", "esame_obiettivo"),
+            E("cristallino", "Cristallino", "esame_obiettivo"),
+            E("papilla", "Papilla", "esame_obiettivo", sezione="Fondo oculare"),
+            E("macula", "Macula", "esame_obiettivo"),
+            E("vasi", "Vasi", "esame_obiettivo"),
+            E("periferia", "Periferia", "esame_obiettivo"),
+            E("pupille", "Pupille", "esame_obiettivo", sezione="Pupille e motilità"),
+            T("motilita", "Motilità oculare", "esame_obiettivo"),
+            T("cover_test", "Cover test", "esame_obiettivo"),
+            T("stereopsi", "Stereopsi", "esame_obiettivo"),
+            E("oct", "OCT", "esami", hint="Referto come dettato"),
+            E("campo_visivo", "Campo visivo", "esami", hint="Referto come dettato"),
+            E("pachimetria", "Pachimetria", "esami", hint="Come dettata, nessuna correzione della pressione"),
+            E("topografia", "Topografia corneale", "esami", hint="Referto come dettato"),
+            E("fluorangiografia", "Fluorangiografia", "esami", hint="Referto come dettato"),
+            {"key": "terapia_oculare", "label": "Colliri e farmaci prescritti", "gruppo": "piano", "tipo": "terapia_occhi", "sezione": "Terapia oculare",
+             "hint": "Occhio solo se detto: OD, OS o OO"},
+            {"key": "prescrizione_tipo", "label": "Tipo di prescrizione", "gruppo": "piano", "tipo": "scelta", "sezione": "Prescrizione occhiali e lenti",
+             "opzioni": ["occhiali", "lenti a contatto", "occhiali e lenti a contatto"], "hint": AS_SAID},
+            E("occhiali_lontano", "Occhiali · lontano", "piano", [SFERA, CIL, ASSE, S("prisma", "Prisma (valore e base)")]),
+            E("occhiali_vicino", "Occhiali · vicino", "piano", [SFERA, CIL, ASSE, S("addizione", "Addizione", 0, 4), S("prisma", "Prisma (valore e base)")]),
+            T("distanza_interpupillare", "Distanza interpupillare", "piano", "Come dettata"),
+            E("lenti_contatto", "Lenti a contatto", "piano", [SFERA, CIL, ASSE, S("curva_base", "Curva base"), S("diametro", "Diametro"), S("tipo_marca", "Tipo / marca")]),
+            T("prescrizione_note", "Note alla prescrizione", "piano"),
+            X(T("accertamenti", "Accertamenti e controlli", "piano"), "Accertamenti"),
+        ],
+        "funzioni": [],
+    },
     "generale": {
         "id": "generale", "versione": 1, "nome": "Generale", "match": "",
         "etichette": {}, "gruppi": {}, "campi": [], "funzioni": [],
@@ -129,7 +193,7 @@ SPECIALTIES = ["Pediatria", "Neonatologia", "Cardiologia", "Dermatologia e vener
                "Medicina generale", "Allergologia e immunologia clinica", "Endocrinologia", "Gastroenterologia", "Geriatria", "Nefrologia", "Neurologia",
                "Oftalmologia", "Oncologia", "Ortopedia e traumatologia", "Otorinolaringoiatria", "Pneumologia", "Psichiatria", "Reumatologia",
                "Urologia", "Chirurgia generale", "Medicina fisica e riabilitativa"]
-STRUCTURED = ("cardiologia", "dermatologia", "ginecologia")  # moduli a campi definiti (con "Altre voci")
+STRUCTURED = ("cardiologia", "dermatologia", "ginecologia", "oftalmologia")  # moduli a campi definiti (con "Altre voci")
 LEGACY_KEYS = {f["key"] for f in MODULES["pediatria"]["campi"]}
 
 
@@ -173,6 +237,13 @@ def clean_value(f: dict, v):
                 if s is not None or d is not None or ver or (x.get("note") or "").strip():
                     out.append({"sis": s, "dia": d, "note": str(x.get("note") or "")[:120], "verifica": ver})
         return out[:6]
+    if t == "occhi":
+        return clean_eyes(f, v)
+    if t == "terapia_occhi":
+        rows = [x for x in v if isinstance(x, dict)] if isinstance(v, list) else []
+        out = [{"farmaco": str(x.get("farmaco") or "").strip()[:200], "occhio": x.get("occhio") if x.get("occhio") in ("OD", "OS", "OO") else "",
+                "posologia": str(x.get("posologia") or "").strip()[:300]} for x in rows]
+        return [x for x in out if x["farmaco"] or x["posologia"]][:20]
     if t == "scelta":
         return v if v in f.get("opzioni", []) else ""
     if t == "sino":
@@ -181,6 +252,36 @@ def clean_value(f: dict, v):
         return v if isinstance(v, str) and re.match(r"^\d{4}-\d{2}-\d{2}$", v) else ""
     s = str(v or "").strip()
     return "" if s.lower() in ("non riportato", "non riportata") else s
+
+
+def clean_eyes(f: dict, v) -> dict:
+    """OD/OS come dettati; testo senza occhio chiaro in "nota" (da verificare); numeri incerti vuoti in "incerti"."""
+    v = v if isinstance(v, dict) else {}
+    keys = [x["k"] for x in f["sub"]]
+    unsure = {str(x) for x in (v.get("incerti") or []) if isinstance(x, str)}
+    out = {"nota": str(v.get("nota", v.get("non_specificato")) or "").strip()[:500], "incerti": []}
+    for eye in ("od", "os"):
+        raw = v.get(eye)
+        raw = raw if isinstance(raw, dict) else {keys[0]: raw} if isinstance(raw, (str, int, float)) else {}
+        side = {}
+        for k in keys:
+            val = raw.get(k)
+            val = "" if val is None else str(val).strip()[:300]
+            if f"{eye}.{k}" in unsure and not val:
+                out["incerti"].append(f"{eye}.{k}")
+            side[k] = "" if val.lower() in ("non riportato", "non riportata", "null") else val
+        out[eye] = side
+    return out
+
+
+def filled(v) -> bool:
+    if isinstance(v, str):
+        return v.strip() not in ("", "Non riportato")
+    if isinstance(v, (list, tuple)):
+        return any(filled(x) for x in v)
+    if isinstance(v, dict):
+        return any(filled(x) for k, x in v.items() if k not in ("verifica",))
+    return v is not None and v is not False
 
 
 def upgrade_note(d: dict) -> dict:
@@ -228,7 +329,8 @@ def module_prompt(mid: str, hidden: list) -> str:
         t = f.get("tipo", "testo")
         fmt = {"testo": "stringa", "numero": f'{{"valore": numero|null, "incerto": true|false, "note": stringa}} ({f.get("unita") or "numero"})',
                "pressione": 'lista di {"sistolica": numero|null, "diastolica": numero|null, "note": stringa, "incerto": true|false} (mmHg), una voce per misurazione',
-               "scelta": "uno tra " + ", ".join(f.get("opzioni", [])) + ' oppure ""', "data": '"AAAA-MM-GG" oppure ""', "sino": '"sì", "no" oppure ""'}[t]
+               "scelta": "uno tra " + ", ".join(f.get("opzioni", [])) + ' oppure ""', "data": '"AAAA-MM-GG" oppure ""', "sino": '"sì", "no" oppure ""',
+               "occhi": eyes_fmt(f) if t == "occhi" else "", "terapia_occhi": 'lista di {"farmaco": stringa, "occhio": "OD"|"OS"|"OO"|"", "posologia": stringa} come prescritti'}[t]
         lines.append(f'"{f["key"]}" = {f["label"]}' + (f' ({f["hint"]})' if f.get("hint") else "") + (f' [{f["ai"]}]' if f.get("ai") else "") + f": {fmt}")
     return (f"Modulo {m['nome']}: aggiungi al primo livello del JSON la chiave \"campi\", un oggetto con queste chiavi:\n" + "\n".join(lines) + "\n"
             "e, sempre al primo livello, la chiave altre_voci: lista di {titolo, testo} SOLO per informazioni effettivamente dette in visita che non hanno un campo dedicato (altrimenti lista vuota).\n"
@@ -236,7 +338,15 @@ def module_prompt(mid: str, hidden: list) -> str:
             "Non aggiungere mai diagnosi, ipotesi, interpretazioni, giudizi su valori normali o anomali, punteggi di rischio o suggerimenti. "
             "Non calcolare nulla (nessun indice, nessuna data presunta, nessuna conversione). Se un numero non è chiaro lascia valore null e incerto true. "
             "Le note dei parametri (es. seduto, braccio destro) solo se dette. Ogni informazione va in un solo campo: usa il campo più specifico del modulo "
-            "e non ripeterla nei campi base (anamnesi, sintomi, esame obiettivo).\n")
+            "e non ripeterla nei campi base (anamnesi, sintomi, esame obiettivo).\n" + m.get("regole", ""))
+
+
+def eyes_fmt(f: dict) -> str:
+    if [x["k"] for x in f["sub"]] == ["v"]:
+        return '{"od": stringa, "os": stringa, "non_specificato": stringa}'
+    side = "{" + ", ".join(f'"{x["k"]}": stringa' for x in f["sub"]) + "}"
+    return (f'{{"od": {side}, "os": {side}, "non_specificato": stringa, "incerti": lista di "od.<chiave>"/"os.<chiave>" per i numeri non compresi}} '
+            "(numeri scritti come dettati, es. \"-2,25\"; numero non compreso: \"\" e aggiungilo a incerti)")
 
 
 def parse_module(mid: str, data: dict) -> tuple:
