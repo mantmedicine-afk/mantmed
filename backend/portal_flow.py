@@ -206,29 +206,36 @@ def build_portal_flow(db, tdb, current_user, Appointment, tenant_clinics, refund
         p = await tdb.patients.find_one({"_id": ObjectId(pid)}) if ObjectId.is_valid(pid) else None
         if not p:
             raise HTTPException(404, "Paziente non trovato")
-        p = unseal_fields(p, ("guardian_email", "fiscal_code", "guardian"))
-        email = (p.get("guardian_email") or "").strip().lower()
-        if not EMAIL_RE.match(email):
-            raise HTTPException(400, "Inserisca l'email del genitore nel passaporto prima di inviare l'invito")
+        from access_rules import contact_emails, is_adult
+        adult = is_adult(p)
+        emails = [e for e in contact_emails(p) if EMAIL_RE.match(e)]
+        p = unseal_fields(p, ("fiscal_code", "guardian", "guardian2"))
+        if not emails:
+            raise HTTPException(400, "Inserisca nel passaporto l'email del paziente (maggiorenne) o del tutore (minorenne) prima di inviare l'invito")
         if not (p.get("fiscal_code") or "").strip():
-            raise HTTPException(400, "Inserisca il codice fiscale del bambino nel passaporto: serve per collegare la cartella")
+            raise HTTPException(400, "Inserisca il codice fiscale del paziente nel passaporto: serve per collegare la cartella")
         origin = request.headers.get("origin") or ""
         if not origin.startswith("https://"):
             raise HTTPException(400, "Origine della richiesta non valida")
-        token = secrets.token_urlsafe(24)
-        await db.portal_invites.insert_one({"token": _h(token), "patient_id": pid, "owner_id": p["owner_id"], "email": email,
-                                            **seal_fields({"cf": p["fiscal_code"].strip().upper()}, ("cf",)), "patient_first": p["name"].split()[0],
-                                            "doctor": user["name"], "created_at": _now().isoformat(),
-                                            "expires_at": (_now() + timedelta(days=INVITE_DAYS)).isoformat()})
-        link = f"{origin}/registrati/paziente?invito={token}"
-        await send_email(to=email, subject=f"{user['name']} la invita al Portale Paziente MantMed", html=mail_shell("INVITO AL PORTALE PAZIENTE",
-            f"<p>Gentile {hesc(p.get('guardian') or 'genitore')},</p><p>{hesc(user['name'])} la invita ad attivare il <strong>Portale Paziente MantMed</strong> "
-            f"per {hesc(p['name'])}: un'area personale protetta dove consultare referti, consensi firmati e appuntamenti, e richiedere nuove visite.</p>"
-            "<p><strong>Come attivarlo</strong></p><ol style=\"padding-left:18px\"><li>Apra il link personale qui sotto.</li>"
-            "<li>Completi i suoi dati e scelga una password: email e codice fiscale del bambino sono già compilati.</li>"
-            "<li>Inserisca il codice di verifica che riceverà via email: la cartella si collega in automatico.</li></ol>"
-            f"<p style=\"margin:22px 0\"><a href=\"{hesc(link)}\" style=\"background:#0A192F;color:#ffffff;padding:14px 22px;border-radius:999px;text-decoration:none\">Attiva il Portale Paziente</a></p>"
-            f"<p style=\"color:#5B6478;font-size:13px\">Il link è personale e scade tra {INVITE_DAYS} giorni.</p>"))
+        names = [p.get("guardian"), p.get("guardian2")]
+        for i, email in enumerate(emails):
+            token = secrets.token_urlsafe(24)
+            await db.portal_invites.insert_one({"token": _h(token), "patient_id": pid, "owner_id": p["owner_id"], "email": email,
+                                                **seal_fields({"cf": p["fiscal_code"].strip().upper()}, ("cf",)), "patient_first": p["name"].split()[0],
+                                                "doctor": user["name"], "created_at": _now().isoformat(),
+                                                "expires_at": (_now() + timedelta(days=INVITE_DAYS)).isoformat()})
+            link = f"{origin}/registrati/paziente?invito={token}"
+            who = p["name"] if adult else (names[i] if i < len(names) and names[i] else "")
+            what = "per consultare la sua cartella" if adult else f"per {hesc(p['name'])}"
+            await send_email(to=email, subject=f"{user['name']} la invita al Portale Paziente MantMed", html=mail_shell("INVITO AL PORTALE PAZIENTE",
+                f"<p>Gentile {hesc(who)},</p><p>{hesc(user['name'])} la invita ad attivare il <strong>Portale Paziente MantMed</strong> "
+                f"{what}: un'area personale protetta dove consultare referti, consensi firmati e appuntamenti, e richiedere nuove visite.</p>"
+                "<p><strong>Come attivarlo</strong></p><ol style=\"padding-left:18px\"><li>Apra il link personale qui sotto.</li>"
+                "<li>Completi i suoi dati e scelga una password: email e codice fiscale del paziente sono già compilati.</li>"
+                "<li>Inserisca il codice di verifica che riceverà via email: la cartella si collega in automatico.</li></ol>"
+                f"<p style=\"margin:22px 0\"><a href=\"{hesc(link)}\" style=\"background:#0A192F;color:#ffffff;padding:14px 22px;border-radius:999px;text-decoration:none\">Attiva il Portale Paziente</a></p>"
+                f"<p style=\"color:#5B6478;font-size:13px\">Il link è personale e scade tra {INVITE_DAYS} giorni.</p>"))
+        email = ", ".join(emails)
         sent = _now().isoformat()
         await tdb.patients.update_one({"_id": ObjectId(pid)}, {"$set": {"portal_invited_at": sent}})
         return {"sent": True, "to": email, "sent_at": sent}

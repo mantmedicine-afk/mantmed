@@ -1,0 +1,41 @@
+{
+  "summary": "Passo 4 (access rules v2 ACTIVE in preview DB) tested end-to-end via public URL + app DB with TEST_ data (all cleaned). PASS: converted demo accounts (genitore.demo -> Aurora 'Genitore o tutore' with reports, role patient; tutore.demo -> Giulia Demo without the reserved gyn visit); two guardians A+B both get the minor's record (relation tutore), third account C with same CF gets nothing; 18-rule via PATCH birth_date (A loses record, fiscal_only reason maggiore_eta with only A-paid receipt, receipt PDF 200 for A / 404 for B, report PDF 404 for A, audit accesso_portale_chiuso); adult self access (relation paziente, 'La sua cartella'), delegation UI (consent checkbox gates button, A sees 'Familiare delegato', revoke removes it), backend 400 without consent / 403 for non-paziente / 409 duplicate / 404 revoke by non-owner; legal guardian (no portal-access-pending note, legal-access-toggle form, L sees 'Tutore legale / amministratore di sostegno' on adult record, duplicate 409 with toast, revoke via UI removes access); coming_of_age() in-process with mocked send_email sets adult_notice_sent_at, mails A+B, audit avviso_maggiore_eta; cron endpoint 401 without/with wrong Bearer; dashboard ComingOfAge card lists TEST patient with 'manca l'email del paziente'; SendToParents on reserved gyn visit disabled with hint 'Visita riservata: non si può inviare per email' (backend send-report 409). Requested regression: 22/23 pass - the 1 failure is a stale test asserting rules are NOT active.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "access_rules.build_access.resync (used by delegation revoke, legal grant/revoke)", "issue": "Same portal user is synced twice (portal_users_of() + find by email both return the stale doc before any sync) -> duplicate audit rows. Reproduced: one legal revoke produced 2 'accesso_portale_chiuso' entries for the same user_id; delegation revoke likewise. Fix: dedupe users by _id in resync (or re-fetch the user inside the loop)."},
+      {"endpoint": "POST /api/patients/{pid}/invite (portal_flow.py)", "issue": "Still legacy: always invites guardian_email ('Invita Genitore al Portale', copy about 'codice fiscale del bambino'). For an adult patient with patient_email it invites the parent, who under the new rules gets no access; guardian2_email is never invited. Should target patient_email when adult, and guardians (1-2) when minor; button label should adapt."},
+      {"endpoint": "GET /api/portal/me (registration.py)", "issue": "Audit loop zip(children, doc['children']) misaligns if child_view() returns None for a link (deleted patient) -> 'accesso_portale' audit rows attributed to wrong owner/relation. Build the audit inside the first loop."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Passport header invite", "issue": "'Invita Genitore al Portale' shown on adult patient passports (TEST 30y patient); see backend minor issue on /invite.", "affected_selectors": ["Passport InviteButton"]}
+    ],
+    "design_issues": [
+      {"screen": "Scheda paziente > Documenti e consensi > Accessi al Portale", "issues": ["Revoca of a legal guardian grant fires immediately with no confirm dialog (delegation revoke in portal does ask for confirmation) - consider confirming an action that closes access."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_passo4_live.py", "/app/backend/tests/passo4_ui_helper.py"],
+  "action_items": [
+    "Update stale test tests/test_eye_notes_access.py::TestReserved::test_rules_not_active (asserts db.meta access_rules_v2 is None; now intentionally present) - make it conditional or assert rules_active True.",
+    "Dedupe users in access_rules resync() to avoid duplicate accesso_portale_chiuso/aperto audit rows.",
+    "Make POST /patients/{pid}/invite + InviteButton rules-aware (patient_email for adults, guardian/guardian2 for minors).",
+    "Fix zip misalignment in portal_me audit loop.",
+    "Optional: confirm dialog before revoking a legal guardian grant."
+  ],
+  "critical_code_review_comments": [
+    "access_rules.coming_of_age scans all patients in the 17-19y window across ALL doctors (no tenant filter) - intended for cron, fine, but each run calls sync_links for every portal user of every adult patient whose invite was already sent? No: guarded by adult_invite_sent_at - OK.",
+    "fiscal_only() queries payment_transactions once per closed record (N+1); fine at current scale.",
+    "GET /access/coming-of-age iterates every patient of the doctor client-side in Python; consider a birth_date range query like coming_of_age().",
+    "SendToParents computes adulthood with new Date('YYYY-MM-DD') (UTC midnight) - off-by-one possible on birthday in negative-UTC timezones; backend is authoritative so low risk.",
+    "Auth playbook: bcrypt hashes ($2b$), httpOnly+secure cookies, CORS with explicit CORS_ORIGINS + credentials, lockout after 5 fails all present in auth.py."
+  ],
+  "updated_files": ["/app/backend/tests/test_passo4_live.py", "/app/backend/tests/passo4_ui_helper.py"],
+  "success_rate": {"backend": "100% of Passo 4 flows (7/7 new live tests); regression 22/23 (1 stale test)", "frontend": "100% of requested UI flows"},
+  "seed_data_creation": "TEST_ patients/users/consultation/payment/payment_transaction/grants created and deleted by id (verified 0 remaining). Audit rows from the tests remain (append-only log). No real emails sent (send_email mocked in cron test). Demo/seed data untouched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_passo4_live.py -p no:xdist -o addopts='' (self-cleaning; creates portal users directly in Mongo). UI helper: python tests/passo4_ui_helper.py setup|cleanup (state in /tmp/passo4_ui_state.json; set tour_completed_at on created users to skip the guided tour). Portal family section: /portale/impostazioni > 'Nucleo familiare'. Doctor: /app/pazienti > passport-search-input > patient-card-{id} > patient-folder-passport-btn > tab 'Documenti e consensi'. Reserved gyn visit id 6aed14d33ae5bc66e8766067 (ginecologo.demo) reachable at /app/pazienti?vista=visite > visit-row-{id}."
+}

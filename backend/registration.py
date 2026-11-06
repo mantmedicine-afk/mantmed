@@ -320,10 +320,10 @@ def build_registration(db, current_user, start_session, models, pdf_for):
         from access_rules import fiscal_only, REL_LABEL
         children = []
         for link in doc.get("children", []):
-            v = await child_view(link)
-            if v:
-                children.append({**v, "relation": link.get("relation") or "tutore", "relation_label": REL_LABEL.get(link.get("relation") or "tutore", "")})
-        for c, link in zip(children, doc.get("children", [])):
+            c = await child_view(link)
+            if not c:
+                continue
+            children.append({**c, "relation": link.get("relation") or "tutore", "relation_label": REL_LABEL.get(link.get("relation") or "tutore", "")})
             await db.audit.insert_one({"action": "accesso_portale", "relation": link.get("relation") or "tutore", "user_id": user["id"], "subject": seal_fields({"s": c["patient"]["name"]}, ("s",))["s"],
                                        "at": _now().isoformat(), "owner_id": link["owner_id"]})
         return {"user": public(doc), "consent": doc.get("consent"), "pending_codes": max(0, len(doc.get("child_cfs", [])) - len(children) - len(doc.get("children_closed") or [])), "children": children,

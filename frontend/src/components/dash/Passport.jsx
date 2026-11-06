@@ -138,9 +138,10 @@ const InviteButton = ({ p, onSent }) => {
     try { const r = await api.invitePortal(p.id); toast.success(`Invito inviato a ${r.to}`); onSent(); } catch (e) { toast.error(errMsg(e)); }
     setBusy(false);
   };
+  const adult = p.birth_date && new Date(p.birth_date) <= new Date(new Date().setFullYear(new Date().getFullYear() - 18));
   return (
     <button onClick={send} disabled={busy} className="flex h-11 items-center gap-2 rounded-full bg-[var(--surface)] px-4 text-sm font-semibold text-[var(--fg)] transition-transform hover:-translate-y-0.5 disabled:opacity-60" title={p.portal_invited_at ? `Ultimo invito: ${new Date(p.portal_invited_at).toLocaleDateString("it-IT")}` : ""} data-testid="passport-invite-btn">
-      {busy ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} <span className="hidden sm:inline">{p.portal_invited_at ? "Invita di nuovo al Portale" : "Invita Genitore al Portale"}</span><span className="sm:hidden">Invita</span>
+      {busy ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} <span className="hidden sm:inline">{p.portal_invited_at ? "Invita di nuovo al Portale" : adult ? "Invita il paziente al Portale" : "Invita i tutori al Portale"}</span><span className="sm:hidden">Invita</span>
     </button>
   );
 };

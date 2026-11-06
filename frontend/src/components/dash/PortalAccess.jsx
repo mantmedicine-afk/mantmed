@@ -38,6 +38,7 @@ export const PortalAccess = ({ patientId }) => {
   useEffect(() => { load(); }, [load]);
   if (!d) return null;
   const revoke = async (g) => {
+    if (!window.confirm(`Revocare l'accesso di ${g.name}? Non vedrà più la cartella nel Portale.`)) return;
     try { await http.delete(`/patients/${patientId}/access/legal/${g.id}`); toast.success("Accesso revocato"); load(); } catch (e) { toast.error(errMsg(e)); }
   };
   const active = d.grants.filter((g) => !g.revoked_at);

@@ -281,8 +281,8 @@ def build_access(db, current_user):
         users = await portal_users_of(db, pid, owner)
         if email:
             users += await db.users.find({"email": email.lower(), "role": {"$in": list(PORTAL_ROLES)}}).to_list(1)
-        for u in users:
-            await sync_links(db, u)
+        for uid in {u["_id"] for u in users}:
+            await sync_links(db, await db.users.find_one({"_id": uid}))
 
     @doctor.get("/{pid}/access")
     async def patient_access(pid: str, user: dict = Depends(current_user)):

@@ -138,8 +138,8 @@ class TestAccess:
 
 # Reserved visit + portal regression (legacy mode)
 class TestReserved:
-    def test_rules_not_active(self):
-        assert DBM.meta.find_one({"_id": "access_rules_v2"}) is None
+    def test_rules_active_after_conversion(self):
+        assert DBM.meta.find_one({"_id": "access_rules_v2"}) is not None
 
     def test_reserve_hides_from_portal(self, med):
         gen = login(*GEN)
