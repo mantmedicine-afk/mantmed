@@ -274,6 +274,13 @@ def clean_eyes(f: dict, v) -> dict:
     return out
 
 
+def open_eye_notes(note: dict) -> list:
+    """Campi OD/OS con nota "occhio non specificato" ancora aperta (bloccano la firma)."""
+    mod = (note or {}).get("modulo") or {}
+    campi = mod.get("campi") or {}
+    return [f["label"] for f in module_fields(mod.get("id") or "") if f.get("tipo") == "occhi" and str((campi.get(f["key"]) or {}).get("nota") or "").strip()]
+
+
 def filled(v) -> bool:
     if isinstance(v, str):
         return v.strip() not in ("", "Non riportato")
@@ -345,7 +352,7 @@ def eyes_fmt(f: dict) -> str:
     if [x["k"] for x in f["sub"]] == ["v"]:
         return '{"od": stringa, "os": stringa, "non_specificato": stringa}'
     side = "{" + ", ".join(f'"{x["k"]}": stringa' for x in f["sub"]) + "}"
-    return (f'{{"od": {side}, "os": {side}, "non_specificato": stringa, "incerti": lista di "od.<chiave>"/"os.<chiave>" per i numeri non compresi}} '
+    return (f'{{"od": {side}, "os": {side}, "non_specificato": stringa nel formato "Voce valore" (es. "Addizione +2,00") se occhio non detto, "incerti": lista di "od.<chiave>"/"os.<chiave>" per i numeri non compresi}} '
             "(numeri scritti come dettati, es. \"-2,25\"; numero non compreso: \"\" e aggiungilo a incerti)")
 
 

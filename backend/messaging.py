@@ -131,7 +131,7 @@ async def _mail_parent(p: dict, title: str, ai_line: str = ""):
 
 async def notify_parents(db, pid: str, owner: str, kind: str, title: str, body: str, ref: str = "", key: Optional[str] = None, only: Optional[str] = None,
                          ai_line: str = ""):
-    q = {"_id": ObjectId(only)} if only else {"role": "parent", "children": {"$elemMatch": {"patient_id": pid, "owner_id": owner}}}
+    q = {"_id": ObjectId(only)} if only else {"role": {"$in": ["patient", "parent"]}, "children": {"$elemMatch": {"patient_id": pid, "owner_id": owner}}}
     cat = NOTIF_CAT[kind]
     async for p in db.users.find(q):
         prefs = prefs_of(p)[cat]

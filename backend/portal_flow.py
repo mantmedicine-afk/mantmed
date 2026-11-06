@@ -97,12 +97,15 @@ async def child_at(db, u: dict, src: dict, doc: dict) -> dict:
                 return p
     s = unseal_fields(src, PATIENT_SEALED)
     if not src.get("cf_hash"):
-        raise HTTPException(400, "Manca il codice fiscale del bambino: chieda al suo pediatra di inserirlo")
+        raise HTTPException(400, "Manca il codice fiscale del paziente: chieda al suo medico di inserirlo")
     p = {"name": src["name"], "birth_date": src["birth_date"], "sex": src["sex"], "consent_at": None, "consent_version": None, "consent_email": False,
          "portal_invited_at": None, "created_at": _now().isoformat(), "owner_id": owner, "cf_hash": src["cf_hash"], "created_from": "portale_rete",
-         **seal_fields({"fiscal_code": s.get("fiscal_code") or "", "guardian": u["name"], "guardian_email": u["email"], "allergies": "", "notes": ""}, PATIENT_SEALED)}
+         **seal_fields({"fiscal_code": s.get("fiscal_code") or "", "allergies": "", "notes": ""}, PATIENT_SEALED)}
+    rel = next((c.get("relation") for c in u.get("children", []) if c["patient_id"] == str(src["_id"])), "tutore")
+    contact = {"patient_email": u["email"]} if rel == "paziente" else {"guardian": u["name"], "guardian_email": u["email"]}
+    p.update(seal_fields(contact, tuple(contact)))
     p["_id"] = (await db.patients.insert_one(p)).inserted_id
-    await db.users.update_one({"_id": u["_id"]}, {"$push": {"children": {"patient_id": str(p["_id"]), "owner_id": owner, "linked_at": _now().isoformat()}}})
+    await db.users.update_one({"_id": u["_id"]}, {"$push": {"children": {"patient_id": str(p["_id"]), "owner_id": owner, "linked_at": _now().isoformat(), "relation": rel}}})
     return p
 
 
@@ -111,7 +114,7 @@ async def check_request(db, body: RequestIn, user_id: str):
     u = await db.users.find_one({"_id": ObjectId(user_id)})
     link = next((c for c in u.get("children", []) if c["patient_id"] == body.patient_id), None)
     if not link:
-        raise HTTPException(404, "Figlio non collegato al suo account")
+        raise HTTPException(404, "Paziente non collegato al suo account")
     other = body.doctor_id and body.doctor_id != link["owner_id"]
     doc = await network_doctor(db, body.doctor_id) if other else await db.users.find_one({"_id": ObjectId(link["owner_id"])})
     if body.clinic not in [c["name"] for c in (doc or {}).get("clinics", [])]:

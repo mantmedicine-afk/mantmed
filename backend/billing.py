@@ -232,7 +232,9 @@ def build_billing(db, current_user, Appointment, Payment, today_rome):
     async def parent_receipt(pid: str, user: dict = Depends(current_user)):
         p = await db.payments.find_one(receipt_filter(pid))
         u = await db.users.find_one({"_id": ObjectId(user["id"])})
-        if not p or not any(c["patient_id"] == p.get("patient_id") and c["owner_id"] == p["owner_id"] for c in u.get("children", [])):
+        from access_rules import may_see_receipt
+        if not p or not (any(c["patient_id"] == p.get("patient_id") and c["owner_id"] == p["owner_id"] for c in u.get("children", []))
+                         or await may_see_receipt(db, user["id"], pid)):
             raise HTTPException(404, "Ricevuta non trovata")
         return await receipt_response(p)
 

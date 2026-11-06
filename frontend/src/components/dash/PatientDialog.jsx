@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { api, errMsg } from "@/lib/api";
 import { Field } from "./AppointmentDialog";
 
-const EMPTY = { name: "", birth_date: "", sex: "F", fiscal_code: "", guardian: "", guardian_email: "", guardian_fiscal_code: "", allergies: "", chronic_conditions: "", therapies: "", blood_group: "", notes: "" };
+const EMPTY = { name: "", birth_date: "", sex: "F", fiscal_code: "", guardian: "", guardian_email: "", guardian_fiscal_code: "", guardian2: "", guardian2_email: "", patient_email: "", allergies: "", chronic_conditions: "", therapies: "", blood_group: "", notes: "" };
 
 export const PatientDialog = ({ value, onClose, onSaved }) => {
   const [f, setF] = useState(EMPTY);
@@ -20,8 +20,9 @@ export const PatientDialog = ({ value, onClose, onSaved }) => {
     const cf = f.fiscal_code.trim().toUpperCase();
     if (cf && !/^[A-Z0-9]{16}$/.test(cf)) return toast.error("Il codice fiscale deve avere 16 caratteri");
     const mail = (f.guardian_email || "").trim();
-    if (mail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) return toast.error("Email del genitore non valida");
-    const body = { name: f.name, birth_date: f.birth_date, sex: f.sex, fiscal_code: cf, guardian: f.guardian, guardian_fiscal_code: (f.guardian_fiscal_code || "").trim().toUpperCase(), guardian_email: mail, allergies: f.allergies, chronic_conditions: f.chronic_conditions ?? "", therapies: f.therapies ?? "", blood_group: f.blood_group ?? "", notes: f.notes };
+    const bad = [["guardian_email", "del primo tutore"], ["guardian2_email", "del secondo tutore"], ["patient_email", "del paziente"]].find(([k]) => (f[k] || "").trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f[k].trim()));
+    if (bad) return toast.error(`Email ${bad[1]} non valida`);
+    const body = { name: f.name, birth_date: f.birth_date, sex: f.sex, fiscal_code: cf, guardian: f.guardian, guardian_fiscal_code: (f.guardian_fiscal_code || "").trim().toUpperCase(), guardian_email: mail, guardian2: f.guardian2 ?? "", guardian2_email: (f.guardian2_email || "").trim(), patient_email: (f.patient_email || "").trim(), allergies: f.allergies, chronic_conditions: f.chronic_conditions ?? "", therapies: f.therapies ?? "", blood_group: f.blood_group ?? "", notes: f.notes };
     try {
       const p = isEdit ? await api.updatePatient(value.id, body) : await api.addPatient(body);
       toast.success(isEdit ? "Passaporto aggiornato" : "Paziente aggiunto al passaporto sanitario");
@@ -47,9 +48,14 @@ export const PatientDialog = ({ value, onClose, onSaved }) => {
             </Field>
           </div>
           <Field label="Codice fiscale"><Input value={f.fiscal_code} onChange={set("fiscal_code")} maxLength={16} className="font-mono uppercase" data-testid="patient-cf-input" /></Field>
-          <Field label="Genitore / tutore"><Input value={f.guardian} onChange={set("guardian")} placeholder="es. Nome Cognome" data-testid="patient-guardian-input" /></Field>
+          <Field label="Email del paziente (se maggiorenne: referti e accesso al portale)"><Input type="email" value={f.patient_email ?? ""} onChange={set("patient_email")} placeholder="nome@email.it" data-testid="patient-email-input" /></Field>
+          <Field label="Primo genitore / tutore"><Input value={f.guardian} onChange={set("guardian")} placeholder="es. Nome Cognome" data-testid="patient-guardian-input" /></Field>
           <Field label="Codice fiscale del genitore / tutore (per il FSE)"><Input value={f.guardian_fiscal_code ?? ""} onChange={set("guardian_fiscal_code")} maxLength={16} className="font-mono uppercase" data-testid="patient-guardian-cf-input" /></Field>
-          <Field label="Email del genitore (per l'invio dei referti)"><Input type="email" value={f.guardian_email} onChange={set("guardian_email")} placeholder="nome@email.it" data-testid="patient-guardian-email-input" /></Field>
+          <Field label="Email del primo tutore (minorenne: referti e portale)"><Input type="email" value={f.guardian_email} onChange={set("guardian_email")} placeholder="nome@email.it" data-testid="patient-guardian-email-input" /></Field>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Secondo genitore / tutore"><Input value={f.guardian2 ?? ""} onChange={set("guardian2")} placeholder="facoltativo" data-testid="patient-guardian2-input" /></Field>
+            <Field label="Email del secondo tutore"><Input type="email" value={f.guardian2_email ?? ""} onChange={set("guardian2_email")} placeholder="facoltativa" data-testid="patient-guardian2-email-input" /></Field>
+          </div>
           <Field label="Allergie"><Input value={f.allergies} onChange={set("allergies")} data-testid="patient-allergies-input" /></Field>
           <Field label="Patologie croniche"><Input value={f.chronic_conditions ?? ""} onChange={set("chronic_conditions")} placeholder="es. asma, celiachia" data-testid="patient-chronic-input" /></Field>
           <div className="grid grid-cols-[1fr_120px] gap-3">

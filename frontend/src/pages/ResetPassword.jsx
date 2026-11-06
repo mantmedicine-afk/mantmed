@@ -47,7 +47,7 @@ export default function ResetPassword() {
     try { setRes(await api.resetPassword(token, pw.a)); } catch (err) { setError(errMsg(err)); }
     setBusy(false);
   };
-  const back = info?.role === "parent" ? "/portale" : info?.role === "admin" ? "/admin" : "/app";
+  const back = ["patient", "parent"].includes(info?.role) ? "/portale" : info?.role === "admin" ? "/admin" : "/app";
   return (
     <div className="grain relative grid min-h-screen place-items-center overflow-hidden theme-page bg-[var(--bg)] px-5 py-10 text-[var(--ink)]" data-testid="reset-page"><ThemeToggle floating />
       <div className="relative z-10 w-full max-w-md">

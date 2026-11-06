@@ -273,7 +273,7 @@ async def seed_admin(db):
 
 def require_role(current_user, role: str):
     async def dep(user: dict = Depends(current_user)) -> dict:
-        if user["role"] != role:
+        if user["role"] != role and not (role in ("patient", "parent") and user["role"] in ("patient", "parent")):
             raise HTTPException(403, "Accesso non consentito per questo account")
         return user
     return dep

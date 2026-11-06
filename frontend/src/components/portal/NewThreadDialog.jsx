@@ -6,7 +6,7 @@ import { api, errMsg } from "@/lib/api";
 import { UrgencyNotice } from "./UrgencyNotice";
 
 export const TEMPLATES = {
-  certificato_sportivo: { title: "Certificato di idoneità sportiva", body: "Gentile dottore, vorrei richiedere il certificato di idoneità all'attività sportiva per mio figlio/a. Resto in attesa di indicazioni su eventuali visite o esami necessari.",
+  certificato_sportivo: { title: "Certificato di idoneità sportiva", body: "Gentile dottore, vorrei richiedere il certificato di idoneità all'attività sportiva per il paziente indicato. Resto in attesa di indicazioni su eventuali visite o esami necessari.",
     fields: [{ label: "Sport praticato", required: true }, { label: "Tipo di attività", options: ["Non agonistica", "Agonistica"] }, { label: "Società / Scuola" }, { label: "Serve entro il", type: "date" }] },
   ricetta: { title: "Ricetta ripetibile", body: "Gentile dottore, avrei bisogno del rinnovo della ricetta per la terapia in corso.",
     fields: [{ label: "Farmaco", required: true }, { label: "Dosaggio / posologia" }, { label: "Numero confezioni", options: ["1", "2", "3"] }, { label: "Ultima prescrizione" }] },

@@ -26,7 +26,7 @@ const Informativa = ({ onOk }) => {
         <p><b>Importazione.</b> Solo se lo autorizza, un medico che usa MantMed può copiare questi dati nella propria cartella clinica e da quel momento li tratta come titolare autonomo.</p>
         <p>Maggiori dettagli nell'<Link to="/privacy" target="_blank" className="font-medium underline underline-offset-4">informativa privacy</Link>.</p>
       </div>
-      <label className="flex items-start gap-3 text-sm text-[var(--fg)]"><input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)} className="mt-1 h-4 w-4" data-testid="share-consent-checkbox" /> Ho letto l'informativa e acconsento, come genitore o tutore, alla condivisione dei dati sanitari di mio figlio con i medici che sceglierò.</label>
+      <label className="flex items-start gap-3 text-sm text-[var(--fg)]"><input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)} className="mt-1 h-4 w-4" data-testid="share-consent-checkbox" /> Ho letto l'informativa e acconsento, come paziente o come genitore o tutore, alla condivisione dei dati sanitari della cartella con i medici che sceglierò.</label>
       <button onClick={go} disabled={!ok || busy} className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-[var(--accent)] text-sm font-medium text-[var(--ink)] disabled:opacity-50" data-testid="share-consent-accept">{busy ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} />} Do il consenso e continuo</button>
     </div>
   );

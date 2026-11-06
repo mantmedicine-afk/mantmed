@@ -33,7 +33,7 @@ const SettingsCard = ({ s, def, onSaved }) => {
           <SaveBtn busy={busy} testId="ai-settings-save" disabled={f.notice_text.trim().length < 20} />
           <button type="button" onClick={() => setF({ ...f, notice_text: def })} className="text-sm text-[var(--fg2)] underline underline-offset-4" data-testid="ai-settings-notice-reset">Ripristina testo predefinito</button>
         </div>
-        <p className="flex items-start gap-2 text-xs text-[var(--fg2)]"><ShieldAlert size={13} className="mt-0.5 shrink-0" /> Al fornitore AI vengono inviati solo il messaggio, al massimo gli ultimi 5 del thread, l'età del bambino e questa base di conoscenza, con nomi e recapiti sostituiti da segnaposto.</p>
+        <p className="flex items-start gap-2 text-xs text-[var(--fg2)]"><ShieldAlert size={13} className="mt-0.5 shrink-0" /> Al fornitore AI vengono inviati solo il messaggio, al massimo gli ultimi 5 del thread, l'età del paziente e questa base di conoscenza, con nomi e recapiti sostituiti da segnaposto.</p>
       </form>
     </Card>
   );

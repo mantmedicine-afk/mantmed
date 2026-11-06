@@ -45,13 +45,50 @@ export const EyesField = ({ f, v, set }) => {
           </div>
         ))}
       </div>
-      {val.nota?.trim() && (
-        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-[var(--late)] bg-[var(--late-bg)] px-3 py-2 text-sm text-[var(--fg)]" data-testid={`module-eye-nota-${f.key}`}>
-          <Verify id={`${f.key}-nota`} text="Occhio non specificato – da verificare" />
-          <input value={val.nota} onChange={(e) => set({ ...val, nota: e.target.value })} className="min-w-0 flex-1 bg-transparent outline-none" aria-label={`${f.label}: occhio non specificato`} data-testid={`module-eye-nota-input-${f.key}`} />
-          <button type="button" onClick={() => set({ ...val, nota: "" })} className="rounded-full border border-[var(--hair)] px-3 py-1 text-xs font-semibold" data-testid={`module-eye-nota-clear-${f.key}`}>Rimuovi nota</button>
-        </div>
-      )}
+      {val.nota?.trim() && <EyeNote f={f} val={val} set={set} single={single} />}
+    </div>
+  );
+};
+
+const norm = (s) => String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const guessSub = (f, nota) => f.sub.find((x) => x.label && norm(nota).startsWith(norm(x.label).split(" ")[0]));
+
+// Nota "occhio non specificato": il medico la assegna con un clic; finché resta aperta la firma è bloccata
+const EyeNote = ({ f, val, set, single }) => {
+  const [k, setK] = useState(() => (single ? "v" : guessSub(f, val.nota)?.k ?? f.sub[0].k));
+  const text = () => {
+    const x = f.sub.find((s) => s.k === k);
+    const t = val.nota.trim();
+    return !single && x?.label && norm(t).startsWith(norm(x.label).split(" ")[0]) ? t.replace(/^\S+(\s*\([^)]*\))?\s*[:=]?\s*/, "") || t : t;
+  };
+  const apply = (eyes) => {
+    const t = text();
+    const next = { ...val, nota: "" };
+    eyes.forEach((e) => {
+      const cur = String(val[e]?.[k] ?? "").trim();
+      next[e] = { ...val[e], [k]: single && cur ? `${cur}; ${t}` : t };
+    });
+    next.incerti = (val.incerti ?? []).filter((u) => !eyes.some((e) => u === `${e}.${k}`));
+    set(next);
+  };
+  const btn = "rounded-full bg-[var(--surface)] px-3 py-1 text-xs font-semibold text-[var(--fg)] hover:bg-[var(--raised)]";
+  return (
+    <div className="mt-2 space-y-2 rounded-xl border border-[var(--late)] bg-[var(--late-bg)] px-3 py-2 text-sm text-[var(--fg)]" data-testid={`module-eye-nota-${f.key}`}>
+      <div className="flex flex-wrap items-center gap-2">
+        <Verify id={`${f.key}-nota`} text="Occhio non specificato – da verificare" />
+        <input value={val.nota} onChange={(e) => set({ ...val, nota: e.target.value })} className="min-w-0 flex-1 bg-transparent outline-none" aria-label={`${f.label}: occhio non specificato`} data-testid={`module-eye-nota-input-${f.key}`} />
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {!single && (
+          <select value={k} onChange={(e) => setK(e.target.value)} className="h-8 rounded-full border border-[var(--hair)] px-3 text-xs" aria-label="Voce a cui applicare" data-testid={`module-eye-nota-sub-${f.key}`}>
+            {f.sub.map((x) => <option key={x.k} value={x.k}>{x.label}</option>)}
+          </select>
+        )}
+        <button type="button" onClick={() => apply(["od"])} className={btn} data-testid={`module-eye-nota-od-${f.key}`}>Applica a OD</button>
+        <button type="button" onClick={() => apply(["os"])} className={btn} data-testid={`module-eye-nota-os-${f.key}`}>Applica a OS</button>
+        <button type="button" onClick={() => apply(["od", "os"])} className={btn} data-testid={`module-eye-nota-oo-${f.key}`}>Applica a entrambi</button>
+        <button type="button" onClick={() => set({ ...val, nota: "" })} className="rounded-full border border-[var(--hair)] px-3 py-1 text-xs font-semibold" data-testid={`module-eye-nota-clear-${f.key}`}>Rimuovi nota</button>
+      </div>
     </div>
   );
 };

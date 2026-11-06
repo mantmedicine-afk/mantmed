@@ -224,7 +224,8 @@ def build_scheduling(db, tdb, current_user):
             if not (now < start <= now + timedelta(hours=24)):
                 continue
             p = await db.patients.find_one({"_id": ObjectId(a["patient_id"]), "owner_id": a["owner_id"]})
-            email = (unseal_fields(p, ("guardian_email",)).get("guardian_email") or "").strip() if p else ""
+            from access_rules import contact_emails
+            email = (contact_emails(p) or [""])[0] if p else ""
             claim = await db.appointments.update_one({"_id": a["_id"], "reminder_sent_at": None}, {"$set": {"reminder_sent_at": datetime.now(timezone.utc).isoformat()}})
             if not email or not claim.modified_count:
                 continue
@@ -232,7 +233,7 @@ def build_scheduling(db, tdb, current_user):
                 continue
             owner = await db.users.find_one({"_id": ObjectId(a["owner_id"])}) or {}
             addr = next((c.get("address", "") for c in owner.get("clinics", []) if c["name"] == a["clinic"]), "")
-            body = (f"<p>Gentile genitore,</p><p>le ricordiamo la visita di <strong>{hesc(p['name'])}</strong>:</p>"
+            body = (f"<p>Gentile,</p><p>le ricordiamo la visita di <strong>{hesc(p['name'])}</strong>:</p>"
                     f"<p style=\"font-family:Georgia,serif;font-size:22px;margin:14px 0\">{start.strftime('%d/%m/%Y')} alle {a['time']}</p>"
                     f"<p>{hesc(a.get('visit_type') or 'Visita')} · {hesc(owner.get('name', ''))}<br>{hesc(a['clinic'])}{(' · ' + hesc(addr)) if addr else ''}</p>"
                     f"<p><strong>Da portare:</strong> {hesc(BRING.get(a.get('visit_type'), BRING_DEFAULT))}.</p>"

@@ -13,7 +13,7 @@ from mailer import send_email
 
 logger = logging.getLogger(__name__)
 KINDS = {"feedback": "Feedback", "supporto": "Richiesta di supporto tecnico", "segnalazione": "Segnalazione problema"}
-ROLES = {"doctor": "Medico", "parent": "Paziente / Genitore", "admin": "Amministratore"}
+ROLES = {"doctor": "Medico", "patient": "Paziente / Tutore", "parent": "Paziente / Tutore", "admin": "Amministratore"}
 
 MANUAL_REPORT_MIN = 12
 REVIEW_CAP_SEC = 20 * 60

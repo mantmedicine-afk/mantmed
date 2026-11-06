@@ -36,8 +36,9 @@ from bodychart import build_bodychart, report_payload
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, BeforeValidator, model_validator
 from typing import List, Optional, Annotated, Literal, ClassVar, Dict, Any
+from access_rules import build_access, PORTAL_ROLES, portal_users_of, sync_links, contact_emails
 from specialty_modules import (upgrade_note, module_for, module_keys, catalog as modules_catalog, STRUCTURED, module_prompt, parse_module,
-                               drop_duplicates, build_module_settings, clean_value, module_fields, filled)
+                               drop_duplicates, build_module_settings, clean_value, module_fields, filled, open_eye_notes)
 from datetime import datetime, timezone
 from crypto import seal_fields, unseal_fields, is_sealed, KEY_FINGERPRINT, seal, unseal, seal_bytes, unseal_bytes
 import asyncio
@@ -355,6 +356,9 @@ class Patient(BaseDocument):
     guardian: str = ""
     guardian_email: str = ""
     guardian_fiscal_code: str = ""
+    guardian2: str = ""
+    guardian2_email: str = ""
+    patient_email: str = ""
     allergies: str = ""
     chronic_conditions: str = ""
     therapies: str = ""
@@ -368,7 +372,7 @@ class Patient(BaseDocument):
     passport_consent_at: Optional[str] = None
     portal_invited_at: Optional[str] = None
     created_at: str = Field(default_factory=now_iso)
-    __encrypted__: ClassVar[tuple] = ("fiscal_code", "guardian", "guardian_email", "guardian_fiscal_code", "allergies", "notes",
+    __encrypted__: ClassVar[tuple] = ("fiscal_code", "guardian", "guardian_email", "guardian_fiscal_code", "guardian2", "guardian2_email", "patient_email", "allergies", "notes",
                                       "chronic_conditions", "therapies", "blood_group")
 
 
@@ -380,6 +384,9 @@ class PatientIn(BaseModel):
     guardian: str = ""
     guardian_email: str = ""
     guardian_fiscal_code: str = ""
+    guardian2: str = ""
+    guardian2_email: str = ""
+    patient_email: str = ""
     allergies: str = ""
     chronic_conditions: str = ""
     therapies: str = ""
@@ -395,6 +402,9 @@ class PatientPatch(BaseModel):
     guardian_email: Optional[str] = None
     guardian: Optional[str] = None
     guardian_fiscal_code: Optional[str] = None
+    guardian2: Optional[str] = None
+    guardian2_email: Optional[str] = None
+    patient_email: Optional[str] = None
     allergies: Optional[str] = None
     chronic_conditions: Optional[str] = None
     therapies: Optional[str] = None
@@ -1384,6 +1394,8 @@ async def sign_consultation(cid: str, user: dict = Depends(current_user)):
     if not doc:
         raise HTTPException(404, "Consultazione non trovata")
     raw = unseal_fields(doc, ("note", "ai_snapshot"))
+    if eyes := open_eye_notes(raw.get("note")):
+        raise HTTPException(409, "Prima della firma assegni a OD, OS o entrambi le note \"occhio non specificato\": " + ", ".join(eyes))
     p = {**(doc.get("ai_provenance") or {"ai_generated": False})}
     name = await prov.reviewer_label(db, user["id"])
     if prov.is_draft(p):
@@ -1508,11 +1520,12 @@ async def send_report(cid: str, user: dict = Depends(current_user)):
         raise HTTPException(409, GUARDIAN_HIDDEN)
     c = Consultation.from_mongo(doc).out()
     patient = await get_patient(c.get("patient_id"))
-    to = (patient or {}).get("guardian_email", "").strip()
-    if not EMAIL_RE.match(to):
-        raise HTTPException(400, "Email del genitore mancante o non valida nel passaporto del paziente")
+    tos = [x for x in contact_emails(await tdb.patients.find_one({"_id": oid(c["patient_id"])}) or {"birth_date": ""}) if EMAIL_RE.match(x)] if c.get("patient_id") else []
+    if not tos:
+        raise HTTPException(400, "Email del paziente (se maggiorenne) o del tutore mancante o non valida nel passaporto del paziente")
+    to = tos[0]
     if not patient.get("consent_email"):
-        raise HTTPException(412, "Il genitore non ha acconsentito all'invio dei referti via email")
+        raise HTTPException(412, "Il paziente o il tutore non ha acconsentito all'invio dei referti via email")
     profile = await doctor_profile(user["id"])
     pdf = build_report(c, user["name"], patient, profile, await chart_for(cid), signature=await doctor_signature(db, user["id"]))
     day = datetime.fromisoformat(c["created_at"]).strftime("%d/%m/%Y")
@@ -1541,8 +1554,11 @@ async def send_report(cid: str, user: dict = Depends(current_user)):
         'Comunicazione riservata contenente dati sanitari (art. 9 Reg. UE 2016/679 – GDPR), destinata esclusivamente '
         + ('al genitore o tutore del paziente. ' if ped_mail else 'al paziente o al suo delegato. ') +
         'Se l\'ha ricevuta per errore, la elimini e avvisi lo studio. Inviata da MantMed.</td></tr></table></td></tr></table>')
+    for extra in tos[1:]:  # secondo tutore del minore
+        await send_email(to=extra, subject=subject, html=html, attachments=[{"filename": fname, "content": base64.b64encode(pdf).decode()}])
     email_id = await send_email(to=to, subject=subject, html=html,
                                 attachments=[{"filename": fname, "content": base64.b64encode(pdf).decode()}])
+    to = ", ".join(tos)
     sent_at = now_iso()
     await tdb.consultations.update_one({"_id": oid(cid)}, {"$set": {**Consultation.sealed_set({"report_sent_at": sent_at, "report_sent_to": to}), "finalized_at": sent_at}, "$inc": {"pdf_exports": 1}})
     await audit("referto_email", c["patient_name"])
@@ -1673,8 +1689,9 @@ async def list_patients():
 @api.post("/patients")
 async def create_patient(body: PatientIn, user: dict = Depends(current_user)):
     date.fromisoformat(body.birth_date)
-    if body.guardian_email and not EMAIL_RE.match(body.guardian_email.strip()):
-        raise HTTPException(400, "Email del genitore non valida")
+    for k, lbl in (("guardian_email", "del primo tutore"), ("guardian2_email", "del secondo tutore"), ("patient_email", "del paziente")):
+        if getattr(body, k).strip() and not EMAIL_RE.match(getattr(body, k).strip()):
+            raise HTTPException(400, f"Email {lbl} non valida")
     meta = {f: {"by": user["name"], "at": now_iso()} for f in PASSPORT_FIELDS if (getattr(body, f) or "").strip()}
     res = await tdb.patients.insert_one({**Patient(**body.model_dump(), field_meta=meta).to_mongo(), "cf_hash": cf_hash(body.fiscal_code) if body.fiscal_code.strip() else None})
     return patient_out(await tdb.patients.find_one({"_id": res.inserted_id}))
@@ -1682,8 +1699,9 @@ async def create_patient(body: PatientIn, user: dict = Depends(current_user)):
 
 @api.patch("/patients/{pid}")
 async def update_patient(pid: str, body: PatientPatch, user: dict = Depends(current_user)):
-    if body.guardian_email and not EMAIL_RE.match(body.guardian_email.strip()):
-        raise HTTPException(400, "Email del genitore non valida")
+    for k, lbl in (("guardian_email", "del primo tutore"), ("guardian2_email", "del secondo tutore"), ("patient_email", "del paziente")):
+        if (getattr(body, k) or "").strip() and not EMAIL_RE.match(getattr(body, k).strip()):
+            raise HTTPException(400, f"Email {lbl} non valida")
     upd = Patient.sealed_set(body.model_dump(exclude_none=True))
     cur = await get_patient(pid)
     for f in PASSPORT_FIELDS:
@@ -1696,6 +1714,9 @@ async def update_patient(pid: str, body: PatientPatch, user: dict = Depends(curr
     if not doc:
         raise HTTPException(404, "Paziente non trovato")
     await fse_reevaluate(pid)
+    if any(getattr(body, k) is not None for k in ("guardian_email", "guardian2_email", "patient_email", "birth_date")):
+        for u in await portal_users_of(db, pid, user["id"]):
+            await sync_links(db, u)  # contatti cambiati: un accesso non più consentito si chiude subito (con registro)
     return patient_out(await tdb.patients.find_one({'_id': oid(pid)}))
 
 
@@ -1717,7 +1738,7 @@ async def passport(pid: str):
     consents = [{**(o := Consent.from_mongo(x).out()), "signer_mismatch": bool(guardian) and _norm_name(o.get("signer_name")) != guardian}
                 for x in await tdb.consents.find({"patient_id": pid}).sort("signed_at", -1).to_list(100)]
     cons = await fse_tick([Consultation.from_mongo(c).out() for c in await tdb.consultations.find({"patient_id": pid}).sort("created_at", -1).to_list(200)], patient)
-    parent = await db.users.find_one({"role": "parent", "email": (patient.get("guardian_email") or "").strip().lower()}, {"_id": 1}) if patient.get("guardian_email") else None
+    parent = bool(await portal_users_of(db, pid, doc["owner_id"]))
     shares = [{"id": str(x["_id"]), "signed_at": x["signed_at"], "specialists": [m.get("doctor_name") or m.get("owner_name") or "" for m in x.get("members", [])]}
               async for x in db.share_consents.find({"members.patient_id": pid, "revoked_at": None, "superseded": {"$ne": True}})]
     portal = {"status": "attivo" if parent else "invitato" if patient.get("portal_invited_at") else "non_attivo", "shares": shares}
@@ -2179,6 +2200,11 @@ api.include_router(msg_doctor)
 public_api.include_router(flow_parent)
 public_api.include_router(flow_public)
 sched_doctor, sched_portal, sched_cron, send_reminders = build_scheduling(db, tdb, current_user)
+acc_doctor, acc_portal, acc_cron, acc_upcoming = build_access(db, current_user)
+api.include_router(acc_doctor)
+api.include_router(acc_upcoming)
+public_api.include_router(acc_portal)
+public_api.include_router(acc_cron)
 api.include_router(sched_doctor)
 public_api.include_router(sched_portal)
 public_api.include_router(sched_cron)

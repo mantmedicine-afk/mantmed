@@ -17,6 +17,7 @@ import { ReportStates } from "./ReportStates";
 import { KindConsents, ConsentBadges, MismatchNote } from "./KindConsents";
 import { PassportFseTab } from "./PassportFseTab";
 import { MODULE_NAMES } from "@/lib/modules";
+import { PortalAccess } from "./PortalAccess";
 
 const TABS = [["panoramica", "Panoramica"], ["visite", "Visite e referti"], ["crescita", "Crescita"], ["bilanci", "Bilanci"], ["bodychart", "Bodychart"], ["privacy", "Documenti e consensi"], ["rete", "Squadra"], ["passaporto", "Passaporto e FSE"]];
 
@@ -102,7 +103,7 @@ export const Passport = ({ patientId, onClose, onEdit, onStart, onOpenVisit }) =
                 <div><h3 className="mb-3 text-lg font-semibold">Visite di bilancio</h3><Visits items={(data.consultations ?? []).filter((c) => /bilancio/i.test(c.template_name || ""))} payments={data.payments ?? []} onOpen={onOpenVisit} /></div></div>}
               {tab === "bodychart" && <BodychartHistory patientId={patientId} />}
               {tab === "rete" && <TeamPanel patientId={patientId} />}
-              {tab === "privacy" && <ConsentsTab patient={p} items={data.consents ?? []} onChange={load} />}
+              {tab === "privacy" && <><PortalAccess patientId={p.id} /><ConsentsTab patient={p} items={data.consents ?? []} onChange={load} /></>}
               {tab === "passaporto" && <PassportFseTab data={data} onEdit={onEdit} onTab={setTab} />}
             </>
           )}

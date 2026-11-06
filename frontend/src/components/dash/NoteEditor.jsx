@@ -14,7 +14,7 @@ import { PrevisitPanel } from "./PrevisitPanel";
 import { BodychartEditor } from "@/components/bodychart/BodychartEditor";
 import { AILabel, AIFieldMark } from "@/components/mantai/AILabel";
 import { SignNote, needsSignature } from "./SignNote";
-import { useModules, isStructured, moduleOf, visibleFields } from "@/lib/modules";
+import { useModules, isStructured, moduleOf, visibleFields, openEyeNotes } from "@/lib/modules";
 import { ModuleFields } from "./ModuleFields";
 import { AltreVoci } from "./AltreVoci";
 import { GuardianShare } from "./GuardianShare";
@@ -251,7 +251,7 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
           </div>
         )}
         <GuardianShare consultation={consultation} onChange={setC} />
-        <SignNote consultation={consultation} hasChart={!!pins} beforeSign={() => api.updateConsultation(consultation.id, note)} onSigned={(r) => { setC(r); setNote(r.note); setTouched(new Set()); onSaved?.(); }} />
+        <SignNote consultation={consultation} hasChart={!!pins} blockers={openEyeNotes(mod, note)} beforeSign={() => api.updateConsultation(consultation.id, note)} onSigned={(r) => { setC(r); setNote(r.note); setTouched(new Set()); onSaved?.(); }} />
         {failed && (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--alert)] bg-[var(--alert-bg)] px-4 py-3 text-sm text-[var(--alert)]" data-testid="note-failed-banner">
             <span className="flex items-center gap-2"><AlertTriangle size={16} className="shrink-0" /> {consultation.ai_error || "Elaborazione IA non riuscita"}</span>

@@ -6,3 +6,10 @@ crons:
     endpoint: "{{BASE_URL}}/api/cron/visit-reminders"
     method: POST
     enabled: true
+  - name: coming-of-age
+    description: "18-year rule: notice 30 days before, then guardian access closes and the patient is invited"
+    cron: "0 7 * * *"
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    endpoint: "{{BASE_URL}}/api/cron/coming-of-age"
+    method: POST
+    enabled: true

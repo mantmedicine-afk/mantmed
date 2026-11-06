@@ -45,7 +45,7 @@ const Panel = ({ items, area, onNav, onClose, mini }) => {
         {items.filter((it) => !it.bottom).map((it) => <Item key={it.id} it={it} onNav={onNav} mini={mini} />)}
         {items.some((it) => it.bottom) && <div className="!mt-4 border-t border-[var(--hair)] pt-3">{items.filter((it) => it.bottom).map((it) => <Item key={it.id} it={it} onNav={onNav} mini={mini} />)}</div>}
       </nav>
-      <MantAIButton variant="sidebar" view={user?.role === "parent" ? "patient" : "doctor"} mini={mini} />
+      <MantAIButton variant="sidebar" view={["patient", "parent"].includes(user?.role) ? "patient" : "doctor"} mini={mini} />
       {mini ? (
         <button onClick={() => logout()} className="grid h-11 w-full place-items-center rounded-2xl border border-[var(--hair)] text-[var(--ink)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--fg)]" aria-label="Esci" title={`Esci · ${user?.name ?? ""}`} data-testid="sidebar-logout-btn"><LogOut size={17} /></button>
       ) : (
@@ -98,7 +98,7 @@ const TopNav = ({ items, area, mini: miniPref, testId, extras }) => {
           {items.some((it) => it.bottom) && <div className="flex items-center gap-1.5 border-l border-[var(--hair)] pl-1.5">{items.filter((it) => it.bottom).map((it) => <HItem key={it.id} it={it} mini={mini} />)}</div>}
         </nav>
         <div className="flex shrink-0 items-center gap-1.5 [&_[data-testid=mantai-sidebar-btn]]:mb-0 [&_[data-testid=mantai-sidebar-btn]]:px-3">
-          <MantAIButton variant="sidebar" view={user?.role === "parent" ? "patient" : "doctor"} mini={mini || !wide} />
+          <MantAIButton variant="sidebar" view={["patient", "parent"].includes(user?.role) ? "patient" : "doctor"} mini={mini || !wide} />
           {extras}
           {!mini && <div className="hidden max-w-[180px] text-right leading-tight min-[1800px]:block"><div className="truncate text-sm font-medium" data-testid="sidebar-user-name">{user?.name}</div><div className="truncate text-xs text-[var(--fg2)]">{user?.email}</div></div>}
           <button onClick={() => logout()} className={`flex h-10 items-center justify-center gap-2 rounded-full border border-[var(--hair)] text-sm text-[var(--ink)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--fg)] ${mini || !wide ? "w-10" : "px-4"}`} aria-label="Esci" title={`Esci · ${user?.name ?? ""}`} data-testid="sidebar-logout-btn"><LogOut size={15} />{!mini && wide && " Esci"}</button>

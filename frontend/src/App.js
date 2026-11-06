@@ -28,7 +28,7 @@ const Gate = () => {
   if (user === null) return <Loading />;
   if (!user) return <Login />;
   if (user.role === "admin") return <Navigate to="/admin" replace />;
-  if (user.role === "parent") return <Navigate to="/portale" replace />;
+  if (["patient", "parent"].includes(user.role)) return <Navigate to="/portale" replace />;
   setClinics(user.clinics);
   return <><Dashboard /><IdleWarning /></>;
 };
@@ -37,14 +37,14 @@ const PortalGate = () => {
   const { user } = useAuth();
   if (user === null) return <Loading />;
   if (!user) return <Login parent subtitle="Portale Paziente · pazienti e tutori" note="Referti, consensi e appuntamenti" />;
-  return user.role === "parent" ? <><Portal /><IdleWarning /></> : <Navigate to={user.role === "admin" ? "/admin" : "/app"} replace />;
+  return ["patient", "parent"].includes(user.role) ? <><Portal /><IdleWarning /></> : <Navigate to={user.role === "admin" ? "/admin" : "/app"} replace />;
 };
 
 const AdminGate = () => {
   const { user } = useAuth();
   if (user === null) return <Loading />;
   if (!user) return <Login subtitle="Pannello Founder · accesso amministratore" note="Accesso riservato all'amministratore MantMed" signup={false} />;
-  return user.role === "admin" ? <><Admin /><IdleWarning /></> : <Navigate to={user.role === "parent" ? "/portale" : "/app"} replace />;
+  return user.role === "admin" ? <><Admin /><IdleWarning /></> : <Navigate to={["patient", "parent"].includes(user.role) ? "/portale" : "/app"} replace />;
 };
 
 const AccountGate = () => {
@@ -74,7 +74,7 @@ function App() {
         <Route path="/admin" element={<AuthProvider><AdminGate /></AuthProvider>} />
         <Route path="/portale/:sezione?" element={<AuthProvider><PortalGate /></AuthProvider>} />
         <Route path="/registrati/medico" element={<Register key="doctor" role="doctor" />} />
-        <Route path="/registrati/paziente" element={<Register key="parent" role="parent" />} />
+        <Route path="/registrati/paziente" element={<Register key="patient" role="patient" />} />
         <Route path="/attiva" element={<Activate />} />
         <Route path="/medico/:slug" element={<DoctorShowcase />} />
         <Route path="/reimposta-password" element={<ResetPassword />} />

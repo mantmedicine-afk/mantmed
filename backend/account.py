@@ -28,13 +28,13 @@ def _now():
 
 
 def prefs_of(u: dict) -> dict:
-    base = PARENT_PREFS if u.get("role") == "parent" else DOCTOR_PREFS
+    base = PARENT_PREFS if u.get("role") in ("patient", "parent") else DOCTOR_PREFS
     saved = u.get("notify_prefs") or {}
     return {k: {**v, **{c: bool(x) for c, x in (saved.get(k) or {}).items() if c in v}} for k, v in base.items()}
 
 
 async def parent_wants(db, cat: str, channel: str, uid: Optional[str] = None, email: Optional[str] = None) -> bool:
-    u = await db.users.find_one({"_id": ObjectId(uid)} if uid else {"email": (email or "").strip().lower(), "role": "parent"})
+    u = await db.users.find_one({"_id": ObjectId(uid)} if uid else {"email": (email or "").strip().lower(), "role": {"$in": ["patient", "parent"]}})
     if not u:
         return channel == "email" and PARENT_PREFS[cat]["email"]
     return u.get("status", "active") == "active" and prefs_of(u)[cat][channel]
@@ -165,7 +165,7 @@ def build_account(db, current_user):
         u = await me(user)
         out = {"role": u["role"], "email": u["email"], "name": u.get("name", ""), "prefs": prefs_of(u), "totp_enabled": bool(u.get("totp_enabled")),
                "password_changed_at": u.get("password_changed_at"), "created_at": u.get("created_at")}
-        if u["role"] == "parent":
+        if u["role"] in ("patient", "parent"):
             first, last = split_name(u)
             s = unseal_fields({k: u.get(k, "") for k in P_SEALED}, P_SEALED)
             out["profile"] = {"first_name": first, "last_name": last, "fiscal_code": s["fiscal_code"] or "", "address": s["address"] or "", "phone": s["phone"] or ""}
@@ -221,7 +221,7 @@ def build_account(db, current_user):
     async def put_prefs(body: PrefsIn, user: dict = Depends(current_user)):
         u = await me(user)
         base = prefs_of(u)
-        clean = {k: {"email": v.email, "inapp": v.inapp if u["role"] == "parent" else True} for k, v in body.prefs.items() if k in base}
+        clean = {k: {"email": v.email, "inapp": v.inapp if u["role"] in ("patient", "parent") else True} for k, v in body.prefs.items() if k in base}
         await db.users.update_one({"_id": u["_id"]}, {"$set": {"notify_prefs": {**(u.get("notify_prefs") or {}), **clean}}})
         return {"prefs": prefs_of(await me(user))}
 

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { AlertCircle, ArrowLeft, ArrowRight, Loader2, Hourglass, Stethoscope, Baby } from "lucide-react";
+import { AlertCircle, ArrowLeft, ArrowRight, Loader2, Hourglass, Stethoscope, UserRound } from "lucide-react";
 import { LogoMark } from "@/components/dash/Logo";
 import { api, errMsg } from "@/lib/api";
 import { VALIDATORS, EMAIL_RE, serverFieldErrors } from "@/lib/validators";
@@ -121,7 +121,7 @@ export default function Register({ role }) {
     setBusy(false);
   };
   const done = async (r) => {
-    if (r?.role !== "parent") return setStep("pending");
+    if (!["patient", "parent"].includes(r?.role)) return setStep("pending");
     setStep("redirect");
     toast.success(r.linked ? "Account attivo: cartella del paziente collegata" : "Account attivo: benvenuto nel Portale Paziente");
     setTimeout(() => nav("/portale", { replace: true }), 700);
@@ -129,7 +129,7 @@ export default function Register({ role }) {
 
   const pwOk = !fieldError("password", f);
   return (
-    <Shell icon={doctor ? Stethoscope : Baby} kicker={doctor ? "Registrazione professionisti sanitari" : "Portale Paziente · genitori e tutori"}
+    <Shell icon={doctor ? Stethoscope : UserRound} kicker={doctor ? "Registrazione professionisti sanitari" : "Portale Paziente · pazienti e tutori"}
       title={doctor ? <>Porti il suo studio <span className="italic text-[var(--fg2)]">su MantMed.</span></> : <>Referti e appuntamenti <span className="italic text-[var(--fg2)]">suoi o di chi assiste.</span></>}>
       {step === "pending" && <Pending />}
       {step === "redirect" && <Redirecting />}
@@ -153,7 +153,7 @@ export default function Register({ role }) {
               error={errOf("confirm") || (f.confirm.length >= f.password.length && f.confirm && f.confirm !== f.password ? "Le password non coincidono" : "")} ok={f.confirm && f.confirm === f.password ? "Le password coincidono" : ""} />
           </div>
           {f.password && <Strength pw={f.password} prefix="register" />}
-          {!doctor && <p className="text-xs leading-relaxed text-[var(--fg2)]">La cartella del paziente viene collegata automaticamente solo se codice fiscale ed email coincidono con quelli registrati dallo studio.</p>}
+          {!doctor && <p className="text-xs leading-relaxed text-[var(--fg2)]" data-testid="register-link-rule">La cartella viene collegata automaticamente solo se codice fiscale ed email coincidono con quelli registrati dallo studio: se è il paziente maggiorenne usi la sua email, se è genitore o tutore di un minore l'email indicata dallo studio per il tutore.</p>}
           <div className="space-y-3">
             <a href="/privacy" target="_blank" rel="noreferrer" className="text-xs text-[var(--ink)] underline underline-offset-4" data-testid="register-privacy-link">Leggi l'informativa privacy e sull'uso dell'AI</a>
             {doctor ? (

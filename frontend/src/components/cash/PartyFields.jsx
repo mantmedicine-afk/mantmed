@@ -35,7 +35,7 @@ export const PatientFields = ({ f, set, patients }) => {
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" data-testid="invoice-patient-fields">
       <div className="relative">
         <Label htmlFor="invoice-patient-name">Paziente (prestazione eseguita su)</Label>
-        <input id="invoice-patient-name" value={f.patient_name} onChange={(e) => set({ patient_name: e.target.value, patient_id: null })} placeholder="Nome del bambino" className={inp} autoComplete="off" data-testid="invoice-patient-name" />
+        <input id="invoice-patient-name" value={f.patient_name} onChange={(e) => set({ patient_name: e.target.value, patient_id: null })} placeholder="Nome del paziente" className={inp} autoComplete="off" data-testid="invoice-patient-name" />
         {hits.length > 0 && (
           <div className="absolute inset-x-0 top-full z-10 mt-1 overflow-hidden rounded-xl border border-[var(--hair)] bg-[var(--surface)] shadow-[var(--shadow)]" data-testid="invoice-patient-suggestions">
             {hits.map((p) => <button key={p.id} type="button" onClick={() => set({ pick: p.id })} className="block w-full px-3 py-2 text-left text-sm text-[var(--fg)] hover:bg-[var(--raised)]" data-testid={`invoice-patient-pick-${p.id}`}>{p.name}</button>)}

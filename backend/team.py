@@ -70,7 +70,7 @@ def build_team(db, current_user, Consultation, pdf_for):
         if not pairs:
             return []
         out = []
-        async for u in db.users.find({"role": "parent", "children.patient_id": {"$in": [p for p, _ in pairs]}}):
+        async for u in db.users.find({"role": {"$in": ["patient", "parent"]}, "children.patient_id": {"$in": [p for p, _ in pairs]}}):
             members = [(c["patient_id"], c["owner_id"]) for c in u.get("children", []) if (c["patient_id"], c["owner_id"]) in pairs]
             if members:
                 out.append((u, members))

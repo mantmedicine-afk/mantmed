@@ -22,7 +22,7 @@ TTL_MIN = 30
 MAX_PER_IP_HOUR = 10
 MAX_PER_USER_WINDOW = 3
 HOST_RE = re.compile(r"^[A-Za-z0-9.\-]+(:\d+)?$")
-AREA = {"doctor": "/app", "parent": "/portale", "admin": "/admin"}
+AREA = {"doctor": "/app", "parent": "/portale", "patient": "/portale", "admin": "/admin"}
 GENERIC = "Se l'indirizzo email è presente nei nostri sistemi, riceverai a breve le istruzioni per impostare una nuova password."
 
 
@@ -83,7 +83,7 @@ def build_password_reset(db, current_user):
         ident = identifier.strip()
         cf = ident.upper()
         if CF_RE.match(cf):
-            q = {"role": "parent", "child_cfs": cf_hash(cf)}
+            q = {"role": {"$in": ["patient", "parent"]}, "child_cfs": cf_hash(cf)}
         else:
             q = {"email": ident.lower()}
         return [u async for u in db.users.find(q) if u.get("status", "active") == "active"]

@@ -41,6 +41,8 @@ export const structuredTabs = (mod, note) => {
 };
 
 const r1 = (n) => String(Math.round(n * 10) / 10).replace(".", ",");
+// Note "occhio non specificato" ancora aperte: bloccano la firma
+export const openEyeNotes = (mod, note) => (mod?.campi ?? []).filter((f) => f.tipo === "occhi" && String(note?.modulo?.campi?.[f.key]?.nota ?? "").trim()).map((f) => f.label);
 export const valueText = (f, v) => {
   if (f.tipo === "numero") return v?.v == null ? "" : `${r1(v.v)}${f.unita ? ` ${f.unita}` : ""}${v.note ? ` · ${v.note}` : ""}`;
   if (f.tipo === "pressione") return (v ?? []).filter((x) => x.sis != null || x.dia != null).map((x) => `${x.sis ?? "—"}/${x.dia ?? "—"} mmHg${x.note ? ` · ${x.note}` : ""}`).join("; ");

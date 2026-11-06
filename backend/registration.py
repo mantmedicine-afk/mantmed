@@ -97,7 +97,7 @@ class DoctorSignup(Base):
 
 
 class ParentSignup(Base):
-    role: Literal["parent"]
+    role: Literal["patient", "parent"]
     child_fiscal_code: str
     privacy_policy: bool
     health_data: bool
@@ -107,7 +107,7 @@ class ParentSignup(Base):
     def v_cf(cls, v):
         v = v.strip().upper()
         if not cf_valid(v):
-            raise ValueError("Codice fiscale del bambino non valido: verifichi i 16 caratteri")
+            raise ValueError("Codice fiscale del paziente non valido: verifichi i 16 caratteri")
         return v
 
 
@@ -148,16 +148,8 @@ def build_registration(db, current_user, start_session, models, pdf_for):
     parent_user = require_role(current_user, "parent")
 
     async def link_children(user: dict) -> int:
-        email = user["email"].lower()
-        children = {c["patient_id"]: c for c in user.get("children", [])}
-        for h in user.get("child_cfs", []):
-            async for p in db.patients.find({"cf_hash": h}):
-                g = (unseal_fields(p, ("guardian_email",)).get("guardian_email") or "").strip().lower()
-                if g and g == email and str(p["_id"]) not in children:
-                    children[str(p["_id"])] = {"patient_id": str(p["_id"]), "owner_id": p["owner_id"], "linked_at": _now().isoformat()}
-        if len(children) != len(user.get("children", [])):
-            await db.users.update_one({"_id": user["_id"]}, {"$set": {"children": list(children.values())}})
-        return len(children)
+        from access_rules import sync_links
+        return len(await sync_links(db, user))
 
     def client_ip(request: Request) -> str:
         return (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "")).split(",")[-1].strip()
@@ -179,7 +171,7 @@ def build_registration(db, current_user, start_session, models, pdf_for):
     async def start(request: Request, data: Annotated[Union[DoctorSignup, ParentSignup], Field(discriminator="role")]):
         if data.role == "doctor" and not data.terms:
             raise HTTPException(400, "Accetti l'informativa privacy per proseguire")
-        if data.role == "parent" and not (data.privacy_policy and data.health_data):
+        if data.role in ("patient", "parent") and not (data.privacy_policy and data.health_data):
             raise HTTPException(400, "Informativa privacy e consenso al trattamento dei dati sanitari sono obbligatori")
         if await db.users.find_one({"email": data.email}):
             raise HTTPException(409, "Email già registrata: acceda dalla pagina di login")
@@ -230,12 +222,12 @@ def build_registration(db, current_user, start_session, models, pdf_for):
             except Exception:
                 logger.exception("Notifica admin registrazione medico non inviata")
             return {"ok": True, "role": "doctor", "status": "pending"}
-        res = await db.users.insert_one({**base, "name": f"{d['first_name']} {d['last_name']}", "role": "parent", "status": "active",
+        res = await db.users.insert_one({**base, "name": f"{d['first_name']} {d['last_name']}", "role": "patient", "status": "active",
                                          "consent": {"version": PORTAL_CONSENT, "privacy_policy": True, "health_data": True, "at": now},
                                          "child_cfs": [cf_hash(d["child_fiscal_code"])], "children": []})
         user = await db.users.find_one({"_id": res.inserted_id})
         linked = await link_children(user)
-        return {"ok": True, "role": "parent", "status": "active", "linked": linked, "user": await start_session(response, user)}
+        return {"ok": True, "role": "patient", "status": "active", "linked": linked, "user": await start_session(response, user)}
 
     # ---------- Pannello Founder: licenze medici ----------
     @admin.get("")
@@ -325,11 +317,17 @@ def build_registration(db, current_user, start_session, models, pdf_for):
         doc = await db.users.find_one({"_id": ObjectId(user["id"])})
         await link_children(doc)
         doc = await db.users.find_one({"_id": doc["_id"]})
-        children = [v for v in [await child_view(c) for c in doc.get("children", [])] if v]
+        from access_rules import fiscal_only, REL_LABEL
+        children = []
+        for link in doc.get("children", []):
+            v = await child_view(link)
+            if v:
+                children.append({**v, "relation": link.get("relation") or "tutore", "relation_label": REL_LABEL.get(link.get("relation") or "tutore", "")})
         for c, link in zip(children, doc.get("children", [])):
-            await db.audit.insert_one({"action": "accesso_portale_genitore", "subject": seal_fields({"s": c["patient"]["name"]}, ("s",))["s"],
+            await db.audit.insert_one({"action": "accesso_portale", "relation": link.get("relation") or "tutore", "user_id": user["id"], "subject": seal_fields({"s": c["patient"]["name"]}, ("s",))["s"],
                                        "at": _now().isoformat(), "owner_id": link["owner_id"]})
-        return {"user": public(doc), "consent": doc.get("consent"), "pending_codes": max(0, len(doc.get("child_cfs", [])) - len(children)), "children": children}
+        return {"user": public(doc), "consent": doc.get("consent"), "pending_codes": max(0, len(doc.get("child_cfs", [])) - len(children) - len(doc.get("children_closed") or [])), "children": children,
+                "fiscal_only": await fiscal_only(db, doc)}
 
     @portal.post("/children")
     async def add_child(body: ChildIn, user: dict = Depends(parent_user)):
