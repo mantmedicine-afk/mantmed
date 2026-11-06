@@ -3,6 +3,7 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { api, CLINICS, errMsg } from "@/lib/api";
+import { DateInput } from "@/components/ui/it-date";
 
 const IND = [
   { id: "wfa", key: "weight", pct: "peso", label: "Peso", unit: "kg", max: 120 },
@@ -94,7 +95,7 @@ const AddMeasurement = ({ patient, onAdded }) => {
   const inp = "w-full rounded-xl border border-[var(--hair)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--fg)] outline-none focus:border-[var(--accent)]";
   return (
     <div className="grid grid-cols-2 gap-2 rounded-3xl bg-[var(--raised)] p-4 md:grid-cols-[1.2fr_1.2fr_1fr_1fr_1fr_auto]" data-testid="add-measurement-form">
-      <input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} className={inp} data-testid="measure-date" />
+      <DateInput value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} className={inp} data-testid="measure-date" />
       <select value={f.clinic} onChange={(e) => setF({ ...f, clinic: e.target.value })} className={inp} data-testid="measure-clinic">{CLINICS.map((c) => <option key={c}>{c}</option>)}</select>
       <input type="number" step="0.1" placeholder="Peso kg" value={f.weight} onChange={(e) => setF({ ...f, weight: e.target.value })} className={inp} data-testid="measure-weight" />
       <input type="number" step="0.1" placeholder="Altezza cm" value={f.height} onChange={(e) => setF({ ...f, height: e.target.value })} className={inp} data-testid="measure-height" />

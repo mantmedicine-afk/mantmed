@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { api, errMsg } from "@/lib/api";
 import { Field } from "./AppointmentDialog";
+import { DateInput } from "@/components/ui/it-date";
 
 const EMPTY = { name: "", birth_date: "", sex: "F", fiscal_code: "", guardian: "", guardian_email: "", guardian_fiscal_code: "", guardian2: "", guardian2_email: "", patient_email: "", allergies: "", chronic_conditions: "", therapies: "", blood_group: "", notes: "" };
 
@@ -38,7 +39,7 @@ export const PatientDialog = ({ value, onClose, onSaved }) => {
         <div className="grid gap-4">
           <Field label="Nome e cognome"><Input value={f.name} onChange={set("name")} data-testid="patient-name-input" /></Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Data di nascita"><Input type="date" value={f.birth_date} onChange={set("birth_date")} data-testid="patient-birth-input" /></Field>
+            <Field label="Data di nascita"><DateInput className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-sm md:text-sm" value={f.birth_date} onChange={set("birth_date")} data-testid="patient-birth-input" /></Field>
             <Field label="Sesso">
               <div className="flex gap-2">
                 {[["F", "F"], ["M", "M"]].map(([v, l]) => (

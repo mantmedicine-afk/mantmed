@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api, CLINICS, errMsg } from "@/lib/api";
 import { PatientSelect } from "./PatientSelect";
+import { DateInput, TimeInput } from "@/components/ui/it-date";
 
 const empty = () => ({ date: new Date().toLocaleDateString("sv-SE"), clinic: CLINICS[0], time: "09:00", patient_name: "", patient_id: null, visit_type: "Visita pediatrica", duration: 30, status: "programmato" });
 const STATUSES = [["programmato", "Programmato"], ["in_attesa", "In attesa"], ["in_corso", "In corso"], ["completato", "Completato"]];
@@ -41,8 +42,8 @@ export const AppointmentDialog = ({ value, onClose, onSaved, patients = [] }) =>
           <Field label="Paziente"><PatientSelect patients={patients} value={f.patient_id} onChange={(p) => setF((x) => ({ ...x, patient_id: p.id, patient_name: p.name }))} testId="appointment-patient-select" /></Field>
           <Field label="Tipo di visita"><Input value={f.visit_type} onChange={set("visit_type")} data-testid="appointment-type-input" /></Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Data"><Input type="date" value={f.date ?? ""} onChange={set("date")} data-testid="appointment-date-input" /></Field>
-            <Field label="Orario"><Input type="time" value={f.time} onChange={set("time")} data-testid="appointment-time-input" /></Field>
+            <Field label="Data"><DateInput className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-sm md:text-sm" value={f.date ?? ""} onChange={set("date")} data-testid="appointment-date-input" /></Field>
+            <Field label="Orario"><TimeInput className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-sm md:text-sm" value={f.time} onChange={set("time")} data-testid="appointment-time-input" /></Field>
           </div>
           <div className="grid grid-cols-1 gap-3">
             <Field label="Studio">

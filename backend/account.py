@@ -186,6 +186,8 @@ def build_account(db, current_user):
     @acc.put("/profile/doctor")
     async def put_doctor(body: DoctorProfileIn, user: dict = Depends(doctor_only)):
         u = await me(user)
+        from clinics import ensure_letterhead_base
+        await ensure_letterhead_base(db, u)
         d = body.model_dump()
         title = d["title"] if d["title"] in ("Dott.", "Dott.ssa", "Dr.") else "Dott."
         profile = {**(u.get("profile") or {}), **{k: d[k].strip() for k in ("specialty", "order_number", "studio_address", "phone", "contact_email")}}

@@ -36,6 +36,7 @@ from bodychart import build_bodychart, report_payload
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, BeforeValidator, model_validator
 from typing import List, Optional, Annotated, Literal, ClassVar, Dict, Any
+from migrations import build_migrations
 from clinics import build_clinics, letterhead_at, clinic_named, METHODS as CLINIC_METHODS
 from access_rules import build_access, PORTAL_ROLES, portal_users_of, sync_links, contact_emails
 from specialty_modules import (upgrade_note, module_for, module_keys, catalog as modules_catalog, STRUCTURED, module_prompt, parse_module,
@@ -2226,6 +2227,7 @@ leads_public, leads_private = build_leads(db, require_role(current_user, "admin"
 public_api.include_router(leads_public)
 public_api.include_router(leads_private)
 public_api.include_router(build_cleanup(db, require_role(current_user, "admin")))
+public_api.include_router(build_migrations(db, require_role(current_user, "admin")))
 public_api.include_router(build_previsit(db, require_role(current_user, "parent"), notify_doctor))
 inbox_admin, inbox_mine = build_support_inbox(db, require_role(current_user, "admin"), current_user)
 sc_doctor, sc_public, ensure_doctor_slugs = build_showcase(db, current_user, require_role(current_user, "doctor"))

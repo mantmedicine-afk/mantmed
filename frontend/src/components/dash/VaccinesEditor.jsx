@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Syringe, Plus, Trash2 } from "lucide-react";
 import { api, errMsg } from "@/lib/api";
+import { DateInput } from "@/components/ui/it-date";
 
 const box = "rounded-3xl border border-[var(--hair)] bg-[var(--surface)] p-5 lg:col-span-2";
 const inp = "h-10 rounded-xl border border-[var(--hair)] bg-[var(--surface)] px-3 text-sm text-[var(--fg)] outline-none focus:border-[var(--accent)]";
@@ -28,7 +29,7 @@ export const VaccinesEditor = ({ patientId }) => {
         </select>
         {f.code === "altro" && <input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Nome del vaccino" className={inp} data-testid="vaccine-name-input" />}
         <input type="number" min={1} max={10} value={f.dose} onChange={(e) => setF({ ...f, dose: e.target.value })} className={`${inp} w-20`} aria-label="Dose" data-testid="vaccine-dose-input" />
-        <input type="date" max={today()} value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} className={inp} data-testid="vaccine-date-input" />
+        <DateInput max={today()} value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} className={inp} data-testid="vaccine-date-input" />
         <button onClick={add} className="flex h-10 items-center gap-1.5 rounded-full bg-[var(--accent)] px-4 text-sm font-medium text-[var(--ink)]" data-testid="vaccine-add-btn"><Plus size={14} /> Registra</button>
       </div>
       <ul className="mt-3 divide-y divide-[var(--sel)] text-sm" data-testid="vaccines-list">

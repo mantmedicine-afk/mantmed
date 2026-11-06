@@ -37,12 +37,7 @@ export const ScheduleDialog = ({ open, onClose }) => {
     api.getSchedule().then((s) => setF(toForm(s))).catch((e) => toast.error(errMsg(e)));
     return undefined;
   }, [open]);
-  const setAt = (k, i) => (v) => setF((p) => {
-    const old = p[k][i];
-    const renamed = k === "services" && old?.name && v.name !== old.name;
-    const clinics = renamed ? p.clinics.map((c) => (c.prices?.[old.name] ? { ...c, prices: Object.fromEntries(Object.entries(c.prices).map(([n, o]) => [n === old.name ? v.name : n, o])) } : c)) : p.clinics;
-    return { ...p, clinics, [k]: (k === "clinics" ? clinics : p[k]).map((x, j) => (j === i ? v : x)) };
-  });
+  const setAt = (k, i) => (v) => setF((p) => ({ ...p, [k]: p[k].map((x, j) => (j === i ? v : x)) }));
   const removeAt = (k, i) => () => setF((p) => ({ ...p, [k]: p[k].filter((_, j) => j !== i) }));
   const save = async () => {
     setBusy(true);

@@ -16,6 +16,7 @@ import { MantAIButton } from "@/components/mantai/MantAI";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { LiveChecklist } from "./LiveChecklist";
 import { useLiveChecklist, toChecklist, autoTemplate } from "./useLiveChecklist";
+import { DateInput } from "@/components/ui/it-date";
 
 export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, onDone, onAppointmentDone, patients = [], onPatientsChange, onEditPatient }) => {
   const [paper, setPaper] = useState(false);
@@ -278,7 +279,7 @@ const NewPatient = ({ freeName, sel, patients, setSel, setFreeName, np, setNp })
       <div>
         <div className="text-[11px] uppercase tracking-[0.18em] text-[var(--fg2)]">{matches.length ? "Oppure crei una nuova scheda" : "Nuova scheda paziente"}</div>
         <div className="mt-2 flex flex-wrap gap-2">
-          <input type="date" lang="it" value={np.birth_date} onChange={(e) => setNp((x) => ({ ...x, birth_date: e.target.value }))} className={field} aria-label="Data di nascita" data-testid="consult-new-patient-birth" />
+          <DateInput value={np.birth_date} onChange={(e) => setNp((x) => ({ ...x, birth_date: e.target.value }))} className={field} aria-label="Data di nascita" data-testid="consult-new-patient-birth" />
           {[["F", "Femmina"], ["M", "Maschio"]].map(([v, l]) => <button key={v} type="button" onClick={() => setNp((x) => ({ ...x, sex: v }))} className={`h-11 rounded-xl border px-3 ${np.sex === v ? "border-[var(--accent)] bg-[var(--accent)] font-semibold text-[var(--fg)]" : "border-[var(--hair)]"}`} data-testid={`consult-new-patient-sex-${v}`}>{l}</button>)}
         </div>
       </div>

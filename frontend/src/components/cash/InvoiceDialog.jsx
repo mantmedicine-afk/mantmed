@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { AlertTriangle, Building2, Loader2, User, FileText } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { api, errMsg, eur, CLINIC_INFO } from "@/lib/api";
+import { DateInput } from "@/components/ui/it-date";
 import { inp, Label, Seg, PAY_METHODS, btnMain, btnGhost } from "./ui";
 import { LinesEditor } from "./LinesEditor";
 import { InvoiceTotals } from "./InvoiceTotals";
@@ -68,7 +69,7 @@ export const InvoiceDialog = ({ open, source, settings, onClose, onSaved }) => {
         </DialogHeader>
         <div className="space-y-5">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr]">
-            <div><Label htmlFor="invoice-date">Data</Label><input id="invoice-date" type="date" value={f.date} max={today()} onChange={(e) => set({ date: e.target.value })} className={inp} data-testid="invoice-date" /></div>
+            <div><Label htmlFor="invoice-date">Data</Label><DateInput id="invoice-date" value={f.date} max={today()} onChange={(e) => set({ date: e.target.value })} className={inp} data-testid="invoice-date" /></div>
             <div><Label htmlFor="invoice-clinic">Studio</Label>
               <select id="invoice-clinic" value={f.clinic} onChange={(e) => set({ clinic: e.target.value, ...(CLINIC_INFO[e.target.value]?.methods && !CLINIC_INFO[e.target.value].methods.includes(f.method) ? { method: "" } : {}) })} className={inp} data-testid="invoice-clinic">{(settings?.clinics ?? []).map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
           </div>

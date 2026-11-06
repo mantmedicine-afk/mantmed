@@ -4,6 +4,7 @@ import { Loader2, Send } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { api, errMsg } from "@/lib/api";
 import { UrgencyNotice } from "./UrgencyNotice";
+import { DateInput } from "@/components/ui/it-date";
 
 export const TEMPLATES = {
   certificato_sportivo: { title: "Certificato di idoneità sportiva", body: "Gentile dottore, vorrei richiedere il certificato di idoneità all'attività sportiva per il paziente indicato. Resto in attesa di indicazioni su eventuali visite o esami necessari.",
@@ -22,6 +23,8 @@ const FieldInput = ({ f, value, onChange }) => (
   <label className="block"><Label>{f.label}{f.required ? " *" : ""}</Label>
     {f.options ? (
       <select value={value || f.options[0]} onChange={(e) => onChange(e.target.value)} className={inp} data-testid={`new-thread-field-${slug(f.label)}`}>{f.options.map((o) => <option key={o}>{o}</option>)}</select>
+    ) : f.type === "date" ? (
+      <DateInput required={f.required} value={value || ""} onChange={(e) => onChange(e.target.value)} className={inp} data-testid={`new-thread-field-${slug(f.label)}`} />
     ) : (
       <input type={f.type || "text"} maxLength={300} required={f.required} value={value || ""} onChange={(e) => onChange(e.target.value)} className={inp} data-testid={`new-thread-field-${slug(f.label)}`} />
     )}

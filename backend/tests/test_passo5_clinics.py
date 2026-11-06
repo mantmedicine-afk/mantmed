@@ -68,7 +68,8 @@ class TestSchedule:
         p = s["clinics"][0]
         assert p["header"].startswith("Poliambulatorio Visus") and p["phone"] == "06 1234567"
         assert set(p["methods"]) == {"contanti", "carta"} and p["logo"]
-        assert p["prices"]["Prima visita"]["price"] == 123 and p["prices"]["Prima visita"]["duration"] == 45
+        sid = next(x["id"] for x in s["services"] if x["name"] == "Prima visita")
+        assert p["prices"][sid]["price"] == 123 and p["prices"][sid]["duration"] == 45
         assert s["clinics"][1]["methods"] == ["bonifico"]
 
     def test_logo_served(self, ocu):

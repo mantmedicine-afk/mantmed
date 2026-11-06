@@ -43,7 +43,7 @@ def clinic_services(services: list, clinic: Optional[dict]) -> list:
     over = (clinic or {}).get("prices") or {}
     out = []
     for s in services:
-        o = over.get(s["name"]) or {}
+        o = over.get(s.get("id", "")) or over.get(s["name"]) or {}  # per identificativo (il nome vale solo per dati precedenti)
         if o.get("off"):
             continue
         out.append({**s, "price": float(o["price"]) if o.get("price") is not None else s["price"],
@@ -73,6 +73,16 @@ def letterhead_at(user: dict, clinic_name: str, at: str) -> dict:
     if log:
         return min(log, key=lambda v: v["from"])["data"]  # documento precedente alla prima versione registrata
     return current_letterhead(user, clinic_name)
+
+
+async def ensure_letterhead_base(db, u: dict):
+    """Prima versione dell'intestazione (valida da sempre) = quella attuale: i documenti già emessi restano invariati."""
+    if u.get("letterhead_log") or u.get("role") != "doctor":
+        return
+    clinics = clinics_of(u)
+    u2 = {**u, "clinics": clinics}
+    log = [{"clinic": n, "from": "", "data": current_letterhead(u2, n)} for n in [c["name"] for c in clinics] + [""]]
+    await db.users.update_one({"_id": u["_id"], "letterhead_log": {"$in": [None, []]}}, {"$set": {"clinics": clinics, "letterhead_log": log}})
 
 
 async def record_letterheads(db, user_id: str):
@@ -129,6 +139,7 @@ def build_clinics(db, current_user):
     async def upload_logo(cid: str, file: UploadFile = File(...), user: dict = Depends(current_user)):
         u = await db.users.find_one({"_id": ObjectId(user["id"])})
         find(u, cid)
+        await ensure_letterhead_base(db, u)
         ext = LOGO_TYPES.get(file.content_type or "")
         if not ext:
             raise HTTPException(400, "Carichi un'immagine PNG o JPG")
@@ -147,6 +158,7 @@ def build_clinics(db, current_user):
     async def remove_logo(cid: str, user: dict = Depends(current_user)):
         u = await db.users.find_one({"_id": ObjectId(user["id"])})
         find(u, cid)
+        await ensure_letterhead_base(db, u)
         await db.users.update_one({"_id": u["_id"]}, {"$set": {"clinics": [{**c, "logo": ""} if c["id"] == cid else c for c in clinics_of(u)]}})
         await record_letterheads(db, user["id"])
         return {"logo": ""}

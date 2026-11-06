@@ -2,6 +2,7 @@
 import os
 import re
 import uuid
+import hashlib
 import hmac
 import asyncio
 import logging
@@ -12,7 +13,7 @@ from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 from typing import Literal, Optional
-from clinics import METHODS, MAX_CLINICS, PALETTE, clinics_of, clinic_named, clinic_services, record_letterheads
+from clinics import METHODS, MAX_CLINICS, PALETTE, clinics_of, clinic_named, clinic_services, record_letterheads, ensure_letterhead_base
 from auth import require_role
 from crypto import unseal_fields
 from mailer import send_email
@@ -72,6 +73,7 @@ class Billing(BaseModel):
 
 
 class ServiceIn(BaseModel):
+    id: str = Field(default="", max_length=20)
     name: str = Field(min_length=2, max_length=60)
     duration: int = Field(ge=5, le=240)
     price: float = Field(default=0, ge=0, le=5000)
@@ -115,7 +117,7 @@ class ScheduleIn(BaseModel):
         names = [s.name.strip() for s in v]
         if len(set(n.lower() for n in names)) != len(names):
             raise ValueError("Ogni prestazione deve avere un nome diverso")
-        return [ServiceIn(name=s.name.strip(), duration=s.duration, price=round(s.price, 2), vat=s.vat) for s in v]
+        return [ServiceIn(id=s.id, name=s.name.strip(), duration=s.duration, price=round(s.price, 2), vat=s.vat) for s in v]
 
     @field_validator("clinics")
     @classmethod
@@ -126,12 +128,17 @@ class ScheduleIn(BaseModel):
         return [c.model_copy(update={"name": c.name.strip(), "address": c.address.strip(), "phone": c.phone.strip(), "email": c.email.strip(), "header": c.header.strip()}) for c in v]
 
 
+def service_id(name: str) -> str:
+    """Identificativo stabile di una prestazione non ancora salvata (poi resta quello salvato, anche se la si rinomina)."""
+    return "s" + hashlib.sha1(name.strip().lower().encode()).hexdigest()[:9]
+
+
 def services_of(user: dict) -> list[dict]:
     saved = user.get("schedule") or {}
     if saved.get("services"):
-        return saved["services"]
+        return [{**s, "id": s.get("id") or service_id(s["name"])} for s in saved["services"]]
     durs, prices = {**DEFAULT_DURATIONS, **(saved.get("durations") or {})}, saved.get("prices") or {}
-    return [{"name": k, "duration": int(d), "price": float(prices.get(k) or 0)} for k, d in durs.items()]
+    return [{"id": service_id(k), "name": k, "duration": int(d), "price": float(prices.get(k) or 0)} for k, d in durs.items()]
 
 
 def schedule_of(user: dict, clinic: str = "") -> dict:
@@ -215,15 +222,21 @@ def build_scheduling(db, tdb, current_user):
         for n, h in body.hours.items():
             if mins(h.start) >= mins(h.end):
                 raise HTTPException(400, f"{n}: l'orario di chiusura deve seguire l'apertura")
+        await ensure_letterhead_base(db, u)
+        u = await db.users.find_one({"_id": u["_id"]})
         old = {c["id"]: c for c in clinics_of(u)}
+        services = [{**s.model_dump(), "id": s.id or uuid.uuid4().hex[:10]} for s in body.services]
+        if len({s["id"] for s in services}) != len(services):
+            raise HTTPException(400, "Prestazioni duplicate")
+        sids = {s["id"] for s in services}
         clinics = []
         for i, c in enumerate(body.clinics):
             prev = old.get(c.id) or {}
             clinics.append({**c.model_dump(exclude={"prices"}), "id": c.id if c.id in old else uuid.uuid4().hex[:10], "logo": prev.get("logo", ""),
                             "color": c.color or PALETTE[i % len(PALETTE)],
-                            "prices": {k: v.model_dump() for k, v in c.prices.items() if k in {s.name for s in body.services}}})
+                            "prices": {k: v.model_dump() for k, v in c.prices.items() if k in sids}})
         await db.users.update_one({"_id": u["_id"]}, {"$set": {"schedule": {"hours": {k: v.model_dump() for k, v in body.hours.items()},
-                                                                              "services": [s.model_dump() for s in body.services]},
+                                                                              "services": services},
                                                                  "clinics": clinics,
                                                                  "billing": {**(u.get("billing") or {}), **body.billing.model_dump(), "tax_code": body.billing.tax_code.strip().upper()}}})
         await record_letterheads(db, user["id"])

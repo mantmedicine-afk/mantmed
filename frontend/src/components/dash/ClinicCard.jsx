@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Trash2, ChevronDown, ImagePlus, Loader2, X } from "lucide-react";
 import { http, errMsg } from "@/lib/api";
+import { TimeInput } from "@/components/ui/it-date";
 
 const DAYS = [[1, "Lun"], [2, "Mar"], [3, "Mer"], [4, "Gio"], [5, "Ven"], [6, "Sab"], [7, "Dom"]];
 export const PALETTE = ["#2F6F8F", "#B5651D", "#5A7D3A", "#8E4B7E", "#C0392B", "#3E5C9A", "#A07D1C", "#2E8B7A"];
@@ -39,21 +40,21 @@ const Logo = ({ c, i, set }) => {
 // Listino dello studio: eredita il listino generale; qui si cambia tariffa/durata o si toglie una prestazione
 const PriceList = ({ c, i, services, set }) => {
   const over = c.prices ?? {};
-  const upd = (name, patch) => set({ ...c, prices: { ...over, [name]: { ...(over[name] ?? {}), ...patch } } });
+  const upd = (sid, patch) => set({ ...c, prices: { ...over, [sid]: { ...(over[sid] ?? {}), ...patch } } });
   return (
     <div className="space-y-1.5" data-testid={`schedule-clinic-prices-${i}`}>
-      {services.filter((s) => s.name.trim()).map((s, j) => {
-        const o = over[s.name] ?? {};
+      {services.filter((s) => s.name.trim() && s.id).map((s, j) => {
+        const o = over[s.id] ?? {};
         return (
-          <div key={s.name} className={`grid grid-cols-[1fr_80px_90px_auto] items-center gap-2 text-sm ${o.off ? "opacity-50" : ""}`}>
+          <div key={s.id} className={`grid grid-cols-[1fr_80px_90px_auto] items-center gap-2 text-sm ${o.off ? "opacity-50" : ""}`}>
             <span className="truncate text-[var(--fg)]">{s.name}</span>
-            <input type="number" min={5} max={240} step={5} value={o.duration ?? ""} placeholder={`${s.duration}′`} onChange={(e) => upd(s.name, { duration: e.target.value ? Number(e.target.value) : null })} className={`${inp} w-full`} aria-label={`Durata ${s.name}`} data-testid={`schedule-clinic-dur-${i}-${j}`} />
-            <input type="number" min={0} max={5000} step={1} value={o.price ?? ""} placeholder={`${s.price} €`} onChange={(e) => upd(s.name, { price: e.target.value === "" ? null : Number(e.target.value) })} className={`${inp} w-full`} aria-label={`Tariffa ${s.name}`} data-testid={`schedule-clinic-price-${i}-${j}`} />
-            <label className="flex items-center gap-1 text-xs text-[var(--fg2)]"><input type="checkbox" checked={!o.off} onChange={(e) => upd(s.name, { off: !e.target.checked })} data-testid={`schedule-clinic-offered-${i}-${j}`} /> offerta</label>
+            <input type="number" min={5} max={240} step={5} value={o.duration ?? ""} placeholder={`${s.duration}′`} onChange={(e) => upd(s.id, { duration: e.target.value ? Number(e.target.value) : null })} className={`${inp} w-full`} aria-label={`Durata ${s.name}`} data-testid={`schedule-clinic-dur-${i}-${j}`} />
+            <input type="number" min={0} max={5000} step={1} value={o.price ?? ""} placeholder={`${s.price} €`} onChange={(e) => upd(s.id, { price: e.target.value === "" ? null : Number(e.target.value) })} className={`${inp} w-full`} aria-label={`Tariffa ${s.name}`} data-testid={`schedule-clinic-price-${i}-${j}`} />
+            <label className="flex items-center gap-1 text-xs text-[var(--fg2)]"><input type="checkbox" checked={!o.off} onChange={(e) => upd(s.id, { off: !e.target.checked })} data-testid={`schedule-clinic-offered-${i}-${j}`} /> offerta</label>
           </div>
         );
       })}
-      <p className="text-[11px] text-[var(--fg2)]">Campi vuoti = valori del listino generale.</p>
+      <p className="text-[11px] text-[var(--fg2)]">Campi vuoti = valori del listino generale. Le nuove prestazioni si personalizzano dopo il salvataggio; rinominarle non cambia le personalizzazioni.</p>
     </div>
   );
 };
@@ -76,8 +77,8 @@ export const ClinicCard = ({ c, i, set, onRemove, services }) => {
         ))}
       </div>
       <div className="mt-3 flex items-center gap-2 text-sm text-[var(--fg2)]">
-        dalle <input type="time" value={h.start} onChange={(e) => setH("start", e.target.value)} className={inp} data-testid={`schedule-start-${i}`} />
-        alle <input type="time" value={h.end} onChange={(e) => setH("end", e.target.value)} className={inp} data-testid={`schedule-end-${i}`} />
+        dalle <TimeInput value={h.start} onChange={(e) => setH("start", e.target.value)} className={inp} data-testid={`schedule-start-${i}`} />
+        alle <TimeInput value={h.end} onChange={(e) => setH("end", e.target.value)} className={inp} data-testid={`schedule-end-${i}`} />
       </div>
       <button type="button" onClick={() => setOpen((o) => !o)} className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-[var(--fg)]" aria-expanded={open} data-testid={`schedule-clinic-more-${i}`}>
         <ChevronDown size={15} className={`transition-transform ${open ? "rotate-180" : ""}`} /> Contatti, colore, intestazione, listino e pagamenti

@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Loader2, Send, Clock, CreditCard, Store, Lock } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { api, errMsg, eur } from "@/lib/api";
+import { DateInput } from "@/components/ui/it-date";
 
 const tomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); };
 const DAYS = ["", "lun", "mar", "mer", "gio", "ven", "sab", "dom"];
@@ -106,7 +107,7 @@ export const RequestDialog = ({ open, onClose, kids, initial, onSent, doctorId =
             <div className="flex flex-wrap gap-2">{services.map((s, i) => (
               <button key={s} type="button" onClick={() => setF({ ...cur, service: s, time: "" })} aria-pressed={service === s} className={`rounded-full px-4 py-2 text-sm transition-colors ${service === s ? "bg-[var(--accent)] text-[var(--ink)]" : "border border-[var(--hair)] text-[var(--fg)] hover:border-[var(--accent)]"}`} data-testid={`portal-request-service-${i}`}>{s}</button>
             ))}</div></div>
-          <label className="block"><Label>Data desiderata</Label><input type="date" min={new Date().toISOString().slice(0, 10)} value={cur.date} onChange={set("date")} required className={inp} data-testid="portal-request-date" /></label>
+          <label className="block"><Label>Data desiderata</Label><DateInput min={new Date().toISOString().slice(0, 10)} value={cur.date} onChange={set("date")} required className={inp} data-testid="portal-request-date" /></label>
           <div><Label>Orari liberi</Label><Slots q={{ patient_id: kid?.patient.id, doctor_id: doctor?.id ?? "", clinic, service, date: cur.date }} value={cur.time} bump={bump} onQuote={setQuote} onPick={(t) => setF({ ...cur, time: t })} /></div>
           <label className="block"><Label>Note per lo studio</Label><textarea rows={3} maxLength={1000} value={cur.note} onChange={set("note")} placeholder="Es. febbre da ieri, preferenza pomeriggio…" className={`${inp} h-auto resize-none py-2`} data-testid="portal-request-note" /></label>
           <div><Label>Pagamento</Label><PayChoice quote={quote} value={pay} onPick={setPayPick} /></div>

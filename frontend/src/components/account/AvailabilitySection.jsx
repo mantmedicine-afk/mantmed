@@ -4,6 +4,7 @@ import { CalendarClock, Plane, Trash2, Plus, Loader2, Clock } from "lucide-react
 import { ScheduleDialog } from "@/components/dash/ScheduleDialog";
 import { api, errMsg } from "@/lib/api";
 import { Card, Field, inp, day } from "./ui";
+import { DateInput } from "@/components/ui/it-date";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -27,8 +28,8 @@ export const AvailabilitySection = ({ data, onSaved }) => {
       </Card>
       <Card id="account-absences" icon={Plane} title="Ferie e assenze" text="Nei periodi indicati il Portale Paziente non mostra orari prenotabili e la dashboard li segnala.">
         <form onSubmit={add} className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_1.4fr_auto] sm:items-end">
-          <Field label="Dal"><input type="date" required min={today()} value={f.from} onChange={(e) => setF({ ...f, from: e.target.value, to: e.target.value > f.to ? e.target.value : f.to })} className={inp} data-testid="absence-from" /></Field>
-          <Field label="Al"><input type="date" required min={f.from} value={f.to} onChange={(e) => setF({ ...f, to: e.target.value })} className={inp} data-testid="absence-to" /></Field>
+          <Field label="Dal"><DateInput required min={today()} value={f.from} onChange={(e) => setF({ ...f, from: e.target.value, to: e.target.value > f.to ? e.target.value : f.to })} className={inp} data-testid="absence-from" /></Field>
+          <Field label="Al"><DateInput required min={f.from} value={f.to} onChange={(e) => setF({ ...f, to: e.target.value })} className={inp} data-testid="absence-to" /></Field>
           <Field label="Motivo (facoltativo)"><input maxLength={120} value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} placeholder="Ferie, congresso…" className={inp} data-testid="absence-reason" /></Field>
           <button disabled={!!busy} className="flex h-11 items-center justify-center gap-2 rounded-full bg-[var(--accent)] px-5 text-sm font-semibold text-[var(--ink)] disabled:opacity-60" data-testid="absence-add-btn">{busy === "add" ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Aggiungi</button>
         </form>

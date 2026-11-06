@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Check, X, Loader2, Inbox, CalendarDays, Clock } from "lucide-react";
 import { api, errMsg, eur } from "@/lib/api";
 import { ScheduleDialog } from "@/components/dash/ScheduleDialog";
+import { DateInput, TimeInput } from "@/components/ui/it-date";
 
 const day = (d) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString("it-IT", { weekday: "short", day: "numeric", month: "short" }) : "Oggi");
 const inp = "h-9 rounded-full border border-[var(--hair)] bg-[var(--surface)] px-3 text-sm text-[var(--fg)] outline-none focus:border-[var(--accent)]";
@@ -28,8 +29,8 @@ const RequestCard = ({ r, onDone }) => {
       </div>
       {r.note && <p className="mt-2 text-sm text-[var(--fg)]">{r.note}</p>}
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <input type="date" value={d} onChange={(e) => setD(e.target.value)} className={inp} data-testid={`appt-request-date-${r.id}`} />
-        <input type="time" value={t} onChange={(e) => setT(e.target.value)} className={inp} data-testid={`appt-request-time-${r.id}`} />
+        <DateInput value={d} onChange={(e) => setD(e.target.value)} className={inp} data-testid={`appt-request-date-${r.id}`} />
+        <TimeInput value={t} onChange={(e) => setT(e.target.value)} className={inp} data-testid={`appt-request-time-${r.id}`} />
         <button onClick={() => act("ok")} disabled={!!busy} className="flex h-9 items-center gap-1.5 rounded-full bg-[var(--accent)] px-4 text-xs font-semibold text-[var(--ink)] disabled:opacity-50" data-testid={`appt-request-confirm-${r.id}`}>{busy === "ok" ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Conferma</button>
         <button onClick={() => act("no")} disabled={!!busy} className="flex h-9 items-center gap-1.5 rounded-full border border-[var(--hair)] bg-[var(--surface)] px-4 text-xs font-medium text-[var(--fg)] hover:border-[var(--accent)] disabled:opacity-50" data-testid={`appt-request-decline-${r.id}`}><X size={13} /> Rifiuta</button>
       </div>

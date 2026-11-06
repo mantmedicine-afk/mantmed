@@ -3,6 +3,7 @@ import { Plus, X } from "lucide-react";
 import { AIFieldMark } from "@/components/mantai/AILabel";
 import { box, lbl, pill, num, out, Verify, Plausible } from "./moduleUi";
 import { EyesField, EyeTherapy } from "./EyeFields";
+import { DateInput } from "@/components/ui/it-date";
 
 const NumberField = ({ f, v, set }) => {
   const [ask, setAsk] = useState(false);
@@ -62,7 +63,7 @@ const Input = ({ f, v, set }) => {
   if (f.tipo === "pressione") return <PressureField f={f} v={v} set={set} />;
   if (f.tipo === "scelta") return <Choice f={f} v={v} set={set} options={f.opzioni ?? []} />;
   if (f.tipo === "sino") return <Choice f={f} v={v} set={set} options={["sì", "no"]} />;
-  if (f.tipo === "data") return <input type="date" value={v ?? ""} onChange={(e) => set(e.target.value)} className={`mt-1.5 h-12 px-4 text-[15px] outline-none ${box}`} data-testid={`module-field-${f.key}`} />;
+  if (f.tipo === "data") return <DateInput value={v ?? ""} onChange={(e) => set(e.target.value)} className={`mt-1.5 h-12 px-4 text-[15px] outline-none ${box}`} data-testid={`module-field-${f.key}`} />;
   return <textarea value={v ?? ""} onChange={(e) => set(e.target.value)} rows={2} className={`mt-1.5 w-full resize-y px-4 py-3 text-[15px] leading-relaxed outline-none ${box}`} data-testid={`module-field-${f.key}`} />;
 };
 
