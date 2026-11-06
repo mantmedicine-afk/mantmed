@@ -98,6 +98,7 @@
     --accent: var(--onbar);
     --hair: rgba(247, 249, 251, 0.16);
     --sel: rgba(247, 249, 251, 0.10);
+    --ok: #A8DDBE;
     color: var(--onbar);
 }
 .theme-bar .bg-\[var\(--accent\)\] { --fg: #0F1A1E; --ink: #0F1A1E; --fg2: rgba(15, 26, 30, 0.72); }

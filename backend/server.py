@@ -800,7 +800,7 @@ NEW_BASE = ("esame_obiettivo (condizioni generali del paziente ed esame obiettiv
 FAITHFUL = (" FEDELTÀ ASSOLUTA: riporta solo ciò che è stato detto. Non aggiungere giudizi sui valori (alto, basso, normale, nella norma, elevato, "
             "aumentato, ridotto, buono, preoccupante…) se il medico non ha usato esattamente quel giudizio per quel dato; scrivi il valore com'è stato detto. "
             "Non interpretare, non dedurre diagnosi, non aggiungere indicazioni su farmaci (inclusi 'prosegua'/'continui'/'sospenda'), "
-            "comportamenti, dieta o controlli che il medico non ha detto esplicitamente. Ciò che dice il paziente va attribuito al paziente ('riferisce').")
+            "comportamenti, dieta o controlli che il medico non ha detto esplicitamente. Ciò che dice il paziente va attribuito al paziente ('riferisce'). Ogni dato va in un solo campo: i valori di laboratorio e strumentali vanno solo nei campi degli esami, mai ripetuti in anamnesi o fattori di rischio, e non vanno classificati come fattori di rischio.")
 NOTE_SYSTEM = NOTE_SYSTEM.replace("{NEW_BASE}", NEW_BASE) + FAITHFUL
 
 

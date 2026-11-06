@@ -50,7 +50,8 @@ MODULES = {
         "id": "cardiologia", "versione": 1, "nome": "Cardiologia", "match": r"cardiolog",
         "etichette": {}, "gruppi": {"esami": "Esami strumentali"},
         "campi": [
-            T("fattori_rischio", "Fattori di rischio cardiovascolari", "anamnesi", "Come riferiti: fumo, ipertensione, diabete, dislipidemia, familiarità"),
+            {**T("fattori_rischio", "Fattori di rischio cardiovascolari", "anamnesi", "Come riferiti dal paziente: fumo, familiarità, patologie già note"),
+             "ai": "solo ciò che il paziente riferisce; MAI valori di laboratorio o misure (es. LDL, colesterolo, pressione), che vanno solo nei loro campi; non classificare mai un valore come fattore di rischio"},
             T("anamnesi_cardiologica", "Anamnesi cardiologica", "anamnesi", "Eventi, interventi, dispositivi impiantati"),
             T("farmaci_cardiologici", "Farmaci cardiologici in uso", "anamnesi"),
             T("sintomi_cardiologici", "Sintomi cardiologici", "anamnesi", "Dolore toracico, dispnea, palpitazioni, sincope, edemi"),
@@ -67,7 +68,7 @@ MODULES = {
             T("edemi_circolo", "Edemi e circolo venoso", "esame_obiettivo"),
             T("ecg", "ECG", "esami", "Referto come dettato"),
             T("ecocardiogramma", "Ecocardiogramma", "esami", "Referto come dettato"),
-            T("esami_laboratorio", "Esami di laboratorio", "esami", "Come riferiti"),
+            T("esami_laboratorio", "Esami di laboratorio", "esami", "Valori come dettati (es. LDL, glicemia)"),
             T("altri_esami", "Altri esami", "esami", "Holter, test da sforzo"),
             T("accertamenti", "Accertamenti richiesti", "piano"),
         ],
@@ -228,7 +229,7 @@ def module_prompt(mid: str, hidden: list) -> str:
         fmt = {"testo": "stringa", "numero": f'{{"valore": numero|null, "incerto": true|false, "note": stringa}} ({f.get("unita") or "numero"})',
                "pressione": 'lista di {"sistolica": numero|null, "diastolica": numero|null, "note": stringa, "incerto": true|false} (mmHg), una voce per misurazione',
                "scelta": "uno tra " + ", ".join(f.get("opzioni", [])) + ' oppure ""', "data": '"AAAA-MM-GG" oppure ""', "sino": '"sì", "no" oppure ""'}[t]
-        lines.append(f'"{f["key"]}" = {f["label"]}' + (f' ({f["hint"]})' if f.get("hint") else "") + f": {fmt}")
+        lines.append(f'"{f["key"]}" = {f["label"]}' + (f' ({f["hint"]})' if f.get("hint") else "") + (f' [{f["ai"]}]' if f.get("ai") else "") + f": {fmt}")
     return (f"Modulo {m['nome']}: aggiungi al primo livello del JSON la chiave \"campi\", un oggetto con queste chiavi:\n" + "\n".join(lines) + "\n"
             "e, sempre al primo livello, la chiave altre_voci: lista di {titolo, testo} SOLO per informazioni effettivamente dette in visita che non hanno un campo dedicato (altrimenti lista vuota).\n"
             "Regole del modulo: riporta esclusivamente ciò che è stato detto. Se un'informazione non è stata detta usa \"\" (stringhe) o null (numeri). "

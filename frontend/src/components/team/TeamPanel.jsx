@@ -37,8 +37,8 @@ export const NetworkSearch = () => {
       <p className="mt-1 text-sm text-[var(--fg2)]">Paziente seguito da un collega? Inserisca il codice fiscale per verificare la delega del paziente o del tutore o richiederla.</p>
       <form onSubmit={run} className="mt-4 flex flex-col gap-2 sm:flex-row">
         <label className="relative flex-1"><Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--fg2)]" />
-          <input value={cf} onChange={(e) => { setCf(e.target.value.toUpperCase().replace(/\s/g, "").slice(0, 16)); setData(null); }} onBlur={() => cf && setTouched(true)} placeholder="Codice fiscale del bambino"
-            className={`h-12 w-full rounded-full border pl-11 pr-4 font-mono text-sm uppercase outline-none ${err ? "border-[var(--alert)]" : "border-[var(--hair)] focus:border-[var(--accent)]"}`} data-testid="team-search-input" /></label>
+          <input value={cf} onChange={(e) => { setCf(e.target.value.toUpperCase().replace(/\s/g, "").slice(0, 16)); setData(null); }} onBlur={() => cf && setTouched(true)} placeholder="Codice fiscale del paziente"
+            className={`h-12 w-full rounded-full border pl-11 pr-4 font-mono text-sm uppercase placeholder:font-sans placeholder:normal-case outline-none ${err ? "border-[var(--alert)]" : "border-[var(--hair)] focus:border-[var(--accent)]"}`} data-testid="team-search-input" /></label>
         <button disabled={busy} className="flex h-12 items-center justify-center gap-2 rounded-full bg-[var(--accent)] px-6 text-sm font-medium text-[var(--ink)] disabled:opacity-60" data-testid="team-search-btn">{busy ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />} Verifica</button>
       </form>
       {err && <p className="mt-2 text-xs text-[var(--alert)]" data-testid="team-search-error">{err}</p>}

@@ -51,7 +51,7 @@ export const FamilySection = () => {
   const add = async (e) => {
     e.preventDefault();
     setBusy(true);
-    try { const r = await api.portalAddChild(cf); if (r.linked) { toast.success("Cartella collegata"); setCf(""); load(); } else toast.message("Nessuna cartella corrisponde: lo studio deve registrare il codice fiscale del bambino con la sua email."); }
+    try { const r = await api.portalAddChild(cf); if (r.linked) { toast.success("Cartella collegata"); setCf(""); load(); } else toast.message("Nessuna cartella corrisponde: lo studio deve registrare il codice fiscale del paziente con la sua email."); }
     catch (err) { toast.error(errMsg(err)); }
     setBusy(false);
   };
