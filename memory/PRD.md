@@ -551,3 +551,6 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - Base comune estesa (allergie, farmaci in uso, esame obiettivo generale); 3 moduli solo documentali (parametri numerici con unità, più misure di pressione, controllo di plausibilità, "Da verificare"); "Altre voci" da confermare; personalizzazione campi (nascondi/riordina/ripristina) e scelta modulo in Area personale > Modelli; avviso una tantum ai medici già registrati
 - Ginecologia di minori riservata ai tutori salvo condivisione esplicita per visita; riepilogo bozza mai nel portale
 - Dettagli e vincoli: /app/memory/PIANO_MULTISPECIALISTICO.md
+
+## 2026-11 Multispecialistica · Passo 3 (specialità principale + secondarie)
+- Scelta della specialità in registrazione e profilo, menu "Cartella" a inizio visita, etichetta della specialità nella storia del paziente; demo Ginecologia minori verificata (seed_gyn_demo.py)

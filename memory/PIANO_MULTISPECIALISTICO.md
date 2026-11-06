@@ -32,3 +32,9 @@ Stato:
   Ginecologia minori: consultations.guardian_hidden (filtri portale/email/bodychart/passaporto/simple), POST /consultations/{cid}/guardians.
   Riepilogo: mai nel portale se riassunto_famiglia è bozza (portal/me e /simple). Foto Bodychart: mai esposte nel portale (condivisione selettiva NON ancora costruita).
   Test: iteration_71 + tests/test_specialty_modules*.py 17/17.
+- Verifica Ginecologia minori 2026-11-05: dati demo creati con backend/scripts/seed_gyn_demo.py (ginecologo.demo / tutore.demo / Giulia Demo 16 anni); test reale tests/test_gyn_minor_guardian.py (portale, PDF, passaporto, bodychart, notifiche, send-report 409; visibile solo dopo condivisione). Stato finale visita: RISERVATA.
+  Bug preesistente corretto: send-report andava in errore 500 per visite con MantAI (doppio "+" nell'HTML email, server.py) → in PRODUZIONE l'invio email del referto è rotto finché non si ripubblica.
+  Foto dermatologiche: condivisione selettiva RIMANDATA dall'utente (restano non visibili nel portale).
+- Passo 3 COMPLETATO 2026-11-05 (in attesa verifica utente). Backup: /app/backups/2026-11-05_passo3.
+  SPECIALTIES (23) pubbliche in GET /api/specialty-modules; profile.secondary_specialties (max 3) in registrazione e profilo; visit_module_options (key "mid" o "generale|<specialità>"), menu "Cartella" nell'overlay nuova visita (module_id su /consultations e /consultations/start, validato prima della trascrizione a blocchi); note.specialita = specialità della visita; etichetta modulo in Visite, Scheda paziente e passaporto del portale; personalizzazione per ogni modulo (GET /settings/module/layout/{mid}). Test iteration_72 + tests/test_specialty_modules_step3.py.
+- PROSSIMO: passo 4 → PRIMA confermare per iscritto se in produzione ci sono solo dati di prova o persone reali.

@@ -913,12 +913,14 @@ module_router, doctor_module, module_layout, visit_module_options = build_module
 async def visit_setup(uid: str, tpl: dict, patient: Optional[dict], module_id: str = "") -> dict:
     """Modulo della visita (menu della visita, altrimenti quello predefinito del medico), personalizzazione e campi del modello senza doppioni."""
     opts = await visit_module_options(uid)
-    mid = module_id or await doctor_module(uid)
-    if mid not in {o["id"] for o in opts}:
+    key = module_id or await doctor_module(uid)
+    opt = next((o for o in opts if key in (o["key"], o["id"])), None)
+    if not opt:
         raise HTTPException(400, "Modulo non disponibile per le sue specialità")
+    mid = opt["id"]
     minor = bool(patient and patient.get("birth_date") and age_months(patient["birth_date"]) < 216)
     return {"mid": mid, "layout": await module_layout(uid, mid), "fields": drop_duplicates(tpl["fields"], mid),
-            "guardian_hidden": mid == "ginecologia" and minor, "specialita": next(o["specialita"] for o in opts if o["id"] == mid)}
+            "guardian_hidden": mid == "ginecologia" and minor, "specialita": opt["specialita"]}
 
 
 @api.post("/consultations")
@@ -1170,6 +1172,8 @@ async def start_consultation(
             ticked = {}
         return await _demo_consultation(user, patient_name.strip(), patient_id, clinic, waiting_id, duration_sec, paper_consent, await resolve_template(template_id or None), manual, ticked,
                                         module_id)
+    tpl = await resolve_template(template_id or None)
+    vs = await visit_setup(user["id"], tpl, patient, module_id)  # prima di consumare la trascrizione a blocchi: un modulo non valido non la perde
     if live_session_id and live_chunks and not data and not part_ids.strip():
         acc = await live_transcript(live_session_id, user["id"], live_chunks)
         if acc is None:
@@ -1188,8 +1192,6 @@ async def start_consultation(
         raise HTTPException(400, "Registrazione vuota o trascrizione troppo breve")
     if len(data) > 25 * 1024 * 1024:
         raise HTTPException(413, "Audio oltre 25 MB: per visite molto lunghe divida la registrazione")
-    tpl = await resolve_template(template_id or None)
-    vs = await visit_setup(user["id"], tpl, patient, module_id)
     note = ClinicalNote(specialita=vs["specialita"], modulo={"id": vs["mid"], **vs["layout"]},
                         sezioni=[NoteSection(gruppo=f["gruppo"], titolo=f["titolo"]) for f in vs["fields"]])
     enrich_growth(note, patient, date.today())

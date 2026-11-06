@@ -1,0 +1,37 @@
+{
+  "summary": "Multi-specialty STEP 3 tested end-to-end. Backend 10/10 new pytest pass (test_specialty_modules_step3.py) + step2/gyn regression 10/10 pass. Public /api/specialty-modules (no auth) returns 23 specialita + moduli. POST /api/register/start accepts secondary_specialties (200, signup row cleaned), >3 secondaries -> 422. Profile PUT keeps secondaries, drops main from secondaries, >3 -> 422. /settings/module visit_options: cardiologo [cardiologia, dermatologia, generale] module_id cardiologia; medico [pediatria, generale]; ginecologo [ginecologia, generale]. module_id 'ginecologia' for cardiologo -> 400 on both POST /consultations and /consultations/start; bogus -> 400. Derm visit (real LLM): modulo.id dermatologia, specialita 'Dermatologia e venereologia', fototipo + dermatoscopia filled. Per-module layout endpoints independent; /layout/xxx 404. Frontend: /registrati/medico picker (25 options incl. Scelga/Altra), 23 chips, main excluded from chips, max 3 enforced, 'Altra specialita' shows other input, submit without main shows register-specialty-error and no request sent. Profilo professionale cardiologo: main Cardiologia + Dermatologia preselected, adding Neurologia persists (API + reload), restored. New-visit overlay: cardiologo preselected Cardiologia, options Cardiologia/Dermatologia/Generale; medico Pediatria/Generale. Manual-transcript Derm visit for free patient (paper consent) -> 'CARTELLA CLINICA · DERMATOLOGIA', tabs Anamnesi/Motivo/Esame obiettivo/Procedure/Diagnosi, Fototipo + Dermatoscopia fields; reopened from Pazienti>Visite shows same fields; chip visit-row-module 'Dermatologia'. Medico Aurora Ricci Scheda paziente > Visite e referti: 16 passport-visit-module chips 'Pediatria'; genitore portal passaporto: 7 chips 'Pediatria'. Modelli di visita: module-edit-picker Cardiologia/Dermatologia; derm hide+reorder saved only to dermatologia; cardio hide ecg saved separately; switching keeps each layout; reload persists; reset both restores. Regression: cardiology Parametri tab (pressure 140/85, FC, SpO2 units), 1200 sistolica plausibility Confermo/Correggi; pediatric editor tabs incl. Crescita, Esame obiettivo generale + TORL. Giulia Demo gyn visit still guardian_hidden true, tutore portal 0 reports.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/consultations/start (server.py ~L1172-1192)", "issue": "visit_setup(module_id) validation runs AFTER the live chunked transcript is consumed and db.live_sessions deleted (and after audio part lookup). If module_id is rejected (400) the live transcript is lost. Move the visit_setup/module validation before live_transcript consumption."},
+      {"endpoint": "visit_module_options (specialty_modules.py L279-293)", "issue": "Secondary specialties without a dedicated module (e.g. Neurologia) collapse silently into 'Generale' with specialita = MAIN specialty, so a Neurology visit is structured by the LLM as e.g. 'Cardiologia' and labeled 'Generale'. Consider specialita of the secondary or offering one option per secondary specialty."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Consultation overlay setup (dark) - Cartella select", "issues": ["consult-module-select has near-invisible text: computed color rgb(247,249,251) on background rgb(228,234,236) (~1.1:1 contrast). 'Cardiologia' is barely readable. Use dark text on the light pill or a dark bg in the overlay theme."]},
+      {"screen": "Register /registrati/medico", "issues": ["Missing main specialty error reads 'Specializzazione: almeno 2 caratteri' (length message on a select) - should be e.g. 'Scelga la specializzazione principale'.", "Specialty select uses bg-[var(--raised)] (white-ish) while other inputs are grey - slight inconsistency."]},
+      {"screen": "Note editor (cardiology)", "issues": ["Transient: tabs render 4 base tabs first then switch to 6 module tabs once catalog loads (brief flicker)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_specialty_modules_step3.py", "/app/test_reports/pytest/step3.xml"],
+  "action_items": [
+    "Fix contrast of consult-module-select in ConsultationOverlay ModulePicker (text color vs bg-[var(--raised)])",
+    "Register: friendly error message for missing main specialty",
+    "start_consultation: validate module_id before consuming live session transcript",
+    "Optional: handle secondary specialties without module (specialita label / prompt)"
+  ],
+  "critical_code_review_comments": [
+    "server.py now 2229 lines - should be split",
+    "ModuleSettingsCard apply() relies on closure 'edit' value; works now but fragile if run() resolves after edit changes",
+    "Verified pediatric/gyn/cardio defaults unaffected; ginecologo visit options ginecologia+generale"
+  ],
+  "updated_files": ["/app/backend/tests/test_specialty_modules_step3.py"],
+  "success_rate": {"backend": "100% (20/20 incl. regression)", "frontend": "100% functional; 1 contrast design issue"},
+  "seed_data_creation": "Created TEST_Derm Step3 (pytest, deleted in teardown), TEST_Derm UI 6aed17a81b76f9bda659b015 and TEST_Cardio Step3 6aed18631b76f9bda659b02e (both deleted). register/start signup rows for test_reg_* deleted. Cardiologo profile secondaries restored to ['Dermatologia e venereologia']; module_choice ''; cardiologia/dermatologia prefs reset. A pre-existing 'TEST_Derm' visit (not mine) left untouched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_specialty_modules_step3.py tests/test_specialty_modules_step2.py -p no:xdist -o addopts=''. Doctor register route /registrati/medico (testids register-specialty-*). Profile /app/area-personale?sezione=profilo (account-specialty-*, account-professional-save). Overlay open via oggi-next-start-btn; consult-free-name-input, consult-manual-toggle, consult-manual-textarea, consent-paper-checkbox, consult-begin-btn. Modelli: /app/area-personale?sezione=modelli module-edit-<id>. Portal passport /portale/passaporto."
+}

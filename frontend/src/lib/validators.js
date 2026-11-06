@@ -20,7 +20,7 @@ const min = (n, label) => (v) => ((v || "").trim().length >= n ? "" : `${label}:
 export const VALIDATORS = {
   first_name: min(2, "Nome"),
   last_name: min(2, "Cognome"),
-  specialty: min(2, "Specializzazione"),
+  specialty: (v) => ((v || "").trim().length >= 2 ? "" : "Scelga la specializzazione principale"),
   order_number: min(2, "Numero di iscrizione"),
   studio_address: min(5, "Indirizzo"),
   email: (v) => (!(v || "").trim() ? "Inserisca l'email" : EMAIL_RE.test(v.trim()) ? "" : "Formato email non valido (es. nome@dominio.it)"),

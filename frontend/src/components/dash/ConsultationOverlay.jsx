@@ -242,8 +242,8 @@ const TplPill = ({ t, value, onChange, hint }) => (
 const ModulePicker = ({ mods, setId }) => (mods.options.length > 1 ? (
   <label className="mb-3 flex flex-wrap items-center gap-2 text-sm" data-testid="consult-module-picker">
     <span className="text-[11px] uppercase tracking-[0.2em] text-[var(--fg2)]">Cartella</span>
-    <select value={mods.id} onChange={(e) => setId(e.target.value)} className="h-9 rounded-full border border-[var(--hair)] bg-[var(--raised)] px-3 text-sm outline-none focus:border-[var(--accent)]" data-testid="consult-module-select">
-      {mods.options.map((o) => <option key={o.id} value={o.id}>{o.nome}</option>)}
+    <select value={mods.id} onChange={(e) => setId(e.target.value)} className="h-9 rounded-full border border-[var(--accent)] bg-[var(--accent)] px-3 text-sm font-semibold text-[var(--fg)] outline-none" data-testid="consult-module-select">
+      {mods.options.map((o) => <option key={o.key ?? o.id} value={o.key ?? o.id} className="bg-white text-[#0F1A1E]">{o.nome}</option>)}
     </select>
   </label>
 ) : null);

@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Layers, X } from "lucide-react";
 import { api } from "@/lib/api";
+import { loadModules } from "@/lib/modules";
 
 // Avviso una tantum ai medici già registrati: la cartella della loro specialità è disponibile
 export const ModuleNotice = () => {
   const [s, setS] = useState(null);
-  useEffect(() => { api.moduleSettings().then((r) => r.notice && setS(r)).catch(() => {}); }, []);
+  useEffect(() => { loadModules().catch(() => {}); api.moduleSettings().then((r) => r.notice && setS(r)).catch(() => {}); }, []);
   if (!s) return null;
   const close = () => { setS(null); api.moduleNoticeSeen().catch(() => {}); };
   return (

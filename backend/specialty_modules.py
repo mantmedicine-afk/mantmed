@@ -285,11 +285,12 @@ def build_module_settings(db, tdb, specialty_of, current_owner):
         out = {}
         for sp in specs:
             mid = module_for(sp)
-            out.setdefault(mid, {"id": mid, "nome": MODULES[mid]["nome"], "specialita": sp if mid != "generale" else main})
+            key = mid if mid != "generale" or sp == main else f"generale|{sp}"  # secondaria senza modulo: cartella Generale con la sua specialità
+            out.setdefault(key, {"key": key, "id": mid, "nome": MODULES[mid]["nome"] if key == mid else f"Generale · {sp}", "specialita": sp})
         choice = u.get("module_choice") or ""
         if choice in MODULES:
-            out.setdefault(choice, {"id": choice, "nome": MODULES[choice]["nome"], "specialita": main if choice == module_for(main) else MODULES[choice]["nome"]})
-        out.setdefault("generale", {"id": "generale", "nome": "Generale", "specialita": main})
+            out.setdefault(choice, {"key": choice, "id": choice, "nome": MODULES[choice]["nome"], "specialita": main if choice == module_for(main) else MODULES[choice]["nome"]})
+        out.setdefault("generale", {"key": "generale", "id": "generale", "nome": "Generale", "specialita": main})
         return list(out.values())
 
     async def doctor_module(uid) -> str:
