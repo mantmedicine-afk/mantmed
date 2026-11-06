@@ -47,8 +47,7 @@ async def preview(db) -> dict:
     doctors = await db.users.count_documents({"role": "doctor"})
     return {"flags": {k: bool(await db.meta.find_one({"_id": k})) for k in ("access_rules_v2", "clinics_v1", "service_ids_v1")},
             "portal_accounts": len(users), "still_parent": sum(u["role"] == "parent" for u in users), "own_email_moves": len(own),
-            "links": rows, "closing": sum(r["relation"] == "accesso chiuso" for r in rows), "doctors": doctors,
-            "visits_to_module": await db.consultations.count_documents({"note.modulo": {"$exists": False}})}
+            "links": rows, "closing": sum(r["relation"] == "accesso chiuso" for r in rows), "doctors": doctors}
 
 
 async def apply(db, who: str) -> dict:

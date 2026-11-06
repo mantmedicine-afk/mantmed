@@ -39,14 +39,16 @@ export const DateInput = ({ value, onChange, min, max, className = "", required,
   const bad = text.length === 10 && (!toIso(text) || out(toIso(text)));
   return (
     <div className="relative">
-      <input id={id} value={text} onChange={type} onBlur={() => bad && setText(toIt(value))} inputMode="numeric" placeholder="gg/mm/aaaa" required={required} aria-label={aria}
+      <input id={id} value={text} onChange={type} onBlur={() => (bad || (text && text.length < 10)) && setText(toIt(value))} inputMode="numeric" placeholder="gg/mm/aaaa" required={required} aria-label={aria}
         aria-invalid={bad || undefined} className={`${className} w-full pr-10 ${bad ? "border-[var(--alert)]" : ""}`} {...rest} />
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button type="button" className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-[var(--fg2)] hover:text-[var(--fg)]" aria-label="Apri calendario" data-testid={rest["data-testid"] ? `${rest["data-testid"]}-calendar` : undefined}><CalendarDays size={16} /></button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="end">
+        <PopoverContent className="z-[75] w-auto p-0" align="end">
           <Calendar mode="single" locale={it} weekStartsOn={1} captionLayout="dropdown-buttons" fromYear={1900} toYear={new Date().getFullYear() + 5}
+            classNames={{ caption_label: "hidden", vhidden: "sr-only", caption_dropdowns: "flex gap-2", dropdown_month: "", dropdown_year: "",
+              dropdown: "h-8 rounded-md border border-[var(--hair)] bg-[var(--surface)] px-2 text-sm text-[var(--fg)]" }}
             selected={value ? new Date(`${value}T12:00:00`) : undefined} defaultMonth={value ? new Date(`${value}T12:00:00`) : undefined}
             disabled={(d) => out(d.toLocaleDateString("sv-SE"))}
             onSelect={(d) => { if (d) { fire(onChange, d.toLocaleDateString("sv-SE")); setOpen(false); } }} />

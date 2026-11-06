@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="23" skipped="1" tests="147" time="64.816" timestamp="2026-11-06T02:55:05.991382+00:00" hostname="agent-env-f9af9b66-924f-4c3b-b396-d09e1a968def"><testcase classname="tests.test_scheduling.TestScheduleSettings" name="test_get_schedule" time="0.613" /><testcase classname="tests.test_scheduling.TestScheduleSettings" name="test_put_schedule_ok" time="0.088" /><testcase classname="tests.test_scheduling.TestScheduleSettings" name="test_put_schedule_missing_clinic" time="0.095" /><testcase classname="tests.test_scheduling.TestScheduleSettings" name="test_put_schedule_end_before_start" time="0.094" /><testcase classname="tests.test_scheduling.TestScheduleSettings" name="test_put_schedule_duration_out_of_range" time="0.084" /><testcase classname="tests.test_scheduling.TestScheduleSettings" name="test_put_schedule_duplicate_service" time="0.090" /><testcase classname="tests.test_scheduling.TestPortalSlots" name="test_slots_weekday_prima_visita" time="0.491"><failure message="AssertionError: {&quot;detail&quot;:&quot;Figlio non collegato al suo account&quot;}&#10;assert 404 == 200&#10; +  where 404 = &lt;Response [404]&gt;.status_code">self = &lt;test_scheduling.TestPortalSlots object at 0xfe2f02fae6d0&gt;
+parent_sess = &lt;requests.sessions.Session object at 0xfe2efcaebe90&gt;
+
+    def test_slots_weekday_prima_visita(self, parent_sess):
+        d = next_monday().isoformat()
+        r = parent_sess.get(f"{BASE_URL}/api/portal/slots",
+                            params={"patient_id": AURORA_PID, "clinic": "Studio Centro",
+                                    "service": "Prima visita", "date": d})
+&gt;       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Figlio non collegato al suo account"}
+E       assert 404 == 200
+E        +  where 404 = &lt;Response [404]&gt;.status_code
+
+tests/test_scheduling.py:118: AssertionError</failure></testcase><testcase classname="tests.test_scheduling.TestPortalSlots" name="test_slots_weekday_bilancio" time="0.093"><failure message="AssertionError: {&quot;detail&quot;:&quot;Figlio non collegato al suo account&quot;}&#10;assert 404 == 200&#10; +  where 404 = &lt;Response [404]&gt;.status_code">self = &lt;test_scheduling.TestPortalSlots object at 0xfe2f02faed10&gt;
+parent_sess = &lt;requests.sessions.Session object at 0xfe2efcaebe90&gt;
+
+    def test_slots_weekday_bilancio(self, parent_sess):
+        d = next_monday().isoformat()
+        r = parent_sess.get(f"{BASE_URL}/api/portal/slots",
+                            params={"patient_id": AURORA_PID, "clinic": "Studio Provincia",
+                                    "service": "Bilancio di salute", "date": d})
+&gt;       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Figlio non collegato al suo account"}
+E       assert 404 == 200
+E        +  where 404 = &lt;Response [404]&gt;.status_code
+
+tests/test_scheduling.py:133: AssertionError</failure></testcase><testcase classname="tests.test_scheduling.TestPortalSlots" name="test_slots_weekend_empty" time="0.105"><failure message="assert 404 == 200&#10; +  where 404 = &lt;Response [404]&gt;.status_code">self = &lt;test_scheduling.TestPortalSlots object at 0xfe2f02faf310&gt;
+parent_sess = &lt;requests.sessions.Session object at 0xfe2efcaebe90&gt;
+
+    def test_slots_weekend_empty(self, parent_sess):
+        d = next_saturday().isoformat()
+        r = parent_sess.get(f"{BASE_URL}/api/portal/slots",
+                            params={"patient_id": AURORA_PID, "clinic": "Studio Centro",
+                                    "service": "Prima visita", "date": d})
+&gt;       assert r.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = &lt;Response [404]&gt;.status_code
+
+tests/test_scheduling.py:148: AssertionError</failure></testcase><testcase classname="tests.test_scheduling.TestPortalSlots" name="test_slots_past_date_empty" time="0.110"><failure message="assert 404 == 200&#10; +  where 404 = &lt;Response [404]&gt;.status_code">self = &lt;test_scheduling.TestPortalSlots object at 0xfe2f02faf990&gt;
+parent_sess = &lt;requests.sessions.Session object at 0xfe2efcaebe90&gt;
+
+    def test_slots_past_date_empty(self, parent_sess):
+        d = (date.today() - timedelta(days=1)).isoformat()
+        r = parent_sess.get(f"{BASE_URL}/api/portal/slots",
+                            params={"patient_id": AURORA_PID, "clinic": "Studio Centro",
+                                    "service": "Prima visita", "date": d})
+&gt;       assert r.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = &lt;Response [404]&gt;.status_code
+
+tests/test_scheduling.py:156: AssertionError</failure></testcase><testcase classname="tests.test_scheduling.TestPortalSlots" name="test_slots_non_linked_child_404" time="0.109" /><testcase classname="tests.test_scheduling.TestPortalSlots" name="test_slots_invalid_clinic_400" time="0.108"><failure message="assert 404 == 400&#10; +  where 404 = &lt;Response [404]&gt;.status_code">self = &lt;test_scheduling.TestPortalSlots object at 0xfe2f02fb8650&gt;
+parent_sess = &lt;requests.sessions.Session object at 0xfe2efcaebe90&gt;
+
+    def test_slots_invalid_clinic_400(self, parent_sess):
+        d = next_monday().isoformat()
+        r = parent_sess.get(f"{BASE_URL}/api/portal/slots",
+                            params={"patient_id": AURORA_PID, "clinic": "Studio Fantasma",
+                                    "service": "Prima visita", "date": d})
+&gt;       assert r.status_code == 400
+E       assert 404 == 400
+E        +  where 404 = &lt;Response [404]&gt;.status_code
+
+tests/test_scheduling.py:171: AssertionError</failure></testcase><testcase classname="tests.test_scheduling.TestPortalRequest409" name="test_request_time_not_in_slots_409" time="0.098"><failure message="AssertionError: {&quot;detail&quot;:&quot;Paziente non collegato al suo account&quot;}&#10;assert 404 == 409&#10; +  where 404 = &lt;Response [404]&gt;.status_code">self = &lt;test_scheduling.TestPortalRequest409 object at 0xfe2f02fb8dd0&gt;
+parent_sess = &lt;requests.sessions.Session object at 0xfe2efcaebe90&gt;
+
+    def test_request_time_not_in_slots_409(self, parent_sess):
+        d = next_monday().isoformat()
+        r = parent_sess.post(f"{BASE_URL}/api/portal/appointment-requests", json={
+            "patient_id": AURORA_PID, "clinic": "Studio Centro", "service": "Prima visita",
+            "date": d, "time": "08:00", "note": "TEST_409_outside"})
+&gt;       assert r.status_code == 409, r.text
+E       AssertionError: {"detail":"Paziente non collegato al suo account"}
+E       assert 404 == 409
+E        +  where 404 = &lt;Response [404]&gt;.status_code
+
+tests/test_scheduling.py:181: AssertionError</failure></testcase><testcase classname="tests.test_scheduling.TestPortalRequest409" name="test_request_free_slot_then_overlap_disappears" time="0.095"><failure message="KeyError: 'slots'">self = &lt;test_scheduling.TestPortalRequest409 object at 0xfe2f02fb9410&gt;
+parent_sess = &lt;requests.sessions.Session object at 0xfe2efcaebe90&gt;
+foti_sess = &lt;requests.sessions.Session object at 0xfe2f011e2d90&gt;
+
+    def test_request_free_slot_then_overlap_disappears(self, parent_sess, foti_sess):
+        d = (next_monday() + timedelta(days=1)).isoformat()  # Tuesday to avoid collisions with other tests
+        # Get free slots first
+        rs = parent_sess.get(f"{BASE_URL}/api/portal/slots",
+                             params={"patient_id": AURORA_PID, "clinic": "Studio Centro",
+                                     "service": "Prima visita", "date": d}).json()
+&gt;       assert rs["slots"], rs
+               ^^^^^^^^^^^
+E       KeyError: 'slots'
+
+tests/test_scheduling.py:189: KeyError</failure></testcase><testcase classname="tests.test_scheduling.TestConfirmUsesDuration" name="test_confirm_sets_duration" time="0.311"><failure message="KeyError: 'duration'">self = &lt;test_scheduling.TestConfirmUsesDuration object at 0xfe2f02fae490&gt;
+parent_sess = &lt;requests.sessions.Session object at 0xfe2efcaebe90&gt;
+foti_sess = &lt;requests.sessions.Session object at 0xfe2f011e2d90&gt;
+
+    def test_confirm_sets_duration(self, parent_sess, foti_sess):
+        d = (next_monday() + timedelta(days=2)).isoformat()  # Wednesday
+        # Change duration for "Visita di controllo" to 25
+        custom = body(SAVED, services=[{**s, "duration": 25} if s["name"] == "Visita di controllo" else s for s in SAVED["services"]])
+        rp = foti_sess.put(f"{BASE_URL}/api/settings/schedule", json=custom)
+        assert rp.status_code == 200
+        try:
+            rs = parent_sess.get(f"{BASE_URL}/api/portal/slots",
+                                 params={"patient_id": AURORA_PID, "clinic": "Studio Centro",
+                                         "service": "Visita di controllo", "date": d}).json()
+&gt;           assert rs["duration"] == 25
+                   ^^^^^^^^^^^^^^
+E           KeyError: 'duration'
+
+tests/test_scheduling.py:225: KeyError</failure></testcase><testcase classname="tests.test_scheduling.TestCronReminders" name="test_cron_no_auth_401" time="0.174" /><testcase classname="tests.test_scheduling.TestCronReminders" name="test_cron_wrong_bearer_401" time="0.140" /><testcase classname="tests.test_scheduling.TestCronReminders" name="test_cron_correct_bearer_202" time="0.160" /><testcase classname="tests.test_scheduling.TestCronReminders" name="test_cron_duplicate_run_id" time="0.314" /><testcase classname="tests.test_scheduling.TestReminderResetOnPatch" name="test_patch_date_resets_reminder" time="0.424" /><testcase classname="tests.test_cash_invoicing.TestSettings" name="test_get" time="0.515" /><testcase classname="tests.test_cash_invoicing.TestSettings" name="test_put_validation[over0-Codice fiscale]" time="0.095" /><testcase classname="tests.test_cash_invoicing.TestSettings" name="test_put_validation[over1-11 cifre]" time="0.100" /><testcase classname="tests.test_cash_invoicing.TestSettings" name="test_put_validation[over2-Email]" time="0.101" /><testcase classname="tests.test_cash_invoicing.TestSettings" name="test_put_roundtrip_and_schedule_does_not_wipe" time="0.437" /><testcase classname="tests.test_cash_invoicing.TestPreview" name="test_ordinario_persona" time="0.114" /><testcase classname="tests.test_cash_invoicing.TestPreview" name="test_stamp_medico" time="0.084" /><testcase classname="tests.test_cash_invoicing.TestPreview" name="test_azienda_ritenuta" time="0.111" /><testcase classname="tests.test_cash_invoicing.TestPreview" name="test_no_bollo_under_threshold" time="0.085" /><testcase classname="tests.test_cash_invoicing.TestPreview" name="test_forfettario" time="0.393" /><testcase classname="tests.test_cash_invoicing.TestCreateValidation" name="test_rejects[body0-400]" time="0.099" /><testcase classname="tests.test_cash_invoicing.TestCreateValidation" name="test_rejects[body1-400]" time="0.082" /><testcase classname="tests.test_cash_invoicing.TestCreateValidation" name="test_rejects[body2-400]" time="0.086" /><testcase classname="tests.test_cash_invoicing.TestCreateValidation" name="test_rejects[body3-400]" time="0.088" /><testcase classname="tests.test_cash_invoicing.TestCreateValidation" name="test_rejects[body4-400]" time="0.091" /><testcase classname="tests.test_cash_invoicing.TestCreateValidation" name="test_rejects[body5-400]" time="0.091" /><testcase classname="tests.test_cash_invoicing.TestCreateValidation" name="test_rejects[body6-400]" time="0.081" /><testcase classname="tests.test_cash_invoicing.TestCreateValidation" name="test_rejects[body7-422]" time="0.097" /><testcase classname="tests.test_cash_invoicing.TestCreateValidation" name="test_rejects[body8-422]" time="0.106" /><testcase classname="tests.test_cash_invoicing.TestInvoiceFlow" name="test_persona_paid_number_payment_pdf_cancel" time="1.020" /><testcase classname="tests.test_cash_invoicing.TestInvoiceFlow" name="test_unpaid_then_pay" time="0.340" /><testcase classname="tests.test_cash_invoicing.TestInvoiceFlow" name="test_azienda_xml" time="0.195" /><testcase classname="tests.test_cash_invoicing.TestInvoiceFlow" name="test_opposition" time="0.205" /><testcase classname="tests.test_cash_invoicing.TestInvoiceFlow" name="test_list_and_overview" time="0.186" /><testcase classname="tests.test_cash_invoicing.TestSts" name="test_deadline_send_file" time="0.122"><skipped type="pytest.skip" message="anno precedente con dati reali: non invio">/app/backend/tests/test_cash_invoicing.py:216: anno precedente con dati reali: non invio</skipped></testcase><testcase classname="tests.test_cash_invoicing.TestAccountant" name="test_summary_and_pdfs" time="1.884" /><testcase classname="tests.test_cash_invoicing.TestAccountant" name="test_send" time="1.267" /><testcase classname="tests.test_cash_invoicing.TestAccountant" name="test_send_real_to_resend_sink" time="2.673" /><testcase classname="tests.test_cash_invoicing.TestAccountant" name="test_send_without_email" time="1.040" /><testcase classname="tests.test_cash_invoicing.TestRetestFixes" name="test_send_undeliverable_422" time="1.139" /><testcase classname="tests.test_cash_invoicing.TestRetestFixes" name="test_legacy_regime_pdf_cancel" time="0.669" /><testcase classname="tests.test_cash_invoicing.TestRetestFixes" name="test_draft_service_and_payer" time="0.491" /><testcase classname="tests.test_cash_invoicing.TestRetestFixes" name="test_xml_sede_and_stamp" time="0.374" /><testcase classname="tests.test_cash_invoicing.TestRetestFixes" name="test_sts_cancel_after_sent" time="1.156" /><testcase classname="tests.test_cash_invoicing.TestRetestFixes" name="test_zz_restore_accountant_email" time="0.886" /><testcase classname="tests.test_visit_templates_v2.TestPedTemplates" name="test_no_nuovo_modello" time="0.505" /><testcase classname="tests.test_visit_templates_v2.TestPedTemplates" name="test_prima_visita" time="0.105" /><testcase classname="tests.test_visit_templates_v2.TestPedTemplates" name="test_extra_models[acuta-Malattia acuta-17-5]" time="0.101" /><testcase classname="tests.test_visit_templates_v2.TestPedTemplates" name="test_extra_models[controllo-Controllo-9-4]" time="0.098" /><testcase classname="tests.test_visit_templates_v2.TestPedTemplates" name="test_extra_models[certificato-Certificato sportivo non agonistico-8-5]" time="0.100" /><testcase classname="tests.test_visit_templates_v2.TestPedTemplates" name="test_bilanci_pending" time="0.098" /><testcase classname="tests.test_visit_templates_v2.TestPedTemplates" name="test_bilanci_library" time="0.088" /><testcase classname="tests.test_visit_templates_v2.TestPedTemplates" name="test_base_kind" time="0.392" /><testcase classname="tests.test_visit_templates_v2.TestCardio" name="test_extra_models_added" time="1.021" /><testcase classname="tests.test_visit_templates_v2.TestRequiredAndPending" name="test_required_persists" time="0.510" /><testcase classname="tests.test_visit_templates_v2.TestRequiredAndPending" name="test_pending_add_ignore" time="0.529" /><testcase classname="tests.test_visit_templates_v2.TestUpgrade" name="test_nuovo_modello_identical_deleted" time="0.212" /><testcase classname="tests.test_search_summary.TestSearch" name="test_short_query" time="0.770" /><testcase classname="tests.test_search_summary.TestSearch" name="test_unauth" time="0.157" /><testcase classname="tests.test_search_summary.TestSearch" name="test_ali" time="0.117" /><testcase classname="tests.test_search_summary.TestSearch" name="test_diagnosis_word_and_accents" time="0.285" /><testcase classname="tests.test_search_summary.TestSearch" name="test_multiword_all_required" time="0.281" /><testcase classname="tests.test_search_summary.TestSearch" name="test_no_processing_reports" time="0.112" /><testcase classname="tests.test_search_summary.TestSearch" name="test_future_appointments" time="0.725" /><testcase classname="tests.test_search_summary.TestSearch" name="test_isolation" time="0.755" /><testcase classname="tests.test_search_summary.TestSearch" name="test_cleanup_appts" time="0.438" /><testcase classname="tests.test_search_summary.TestSummary" name="test_ped_start_and_409" time="0.374" /><testcase classname="tests.test_search_summary.TestSummary" name="test_ped_ready_riepilogo" time="9.355" /><testcase classname="tests.test_search_summary.TestSummary" name="test_ped_regen" time="1.505" /><testcase classname="tests.test_search_summary.TestSummary" name="test_ped_patch_persist" time="0.289" /><testcase classname="tests.test_search_summary.TestSummary" name="test_card_riepilogo" time="3.304" /><testcase classname="tests.test_search_summary.TestSummary" name="test_cleanup" time="0.002" /><testcase classname="tests.test_search_summary.TestPortalSummary" name="test_portal_riepilogo" time="1.224" /><testcase classname="tests.test_signed_docs.TestDoctorSign" name="test_template" time="0.454" /><testcase classname="tests.test_signed_docs.TestDoctorSign" name="test_sign_and_supersede" time="0.498" /><testcase classname="tests.test_signed_docs.TestDoctorSign" name="test_pdf_integrity_and_content" time="0.161" /><testcase classname="tests.test_signed_docs.TestDoctorSign" name="test_paper_form" time="0.112" /><testcase classname="tests.test_signed_docs.TestDoctorSign" name="test_paper_method_no_doc" time="0.084" /><testcase classname="tests.test_signed_docs.TestDoctorSign" name="test_validation" time="0.630" /><testcase classname="tests.test_signed_docs.TestDoctorSign" name="test_revoke_marks_doc" time="0.288" /><testcase classname="tests.test_signed_docs.TestVerify" name="test_valid" time="0.164" /><testcase classname="tests.test_signed_docs.TestVerify" name="test_revoked_flag" time="0.145" /><testcase classname="tests.test_signed_docs.TestVerify" name="test_invalid" time="0.417" /><testcase classname="tests.test_signed_docs.TestDoctorSignature" name="test_cycle" time="0.460"><failure message="AssertionError: assert 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABG0AAAGsCAYAAABn4lpxAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAA...AACZAACZAACZAACZAACZAACZAACZAACZAACZAACZAACZAACZAACZAACZAACZAACZAACZAACZAACZAACZAACVQOgf8Ht4Ylz//tyBIAAAAASUVORK5CYII=' is None">self = &lt;test_signed_docs.TestDoctorSignature object at 0xfe2efe61d610&gt;
+doc = &lt;requests.sessions.Session object at 0xfe2f0120e910&gt;
+parent = &lt;requests.sessions.Session object at 0xfe2efc137510&gt;
+
+    def test_cycle(self, doc, parent):
+&gt;       assert doc.get(f"{BASE_URL}/api/settings/signature").json()["image"] is None
+E       AssertionError: assert 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABG0AAAGsCAYAAABn4lpxAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAA...AACZAACZAACZAACZAACZAACZAACZAACZAACZAACZAACZAACZAACZAACZAACZAACZAACZAACZAACZAACZAACVQOgf8Ht4Ylz//tyBIAAAAASUVORK5CYII=' is None
+
+tests/test_signed_docs.py:166: AssertionError</failure></testcase><testcase classname="tests.test_signed_docs.TestPortal" name="test_template" time="0.202" /><testcase classname="tests.test_signed_docs.TestPortal" name="test_sign" time="0.636" /><testcase classname="tests.test_signed_docs.TestPortal" name="test_isolation" time="0.503" /><testcase classname="tests.test_signed_docs.TestPortal" name="test_portal_no_signature" time="0.093" /><testcase classname="tests.test_specialty_modules_step3" name="test_public_catalog_no_auth" time="0.148" /><testcase classname="tests.test_specialty_modules_step3" name="test_register_start_secondary" time="0.747" /><testcase classname="tests.test_specialty_modules_step3" name="test_profile_secondary" time="0.454" /><testcase classname="tests.test_specialty_modules_step3" name="test_profile_update_and_restore" time="0.376" /><testcase classname="tests.test_specialty_modules_step3" name="test_visit_options_card" time="0.098" /><testcase classname="tests.test_specialty_modules_step3" name="test_visit_options_ped" time="0.464" /><testcase classname="tests.test_specialty_modules_step3" name="test_consultation_module_not_allowed" time="0.187" /><testcase classname="tests.test_specialty_modules_step3" name="test_consultation_bogus_module" time="0.083" /><testcase classname="tests.test_specialty_modules_step3" name="test_derm_visit" time="2.179" /><testcase classname="tests.test_specialty_modules_step3" name="test_per_module_layout" time="1.142" /><testcase classname="tests.test_cancel_visit.TestRBAC" name="test_doctor_cannot_cancel_via_portal" time="0.471" /><testcase classname="tests.test_cancel_visit.TestRBAC" name="test_parent_cannot_access_doctor_cancellations" time="0.545" /><testcase classname="tests.test_cancel_visit.TestCancelAppointmentValidation" name="test_404_bad_oid" time="0.095" /><testcase classname="tests.test_cancel_visit.TestCancelAppointmentValidation" name="test_404_unknown_appointment" time="0.092" /><testcase classname="tests.test_cancel_visit.TestCancelAppointmentValidation" name="test_404_appointment_without_patient_id" time="0.519" /><testcase classname="tests.test_cancel_visit.TestCancelAppointmentCutoff" name="test_less_than_12h_returns_409_with_phone" time="0.285"><failure message="AssertionError: {&quot;detail&quot;:&quot;Visita non trovata&quot;}&#10;assert 404 == 409&#10; +  where 404 = &lt;Response [404]&gt;.status_code">self = &lt;test_cancel_visit.TestCancelAppointmentCutoff object at 0xfe2efe64b0d0&gt;
+parent = &lt;requests.sessions.Session object at 0xfe2efc054550&gt;
+foti = &lt;requests.sessions.Session object at 0xfe2ef6684350&gt;
+
+    def test_less_than_12h_returns_409_with_phone(self, parent, foti):
+        appt = _mk_appt(foti, 2.0, notes="TEST_&lt;12h")  # 2h from now
+        try:
+            r = parent.post(f"{BASE_URL}/api/portal/appointments/{appt['id']}/cancel",
+                            json={"reason": "mal di pancia"})
+&gt;           assert r.status_code == 409, r.text
+E           AssertionError: {"detail":"Visita non trovata"}
+E           assert 404 == 409
+E            +  where 404 = &lt;Response [404]&gt;.status_code
+
+tests/test_cancel_visit.py:114: AssertionError</failure></testcase><testcase classname="tests.test_cancel_visit.TestCancelAppointmentCutoff" name="test_more_than_12h_cancels_200_and_marks_annullato" time="0.322"><failure message="AssertionError: {&quot;detail&quot;:&quot;Visita non trovata&quot;}&#10;assert 404 == 200&#10; +  where 404 = &lt;Response [404]&gt;.status_code">self = &lt;test_cancel_visit.TestCancelAppointmentCutoff object at 0xfe2efe64b6d0&gt;
+parent = &lt;requests.sessions.Session object at 0xfe2efc054550&gt;
+foti = &lt;requests.sessions.Session object at 0xfe2ef6684350&gt;
+
+    def test_more_than_12h_cancels_200_and_marks_annullato(self, parent, foti):
+        appt = _mk_appt(foti, 20.0, notes="TEST_&gt;12h")
+        aid = appt["id"]
+        try:
+            r = parent.post(f"{BASE_URL}/api/portal/appointments/{aid}/cancel",
+                            json={"reason": "TEST_motivo_annullo"})
+&gt;           assert r.status_code == 200, r.text
+E           AssertionError: {"detail":"Visita non trovata"}
+E           assert 404 == 200
+E            +  where 404 = &lt;Response [404]&gt;.status_code
+
+tests/test_cancel_visit.py:129: AssertionError</failure></testcase><testcase classname="tests.test_cancel_visit.TestSlotFreedAfterCancel" name="test_slot_available_again_after_cancel" time="0.299"><failure message="KeyError: 'slots'">self = &lt;test_cancel_visit.TestSlotFreedAfterCancel object at 0xfe2efe64bd10&gt;
+parent = &lt;requests.sessions.Session object at 0xfe2efc054550&gt;
+foti = &lt;requests.sessions.Session object at 0xfe2ef6684350&gt;
+
+    def test_slot_available_again_after_cancel(self, parent, foti):
+        # Pick a future weekday slot (Monday 09:00) — Foti's clinic is Mon-Fri 09:00-13:00
+        # Use 2 days from now at 09:00 if it falls on weekday, else push to next Monday.
+        now = datetime.now(ROME)
+        d = now.date() + timedelta(days=2)
+        while d.isoweekday() in (6, 7):
+            d = d + timedelta(days=1)
+        day_iso = d.isoformat()
+        slot_time = "09:00"
+    
+        appt = _mk_appt_at(foti, day_iso, slot_time, duration=20)
+        aid = appt["id"]
+        try:
+            # Confirm slot missing BEFORE cancel
+            params = {"patient_id": AURORA_PID, "clinic": CLINIC,
+                      "service": "Visita di controllo", "date": day_iso}
+            before = parent.get(f"{BASE_URL}/api/portal/slots", params=params).json()
+&gt;           assert slot_time not in before["slots"], f"{slot_time} should be busy, got {before}"
+                                    ^^^^^^^^^^^^^^^
+E           KeyError: 'slots'
+
+tests/test_cancel_visit.py:172: KeyError</failure></testcase><testcase classname="tests.test_cancel_visit.TestCancelRequest" name="test_cancel_own_pending_request" time="0.096"><failure message="AssertionError: {&quot;detail&quot;:&quot;Paziente non collegato al suo account&quot;}&#10;assert 404 == 200&#10; +  where 404 = &lt;Response [404]&gt;.status_code">self = &lt;test_cancel_visit.TestCancelRequest object at 0xfe2efe64c4d0&gt;
+parent = &lt;requests.sessions.Session object at 0xfe2efc054550&gt;
+foti = &lt;requests.sessions.Session object at 0xfe2ef6684350&gt;
+
+    def test_cancel_own_pending_request(self, parent, foti):
+        # Create via parent portal flow
+        now = datetime.now(ROME)
+        d = now.date() + timedelta(days=3)
+        while d.isoweekday() in (6, 7):
+            d += timedelta(days=1)
+        payload = {"patient_id": AURORA_PID, "clinic": CLINIC, "service": "Visita di controllo",
+                   "date": d.isoformat(), "time": "10:30", "note": "TEST_request_cancel"}
+        r = parent.post(f"{BASE_URL}/api/portal/appointment-requests", json=payload)
+&gt;       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Paziente non collegato al suo account"}
+E       assert 404 == 200
+E        +  where 404 = &lt;Response [404]&gt;.status_code
+
+tests/test_cancel_visit.py:204: AssertionError</failure></testcase><testcase classname="tests.test_cancel_visit.TestCancelRequest" name="test_cancel_unknown_request_404" time="0.086" /><testcase classname="tests.test_cancel_visit.TestCancellationsTenantIsolation" name="test_cancellations_last_7_days_and_isolated" time="0.095" /><testcase classname="tests.test_cancel_visit.TestAgendaShowsAnnullato" name="test_agenda_includes_cancelled_today" time="0.304" /><testcase classname="tests.test_availability" name="test_shape" time="0.144" /><testcase classname="tests.test_availability" name="test_default_max6_sorted" time="0.000" /><testcase classname="tests.test_availability" name="test_limit_param" time="0.495" /><testcase classname="tests.test_availability" name="test_invalid_service_fallback" time="0.150" /><testcase classname="tests.test_availability" name="test_each_service" time="0.838" /><testcase classname="tests.test_availability" name="test_clinic_filter" time="0.293" /><testcase classname="tests.test_availability" name="test_unknown_slug_404" time="0.142" /><testcase classname="tests.test_availability" name="test_within_14_days" time="0.000" /><testcase classname="tests.test_availability" name="test_slots_consistent_with_portal" time="0.747" /><testcase classname="tests.test_health_passport.TestPassport" name="test_passport_payload" time="0.495" /><testcase classname="tests.test_health_passport.TestPassport" name="test_passport_other_child_404" time="0.094" /><testcase classname="tests.test_health_passport.TestPassport" name="test_passport_requires_parent" time="0.487" /><testcase classname="tests.test_health_passport.TestPassport" name="test_consent_required_then_given" time="0.002"><failure message="KeyError: 'passport_share_consent'">self = &lt;test_health_passport.TestPassport object at 0xfe2efcab7d90&gt;
+parent = &lt;requests.sessions.Session object at 0xfe2ef672a010&gt;
+
+    def test_consent_required_then_given(self, parent):
+        pid = MDB.users.find_one({"email": "genitore.demo@example.com"})["_id"]
+&gt;       old = MDB.users.find_one({"_id": pid})["passport_share_consent"]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'passport_share_consent'
+
+tests/test_health_passport.py:88: KeyError</failure></testcase><testcase classname="tests.test_health_passport.TestPassport" name="test_create_shares" time="0.108"><failure message="AssertionError: {&quot;detail&quot;:&quot;Prima della condivisione legga l'informativa e dia il consenso&quot;}&#10;assert 412 == 200&#10; +  where 412 = &lt;Response [412]&gt;.status_code">self = &lt;test_health_passport.TestPassport object at 0xfe2efcadc290&gt;
+parent = &lt;requests.sessions.Session object at 0xfe2ef672a010&gt;
+
+    def test_create_shares(self, parent):
+        for name, body in (("sum", {"scope": "summary", "duration": "24h", "allow_import": False}),
+                           ("full", {"scope": "full", "duration": "7d", "allow_import": True}),
+                           ("full_noimp", {"scope": "full", "duration": "30d", "allow_import": False})):
+            r = parent.post(f"{API}/portal/passport/{PID}/shares", json=body)
+&gt;           assert r.status_code == 200, r.text
+E           AssertionError: {"detail":"Prima della condivisione legga l'informativa e dia il consenso"}
+E           assert 412 == 200
+E            +  where 412 = &lt;Response [412]&gt;.status_code
+
+tests/test_health_passport.py:106: AssertionError</failure></testcase><testcase classname="tests.test_health_passport.TestPassport" name="test_invalid_share_body" time="0.200" /><testcase classname="tests.test_health_passport.TestPassport" name="test_public_info_and_noindex" time="0.000"><failure message="KeyError: 'sum'">self = &lt;test_health_passport.TestPassport object at 0xfe2efcadce10&gt;
+
+    def test_public_info_and_noindex(self):
+&gt;       r = requests.get(f"{API}/public/passport/{ST['sum']['token']}")
+                                                  ^^^^^^^^^
+E       KeyError: 'sum'
+
+tests/test_health_passport.py:121: KeyError</failure></testcase><testcase classname="tests.test_health_passport.TestPassport" name="test_open_wrong_code" time="0.000"><failure message="KeyError: 'sum'">self = &lt;test_health_passport.TestPassport object at 0xfe2efcadd3d0&gt;
+
+    def test_open_wrong_code(self):
+&gt;       r = requests.post(f"{API}/public/passport/{ST['sum']['token']}/open", json={"viewer_name": "TEST_Dott Rossi", "code": "000001" if ST['sum']['code'] != "000001" else "000002"})
+                                                   ^^^^^^^^^
+E       KeyError: 'sum'
+
+tests/test_health_passport.py:128: KeyError</failure></testcase><testcase classname="tests.test_health_passport.TestPassport" name="test_open_summary_scope" time="0.001"><failure message="KeyError: 'sum'">self = &lt;test_health_passport.TestPassport object at 0xfe2efcadd990&gt;
+
+    def test_open_summary_scope(self):
+&gt;       r = requests.post(f"{API}/public/passport/{ST['sum']['token']}/open", json={"viewer_name": "TEST_Dott Rossi", "code": ST['sum']['code']})
+                                                   ^^^^^^^^^
+E       KeyError: 'sum'
+
+tests/test_health_passport.py:134: KeyError</failure></testcase><testcase classname="tests.test_health_passport.TestPassport" name="test_open_full_and_pdf" time="0.000"><failure message="KeyError: 'full'">self = &lt;test_health_passport.TestPassport object at 0xfe2efcaddf10&gt;
+
+    def test_open_full_and_pdf(self):
+&gt;       r = requests.post(f"{API}/public/passport/{ST['full']['token']}/open", json={"viewer_name": "TEST_Dott Verdi", "code": ST['full']['code']})
+                                                   ^^^^^^^^^^
+E       KeyError: 'full'
+
+tests/test_health_passport.py:145: KeyError</failure></testcase><testcase classname="tests.test_health_passport.TestPassport" name="test_hide_visit_excluded_from_share" time="0.240"><failure message="KeyError: 'full'">self = &lt;test_health_passport.TestPassport object at 0xfe2efcade550&gt;
+parent = &lt;requests.sessions.Session object at 0xfe2ef672a010&gt;
+
+    def test_hide_visit_excluded_from_share(self, parent):
+        r = parent.post(f"{API}/portal/passport/{PID}/visits/{ST['visit']}/hide", json={"hidden": True})
+        assert r.status_code == 200
+        own = parent.get(f"{API}/portal/passport/{PID}").json()
+        assert next(v for v in own["visits"] if v["id"] == ST["visit"])["hidden"] is True
+&gt;       d = requests.post(f"{API}/public/passport/{ST['full']['token']}/open", json={"viewer_name": "TEST_Dott Verdi", "code": ST['full']['code']}).json()
+                                                   ^^^^^^^^^^
+E       KeyError: 'full'
+
+tests/test_health_passport.py:160: KeyError</failure></testcase><testcase classname="tests.test_health_passport.TestPassport" name="test_import_rules" time="0.373"><failure message="KeyError: 'full_key'">self = &lt;test_health_passport.TestPassport object at 0xfe2efcadeb90&gt;
+cardio = &lt;requests.sessions.Session object at 0xfe2f017cc350&gt;
+
+    def test_import_rules(self, cardio):
+        ST["cardio_id"] = str(MDB.users.find_one({"email": "cardiologo.demo@example.com"})["_id"])
+&gt;       assert requests.post(f"{API}/passport-import/{ST['full_key']}").status_code == 401
+                                                      ^^^^^^^^^^^^^^
+E       KeyError: 'full_key'
+
+tests/test_health_passport.py:171: KeyError</failure></testcase><testcase classname="tests.test_health_passport.TestPassport" name="test_access_log" time="0.090"><failure message="AssertionError: assert {'apertura', ...'referto_pdf'} &lt;= set()&#10;  &#10;  Extra items in the left set:&#10;  'referto_pdf'&#10;  'apertura'&#10;  'importazione'">self = &lt;test_health_passport.TestPassport object at 0xfe2efcadf1d0&gt;
+parent = &lt;requests.sessions.Session object at 0xfe2ef672a010&gt;
+
+    def test_access_log(self, parent):
+        log = parent.get(f"{API}/portal/passport/{PID}/access").json()
+        mine = [a for a in log if a["share_id"] in ST["shares"]]
+        acts = {a["action"] for a in mine}
+&gt;       assert {"apertura", "referto_pdf", "importazione"} &lt;= acts
+E       AssertionError: assert {'apertura', ...'referto_pdf'} &lt;= set()
+E         
+E         Extra items in the left set:
+E         'referto_pdf'
+E         'apertura'
+E         'importazione'
+
+tests/test_health_passport.py:198: AssertionError</failure></testcase><testcase classname="tests.test_health_passport.TestPassport" name="test_revoke" time="0.000"><failure message="KeyError: 'full'">self = &lt;test_health_passport.TestPassport object at 0xfe2efcadf810&gt;
+parent = &lt;requests.sessions.Session object at 0xfe2ef672a010&gt;
+
+    def test_revoke(self, parent):
+&gt;       sid = ST["full"]["id"]
+              ^^^^^^^^^^
+E       KeyError: 'full'
+
+tests/test_health_passport.py:204: KeyError</failure></testcase><testcase classname="tests.test_health_passport.TestPassport" name="test_vaccinations_doctor" time="0.759" /><testcase classname="tests.test_health_passport.TestPassport" name="test_vaccination_cross_tenant" time="0.410" /><testcase classname="tests.test_health_passport.TestPassport" name="test_patient_field_meta" time="0.338" /><testcase classname="tests.test_health_passport.TestPassport" name="test_robots_txt" time="0.200" /></testsuite></testsuites>

@@ -29,7 +29,7 @@ const RequestCard = ({ r, onDone }) => {
       </div>
       {r.note && <p className="mt-2 text-sm text-[var(--fg)]">{r.note}</p>}
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <DateInput value={d} onChange={(e) => setD(e.target.value)} className={inp} data-testid={`appt-request-date-${r.id}`} />
+        <div className="w-40"><DateInput value={d} onChange={(e) => setD(e.target.value)} className={inp} data-testid={`appt-request-date-${r.id}`} /></div>
         <TimeInput value={t} onChange={(e) => setT(e.target.value)} className={inp} data-testid={`appt-request-time-${r.id}`} />
         <button onClick={() => act("ok")} disabled={!!busy} className="flex h-9 items-center gap-1.5 rounded-full bg-[var(--accent)] px-4 text-xs font-semibold text-[var(--ink)] disabled:opacity-50" data-testid={`appt-request-confirm-${r.id}`}>{busy === "ok" ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Conferma</button>
         <button onClick={() => act("no")} disabled={!!busy} className="flex h-9 items-center gap-1.5 rounded-full border border-[var(--hair)] bg-[var(--surface)] px-4 text-xs font-medium text-[var(--fg)] hover:border-[var(--accent)] disabled:opacity-50" data-testid={`appt-request-decline-${r.id}`}><X size={13} /> Rifiuta</button>
