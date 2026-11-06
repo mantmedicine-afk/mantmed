@@ -100,7 +100,7 @@ export default function Login({ subtitle = "Workspace clinico · Pediatria speci
         </motion.div>
         {signup && !parent && (
           <p className="mt-5 text-center text-sm" data-testid="login-parent-link-wrap">
-            <Link to="/portale" className="text-[var(--fg2)] underline decoration-[var(--hair)] underline-offset-4 transition-colors hover:text-[var(--ink)] hover:decoration-[var(--ink)]" data-testid="login-parent-link">Sei un genitore? Accedi all'area pazienti</Link>
+            <Link to="/portale" className="text-[var(--fg2)] underline decoration-[var(--hair)] underline-offset-4 transition-colors hover:text-[var(--ink)] hover:decoration-[var(--ink)]" data-testid="login-parent-link">Sei un paziente o un familiare? Accedi al portale</Link>
           </p>
         )}
         {signup && (
@@ -108,7 +108,7 @@ export default function Login({ subtitle = "Workspace clinico · Pediatria speci
             <span className="text-[var(--fg2)]">Nuovo su MantMed?</span>
             <Link to="/registrati/medico" className="font-medium text-[var(--ink)] underline underline-offset-4" data-testid="login-signup-doctor">Registrati come Medico</Link>
             <span className="text-[var(--fg2)]">·</span>
-            <Link to="/registrati/paziente" className="font-medium text-[var(--ink)] underline underline-offset-4" data-testid="login-signup-parent">Registrati come Paziente / Genitore</Link>
+            <Link to="/registrati/paziente" className="font-medium text-[var(--ink)] underline underline-offset-4" data-testid="login-signup-parent">Registrati come paziente o familiare</Link>
           </div>
         )}
         <p className="mt-6 flex items-center justify-center gap-2 text-center text-xs text-[var(--fg2)]"><ShieldCheck size={14} /> Connessione cifrata · blocco dopo 5 tentativi · chiusura automatica per inattività</p>

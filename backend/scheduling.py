@@ -1,6 +1,7 @@
 """Studio opening hours, service durations, free-slot calculation and 24h visit reminders."""
 import os
 import re
+import uuid
 import hmac
 import asyncio
 import logging
@@ -10,7 +11,8 @@ from zoneinfo import ZoneInfo
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
-from typing import Literal
+from typing import Literal, Optional
+from clinics import METHODS, MAX_CLINICS, PALETTE, clinics_of, clinic_named, clinic_services, record_letterheads
 from auth import require_role
 from crypto import unseal_fields
 from mailer import send_email
@@ -76,15 +78,35 @@ class ServiceIn(BaseModel):
     vat: Literal["esente", "iva22"] = "esente"
 
 
+class ClinicPrice(BaseModel):
+    price: Optional[float] = Field(default=None, ge=0, le=5000)
+    duration: Optional[int] = Field(default=None, ge=5, le=240)
+    off: bool = False
+
+
 class ClinicIn(BaseModel):
+    id: str = Field(default="", max_length=20)
     name: str = Field(min_length=2, max_length=60)
     address: str = Field(default="", max_length=200)
+    phone: str = Field(default="", max_length=40)
+    email: str = Field(default="", max_length=120)
+    color: str = Field(default="", pattern=r"^(#[0-9A-Fa-f]{6})?$")
+    header: str = Field(default="", max_length=300)
+    methods: list[str] = Field(default_factory=lambda: list(METHODS))
+    prices: dict[str, ClinicPrice] = Field(default_factory=dict)
+
+    @field_validator("methods")
+    @classmethod
+    def v_methods(cls, v):
+        if not v or any(m not in METHODS for m in v):
+            raise ValueError("Scelga almeno un metodo di pagamento valido per ogni studio")
+        return list(dict.fromkeys(v))
 
 
 class ScheduleIn(BaseModel):
     hours: dict[str, Hours]
     services: list[ServiceIn] = Field(min_length=1, max_length=20)
-    clinics: list[ClinicIn] = Field(min_length=1, max_length=6)
+    clinics: list[ClinicIn] = Field(min_length=1, max_length=MAX_CLINICS)
     billing: Billing = Field(default_factory=Billing)
 
     @field_validator("services")
@@ -101,7 +123,7 @@ class ScheduleIn(BaseModel):
         names = [c.name.strip() for c in v]
         if len(set(n.lower() for n in names)) != len(names):
             raise ValueError("Ogni sede deve avere un nome diverso")
-        return [ClinicIn(name=c.name.strip(), address=c.address.strip()) for c in v]
+        return [c.model_copy(update={"name": c.name.strip(), "address": c.address.strip(), "phone": c.phone.strip(), "email": c.email.strip(), "header": c.header.strip()}) for c in v]
 
 
 def services_of(user: dict) -> list[dict]:
@@ -112,15 +134,16 @@ def services_of(user: dict) -> list[dict]:
     return [{"name": k, "duration": int(d), "price": float(prices.get(k) or 0)} for k, d in durs.items()]
 
 
-def schedule_of(user: dict) -> dict:
+def schedule_of(user: dict, clinic: str = "") -> dict:
     """Opening hours per clinic (days 1=Mon..7=Sun), the doctor's own services (name, duration, price) and fiscal data."""
     names = [c["name"] for c in user.get("clinics") or []] or ["Studio principale"]
     saved = user.get("schedule") or {}
     hours = {n: {**{"days": [1, 2, 3, 4, 5], "start": FOUNDER_HOURS.get(n, ("09:00", "18:00"))[0], "end": FOUNDER_HOURS.get(n, ("09:00", "18:00"))[1]},
                  **(saved.get("hours", {}).get(n) or {})} for n in names}
     services = services_of(user)
-    return {"hours": hours, "services": services, "clinics": user.get("clinics") or [{"name": "Studio principale", "address": ""}],
-            "durations": {s["name"]: s["duration"] for s in services}, "prices": {s["name"]: s["price"] for s in services},
+    priced = clinic_services(services, clinic_named(user, clinic)) if clinic else services
+    return {"hours": hours, "services": services, "clinics": clinics_of(user),
+            "durations": {s["name"]: s["duration"] for s in priced}, "prices": {s["name"]: s["price"] for s in priced},
             "billing": {**Billing().model_dump(), "holder": user.get("name", ""), **(user.get("billing") or {})}}
 
 
@@ -128,18 +151,19 @@ STAMP_THRESHOLD = 77.47
 STAMP_DUTY = 2.0
 
 
-def online_quote(user: dict, service: str) -> dict:
-    """Online price for a service: tariff + 2 euro stamp duty above 77,47 euro. Online only if tariff and fiscal data are set."""
-    sch = schedule_of(user)
+def online_quote(user: dict, service: str, clinic: str = "") -> dict:
+    """Online price for a service: tariff + 2 euro stamp duty above 77,47 euro. Online only if tariff and fiscal data are set
+    and (for a given studio) the studio accepts online payment."""
+    sch = schedule_of(user, clinic)
     price = float(sch["prices"].get(service) or 0)
     b = sch["billing"]
     stamp = STAMP_DUTY if price > STAMP_THRESHOLD else 0.0
     return {"price": price, "stamp": stamp, "total": round(price + stamp, 2),
-            "online": price > 0 and bool(b.get("tax_code") or b.get("vat_number"))}
+            "online": price > 0 and bool(b.get("tax_code") or b.get("vat_number")) and (not clinic or "online" in (clinic_named(user, clinic) or {}).get("methods", METHODS))}
 
 
 async def free_slots(db, owner: dict, clinic: str, service: str, day: str) -> list[str]:
-    sch = schedule_of(owner)
+    sch = schedule_of(owner, clinic)
     h = sch["hours"].get(clinic)
     if not h:
         raise HTTPException(400, "Studio non valido")
@@ -191,10 +215,18 @@ def build_scheduling(db, tdb, current_user):
         for n, h in body.hours.items():
             if mins(h.start) >= mins(h.end):
                 raise HTTPException(400, f"{n}: l'orario di chiusura deve seguire l'apertura")
+        old = {c["id"]: c for c in clinics_of(u)}
+        clinics = []
+        for i, c in enumerate(body.clinics):
+            prev = old.get(c.id) or {}
+            clinics.append({**c.model_dump(exclude={"prices"}), "id": c.id if c.id in old else uuid.uuid4().hex[:10], "logo": prev.get("logo", ""),
+                            "color": c.color or PALETTE[i % len(PALETTE)],
+                            "prices": {k: v.model_dump() for k, v in c.prices.items() if k in {s.name for s in body.services}}})
         await db.users.update_one({"_id": u["_id"]}, {"$set": {"schedule": {"hours": {k: v.model_dump() for k, v in body.hours.items()},
                                                                               "services": [s.model_dump() for s in body.services]},
-                                                                 "clinics": [c.model_dump() for c in body.clinics],
+                                                                 "clinics": clinics,
                                                                  "billing": {**(u.get("billing") or {}), **body.billing.model_dump(), "tax_code": body.billing.tax_code.strip().upper()}}})
+        await record_letterheads(db, user["id"])
         return schedule_of(await db.users.find_one({"_id": u["_id"]}))
 
     @portal.get("/slots")
@@ -209,8 +241,8 @@ def build_scheduling(db, tdb, current_user):
             raise HTTPException(422, "Data non valida")
         owner = await network_doctor(db, doctor_id) if doctor_id and doctor_id != link["owner_id"] else await db.users.find_one({"_id": ObjectId(link["owner_id"])})
         sch = schedule_of(owner)
-        return {"slots": await free_slots(db, owner, clinic, service, date), "duration": sch["durations"].get(service, 30),
-                "hours": sch["hours"].get(clinic), "quote": online_quote(owner, service)}
+        return {"slots": await free_slots(db, owner, clinic, service, date), "duration": schedule_of(owner, clinic)["durations"].get(service, 30),
+                "hours": sch["hours"].get(clinic), "quote": online_quote(owner, service, clinic)}
 
     # ---------- Promemoria 24 ore prima ----------
     async def send_reminders(base: str):

@@ -36,6 +36,7 @@ from bodychart import build_bodychart, report_payload
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, BeforeValidator, model_validator
 from typing import List, Optional, Annotated, Literal, ClassVar, Dict, Any
+from clinics import build_clinics, letterhead_at, clinic_named, METHODS as CLINIC_METHODS
 from access_rules import build_access, PORTAL_ROLES, portal_users_of, sync_links, contact_emails
 from specialty_modules import (upgrade_note, module_for, module_keys, catalog as modules_catalog, STRUCTURED, module_prompt, parse_module,
                                drop_duplicates, build_module_settings, clean_value, module_fields, filled, open_eye_notes)
@@ -128,6 +129,13 @@ async def doctor_profile(uid: str) -> Optional[dict]:
     address = p.get("studio_address", "")
     return {"specialty": p.get("specialty", ""), "titles": os.environ.get("DOCTOR_TITLES", "") if u.get("founder") else "", "order": f"Iscr. N. {p.get('order_number', '')}", "phone": p.get("phone", ""),
             "email": p.get("contact_email") or u["email"], "address": address, "city": address.split(",")[-1].strip() if address else ""}
+
+
+async def report_letterhead(owner_id: str, c: dict) -> dict:
+    """Intestazione dello studio della visita, nella versione valida alla data della visita."""
+    u = await db.users.find_one({"_id": ObjectId(owner_id)})
+    lh = letterhead_at(u, c.get("clinic") or "", c.get("created_at") or "")
+    return {**lh, "city": (lh.get("address") or "").split(",")[-1].strip()}
 
 
 def header_line(profile: Optional[dict]) -> str:
@@ -1499,7 +1507,7 @@ async def consultation_pdf(cid: str, user: dict = Depends(current_user)):
     if not doc:
         raise HTTPException(404, "Consultazione non trovata")
     c = Consultation.from_mongo(doc).out()
-    pdf = build_report(c, user["name"], await get_patient(c.get("patient_id")), await doctor_profile(user["id"]), await chart_for(cid),
+    pdf = build_report(c, user["name"], await get_patient(c.get("patient_id")), await report_letterhead(user["id"], c), await chart_for(cid),
                        signature=await doctor_signature(db, user["id"]))
     await tdb.consultations.update_one({"_id": oid(cid)}, {"$set": {"finalized_at": now_iso()}, "$inc": {"pdf_exports": 1}})
     await audit("referto_pdf", c["patient_name"])
@@ -1527,7 +1535,7 @@ async def send_report(cid: str, user: dict = Depends(current_user)):
     if not patient.get("consent_email"):
         raise HTTPException(412, "Il paziente o il tutore non ha acconsentito all'invio dei referti via email")
     profile = await doctor_profile(user["id"])
-    pdf = build_report(c, user["name"], patient, profile, await chart_for(cid), signature=await doctor_signature(db, user["id"]))
+    pdf = build_report(c, user["name"], patient, await report_letterhead(user["id"], c), await chart_for(cid), signature=await doctor_signature(db, user["id"]))
     day = datetime.fromisoformat(c["created_at"]).strftime("%d/%m/%Y")
     fname = f"Referto_{re.sub(r'[^A-Za-z0-9]+', '_', c['patient_name']).strip('_')}_{c['created_at'][:10]}.pdf"
     ped_mail = is_pediatric(c["note"].get("specialita") or "")
@@ -1844,9 +1852,12 @@ async def payments_between(start: str, end: str) -> list:
 
 
 @api.post("/payments")
-async def create_payment(body: PaymentIn):
+async def create_payment(body: PaymentIn, user: dict = Depends(current_user)):
     if not body.patient_name.strip():
         raise HTTPException(400, "Paziente obbligatorio")
+    c = clinic_named(await db.users.find_one({"_id": ObjectId(user["id"])}), body.clinic) if body.clinic else None
+    if c and body.method not in c["methods"]:
+        raise HTTPException(400, f"{body.clinic} non accetta il metodo {METHODS[body.method]}: lo cambi o lo abiliti nelle impostazioni dello studio")
     p = Payment(**{**body.model_dump(), "amount": round(body.amount, 2)})
     res = await tdb.payments.insert_one(p.to_mongo())
     p.id = str(res.inserted_id)
@@ -2166,7 +2177,7 @@ async def portal_pdf_for(c: dict):
     out = Consultation.from_mongo(c).out()
     p = await db.patients.find_one({"_id": ObjectId(out["patient_id"])}) if out.get("patient_id") else None
     owner = await db.users.find_one({"_id": ObjectId(c["owner_id"])})
-    pdf = build_report(out, (owner or {}).get("name", ""), unseal_fields(p, Patient.__encrypted__) if p else None, await doctor_profile(c["owner_id"]), await chart_for(str(c["_id"])),
+    pdf = build_report(out, (owner or {}).get("name", ""), unseal_fields(p, Patient.__encrypted__) if p else None, await report_letterhead(c["owner_id"], out), await chart_for(str(c["_id"])),
                        signature=await doctor_signature(db, c["owner_id"]))
     return pdf, f"Referto_{re.sub(r'[^A-Za-z0-9]+', '_', out['patient_name']).strip('_')}_{out['created_at'][:10]}.pdf"
 
@@ -2201,6 +2212,7 @@ public_api.include_router(flow_parent)
 public_api.include_router(flow_public)
 sched_doctor, sched_portal, sched_cron, send_reminders = build_scheduling(db, tdb, current_user)
 acc_doctor, acc_portal, acc_cron, acc_upcoming = build_access(db, current_user)
+api.include_router(build_clinics(db, current_user))
 api.include_router(acc_doctor)
 api.include_router(acc_upcoming)
 public_api.include_router(acc_portal)

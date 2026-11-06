@@ -62,7 +62,7 @@ def build_billing(db, current_user, Appointment, Payment, today_rome):
         if await db.appt_requests.count_documents({"parent_id": user["id"], "status": "awaiting_payment", "hold_until": {"$gte": _now().isoformat()}}) >= MAX_HOLDS:
             raise HTTPException(429, "Ha già alcuni pagamenti in sospeso: li completi o attenda qualche minuto")
         u, doc, p = await check_request(db, body, user["id"])
-        q = online_quote(doc, body.service)
+        q = online_quote(doc, body.service, body.clinic)
         if not q["online"]:
             raise HTTPException(400, "Il pagamento online non è attivo per questa prestazione: scelga Paga in Studio")
         r = {**request_doc(body, u, doc, p, "awaiting_payment"), "pay_online": True, "amount": q["total"], "stamp": q["stamp"],
@@ -104,7 +104,7 @@ def build_billing(db, current_user, Appointment, Payment, today_rome):
         owner = await db.users.find_one({"_id": ObjectId(r["owner_id"])})
         note = unseal_fields(r, ("note",)).get("note") or ""
         appt = Appointment(clinic=r["clinic"], date=r["date"], time=r["time"], patient_name=r["patient_name"], patient_id=r["patient_id"], visit_type=r["service"],
-                           duration=schedule_of(owner)["durations"].get(r["service"], 30), paid_online=True,
+                           duration=schedule_of(owner, r["clinic"])["durations"].get(r["service"], 30), paid_online=True,
                            notes=f"Prenotata e pagata online dal portale. {note}".strip())
         aid = str((await db.appointments.insert_one({**appt.to_mongo(), "owner_id": r["owner_id"]})).inserted_id)
         year = today_rome()[:4]
@@ -219,7 +219,8 @@ def build_billing(db, current_user, Appointment, Payment, today_rome):
         if pay.get("visit_date"):
             pay["visit_date_label"] = f"visita del {_fmt_day(pay['visit_date'])} ore {pay.get('visit_time') or ''}".strip()
         specialty = (owner.get("profile") or {}).get("specialty") or os.environ["DOCTOR_SPECIALTY"]
-        pdf = build_receipt(pay, owner.get("name", ""), specialty, schedule_of(owner)["billing"], cf)
+        from clinics import letterhead_at
+        pdf = build_receipt(pay, owner.get("name", ""), specialty, schedule_of(owner)["billing"], cf, letterhead_at(owner, pay.get("clinic") or "", p.get("created_at") or pay["date"]))
         name = f"Ricevuta_{pay['receipt_no'].replace('/', '-')}_{re.sub(r'[^A-Za-z0-9]+', '_', pay['patient_name']).strip('_')}.pdf"
         return Response(pdf, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=\"{name}\""})
 

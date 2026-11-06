@@ -8,6 +8,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.lib.colors import white
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
+from clinics import draw_logo
 from report import NIGHT, PLATINUM, MUTED, LINE, MIST, BRAND, S, P, draw_monogram, doctor_sign_cell
 from cash_pdf import _Numbered, euro, period_label, BOLD, BOLDR
 from fiscal import METHODS, VAT_LABELS, notes_for
@@ -30,7 +31,8 @@ def _block(title, rows):
     return t
 
 
-def build_invoice_pdf(inv: dict, doctor: str, specialty: str, billing: dict, signature: dict | None) -> bytes:
+def build_invoice_pdf(inv: dict, doctor: str, specialty: str, billing: dict, signature: dict | None, lh: dict | None = None) -> bytes:
+    lh = lh or {}
     number = inv.get("number") or "s.n."
     issued = _fmt(inv["date"])
     t = inv["totals"]
@@ -39,13 +41,18 @@ def build_invoice_pdf(inv: dict, doctor: str, specialty: str, billing: dict, sig
         cv.saveState()
         cv.setFillColor(NIGHT)
         cv.rect(0, H - 38 * mm, W, 38 * mm, stroke=0, fill=1)
-        draw_monogram(cv, MX, H - 30 * mm, 18 * mm, stroke=white, accent=PLATINUM)
+        if not draw_logo(cv, lh.get("logo", ""), MX, H - 30 * mm, 18 * mm):
+            draw_monogram(cv, MX, H - 30 * mm, 18 * mm, stroke=white, accent=PLATINUM)
         cv.setFillColor(white)
         cv.setFont("Serif", 22)
         cv.drawString(MX + 23 * mm, H - 19 * mm, billing.get("holder") or doctor or BRAND)
         cv.setFont("Sans", 7.5)
         cv.setFillColor(PLATINUM)
         cv.drawString(MX + 23 * mm, H - 25 * mm, (specialty or "Pediatria").upper()[:70])
+        cv.setFont("Sans", 6.6)
+        contact = " · ".join(x for x in (lh.get("header"), lh.get("clinic"), lh.get("address"), f"Tel. {lh['phone']}" if lh.get("phone") else "") if x)
+        cv.drawString(MX + 23 * mm, H - 30.5 * mm, contact[:140])
+        cv.setFont("Sans", 7.5)
         cv.drawRightString(W - MX, H - 19 * mm, f"FATTURA N. {number}")
         cv.drawRightString(W - MX, H - 25 * mm, f"DEL {issued}")
         cv.setStrokeColor(LINE)

@@ -37,7 +37,8 @@ export const OggiScreen = ({ appointments, patients, notes, unread, requests, on
 
   const today = useMemo(() => appointments.filter((a) => !CANCELLED.includes(a.status) && (a.date == null || a.date === date.toLocaleDateString("sv-SE")))
     .sort((x, y) => x.time.localeCompare(y.time)), [appointments, date]);
-  const groups = CLINICS.filter((c) => clinic === "all" || c === clinic).map((c) => ({ clinic: c, items: today.filter((a) => a.clinic === c) }));
+  const names = [...CLINICS, ...new Set(today.map((a) => a.clinic).filter((c) => c && !CLINICS.includes(c)))];
+  const groups = names.filter((c) => clinic === "all" || c === clinic).map((c) => ({ clinic: c, items: today.filter((a) => a.clinic === c) }));
   const shown = groups.flatMap((g) => g.items);
   const next = today.find((a) => (clinic === "all" || a.clinic === clinic) && !isDone(a)) ?? null;
   const sel = today.find((a) => a.id === selected) ?? null;
@@ -52,7 +53,11 @@ export const OggiScreen = ({ appointments, patients, notes, unread, requests, on
           <div className="text-sm text-[var(--fg2)]" data-testid="oggi-date">{LONG_DATE(date)}</div>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight text-[var(--fg)] sm:text-4xl" data-testid="oggi-title">{greeting(date)}, {surname(user?.name)}</h1>
         </div>
-        <Segmented value={clinic} onChange={setClinic} options={[["all", "Tutti"], ...CLINICS.map((c) => [c, shortClinic(c)])]} />
+        {CLINICS.length > 3 ? (
+          <select value={clinic} onChange={(e) => setClinic(e.target.value)} className="h-11 rounded-full border border-[var(--hair)] bg-[var(--surface)] px-4 text-sm text-[var(--fg)]" aria-label="Filtra per studio" data-testid="oggi-clinic-select">
+            <option value="all">Tutti gli studi</option>{CLINICS.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        ) : <Segmented value={clinic} onChange={setClinic} options={[["all", "Tutti"], ...CLINICS.map((c) => [c, shortClinic(c)])]} />}
       </motion.header>
       <div className="grid grid-cols-1 items-start gap-6 [grid-template-areas:'hero'_'summary'_'agenda'_'vera'] md:grid-cols-2 md:[grid-template-areas:'hero_hero'_'agenda_side'] xl:grid-cols-[minmax(0,38fr)_minmax(0,24fr)_minmax(0,38fr)] xl:gap-8 xl:[grid-template-areas:'agenda_hero_side']">
         <motion.section {...rise(1)} className="flex flex-col items-center gap-6 self-start [grid-area:hero] xl:sticky xl:top-[9.5rem]" aria-label="Prossimo paziente" data-testid="oggi-next-bar">

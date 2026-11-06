@@ -6,6 +6,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.lib.colors import white
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from clinics import draw_logo
 from report import NIGHT, PLATINUM, MUTED, LINE, MIST, BRAND, S, P, draw_monogram
 
 W, H = A4
@@ -17,7 +18,8 @@ def euro(v: float) -> str:
     return f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") + " €"
 
 
-def build_receipt(pay: dict, doctor: str, specialty: str, billing: dict, patient_cf: str) -> bytes:
+def build_receipt(pay: dict, doctor: str, specialty: str, billing: dict, patient_cf: str, lh: dict | None = None) -> bytes:
+    lh = lh or {}
     issued = date.fromisoformat(pay["date"]).strftime("%d/%m/%Y")
     stamp = float(pay.get("stamp") or 0)
     fee = round(pay["amount"] - stamp, 2)
@@ -27,13 +29,17 @@ def build_receipt(pay: dict, doctor: str, specialty: str, billing: dict, patient
         cv.saveState()
         cv.setFillColor(NIGHT)
         cv.rect(0, H - 38 * mm, W, 38 * mm, stroke=0, fill=1)
-        draw_monogram(cv, MX, H - 30 * mm, 18 * mm, stroke=white, accent=PLATINUM)
+        if not draw_logo(cv, lh.get("logo", ""), MX, H - 30 * mm, 18 * mm):
+            draw_monogram(cv, MX, H - 30 * mm, 18 * mm, stroke=white, accent=PLATINUM)
         cv.setFillColor(white)
         cv.setFont("Serif", 22)
         cv.drawString(MX + 23 * mm, H - 19 * mm, doctor or BRAND)
         cv.setFont("Sans", 7.5)
         cv.setFillColor(PLATINUM)
         cv.drawString(MX + 23 * mm, H - 25 * mm, (specialty or "Pediatria").upper()[:70])
+        cv.setFont("Sans", 6.6)
+        contact = " · ".join(x for x in (lh.get("header"), lh.get("clinic"), lh.get("address"), f"Tel. {lh['phone']}" if lh.get("phone") else "") if x)
+        cv.drawString(MX + 23 * mm, H - 30.5 * mm, contact[:140])
         cv.drawRightString(W - MX, H - 19 * mm, f"RICEVUTA N. {pay['receipt_no']}")
         cv.drawRightString(W - MX, H - 25 * mm, f"DEL {issued}")
         cv.setStrokeColor(LINE)

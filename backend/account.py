@@ -194,6 +194,8 @@ def build_account(db, current_user):
                                                              "name": f"{title} {d['first_name'].strip()} {d['last_name'].strip()}", "founder": not u.get("profile") or bool(u.get("founder")),
                                                              "profile_edited_at": _now().isoformat(), "phone": seal_fields({"p": d["phone"]}, ("p",))["p"]}})
         await db.audit.insert_one({"action": "profilo_professionale_aggiornato", "subject": None, "at": _now().isoformat(), "owner_id": user["id"]})
+        from clinics import record_letterheads
+        await record_letterheads(db, user["id"])
         return await get_account(user)
 
     @acc.put("/email")

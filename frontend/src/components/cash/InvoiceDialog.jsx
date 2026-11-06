@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, Building2, Loader2, User, FileText } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { api, errMsg, eur } from "@/lib/api";
+import { api, errMsg, eur, CLINIC_INFO } from "@/lib/api";
 import { inp, Label, Seg, PAY_METHODS, btnMain, btnGhost } from "./ui";
 import { LinesEditor } from "./LinesEditor";
 import { InvoiceTotals } from "./InvoiceTotals";
@@ -82,7 +82,7 @@ export const InvoiceDialog = ({ open, source, settings, onClose, onSaved }) => {
           <div><Label>Prestazioni</Label><LinesEditor lines={f.lines} tariffs={settings?.tariffs ?? []} regime={settings?.billing?.regime} onChange={(lines) => set({ lines })} /></div>
           <div>
             <Label>Metodo di pagamento (obbligatorio)</Label>
-            <Seg value={f.method} onChange={(v) => set({ method: v })} testid="invoice-method" options={PAY_METHODS} />
+            <Seg value={f.method} onChange={(v) => set({ method: v })} testid="invoice-method" options={PAY_METHODS.filter((m) => !CLINIC_INFO[f.clinic]?.methods || CLINIC_INFO[f.clinic].methods.includes(m.id))} />
             {f.method === "contanti" && <div className="mt-2 flex items-start gap-2 rounded-2xl border border-[var(--alert)] p-3 text-sm text-[var(--alert)]" role="alert" data-testid="invoice-cash-warning"><AlertTriangle size={16} className="mt-0.5 shrink-0" /> Pagamento non tracciabile: il paziente non potrà detrarre la spesa.</div>}
           </div>
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_1fr]">

@@ -293,6 +293,7 @@ def build_invoicing(db, tdb, current_user, BaseDocument, Payment, today_rome):
             raise HTTPException(400, "Codice fiscale del paziente non valido")
         if any(l.amount <= 0 for l in body.lines):
             raise HTTPException(400, "Ogni prestazione deve avere un importo maggiore di zero")
+        await check_method(body.clinic, body.method if body.paid else None)
         lines = [{**l.model_dump(), "description": l.description.strip(), "amount": round(l.amount, 2)} for l in body.lines]
         persona = body.client_type == "persona"
         inv = Invoice(**{**body.model_dump(exclude={"paid", "lines", "company", "stamp_charge"}), "date": day, "lines": lines,
@@ -316,9 +317,16 @@ def build_invoicing(db, tdb, current_user, BaseDocument, Payment, today_rome):
         items = await query(start, end, clinic, consultation_id)
         return {"items": items[:max(1, min(limit, 1000))], "count": len(items)}
 
+    async def check_method(clinic: str, method: Optional[str]):
+        from clinics import clinic_named
+        c = clinic_named(await owner(), clinic) if clinic and method else None
+        if c and method not in c["methods"]:
+            raise HTTPException(400, f"{clinic} non accetta il metodo {METHODS.get(method, method)}: lo cambi o lo abiliti nelle impostazioni dello studio")
+
     @r.post("/invoices/{iid}/pay")
     async def pay(iid: str, body: PayIn):
         d = await load(iid)
+        await check_method(d.get("clinic") or "", body.method)
         if d.get("cancelled_at") or d.get("paid_at"):
             raise HTTPException(409, "Fattura già incassata o annullata")
         day = today_rome()
@@ -344,7 +352,9 @@ def build_invoicing(db, tdb, current_user, BaseDocument, Payment, today_rome):
 
     async def pdf_of(i: dict, u: dict) -> bytes:
         specialty = (u.get("profile") or {}).get("specialty") or os.environ["DOCTOR_SPECIALTY"]
-        return build_invoice_pdf(i, u.get("name", ""), specialty, billing_of(u), await doctor_signature(db, str(u["_id"])))
+        from clinics import letterhead_at
+        return build_invoice_pdf(i, u.get("name", ""), specialty, billing_of(u), await doctor_signature(db, str(u["_id"])),
+                                 letterhead_at(u, i.get("clinic") or "", i.get("created_at") or i["date"]))
 
     def file_name(i: dict, ext: str) -> str:
         return f"Fattura_{(i.get('number') or 'sn').replace('/', '-')}_{_safe(i['patient_name'])}.{ext}"

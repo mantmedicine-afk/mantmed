@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { useFillHeight } from "@/lib/scrollLock";
 import { Dot, STATUS, card } from "./Panels";
 import { isDone } from "./data";
+import { clinicColor } from "@/lib/api";
 
 const NowLine = ({ now }) => (
   <li className="flex items-center gap-3 px-4 py-1" aria-label={`Ora ${now}`} data-testid="oggi-now-line">
@@ -13,7 +14,7 @@ const Visit = ({ a, patient, onSelect, onKey, refFn }) => {
   const [color, label] = STATUS[isDone(a) ? "done" : "planned"];
   return (
     <li>
-      <button ref={refFn} onClick={() => onSelect(a.id)} onKeyDown={onKey}
+      <button ref={refFn} onClick={() => onSelect(a.id)} onKeyDown={onKey} style={{ boxShadow: `inset 4px 0 0 ${clinicColor(a.clinic)}` }}
         className="grid w-full grid-cols-[60px_1fr_auto] items-center gap-4 rounded-2xl px-4 py-4 text-left transition-colors duration-200 hover:bg-[var(--sel)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]" data-testid={`oggi-visit-${a.id}`}>
         <span className="font-mono text-sm tabular-nums text-[var(--fg2)]">{a.time}</span>
         <span className="min-w-0">
@@ -52,7 +53,7 @@ export const AgendaList = ({ groups, patients, now, onSelect }) => {
       {flat.length === 0 && <p className="px-4 py-8 text-sm text-[var(--fg2)]" data-testid="oggi-agenda-empty">Nessuna visita in agenda per oggi.</p>}
       {groups.map((g) => g.items.length > 0 && (
         <div key={g.clinic} className="mt-5" data-testid={`oggi-group-${g.clinic.replace(/\s+/g, "-").toLowerCase()}`}>
-          <h3 className="px-4 pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--fg2)]">{g.clinic}</h3>
+          <h3 className="flex items-center gap-2 px-4 pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--fg2)]"><span className="h-2.5 w-2.5 rounded-full" style={{ background: clinicColor(g.clinic) }} data-testid={`oggi-group-color-${g.clinic.replace(/\s+/g, "-").toLowerCase()}`} />{g.clinic}</h3>
           <ul className="space-y-1">
             {g.items.map((a) => {
               const i = flat.indexOf(a);

@@ -19,7 +19,7 @@ import { DoctorArea } from "@/components/account/DoctorArea";
 const SECTIONS = {
   parent: [
     { id: "dati", label: "Dati personali", icon: UserRound, C: ParentProfile },
-    { id: "famiglia", label: "Nucleo familiare", icon: Users, C: FamilySection },
+    { id: "famiglia", label: "Cartelle collegate", icon: Users, C: FamilySection },
     { id: "sicurezza", label: "Sicurezza", icon: ShieldCheck, C: SecuritySection },
     { id: "notifiche", label: "Notifiche", icon: BellRing, C: NotificationsSection },
     { id: "privacy", label: "Privacy e consensi", icon: FileLock2, C: PrivacySection },

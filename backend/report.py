@@ -15,6 +15,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (BaseDocTemplate, Frame, PageTemplate, Paragraph, Spacer, Table, TableStyle,
                                 KeepTogether, Flowable, PageBreak, Image as RLImage)
 from reportlab.lib.utils import ImageReader
+from clinics import draw_logo
 
 FONTS = Path(__file__).parent / "fonts"
 pdfmetrics.registerFont(TTFont("Serif", str(FONTS / "InstrumentSerif-Regular.ttf")))
@@ -179,14 +180,19 @@ def build_report(c: dict, doctor: str, patient: dict | None = None, profile: dic
         cv.rect(0, H - HB - 0.8 * mm, W, 0.8 * mm, stroke=0, fill=1)
         cv.setStrokeColor(PLATINUM)
         cv.setLineWidth(0.5)
-        cv.roundRect(MX, H - 30 * mm, 18 * mm, 18 * mm, 4 * mm, stroke=1, fill=0)
-        draw_monogram(cv, MX + 1 * mm, H - 29 * mm, 16 * mm, stroke=white, accent=PLATINUM)
+        if not draw_logo(cv, info.get("logo", ""), MX, H - 30 * mm, 18 * mm):
+            cv.roundRect(MX, H - 30 * mm, 18 * mm, 18 * mm, 4 * mm, stroke=1, fill=0)
+            draw_monogram(cv, MX + 1 * mm, H - 29 * mm, 16 * mm, stroke=white, accent=PLATINUM)
         cv.setFillColor(white)
         cv.setFont("Serif", 25)
         cv.drawString(MX + 23 * mm, H - 20 * mm, BRAND)
         cv.setFont("Sans", 7)
         cv.setFillColor(PLATINUM)
         cv.drawString(MX + 23 * mm, H - 25.5 * mm, "STUDIO MEDICO SPECIALISTICO · " + ((profile or {}).get("specialty") or "PEDIATRIA").upper()[:60])
+        if info.get("header"):
+            hp = Paragraph(escape(info["header"]), S["hdText"].clone("hl", alignment=0))
+            hp.wrap(78 * mm, 20 * mm)
+            hp.drawOn(cv, MX + 23 * mm, H - 36 * mm)
         col_w = 86 * mm
         y = H - 9 * mm
         blocks = [(doctor, "hdName", 1.5), (info["specialty"], "hdSpec", 1.2), (info["titles"], "hdText", 1.6),

@@ -268,7 +268,7 @@ export default function Portal() {
   const TITLES = { passaporto: "Passaporto sanitario", documenti: "Documenti", "trova-specialista": "Trova specialista", appuntamenti: "Appuntamenti", referti: "Referti e bilanci di salute", ricevute: "Ricevute e pagamenti", messaggi: "Messaggi con lo studio" };
   const iconBtn = "grid h-10 w-10 place-items-center rounded-full border border-[var(--hair)] text-[var(--fg2)] transition-colors hover:border-[var(--accent)] hover:text-[var(--fg)]";
   return (
-    <AppShell items={items} area="Portale Famiglia">
+    <AppShell items={items} area="Portale Pazienti">
     <div className="min-h-screen bg-[var(--bg)]" data-testid="portal-page" data-section={sezione}>
       <header className="sticky top-0 z-40 border-b border-[var(--hair)] bg-[var(--bg)]">
         <div className="mx-auto flex max-w-[1100px] items-center justify-between gap-3 px-5 py-3">

@@ -169,7 +169,7 @@ def build_portal_flow(db, tdb, current_user, Appointment, tenant_clinics, refund
         note = unseal_fields(r, ("note",)).get("note") or ""
         owner = await db.users.find_one({"_id": ObjectId(r["owner_id"])})
         appt = Appointment(clinic=clinic, date=body.date, time=body.time, patient_name=r["patient_name"], patient_id=r["patient_id"],
-                           visit_type=r["service"], duration=schedule_of(owner)["durations"].get(r["service"], 30), notes=f"Richiesta dal portale. {note}".strip())
+                           visit_type=r["service"], duration=schedule_of(owner, clinic)["durations"].get(r["service"], 30), notes=f"Richiesta dal portale. {note}".strip())
         res = await tdb.appointments.insert_one(appt.to_mongo())
         await tdb.appt_requests.update_one({"_id": r["_id"]}, {"$set": {"status": "confirmed", "confirmed_date": body.date, "confirmed_time": body.time,
                                                                        "clinic": clinic, "appointment_id": str(res.inserted_id), "decided_at": _now().isoformat()}})

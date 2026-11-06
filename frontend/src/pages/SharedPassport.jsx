@@ -19,7 +19,7 @@ const Gone = () => (
   <div className="mx-auto mt-16 max-w-md rounded-3xl bg-[var(--surface)] p-8 text-center ring-1 ring-[var(--sel)]" data-testid="shared-gone">
     <Ban className="mx-auto text-[var(--fg2)]" size={32} />
     <h1 className="mt-3 text-2xl font-semibold text-[var(--fg)]">Accesso non più disponibile</h1>
-    <p className="mt-2 text-sm text-[var(--fg2)]">Il link è scaduto o il genitore ha revocato la condivisione. Chieda alla famiglia di condividere di nuovo il passaporto.</p>
+    <p className="mt-2 text-sm text-[var(--fg2)]">Il link è scaduto o il paziente (o il tutore) ha revocato la condivisione. Chieda alla famiglia di condividere di nuovo il passaporto.</p>
   </div>
 );
 
@@ -37,7 +37,7 @@ const Unlock = ({ token, onOpen }) => {
     <form onSubmit={go} className="mx-auto mt-12 max-w-md space-y-4 rounded-3xl bg-[var(--surface)] p-7 ring-1 ring-[var(--sel)]" data-testid="shared-unlock-form">
       <Lock className="text-[var(--fg)]" size={26} />
       <h1 className="text-2xl font-semibold text-[var(--fg)]">Passaporto sanitario condiviso</h1>
-      <p className="text-sm text-[var(--fg2)]">Sola lettura. Indichi il suo nome e cognome (il genitore lo vedrà nel registro accessi) e il codice di 6 cifre ricevuto dalla famiglia.</p>
+      <p className="text-sm text-[var(--fg2)]">Sola lettura. Indichi il suo nome e cognome (il paziente o il tutore lo vedrà nel registro accessi) e il codice di 6 cifre ricevuto dalla famiglia.</p>
       <input value={f.viewer_name} onChange={(e) => setF({ ...f, viewer_name: e.target.value })} placeholder="es. Dott. Mario Rossi" className={inp} autoComplete="name" data-testid="shared-viewer-name" />
       <input value={f.code} onChange={(e) => setF({ ...f, code: e.target.value.replace(/\D/g, "").slice(0, 6) })} placeholder="Codice a 6 cifre" inputMode="numeric" className={`${inp} font-mono tracking-[0.3em]`} data-testid="shared-code-input" />
       {err && <p className="text-sm text-[var(--alert)]" data-testid="shared-error">{err}</p>}

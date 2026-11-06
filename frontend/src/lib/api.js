@@ -303,11 +303,15 @@ export const eur = (v) => (Number(v) || 0).toLocaleString("it-IT", { style: "cur
 
 export const CLINICS = ["Studio Centro", "Studio Provincia"];
 export const CLINIC_ADDR = {};
+export const CLINIC_INFO = {};
+const PALETTE = ["#2F6F8F", "#B5651D", "#5A7D3A", "#8E4B7E", "#C0392B", "#3E5C9A", "#A07D1C", "#2E8B7A"];
+export const clinicColor = (name) => CLINIC_INFO[name]?.color || PALETTE[Math.max(0, CLINICS.indexOf(name)) % PALETTE.length];
 export const setClinics = (list) => {
   const items = Array.isArray(list) && list.length ? list : [{ name: "Studio principale", address: "" }];
   CLINICS.splice(0, CLINICS.length, ...items.map((c) => c.name));
   Object.keys(CLINIC_ADDR).forEach((k) => delete CLINIC_ADDR[k]);
-  items.forEach((c) => { CLINIC_ADDR[c.name] = c.address ?? ""; });
+  Object.keys(CLINIC_INFO).forEach((k) => delete CLINIC_INFO[k]);
+  items.forEach((c, i) => { CLINIC_ADDR[c.name] = c.address ?? ""; CLINIC_INFO[c.name] = { ...c, color: c.color || PALETTE[i % PALETTE.length] }; });
 };
 
 export const minutesSince = (iso) => Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
