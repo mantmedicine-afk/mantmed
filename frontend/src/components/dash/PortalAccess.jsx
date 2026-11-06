@@ -13,7 +13,7 @@ const LegalForm = ({ pid, onDone }) => {
   const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
   const save = async () => {
     setBusy(true);
-    try { await http.post(`/patients/${pid}/access/legal`, f); toast.success("Accesso delegato attivato"); onDone(); }
+    try { await http.post(`/patients/${pid}/access/legal`, f); toast.success("Accesso con documento di nomina attivato"); onDone(); }
     catch (e) { toast.error(errMsg(e)); }
     setBusy(false);
   };
@@ -47,6 +47,7 @@ export const PortalAccess = ({ patientId }) => {
       <p className="mt-1 text-sm text-[var(--fg2)]" data-testid="portal-access-age">
         {d.adult ? "Paziente maggiorenne: accede con il proprio account; i familiari solo con sua delega revocabile." : `Paziente minorenne: fino a due tutori. Il ${fmt(d.adult_on)} l'accesso dei tutori si chiude e il paziente riceve l'invito (avviso 30 giorni prima).`}
       </p>
+      {!d.rules_active && <p className="mt-2 rounded-xl bg-[var(--late-bg)] px-3 py-2 text-xs text-[var(--fg)]" data-testid="portal-access-pending">Le nuove regole di accesso (tutori, 18 anni, nomine, deleghe) si attivano dopo la conversione degli account: fino ad allora il portale funziona come prima.</p>}
       <ul className="mt-3 space-y-2">
         {d.accounts.length === 0 && <li className="text-sm text-[var(--fg2)]" data-testid="portal-access-none">Nessun account collegato.</li>}
         {d.accounts.map((a) => (

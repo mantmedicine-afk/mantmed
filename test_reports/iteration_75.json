@@ -1,0 +1,37 @@
+{
+  "summary": "Iter 75: Ophthalmology eye-note assignment (OD/OS/entrambi, sub-field picker, append '; '), sign blocking (UI hint/dialog + backend 409 -> 200 after resolve), Passo 4 access endpoints (legacy mode; access_rules_v2 NOT inserted, convert script NOT run), PortalAccess UI (18th birthday, linked account, legal grant create/revoke), PatientDialog new fields + email validation, GuardianShare generalized (hide from portal, send-report 409), portal legacy regression (genitore + tutore), registration texts. All requested flows PASS. Requested regression 10/10 pass; new suite 12/12 pass.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/patients/{pid}/access/legal", "issue": "In legacy mode (access_rules_v2 absent) the grant is stored but sync_links uses _legacy_links, so the legal guardian gets NO portal access until conversion; UI toast says 'Accesso delegato attivato' (also wording 'delegato' for a legal appointment). Consider a note in PortalAccess when rules are not active, and toast 'Accesso con nomina attivato'."},
+      {"endpoint": "POST /api/patients/{pid}/access/legal", "issue": "No duplicate check (same email can be granted twice for the same patient)."},
+      {"endpoint": "POST /api/auth/login (CORS)", "issue": "Response has access-control-allow-origin: * together with allow-credentials: true (pre-existing, likely ingress); explicit origins recommended."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Visit detail send card (Invia ai genitori / al paziente)", "issue": "When the visit is 'Visita riservata' the send card stays enabled; clicking leads to a 409 error toast. No frontend code reads guardian_hidden besides GuardianShare.jsx. Disable it with an explanation.", "selector": "guardian-share + send card", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "EyeNote (EyeFields.jsx)", "issues": ["Sub-field select state 'k' is initialized once via useState; if the nota text is edited inline (module-eye-nota-input-*) the guessed sub-field is not recomputed (minor)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_eye_notes_access.py", "/app/backend/tests/marco_note_helper.py", "/app/test_reports/pytest/iter75.xml"],
+  "action_items": [
+    "Optional: disable send-report card when consultation.guardian_hidden",
+    "Optional: PortalAccess should state that legal grants become effective only after the account conversion (legacy mode) and fix toast wording",
+    "Optional: duplicate check on legal grants"
+  ],
+  "critical_code_review_comments": [
+    "server.py is 2300 lines (>700) - keep splitting",
+    "open_eye_notes check in sign_consultation runs even for already-signed visits (harmless; signing is idempotent)",
+    "coming-of-age doctor endpoint scans all owner's patients without a birth_date filter (fine for now, add range filter like the cron)"
+  ],
+  "updated_files": ["/app/backend/tests/test_eye_notes_access.py", "/app/backend/tests/marco_note_helper.py"],
+  "success_rate": {"backend": "100%", "frontend": "100% (1 low-priority UX note)"},
+  "seed_data_creation": "TEST_EYE_Sign oculista visit (created+signed then deleted from DB by test teardown). TEST_ legal grants on Aurora (created, revoked, docs deleted). Aurora guardian2/guardian2_email set to TEST values then restored to ''. Two Aurora visits toggled riservata and back; guardian_shared_at restored to null. Marco Demo note restored (cristallino nota 'Lieve opacità nucleare', od/os v '', refrazione nota '' and addizione ''). Marco NOT signed. meta access_rules_v2 confirmed absent.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && REACT_APP_BACKEND_URL=... python -m pytest tests/test_eye_notes_access.py -p no:xdist -o addopts=''. Marco helper: python tests/marco_note_helper.py show|setmulti|restore. Eye note UI is under step 'Esame obiettivo' (click text). Patient passport: Pazienti > click patient > 'Scheda paziente' > passport-edit-btn / passport-tab-privacy. Portal family section: Impostazioni > 'Nucleo familiare'."
+}

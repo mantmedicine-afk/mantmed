@@ -3,6 +3,7 @@ import asyncio
 import hmac
 import logging
 import os
+import re
 from datetime import date, datetime, timedelta, timezone
 from html import escape as hesc
 from typing import Literal, Optional
@@ -59,7 +60,15 @@ def emails_of(p: dict) -> dict:
 def contact_emails(p: dict) -> list:
     """Destinatari di referti e promemoria: il paziente se maggiorenne, altrimenti i tutori (al massimo due)."""
     e = emails_of(p)
-    return ([e["paziente"]] if e["paziente"] else []) if is_adult(p) else e["tutori"]
+    if is_adult(p):
+        s = unseal_fields(p, ("guardian",))
+        own = e["tutori"][:1] if not e["paziente"] and _norm(s.get("guardian")) in ("", _norm(p.get("name"))) else []  # email del paziente salvata nel campo tutore (dati precedenti)
+        return [e["paziente"]] if e["paziente"] else own
+    return e["tutori"]
+
+
+def _norm(s) -> str:
+    return " ".join(re.sub(r"^[^:]{1,20}:\s*", "", s or "").lower().split())
 
 
 async def active_grants(db, email: str = "", patient_id: str = "", kind: str = "") -> list:
@@ -284,12 +293,14 @@ def build_access(db, current_user):
             links.append({"name": u.get("name", ""), "email": u["email"], "relation": rel, "label": REL_LABEL.get(rel or "tutore", "")})
         grants = [grant_out(g) async for g in db.access_grants.find({"patient_id": pid, "owner_id": user["id"]}).sort("created_at", -1)]
         d = adult_from(p.get("birth_date") or "")
-        return {"adult": is_adult(p), "adult_on": d.isoformat() if d else None, "accounts": links, "grants": grants,
+        return {"adult": is_adult(p), "adult_on": d.isoformat() if d else None, "accounts": links, "grants": grants, "rules_active": await rules_active(db),
                 "notice_sent_at": p.get("adult_notice_sent_at"), "invite_sent_at": p.get("adult_invite_sent_at")}
 
     @doctor.post("/{pid}/access/legal")
     async def add_legal(pid: str, body: GrantIn, user: dict = Depends(current_user)):
         p = await own_patient(pid, user)
+        if await db.access_grants.find_one({"patient_id": pid, "owner_id": user["id"], "kind": "legale", "email_hash": email_hash(body.email), "revoked_at": None}):
+            raise HTTPException(409, "Questa persona ha già un accesso con documento di nomina")
         doc = {"patient_id": pid, "owner_id": user["id"], "kind": "legale", "tipo": body.tipo, "email_hash": email_hash(body.email), "created_by": user["id"],
                "created_at": _now().isoformat(), "revoked_at": None, **seal_fields({"email": body.email, "name": body.name, "document": body.document}, G_SEALED)}
         doc["_id"] = (await db.access_grants.insert_one(doc)).inserted_id
