@@ -6,7 +6,7 @@ import { api, errMsg } from "@/lib/api";
 import { Card, Field, inp, day } from "./ui";
 import { DateInput } from "@/components/ui/it-date";
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => new Date().toLocaleDateString("sv-SE");
 
 export const AvailabilitySection = ({ data, onSaved }) => {
   const [sched, setSched] = useState(false);

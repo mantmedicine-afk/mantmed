@@ -47,7 +47,7 @@ export const DateInput = ({ value, onChange, min, max, className = "", required,
         </PopoverTrigger>
         <PopoverContent className="z-[75] w-auto p-0" align="end">
           <Calendar mode="single" locale={it} weekStartsOn={1} captionLayout="dropdown-buttons" fromYear={1900} toYear={new Date().getFullYear() + 5}
-            classNames={{ caption_label: "hidden", vhidden: "sr-only", caption_dropdowns: "flex gap-2", dropdown_month: "", dropdown_year: "",
+            classNames={{ caption: "flex items-center justify-between gap-1 pt-1", nav_button_previous: "static", nav_button_next: "static", caption_label: "hidden", vhidden: "sr-only", caption_dropdowns: "flex gap-1.5", dropdown_month: "", dropdown_year: "",
               dropdown: "h-8 rounded-md border border-[var(--hair)] bg-[var(--surface)] px-2 text-sm text-[var(--fg)]" }}
             selected={value ? new Date(`${value}T12:00:00`) : undefined} defaultMonth={value ? new Date(`${value}T12:00:00`) : undefined}
             disabled={(d) => out(d.toLocaleDateString("sv-SE"))}

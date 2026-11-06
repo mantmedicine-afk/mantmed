@@ -560,3 +560,4 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 - 2026-11-06: rifiniture (CF paziente, LDL solo in esami lab, contrasto consenso 8,8:1) + modulo Oftalmologia (OD/OS, prescrizione occhiali/lenti, terapia oculare per occhio). Produzione: solo dati di prova (verifica deployer). Prossimo: passo 4 dopo approvazione.
 - 2026-11-06: note occhio con Applica a OD/OS/entrambi + firma bloccata; Passo 4 (pazienti/tutori/18 anni/deleghe/nomine/riservate) completato e convertito in ANTEPRIMA; produzione da convertire al passo 6.
 - 2026-11-06: testi portale (paziente o familiare, Portale Pazienti) + Passo 5 studi configurabili in ANTEPRIMA.
+- 2026-11-06: listini per ID, date italiane, passo 6 testato in anteprima; pannello Aggiornamento dati per la produzione. In attesa conferma pubblicazione.

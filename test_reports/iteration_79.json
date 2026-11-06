@@ -1,0 +1,27 @@
+{
+  "summary": "Frontend-only retest of the it-date.jsx fixes from iteration 78, at 1920x1080 in a UTC browser. (1) Calendar popover, tested in Area personale > Ferie e assenze (absence-from-calendar) and in Pazienti > Nuovo paziente (patient-birth-input-calendar): the caption now shows only two styled selects in Italian (gennaio..dicembre, years 1900..2031) plus the prev/next arrows. No 'Month:'/'Year:' text is visible (it is sr-only) and the labels are no longer duplicated. Picking a month/year (febbraio 2028, maggio 1980), the arrows (prev/next change the month) and a day all work, and the popover closes on pick. elementFromPoint shows the popover sits above the PatientDialog and the portal RequestDialog. One layout issue is left: the arrows overlap the selects. (2) Blur restore works: '06/11/202' goes back to 06/11/2026 (absence-from) and '10/05/198' goes back to 10/05/1980 (patient-birth-input). (3) Absences: clearing 'Dal' and typing 20122027 moves 'Al' from 06/11/2026 to 20/12/2027. Picking 15/02/2028 from the calendar moves 'Al' too. No absence was submitted, so there is nothing to clean up. (4) PortalRequests: there are no pending requests (GET /api/appointment-requests returns []), so I skipped this as the brief said. By code reading only, the date sits in a w-40 wrapper, so date + time + Conferma + Rifiuta come to about 460px, which fits the ~640px card column. (5) Portal RequestDialog (genitore): the calendar disables days 1-5 Nov and enables 6 Nov, which is local today. Picking today works. Typing 05/11/2026 is flagged aria-invalid and not emitted.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Calendar caption (it-date.jsx + ui/calendar.jsx)", "issues": ["The prev/next arrows overlap the selects. Measured boxes: previous-month x713-741 vs months select x729-832 (12px overlap); next-month x901-929 vs years select x840-914 (13px overlap). The arrows are still clickable because they sit on top, but they cover the left edge of 'novembre' and the year select's chevron. Cause: calendar.jsx keeps nav_button_previous/next as 'absolute left-1/right-1', and the two selects (~185px) fill almost the whole 224px caption. Fix: in it-date.jsx classNames, set caption: 'flex items-center justify-between pt-1' and nav_button_previous/nav_button_next: 'static', so the arrows flow beside the selects. Alternatively make the selects narrower (e.g. w-[6.5rem]/w-[4.5rem]) and add px-8 to caption_dropdowns."]},
+      {"screen": "AvailabilitySection", "issues": ["today() still uses new Date().toISOString().slice(0,10), a UTC date. Between 00:00 and 01:00/02:00 Italian time, min and the default Dal/Al are yesterday. Use toLocaleDateString('sv-SE') as RequestDialog now does."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Stop the calendar prev/next arrows overlapping the month/year selects (see design_issues).",
+    "AvailabilitySection today(): use the local date instead of UTC toISOString."
+  ],
+  "critical_code_review_comments": [
+    "it-date.jsx: hiding caption_label with 'hidden' also hides the visible dropdown labels, which is correct for rdp v8.10.1 because Dropdown reuses classNames.caption_label. The native selects are now the visible control. Fine.",
+    "AvailabilitySection 'Al' onChange uses setF({ ...f, to }) with a stale closure. Use the functional setF((x) => ...) like 'Dal' does."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100% of the 5 retest items functionally (1 skipped: no pending portal requests); 1 small visual overlap left in the calendar caption"},
+  "seed_data_creation": "None. No absence or request was submitted; the PatientDialog was cancelled without saving.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Absences: /app/area-personale > 'Orari e disponibilità'. New patient: /app/pazienti > add-patient-btn. Portal dialog: /portale > portal-request-btn-<id> (genitore). Calendar: [data-radix-popper-content-wrapper] select[name=months|years], button[name=previous-month|next-month], button[name=day]. GET /api/appointment-requests for medico was [] at this time."
+}
