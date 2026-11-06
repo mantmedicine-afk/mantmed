@@ -176,7 +176,7 @@ const AddChild = ({ onLinked }) => {
   };
   return (
     <form onSubmit={submit} className="flex flex-col gap-2 rounded-[28px] border border-[var(--hair)] bg-[var(--surface)] p-5 sm:flex-row sm:items-center" data-testid="portal-add-child-form">
-      <div className="flex-1"><div className="text-sm font-medium text-[var(--fg)]">Collega un altro figlio</div><div className="text-xs text-[var(--fg2)]">Inserisca il codice fiscale del bambino: deve coincidere con quello registrato dallo studio, insieme alla sua email.</div></div>
+      <div className="flex-1"><div className="text-sm font-medium text-[var(--fg)]">Collega un'altra cartella</div><div className="text-xs text-[var(--fg2)]">Inserisca il codice fiscale del paziente: deve coincidere con quello registrato dallo studio, insieme alla sua email.</div></div>
       <input value={cf} onChange={(e) => setCf(e.target.value.toUpperCase().slice(0, 16))} placeholder="Codice fiscale" className="h-11 rounded-full border border-[var(--hair)] px-4 font-mono text-sm uppercase text-[var(--fg)] outline-none focus:border-[var(--accent)]" data-testid="portal-add-child-input" />
       <button disabled={busy || cf.length !== 16} className="flex h-11 items-center justify-center gap-2 rounded-full bg-[var(--accent)] px-5 text-sm font-medium text-[var(--ink)] disabled:opacity-50" data-testid="portal-add-child-btn">{busy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Collega</button>
     </form>
@@ -292,7 +292,7 @@ export default function Portal() {
         {!data && <Loader2 className="animate-spin text-[var(--fg)]" />}
         {data && children.length === 0 && (
           <div className="flex gap-3 rounded-2xl border border-[var(--hair)] bg-[var(--surface)] p-6" data-testid="portal-no-children"><Baby className="shrink-0 text-[var(--fg)]" />
-            <p className="text-sm leading-relaxed text-[var(--fg2)]">Non abbiamo ancora trovato una cartella collegata. Il collegamento avviene in automatico quando lo studio registra il codice fiscale del bambino e la sua email ({user?.email}). Se ha già fatto una visita, chieda allo studio di verificare questi due dati.</p></div>
+            <p className="text-sm leading-relaxed text-[var(--fg2)]">Non abbiamo ancora trovato una cartella collegata. Il collegamento avviene in automatico quando lo studio registra il codice fiscale del paziente e la sua email ({user?.email}). Se ha già fatto una visita, chieda allo studio di verificare questi due dati.</p></div>
         )}
         {sezione === "trova-specialista" && data && <SpecialistsDirectory onBook={(id, slot) => { setReqDoctor(id); setReqPreset(slot ?? null); setReq(children[0]?.patient.id ?? null); if (!children.length) toast.message("Colleghi prima la cartella di suo figlio per prenotare"); }} />}
         {sezione === "panoramica" && children.length > 0 && <h2 className="pt-4 text-lg font-semibold text-[var(--fg)]">La famiglia</h2>}

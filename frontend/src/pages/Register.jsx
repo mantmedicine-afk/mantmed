@@ -20,7 +20,7 @@ const DOCTOR_FIELDS = [
   ["phone", "Telefono", "es. +39 333 1234567", "tel"], ["studio_address", "Sede dello studio", "es. Via Roma 1, Reggio Calabria", "text", true],
 ];
 const PARENT_FIELDS = [
-  ["first_name", "Nome del genitore / tutore", "Il suo nome, es. Giulia"], ["last_name", "Cognome del genitore / tutore", "Il suo cognome, es. Russo"], ["child_fiscal_code", "Codice fiscale del bambino", "16 caratteri, es. RSSMRA…", "text", true],
+  ["first_name", "Nome", "Il suo nome, es. Giulia"], ["last_name", "Cognome", "Il suo cognome, es. Russo"], ["child_fiscal_code", "Codice fiscale del paziente (lei o chi assiste)", "16 caratteri, es. RSSMRA…", "text", true],
   ["email", "Email (la stessa comunicata allo studio)", "es. nome@email.it", "email"], ["phone", "Cellulare", "es. 333 1234567", "tel"],
 ];
 
@@ -123,14 +123,14 @@ export default function Register({ role }) {
   const done = async (r) => {
     if (r?.role !== "parent") return setStep("pending");
     setStep("redirect");
-    toast.success(r.linked ? "Account attivo: cartella di suo figlio collegata" : "Account attivo: benvenuto nel Portale Paziente");
+    toast.success(r.linked ? "Account attivo: cartella del paziente collegata" : "Account attivo: benvenuto nel Portale Paziente");
     setTimeout(() => nav("/portale", { replace: true }), 700);
   };
 
   const pwOk = !fieldError("password", f);
   return (
     <Shell icon={doctor ? Stethoscope : Baby} kicker={doctor ? "Registrazione professionisti sanitari" : "Portale Paziente · genitori e tutori"}
-      title={doctor ? <>Porti il suo studio <span className="italic text-[var(--fg2)]">su MantMed.</span></> : <>Referti e appuntamenti <span className="italic text-[var(--fg2)]">di suo figlio.</span></>}>
+      title={doctor ? <>Porti il suo studio <span className="italic text-[var(--fg2)]">su MantMed.</span></> : <>Referti e appuntamenti <span className="italic text-[var(--fg2)]">suoi o di chi assiste.</span></>}>
       {step === "pending" && <Pending />}
       {step === "redirect" && <Redirecting />}
       {step === "code" && <CodeStep email={(f.email || "").trim().toLowerCase()} onDone={done} onBack={() => setStep("form")} onResend={() => api.registerStart(body())} />}
@@ -153,7 +153,7 @@ export default function Register({ role }) {
               error={errOf("confirm") || (f.confirm.length >= f.password.length && f.confirm && f.confirm !== f.password ? "Le password non coincidono" : "")} ok={f.confirm && f.confirm === f.password ? "Le password coincidono" : ""} />
           </div>
           {f.password && <Strength pw={f.password} prefix="register" />}
-          {!doctor && <p className="text-xs leading-relaxed text-[var(--fg2)]">La cartella di suo figlio viene collegata automaticamente solo se codice fiscale ed email coincidono con quelli registrati dallo studio.</p>}
+          {!doctor && <p className="text-xs leading-relaxed text-[var(--fg2)]">La cartella del paziente viene collegata automaticamente solo se codice fiscale ed email coincidono con quelli registrati dallo studio.</p>}
           <div className="space-y-3">
             <a href="/privacy" target="_blank" rel="noreferrer" className="text-xs text-[var(--ink)] underline underline-offset-4" data-testid="register-privacy-link">Leggi l'informativa privacy e sull'uso dell'AI</a>
             {doctor ? (

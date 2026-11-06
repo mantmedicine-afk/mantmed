@@ -56,7 +56,7 @@ const PressureField = ({ f, v, set }) => {
             {r.verifica && <Verify id={`pressione-${i}`} />}
             {rows.length > 1 && <button type="button" onClick={() => set(rows.filter((_, j) => j !== i))} className="grid h-8 w-8 place-items-center rounded-full text-[var(--fg2)] hover:text-[var(--alert)]" aria-label="Rimuovi misurazione" data-testid={`module-pressure-del-${i}`}><X size={14} /></button>}
           </div>
-          {ask === i && <Plausible id={`pressione-${i}`} value={`${r.sis ?? "—"}/${r.dia ?? "—"}`} unit="mmHg" onKeep={() => setAsk(null)} onFix={() => { setAsk(null); upd(i, { sis: null, dia: null }); }} />}
+          {ask === i && <Plausible id={`pressione-${i}`} value={`${r.sis ?? "—"}/${r.dia ?? "—"}`} unit="mmHg" onKeep={() => setAsk(null)} onFix={() => { setAsk(null); upd(i, { ...(out(r.sis, f.min, f.max) ? { sis: null } : {}), ...(out(r.dia, f.min2, f.max2) ? { dia: null } : {}) }); }} />}
         </div>
       ))}
       <button type="button" onClick={() => set([...rows, { sis: null, dia: null, note: "", verifica: false }])} className="flex items-center gap-1.5 rounded-full border border-dashed border-[var(--hair)] px-4 py-2 text-sm text-[var(--fg2)] hover:border-[var(--accent)] hover:text-[var(--fg)]" data-testid="module-pressure-add"><Plus size={14} /> Aggiungi misurazione</button>

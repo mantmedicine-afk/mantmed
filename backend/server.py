@@ -337,6 +337,8 @@ class ConsultationIn(BaseModel):
     paper_consent: bool = False
     template_id: Optional[str] = None
     module_id: str = ""
+    new_birth_date: str = ""
+    new_sex: str = ""
 
 
 class ConsultationPatch(BaseModel):
@@ -792,8 +794,14 @@ NOTE_SYSTEM = (
     "non proporre mai dosaggi o farmaci non menzionati. torl = testa, orecchie, rino, laringe/faringe (otoscopia, faringe, linfonodi)."
 )
 NEW_BASE = ("esame_obiettivo (condizioni generali del paziente ed esame obiettivo generale, solo se descritti), allergie (allergie e intolleranze riferite), "
-            "farmaci_in_uso (farmaci già in uso riferiti): stringhe; se non dette usa \"\" (stringa vuota, non 'Non riportato');\n")
-NOTE_SYSTEM = NOTE_SYSTEM.replace("{NEW_BASE}", NEW_BASE)
+            "farmaci_in_uso (farmaci già in uso riferiti): stringhe; se non dette usa \"\" (stringa vuota, non 'Non riportato');\n"
+            "motivo_visita: il motivo per cui il paziente è venuto, come emerge dalla conversazione (anche se lo dice il paziente), in poche parole;\n")
+# Fedeltà: vale per ogni campo della cartella e per il riepilogo al paziente
+FAITHFUL = (" FEDELTÀ ASSOLUTA: riporta solo ciò che è stato detto. Non aggiungere giudizi sui valori (alto, basso, normale, nella norma, elevato, "
+            "aumentato, ridotto, buono, preoccupante…) se il medico non ha usato esattamente quel giudizio per quel dato; scrivi il valore com'è stato detto. "
+            "Non interpretare, non dedurre diagnosi, non aggiungere indicazioni su farmaci (inclusi 'prosegua'/'continui'/'sospenda'), "
+            "comportamenti, dieta o controlli che il medico non ha detto esplicitamente. Ciò che dice il paziente va attribuito al paziente ('riferisce').")
+NOTE_SYSTEM = NOTE_SYSTEM.replace("{NEW_BASE}", NEW_BASE) + FAITHFUL
 
 
 def clean_specialty(raw: str) -> str:
@@ -815,7 +823,7 @@ def note_system(spec: str, fields: Optional[list] = None, mid: str = "", hidden:
     head = (f"Sei un assistente medico specializzato in {spec}. Estrai le informazioni dalla seguente trascrizione e compilale "
             "nei campi standard pertinenti per questa specifica branca medica. Rispondi SOLO con un JSON valido.\n")
     rules = ("Regole: usa solo informazioni presenti nella trascrizione. Se un campo testuale manca scrivi 'Non riportato'; se un numero manca usa null. "
-             "Per i farmaci riporta SOLO quelli prescritti dal medico e SOLO i dosaggi da lui indicati: non proporre mai dosaggi o farmaci non menzionati.")
+             "Per i farmaci riporta SOLO quelli prescritti dal medico e SOLO i dosaggi da lui indicati: non proporre mai dosaggi o farmaci non menzionati." + FAITHFUL)
     drugs = ("farmaci: lista di {nome, mg_kg_dose (numero|null), dosi_giorno (intero|null), concentrazione_mg_ml (numero|null), "
              "max_mg_dose (numero|null), giorni (intero|null), note}.\n")
     if (mid or module_for(spec)) == "pediatria":
@@ -826,7 +834,7 @@ def note_system(spec: str, fields: Optional[list] = None, mid: str = "", hidden:
             "motivo_visita, anamnesi_fisiologica (anamnesi generale: patologica remota e prossima, familiarità), sintomi, "
             "diagnosi (solo la diagnosi detta dal medico), terapia, follow_up: stringhe in italiano, concise; \"\" se non dette;\n" + NEW_BASE +
             module_prompt(mid or module_for(spec), hidden or []) + (fields_prompt(fields) if fields else "") +
-            "Regole: usa solo informazioni presenti nella trascrizione. Non proporre mai farmaci, dosaggi, diagnosi o accertamenti non menzionati.")
+            "Regole: usa solo informazioni presenti nella trascrizione. Non proporre mai farmaci, dosaggi, diagnosi o accertamenti non menzionati." + FAITHFUL)
     if fields:
         return head + (
             "Chiavi:\n"
@@ -849,10 +857,14 @@ async def patient_summary(spec: str, transcript: str = "", note: Optional[dict] 
     """Riepilogo della visita in parole semplici per i genitori (pediatria) o per il paziente."""
     ped = is_pediatric(spec)
     who = "i genitori del bambino (dia del Lei ai genitori e parli del bambino in terza persona)" if ped else "il paziente (gli dia del Lei)"
-    system = (f"Sei un medico specializzato in {spec} che scrive a {who} un riepilogo della visita in italiano semplice e rassicurante. "
-              "Massimo 130 parole, 3-5 frasi brevi o un breve elenco. Spiega con parole comuni cosa è stato riscontrato, cosa fare "
-              "(farmaci e dosi riportati nella stessa forma detta dal medico, es. '50 mg per chilo al giorno in due dosi': non calcolare, convertire o arrotondare dosi e non aggiungere farmaci), quando tornare a controllo e, se il medico li ha indicati, "
-              "i segnali per cui ricontattare lo studio. Nessun termine tecnico senza spiegazione, nessuna informazione non presente. "
+    system = (f"Sei l'assistente di un medico specializzato in {spec}: scrivi a {who} un riepilogo della visita in italiano semplice. "
+              "Il tuo unico compito è RIFORMULARE in parole semplici ciò che il medico ha detto: non sei tu a valutare. Massimo 130 parole, 3-5 frasi brevi o un breve elenco. "
+              "Riporta: cosa il medico ha riscontrato o detto, con le sue parole semplificate; i valori misurati così come detti, SENZA aggettivi di giudizio "
+              "(mai alto, basso, normale, nella norma, elevato, aumentato, buono, preoccupante, a meno che il medico abbia detto proprio quel giudizio per quel dato); "
+              "le indicazioni (farmaci, dosi, comportamenti, controlli) SOLO se il medico le ha date esplicitamente, nella stessa forma detta "
+              "(non calcolare, convertire o arrotondare dosi; un farmaco che il paziente dice di prendere NON diventa un'indicazione a proseguirlo); "
+              "quando tornare a controllo e i segnali per ricontattare lo studio solo se il medico li ha indicati. "
+              "Se il medico non ha dato indicazioni, non scriverne. Nessuna interpretazione, nessuna rassicurazione o preoccupazione aggiunta, nessun termine tecnico senza spiegazione. "
               "Non inserire saluti, firme o intestazioni. Rispondi solo con il testo del riepilogo.")
     src = (f"Cartella clinica validata dal medico (JSON):\n{json.dumps({k: v for k, v in (note or {}).items() if k not in ('sezioni',) and v}, ensure_ascii=False)[:6000]}\n\n" if note else "") \
         + (f"Trascrizione della visita:\n{transcript[:12000]}" if transcript else "")
@@ -910,6 +922,24 @@ tpl_router, resolve_template = build_visit_templates(db, tdb, doctor_specialty, 
 module_router, doctor_module, module_layout, visit_module_options = build_module_settings(db, tdb, doctor_specialty, OWNER.get)
 
 
+async def free_visit_patient(name: str, birth_date: str, sex: str) -> str:
+    """Visita libera: crea la scheda paziente (nome, nascita, sesso) con il consenso privacy cartaceo confermato dal medico."""
+    try:
+        date.fromisoformat(birth_date)
+    except ValueError:
+        raise HTTPException(400, "Data di nascita non valida")
+    if sex not in ("F", "M"):
+        raise HTTPException(400, "Indichi il sesso del paziente")
+    res = await tdb.patients.insert_one({**Patient(name=name.strip(), birth_date=birth_date, sex=sex).to_mongo(), "cf_hash": None})
+    pid = str(res.inserted_id)
+    c = Consent(patient_id=pid, signer_name=name.strip(), signer_relation="Paziente o tutore", privacy_policy=True, health_data=True,
+                method="modulo_cartaceo", channel="studio")
+    await tdb.consents.insert_one(c.to_mongo())
+    await refresh_patient_consent(pid)
+    await audit("paziente_creato_da_visita_libera", name.strip())
+    return pid
+
+
 async def visit_setup(uid: str, tpl: dict, patient: Optional[dict], module_id: str = "") -> dict:
     """Modulo della visita (menu della visita, altrimenti quello predefinito del medico), personalizzazione e campi del modello senza doppioni."""
     opts = await visit_module_options(uid)
@@ -918,8 +948,9 @@ async def visit_setup(uid: str, tpl: dict, patient: Optional[dict], module_id: s
     if not opt:
         raise HTTPException(400, "Modulo non disponibile per le sue specialità")
     mid = opt["id"]
+    fields = tpl["fields"] if tpl.get("module_id") in (None, "", mid) else []  # i modelli visita valgono solo per la loro specialità
     minor = bool(patient and patient.get("birth_date") and age_months(patient["birth_date"]) < 216)
-    return {"mid": mid, "layout": await module_layout(uid, mid), "fields": drop_duplicates(tpl["fields"], mid),
+    return {"mid": mid, "layout": await module_layout(uid, mid), "fields": drop_duplicates(fields, mid),
             "guardian_hidden": mid == "ginecologia" and minor, "specialita": opt["specialita"]}
 
 
@@ -927,6 +958,8 @@ async def visit_setup(uid: str, tpl: dict, patient: Optional[dict], module_id: s
 async def create_consultation(body: ConsultationIn, user: dict = Depends(current_user)):
     if not body.transcript.strip():
         raise HTTPException(400, "Trascrizione vuota")
+    if not body.patient_id and body.paper_consent and body.new_birth_date:
+        body.patient_id = await free_visit_patient(body.patient_name, body.new_birth_date, body.new_sex)
     patient = await get_patient(body.patient_id)
     if patient and not patient.get("consent_at"):
         raise HTTPException(412, "Consenso privacy non registrato: registralo nel passaporto prima di avviare la visita")
@@ -1145,7 +1178,7 @@ async def start_consultation(
     duration_sec: int = Form(0), paper_consent: bool = Form(False), transcript: str = Form(""), audio: Optional[UploadFile] = File(None),
     part_ids: str = Form(""), template_id: Optional[str] = Form(None),
     checklist_id: str = Form(""), checklist_manual: str = Form(""), live_session_id: str = Form(""), live_chunks: int = Form(0),
-    checklist_demo: str = Form(""), module_id: str = Form(""),
+    checklist_demo: str = Form(""), module_id: str = Form(""), new_birth_date: str = Form(""), new_sex: str = Form(""),
 ):
     """Crea subito la visita 'in elaborazione' e avvia Whisper + IA in background.
     Visite lunghe: l'audio arriva prima in parti (POST /consultations/audio-parts) e qui si passano i loro id in ordine."""
@@ -1153,6 +1186,8 @@ async def start_consultation(
     waiting_id = waiting_id or None
     if not patient_name.strip():
         raise HTTPException(400, "Paziente mancante")
+    if not patient_id and paper_consent and new_birth_date:
+        patient_id = await free_visit_patient(patient_name, new_birth_date, new_sex)
     patient = await get_patient(patient_id)
     if patient and not patient.get("consent_at"):
         raise HTTPException(412, "Consenso privacy non registrato: registralo nel passaporto prima di avviare la visita")

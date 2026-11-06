@@ -34,6 +34,10 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
   const [templates, setTemplates] = useState([]);
   const [tplId, setTplId] = useState("");
   const [mods, setMods] = useState({ options: [], id: "" });
+  const [newPat, setNewPat] = useState({ birth_date: "", sex: "" });
+  const curMid = mods.options.find((o) => (o.key ?? o.id) === mods.id)?.id ?? mods.id;
+  const tpls = templates.filter((t) => !t.module_id || !curMid || t.module_id === curMid);
+  useEffect(() => { setTplId((cur) => (tpls.some((t) => t.id === cur) ? cur : tpls[0]?.id ?? "")); }, [curMid, templates.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const { track } = useProcessing();
   const rec = useRecorder();
   const [cfg, setCfg] = useState({ realtime: true, demo: false });
@@ -50,6 +54,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
     setManual(false);
     setText("");
     setHint("");
+    setNewPat({ birth_date: "", sex: "" });
     setPaper(false);
     setConfirm(null);
     live.reset();
@@ -63,13 +68,13 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
   // Bilancio di salute consigliato per l'età del paziente; preselezionato se il motivo della visita è un bilancio
   const linkedPatient = patients.find((p) => p.id === sel?.patient_id);
   const ageM = ageMonths(linkedPatient?.birth_date);
-  const suggested = ageM === null ? null : templates.find((t) => t.bilancio && ageM >= t.age_from && ageM < t.age_to);
+  const suggested = ageM === null ? null : tpls.find((t) => t.bilancio && ageM >= t.age_from && ageM < t.age_to);
   // Modello scelto in automatico dal motivo in agenda (bilancio per età), finché il medico non lo cambia
   const userPicked = useRef(false);
   useEffect(() => { if (open) userPicked.current = false; }, [open]);
   useEffect(() => {
     if (!templates.length || userPicked.current) return;
-    const t = autoTemplate(templates, `${sel?.visit_type ?? ""} ${sel?.reason ?? ""}`, ageM);
+    const t = autoTemplate(tpls, `${sel?.visit_type ?? ""} ${sel?.reason ?? ""}`, ageM);
     if (t) setTplId(t.id);
   }, [templates.length, sel?.id, sel?.name, ageM]); // eslint-disable-line react-hooks/exhaustive-deps
   const pickTpl = (id) => { userPicked.current = true; setTplId(id); };
@@ -98,6 +103,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
       const c = await api.startConsultation({
         patient_name: name, patient_id: sel?.patient_id ?? "", clinic: sel?.clinic ?? "", waiting_id: sel?.id ?? "",
         duration_sec: duration, paper_consent: paper, transcript: transcript ?? "", part_ids: partIds.join(","), template_id: tplId, module_id: mods.id,
+        ...(!sel?.patient_id && newPat.birth_date ? { new_birth_date: newPat.birth_date, new_sex: newPat.sex } : {}),
         ...(opts.checklist ? { checklist_id: "template", checklist_manual: JSON.stringify(live.manualValues()), ...(opts.demo ? { checklist_demo: JSON.stringify(live.aiValues()) } : {}) } : {}),
         ...(opts.liveChunks ? { live_session_id: live.session.current, live_chunks: opts.liveChunks } : {}),
       }, null);
@@ -107,6 +113,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
       setResult(c);
       setStage("note");
       if (sel?.appointment_id) await onAppointmentDone?.(sel.appointment_id);
+      if (!sel?.patient_id && c.patient_id) onPatientsChange?.();
       onDone();
     } catch (e) {
       const msg = e?.response ? errMsg(e) : e.message;
@@ -125,10 +132,11 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
   const fail = (msg) => { setHint(msg); toast.error(msg); };
   const start = async () => {
     setHint("");
-    if (!name) return fail("Seleziona un paziente in attesa o scrivi nome e cognome");
+    if (!name) return fail("Selezioni un paziente in attesa o scriva nome e cognome");
     const linked = patients.find((p) => p.id === sel?.patient_id);
-    if (linked && !linked.consent_at) return fail("Registra prima il consenso privacy del paziente");
-    if (!sel?.patient_id && !paper) return fail("Spunta la conferma del consenso privacy cartaceo per avviare la visita libera");
+    if (linked && !linked.consent_at) return fail("Registri prima il consenso privacy del paziente");
+    if (!sel?.patient_id && (!newPat.birth_date || !newPat.sex)) return fail("Indichi data di nascita e sesso: verrà creata la scheda del paziente");
+    if (!sel?.patient_id && !paper) return fail("Spunti la conferma del consenso privacy cartaceo per avviare la visita libera");
     if (manual) {
       if (text.trim().length < 20) return fail("Trascrizione troppo breve (almeno 20 caratteri)");
       return process(text, 0);
@@ -182,7 +190,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
         </div>
         <div className="flex flex-1 flex-col justify-center py-8">
           {stage === "setup" && (
-            <Setup {...{ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, hint, sending: sending || starting, starting }} picker={<><ModulePicker mods={mods} setId={(id) => setMods((m) => ({ ...m, id }))} /><ModelRow tpl={templates.find((t) => t.id === tplId)}><TemplatePicker templates={templates} value={tplId} onChange={pickTpl} suggested={suggested} ageM={ageM} /></ModelRow></>} gate={<ConsentGate patient={patients.find((p) => p.id === sel?.patient_id)} free={!sel?.patient_id && Boolean(freeName.trim())} paper={paper} setPaper={setPaper} onSaved={onPatientsChange} />} />
+            <Setup {...{ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, hint, sending: sending || starting, starting }} picker={<><ModulePicker mods={mods} setId={(id) => setMods((m) => ({ ...m, id }))} /><ModelRow tpl={tpls.find((t) => t.id === tplId)}><TemplatePicker templates={tpls} value={tplId} onChange={pickTpl} suggested={suggested} ageM={ageM} /></ModelRow></>} newPatient={<NewPatient freeName={freeName} sel={sel} patients={patients} setSel={setSel} setFreeName={setFreeName} np={newPat} setNp={setNewPat} />} gate={<ConsentGate patient={patients.find((p) => p.id === sel?.patient_id)} free={!sel?.patient_id && Boolean(freeName.trim())} paper={paper} setPaper={setPaper} onSaved={onPatientsChange} />} />
           )}
           {(stage === "recording") && (
             <RecordingLayout panel={<LiveChecklist models={models} model={tplId} onModel={pickTpl} live={live} realtime={cfg.realtime || cfg.demo} />}
@@ -248,6 +256,36 @@ const ModulePicker = ({ mods, setId }) => (mods.options.length > 1 ? (
   </label>
 ) : null);
 
+// Visita libera: suggerisce la scheda esistente con lo stesso nome, altrimenti raccoglie i dati minimi per crearne una nuova
+const norm = (s) => (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+const NewPatient = ({ freeName, sel, patients, setSel, setFreeName, np, setNp }) => {
+  const q = norm(freeName);
+  if (sel?.patient_id || q.length < 3) return null;
+  const matches = patients.filter((p) => norm(p.name).includes(q) || q.includes(norm(p.name))).slice(0, 3);
+  const field = "h-11 rounded-xl border border-[var(--hair)] bg-transparent px-3 text-sm outline-none focus:border-[var(--accent)]";
+  return (
+    <div className="space-y-3 rounded-2xl border border-[var(--hair)] p-4 text-sm" data-testid="consult-new-patient">
+      {matches.length > 0 && (
+        <div data-testid="consult-patient-suggestions">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-[var(--fg2)]">Scheda già in archivio?</div>
+          {matches.map((p) => (
+            <button key={p.id} type="button" onClick={() => { setSel({ id: `p-${p.id}`, patient_id: p.id, name: p.name }); setFreeName(""); }} className="mt-2 flex w-full items-center justify-between rounded-xl border border-[var(--hair)] px-3 py-2 text-left hover:border-[var(--accent)]" data-testid={`consult-patient-suggestion-${p.id}`}>
+              <span>{p.name}{p.birth_date ? ` · nato/a il ${new Date(p.birth_date).toLocaleDateString("it-IT")}` : ""}</span><span className="text-xs font-semibold">Usa questa scheda</span>
+            </button>
+          ))}
+        </div>
+      )}
+      <div>
+        <div className="text-[11px] uppercase tracking-[0.18em] text-[var(--fg2)]">{matches.length ? "Oppure crei una nuova scheda" : "Nuova scheda paziente"}</div>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <input type="date" value={np.birth_date} onChange={(e) => setNp((x) => ({ ...x, birth_date: e.target.value }))} className={field} aria-label="Data di nascita" data-testid="consult-new-patient-birth" />
+          {[["F", "Femmina"], ["M", "Maschio"]].map(([v, l]) => <button key={v} type="button" onClick={() => setNp((x) => ({ ...x, sex: v }))} className={`h-11 rounded-xl border px-3 ${np.sex === v ? "border-[var(--accent)] bg-[var(--accent)] font-semibold text-[var(--fg)]" : "border-[var(--hair)]"}`} data-testid={`consult-new-patient-sex-${v}`}>{l}</button>)}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const TemplatePicker = ({ templates, value, onChange, suggested, ageM }) => (templates.length ? (
   <div className="rounded-2xl border border-[var(--hair)] p-4" data-testid="consult-template-picker">
     <div className="flex items-center justify-between gap-2 text-[11px] uppercase tracking-[0.2em] text-[var(--fg2)]"><span className="flex items-center gap-1.5"><LayoutTemplate size={13} /> Modello di visita</span><Link to="/app/area-personale?sezione=modelli" className="normal-case tracking-normal text-[var(--fg2)] hover:text-[var(--ink)]" data-testid="consult-template-manage">Gestisci</Link></div>
@@ -265,10 +303,10 @@ const TemplatePicker = ({ templates, value, onChange, suggested, ageM }) => (tem
   </div>
 ) : null);
 
-const Setup = ({ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, gate, sending, starting, hint, picker }) => (
+const Setup = ({ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, gate, sending, starting, hint, picker, newPatient }) => (
   <div className="grid gap-10 lg:grid-cols-[1.1fr_1fr]" data-testid="consultation-setup">
     <div>
-      <h2 className="font-display text-5xl leading-[1.02] lg:text-6xl">Chi stai<br /><span className="italic text-[var(--fg2)]">visitando?</span></h2>
+      <h2 className="font-display text-5xl leading-[1.02] lg:text-6xl">Chi sta<br /><span className="italic text-[var(--fg2)]">visitando?</span></h2>
       <p className="mt-4 max-w-md text-[var(--fg2)]">La visita viene registrata, trascritta e trasformata nella cartella clinica secondo il modello scelto: anamnesi, motivo e sintomi, parametri, esame obiettivo, diagnosi e terapia su misura.</p>
       <div className="mt-5"><MantAIButton variant="icon" view="doctor" /></div>
     </div>
@@ -285,7 +323,8 @@ const Setup = ({ waiting, sel, setSel, freeName, setFreeName, manual, setManual,
           <button onClick={() => setSel(null)} className="shrink-0 rounded-full border border-[var(--hair)] px-3 py-1.5 text-sm font-medium" data-testid="consult-preselected-change">Cambia</button>
         </div>
       )}
-      <input value={freeName} onChange={(e) => { setFreeName(e.target.value); setSel(null); }} placeholder="Oppure scrivi nome e cognome del paziente" className="w-full rounded-2xl border border-[var(--hair)] bg-transparent px-5 py-4 text-[var(--ink)] placeholder:text-[var(--fg2)] outline-none focus:border-[var(--hair)]" data-testid="consult-free-name-input" />
+      <input value={freeName} onChange={(e) => { setFreeName(e.target.value); setSel(null); }} placeholder="Oppure scriva nome e cognome del paziente" className="w-full rounded-2xl border border-[var(--hair)] bg-transparent px-5 py-4 text-[var(--ink)] placeholder:text-[var(--fg2)] outline-none focus:border-[var(--hair)]" data-testid="consult-free-name-input" />
+      {newPatient}
       {gate}
       {picker}
       <button onClick={() => setManual(!manual)} className="flex items-center gap-2 text-sm text-[var(--fg2)] hover:text-[var(--ink)]" data-testid="consult-manual-toggle"><Keyboard size={15} /> {manual ? "Torna alla registrazione vocale" : "Senza microfono? Incolla una trascrizione"}</button>

@@ -29,7 +29,7 @@ export const ForgotStep = ({ parent, initial, onBack }) => {
         </div>
       ) : (
         <form onSubmit={submit} noValidate>
-          <p className="mt-1 text-sm text-[var(--fg2)]">{parent ? "Inserisca l'email con cui accede al portale oppure il codice fiscale di suo figlio: le invieremo un link per impostare una nuova password." : "Inserisca l'email del suo account: le invieremo un link per impostare una nuova password."}</p>
+          <p className="mt-1 text-sm text-[var(--fg2)]">{parent ? "Inserisca l'email con cui accede al portale oppure il codice fiscale del paziente: le invieremo un link per impostare una nuova password." : "Inserisca l'email del suo account: le invieremo un link per impostare una nuova password."}</p>
           <label className="mt-6 block text-xs uppercase tracking-[0.16em] text-[var(--fg2)]">{parent ? "Email o codice fiscale del figlio" : "Email"}</label>
           <input autoFocus value={value} onChange={(e) => setValue(e.target.value)} type={parent ? "text" : "email"} autoComplete="username" placeholder={parent ? "nome@email.it o RSSMRA20A01H224X" : "nome@mantmed.it"} className={inputCls} data-testid="forgot-identifier-input" />
           {error && <p className="mt-4 rounded-xl bg-[var(--alert-bg)] px-4 py-3 text-sm text-[var(--alert)]" data-testid="forgot-error">{error}</p>}

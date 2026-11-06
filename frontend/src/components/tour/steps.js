@@ -34,8 +34,8 @@ export const DOCTOR_STEPS = [
     points: ["Con Ctrl/Cmd+K trova un paziente anche per codice fiscale", "Le allergie sono sempre in evidenza nell'intestazione della scheda"],
   },
   {
-    video: "doctor-4", to: "/app", targets: nav("messaggi"), icon: MessagesSquare, kicker: "Messaggi", title: "Le famiglie, a un messaggio di distanza",
-    text: "In Messaggi legge e risponde alle famiglie, con le bozze di risposta preparate da MantAI e le richieste di appuntamento dal portale.",
+    video: "doctor-4", to: "/app", targets: nav("messaggi"), icon: MessagesSquare, kicker: "Messaggi", title: "I pazienti, a un messaggio di distanza",
+    text: "In Messaggi legge e risponde a pazienti e tutori, con le bozze di risposta preparate da MantAI e le richieste di appuntamento dal portale.",
     points: ["Le risposte MantAI sono bozze: le rivede prima dell'invio"],
   },
   {

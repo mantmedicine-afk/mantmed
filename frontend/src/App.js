@@ -36,7 +36,7 @@ const Gate = () => {
 const PortalGate = () => {
   const { user } = useAuth();
   if (user === null) return <Loading />;
-  if (!user) return <Login parent subtitle="Portale Paziente · genitori e tutori" note="Referti, consensi e appuntamenti di suo figlio" />;
+  if (!user) return <Login parent subtitle="Portale Paziente · pazienti e tutori" note="Referti, consensi e appuntamenti" />;
   return user.role === "parent" ? <><Portal /><IdleWarning /></> : <Navigate to={user.role === "admin" ? "/admin" : "/app"} replace />;
 };
 

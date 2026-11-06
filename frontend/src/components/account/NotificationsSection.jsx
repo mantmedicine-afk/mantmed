@@ -10,7 +10,7 @@ const LABELS = {
   reports: ["Nuovi referti e bilanci", "Quando il medico pubblica un referto o un bilancio di salute"],
   messages: ["Messaggi dello studio", "Risposte dei medici nel Centro messaggi"],
   bookings: ["Nuove prenotazioni", "Richieste di appuntamento e visite pagate online dal portale"],
-  cancellations: ["Disdette dei pazienti", "Visite annullate dai genitori dal portale"],
+  cancellations: ["Disdette dei pazienti", "Visite annullate dal portale"],
 };
 
 const Chan = ({ label, children }) => (

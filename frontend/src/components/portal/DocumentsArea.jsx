@@ -93,6 +93,8 @@ export const DocumentsArea = ({ kids, onChange, addChild }) => {
   const g = groups.find((x) => x[0].group === gid) ?? groups[0];
   if (!g) return <div className="space-y-4"><Empty text="Nessuna cartella collegata al suo account." testid="docs-no-kids" />{addChild}</div>;
   const reports = g.flatMap((c) => c.reports.map((r) => ({ ...r, doctor: c.doctor.name }))).sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const minor = !g[0]?.patient?.birth_date || Date.now() - new Date(g[0].patient.birth_date).getTime() < 18 * 365.25 * 864e5;
+  const tabs = TABS.filter(([id]) => id !== "bilanci" || minor); // bilanci di salute solo per i minori
   const receipts = g.flatMap((c) => c.receipts).sort((a, b) => b.date.localeCompare(a.date));
   const set = (k, v) => setParams((p) => { const n = new URLSearchParams(p); n.set(k, v); return n; });
   return (
@@ -100,7 +102,7 @@ export const DocumentsArea = ({ kids, onChange, addChild }) => {
       <div className="flex items-center gap-2 text-sm text-[var(--fg2)]"><ShieldCheck size={15} strokeWidth={1.5} className="text-[var(--ok)]" /> Documenti cifrati e visibili solo a lei e ai medici di {g[0].patient.name.split(" ")[0]}.</div>
       {groups.length > 1 && !["famiglia", "condivisione"].includes(tab) && <div className="flex flex-wrap gap-2" data-testid="docs-kids">{groups.map((x) => <button key={x[0].group} onClick={() => setGid(x[0].group)} className={`rounded-full px-4 py-2 text-sm transition-colors ${x === g ? "bg-[var(--accent)] text-[var(--ink)]" : "bg-[var(--surface)] text-[var(--fg)] ring-1 ring-[var(--sel)] hover:ring-[var(--accent)]"}`} data-testid={`docs-kid-${x[0].patient.id}`}>{x[0].patient.name}</button>)}</div>}
       <div className="-mx-1 flex snap-x gap-1 overflow-x-auto rounded-full bg-[var(--surface)] p-1 ring-1 ring-[var(--sel)] [mask-image:linear-gradient(to_right,black_85%,transparent)] sm:mx-0 sm:inline-flex sm:[mask-image:none]" role="tablist">
-        {TABS.map(([id, label, I]) => <button key={id} ref={(el) => { if (el && tab === id) el.scrollIntoView({ block: "nearest", inline: "nearest" }); }} role="tab" aria-selected={tab === id} onClick={() => set("tab", id)} className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition-colors ${tab === id ? "bg-[var(--accent)] text-[var(--ink)]" : "text-[var(--fg)] hover:bg-[var(--bg)]"}`} data-testid={`docs-tab-${id}`}><I size={15} strokeWidth={1.5} /> {label}</button>)}
+        {tabs.map(([id, label, I]) => <button key={id} ref={(el) => { if (el && tab === id) el.scrollIntoView({ block: "nearest", inline: "nearest" }); }} role="tab" aria-selected={tab === id} onClick={() => set("tab", id)} className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition-colors ${tab === id ? "bg-[var(--accent)] text-[var(--ink)]" : "text-[var(--fg)] hover:bg-[var(--bg)]"}`} data-testid={`docs-tab-${id}`}><I size={15} strokeWidth={1.5} /> {label}</button>)}
       </div>
       {tab === "visite" && <Visits reports={reports} docs={g.flatMap((c) => c.documents ?? [])} />}
       {tab === "bilanci" && <BilanciTab g={g} reports={reports} onChange={onChange} />}

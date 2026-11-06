@@ -5,17 +5,21 @@ import { BilanciDialog } from "./BilanciDialog";
 import { api, errMsg } from "@/lib/api";
 import { Card, inp } from "./ui";
 import { TemplateFields } from "./TemplateFields";
+import { MODULE_NAMES } from "@/lib/modules";
 
-/** Modelli Visita: più modelli per medico, ciascuno con campi illimitati compilati dall'IA in refertazione. */
+/** Modelli Visita: più modelli per medico, ciascuno legato a una cartella di specialità, con campi compilati dall'IA in refertazione. */
 export const VisitTemplatesSection = ({ data }) => {
   const [bil, setBil] = useState(false);
   const [list, setList] = useState(null);
   const [curId, setCurId] = useState(null);
   const [draft, setDraft] = useState(null);
   const [busy, setBusy] = useState("");
-  const pick = (t) => { setCurId(t.id); setDraft({ name: t.name, fields: t.fields.map((f) => ({ ...f })) }); };
+  const [mods, setMods] = useState([]);
+  const [defMod, setDefMod] = useState("");
+  useEffect(() => { api.moduleSettings().then((r) => { setDefMod(r.module_id); setMods([...new Map((r.visit_options ?? []).map((o) => [o.id, { id: o.id, nome: MODULE_NAMES[o.id] ?? o.nome }])).values()]); }).catch(() => {}); }, []);
+  const pick = (t) => { setCurId(t.id); setDraft({ name: t.name, module_id: t.module_id ?? "", fields: t.fields.map((f) => ({ ...f })) }); };
   const saved = list?.find((x) => x.id === curId);
-  const sig = (t) => JSON.stringify({ name: t.name, fields: t.fields.map(({ titolo, gruppo, hint, required }) => ({ titolo, gruppo, hint, required: Boolean(required) })) });
+  const sig = (t) => JSON.stringify({ name: t.name, module_id: t.module_id ?? "", fields: t.fields.map(({ titolo, gruppo, hint, required }) => ({ titolo, gruppo, hint, required: Boolean(required) })) });
   const dirty = Boolean(saved && draft && sig(saved) !== sig(draft));
   const leave = () => !dirty || window.confirm("Ci sono modifiche non salvate a questo modello: vuole scartarle?");
   useEffect(() => { api.visitTemplates().then((xs) => { setList(xs); if (xs[0]) pick(xs[0]); }).catch((e) => toast.error(errMsg(e))); }, []);
@@ -27,7 +31,7 @@ export const VisitTemplatesSection = ({ data }) => {
     toast.success("Modello salvato: verrà usato dall'IA nelle prossime visite");
   });
   const create = (copy) => run("new", async () => {
-    const t = await api.createVisitTemplate(copy ? { name: `${draft.name} (copia)`, fields: draft.fields } : { name: "Nuovo modello", fields: [] });
+    const t = await api.createVisitTemplate(copy ? { name: `${draft.name} (copia)`, fields: draft.fields, module_id: draft.module_id } : { name: "Nuovo modello", fields: [], module_id: defMod });
     setList((xs) => [...xs, t]);
     pick(t);
   });
@@ -55,7 +59,7 @@ export const VisitTemplatesSection = ({ data }) => {
 
   return (
     <Card id="account-visit-templates" icon={LayoutTemplate} title="Modelli Visita"
-      text="Crei più modelli (es. Prima visita, Controllo, Bilancio di salute) e scelga quale usare all'avvio di ogni consultazione: l'IA compila ogni campo del modello nell'ordine indicato.">
+      text="Ogni modello appartiene a una cartella di specialità e compare solo nelle visite di quella cartella. La cartella fornisce i campi fissi della specialità; il modello aggiunge i suoi campi personali per un tipo di visita (es. Prima visita, Controllo).">
       {!list || !draft ? <Loader2 className="animate-spin text-[var(--fg)]" data-testid="templates-loading" /> : (
         <div className="space-y-5">
           {[["Modelli", list.filter((t) => !t.bilancio)], ["Bilanci di salute", list.filter((t) => t.bilancio)]].filter(([, xs]) => xs.length).map(([title, xs]) => (
@@ -63,7 +67,7 @@ export const VisitTemplatesSection = ({ data }) => {
           <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--fg2)]">{title}</div>
           <div className="flex flex-wrap gap-2" data-testid={title === "Modelli" ? "templates-list" : "templates-bilanci-list"}>
             {xs.map((t) => (
-              <button key={t.id} onClick={() => t.id !== curId && leave() && pick(t)} className={`h-10 rounded-full px-4 text-sm font-medium transition-colors ${t.id === curId ? "bg-[var(--accent)] text-[var(--ink)]" : "border border-[var(--hair)] text-[var(--fg)] hover:border-[var(--accent)]"}`} data-testid={`template-pill-${t.id}`}>{(t.id === curId ? draft.name || "Senza nome" : t.name).replace("Bilancio di salute · ", "")} <span className="opacity-60">· {t.id === curId ? draft.fields.length : t.fields.length}</span>{t.id === curId && dirty && <span className="ml-1 text-[var(--fg)]" data-testid="template-dirty-dot">•</span>}{t.pending_fields?.length > 0 && <span className="ml-1.5 rounded-full bg-[var(--sel)] px-1.5 py-0.5 text-[10px] font-semibold" title="Nuovi campi disponibili" data-testid={`template-pending-badge-${t.id}`}>+{t.pending_fields.length}</span>}</button>
+              <button key={t.id} onClick={() => t.id !== curId && leave() && pick(t)} className={`h-10 rounded-full px-4 text-sm font-medium transition-colors ${t.id === curId ? "bg-[var(--accent)] text-[var(--ink)]" : "border border-[var(--hair)] text-[var(--fg)] hover:border-[var(--accent)]"}`} data-testid={`template-pill-${t.id}`}>{(t.id === curId ? draft.name || "Senza nome" : t.name).replace("Bilancio di salute · ", "")} <span className="opacity-60">· {t.id === curId ? draft.fields.length : t.fields.length}</span>{mods.length > 1 && MODULE_NAMES[t.module_id] && <span className="ml-1.5 text-[10px] uppercase tracking-wider opacity-70" data-testid={`template-module-${t.id}`}>{MODULE_NAMES[t.module_id]}</span>}{t.id === curId && dirty && <span className="ml-1 text-[var(--fg)]" data-testid="template-dirty-dot">•</span>}{t.pending_fields?.length > 0 && <span className="ml-1.5 rounded-full bg-[var(--sel)] px-1.5 py-0.5 text-[10px] font-semibold" title="Nuovi campi disponibili" data-testid={`template-pending-badge-${t.id}`}>+{t.pending_fields.length}</span>}</button>
             ))}
             {title === "Modelli" && <button onClick={() => leave() && create(false)} disabled={!!busy} className="flex h-10 items-center gap-1.5 rounded-full border border-dashed border-[var(--hair)] px-4 text-sm text-[var(--fg2)] hover:border-[var(--accent)] hover:text-[var(--fg)]" data-testid="template-new-btn">{busy === "new" ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Nuovo modello</button>}
           </div>
@@ -75,6 +79,11 @@ export const VisitTemplatesSection = ({ data }) => {
           <BilanciDialog open={bil} onClose={() => setBil(false)} onImported={(xs) => { setList(xs); }} />
           <div className="flex flex-wrap items-center gap-2">
             <input value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} className={`${inp} max-w-xs`} aria-label="Nome del modello" data-testid="template-name-input" />
+            {mods.length > 1 && !saved?.bilancio && (
+              <select value={draft.module_id ?? ""} onChange={(e) => setDraft((d) => ({ ...d, module_id: e.target.value }))} className={`${inp} max-w-[14rem]`} aria-label="Cartella del modello" data-testid="template-module-select">
+                {mods.map((m) => <option key={m.id} value={m.id}>Cartella: {m.nome}</option>)}
+              </select>
+            )}
             <button onClick={() => create(true)} disabled={!!busy} className="flex h-11 items-center gap-1.5 rounded-full border border-[var(--hair)] px-4 text-sm text-[var(--fg)] hover:border-[var(--accent)]" data-testid="template-duplicate-btn"><Copy size={14} /> Duplica</button>
             <button onClick={reset} disabled={!!busy} className="flex h-11 items-center gap-1.5 rounded-full border border-[var(--hair)] px-4 text-sm text-[var(--fg)] hover:border-[var(--accent)]" data-testid="template-reset-btn">{busy === "reset" ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />} Ripristina modello base</button>
             <button onClick={remove} disabled={!!busy || list.length < 2} className="flex h-11 items-center gap-1.5 rounded-full border border-[var(--alert)] px-4 text-sm text-[var(--alert)] hover:border-[var(--alert)] disabled:opacity-40" data-testid="template-delete-btn"><Trash2 size={14} /> Elimina</button>

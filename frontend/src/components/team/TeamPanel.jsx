@@ -34,7 +34,7 @@ export const NetworkSearch = () => {
   return (
     <section className="mx-5 rounded-[28px] border border-[var(--hair)] bg-[var(--surface)] p-5 sm:p-6 lg:mx-8" data-testid="team-network-search">
       <div className="font-display text-2xl text-[var(--fg)]">Cerca nella rete MantMed</div>
-      <p className="mt-1 text-sm text-[var(--fg2)]">Paziente seguito da un collega? Inserisca il codice fiscale per verificare la delega del genitore o richiederla.</p>
+      <p className="mt-1 text-sm text-[var(--fg2)]">Paziente seguito da un collega? Inserisca il codice fiscale per verificare la delega del paziente o del tutore o richiederla.</p>
       <form onSubmit={run} className="mt-4 flex flex-col gap-2 sm:flex-row">
         <label className="relative flex-1"><Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--fg2)]" />
           <input value={cf} onChange={(e) => { setCf(e.target.value.toUpperCase().replace(/\s/g, "").slice(0, 16)); setData(null); }} onBlur={() => cf && setTouched(true)} placeholder="Codice fiscale del bambino"

@@ -43,7 +43,7 @@ export const DoctorMessages = ({ onRead, onOpenPatient }) => {
   return (
     <section id="doctor-messages" className="mx-auto max-w-[1440px] scroll-mt-4 px-5 pb-10 lg:px-8" data-testid="doctor-messages">
       <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-[var(--fg2)]"><MessagesSquare size={13} /> Portale Paziente</div>
-      <h2 className="mt-1 font-display text-4xl text-[var(--fg)]">Messaggi <span className="italic text-[var(--fg2)]">dalle famiglie</span> <span className="align-middle font-mono text-sm text-[var(--fg2)]" data-testid="doc-messages-todo-count">{all.filter((x) => x.needs_reply).length}</span></h2>
+      <h2 className="mt-1 font-display text-4xl text-[var(--fg)]">Messaggi <span className="italic text-[var(--fg2)]">dai pazienti</span> <span className="align-middle font-mono text-sm text-[var(--fg2)]" data-testid="doc-messages-todo-count">{all.filter((x) => x.needs_reply).length}</span></h2>
       <div ref={grid} style={{ height: fillH ?? undefined }} className="mt-5 grid grid-cols-1 grid-rows-[minmax(0,1fr)] gap-4 md:grid-cols-[320px_1fr] lg:grid-cols-[360px_1fr]" data-testid="doc-messages-grid">
         <div className={`${active ? "hidden md:block" : ""} h-full min-h-0`}>
           <ThreadList threads={threads} list={list} active={active} onOpen={open} q={q} setQ={setQ} filter={filter} setFilter={setFilter} />

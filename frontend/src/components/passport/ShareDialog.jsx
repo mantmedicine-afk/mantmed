@@ -19,7 +19,7 @@ const Informativa = ({ onOk }) => {
   return (
     <div className="space-y-4" data-testid="share-consent-step">
       <div className="max-h-[42vh] space-y-2 overflow-y-auto rounded-2xl bg-[var(--raised)] p-4 text-sm leading-relaxed text-[var(--fg)]" data-testid="share-informativa">
-        <p><b>Cosa succede quando condivide.</b> Lei decide di mostrare a un medico di sua scelta i dati sanitari di suo figlio, in sola lettura e solo fino alla scadenza che sceglie.</p>
+        <p><b>Cosa succede quando condivide.</b> Lei decide di mostrare a un medico di sua scelta i dati sanitari del paziente, in sola lettura e solo fino alla scadenza che sceglie.</p>
         <p><b>Cosa vede il medico.</b> Solo riepilogo (allergie, patologie, terapie, vaccinazioni) oppure il passaporto completo (anche crescita, visite, referti PDF e bilanci). Il codice fiscale non viene mai mostrato. I referti che lei nasconde non compaiono.</p>
         <p><b>Come è protetto.</b> Serve il link o il QR code e un codice di 6 cifre che lei comunica al medico. Ogni apertura viene registrata (nome indicato dal medico, data e ora) e la vede nel Registro accessi.</p>
         <p><b>Revoca.</b> Può togliere l'accesso in qualsiasi momento con "Revoca"; i link scaduti o revocati non funzionano più.</p>

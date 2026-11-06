@@ -58,12 +58,15 @@ export const ProcessingProvider = ({ children, onSettled, onOpen }) => {
         listeners.current.get(id)?.forEach((cb) => cb(c));
         settledRef.current?.(c);
         if (c.status === "ready") {
+          const tid = `ready-${c.id}`;
           toast.success(`Referto pronto · ${c.patient_name}`, {
+            id: tid,
             description: watching ? "La cartella è stata compilata dall'IA: controlli e salvi." : "Cartella clinica compilata dall'IA.",
             action: watching ? undefined : { label: "Apri", onClick: () => openRef.current?.(c) },
-            duration: 7000,
+            duration: 6000,
             position: "bottom-right",
           });
+          setTimeout(() => toast.dismiss(tid), 6500);
         } else {
           toast.error(`Elaborazione non riuscita · ${c.patient_name}`, {
             description: c.ai_error || "Riprovi tra qualche istante.",

@@ -237,7 +237,7 @@ def build_health_passport(db, tdb, current_user, parent_user, models, pdf_for, a
                 "vaccines": {"done": sorted(vacc, key=lambda v: v["date"], reverse=True), **vaccine_plan(birth, vacc)},
                 "growth": g, "visits": sorted(visits, key=lambda v: v["date"], reverse=True),
                 "bilanci": {"done": sorted(done_b, key=lambda b: b["date"], reverse=True),
-                            "next": {"name": nb[1], "from": add_months(birth, nb[2])} if nb else None},
+                            "next": {"name": nb[1], "from": add_months(birth, nb[2])} if nb else None} if age_months(birth) < 216 or done_b else None,
                 "doctors": sorted(used or {names[group[0][0]["owner_id"]]}), "updated_at": _iso(_now())}
 
     async def parent_contact(parent_id: str) -> dict:

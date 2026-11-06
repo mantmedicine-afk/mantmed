@@ -10,7 +10,7 @@ from bson import ObjectId
 from pymongo.errors import DuplicateKeyError
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
-from specialty_modules import module_for
+from specialty_modules import module_for, MODULES, STRUCTURED
 
 logger = logging.getLogger(__name__)
 GROUPS = ("anamnesi", "sintomi", "parametri_vitali", "esame_obiettivo", "altro")
@@ -198,6 +198,7 @@ class TField(BaseModel):
 class TemplateIn(BaseModel):
     name: str
     fields: Optional[List[TField]] = None
+    module_id: str = ""  # specialità (modulo) a cui appartiene il modello
 
     @field_validator("name")
     @classmethod
@@ -378,7 +379,11 @@ def build_visit_templates(db, tdb, specialty_of, llm_json):
                 logger.info("Modello iniziale già creato da una richiesta concorrente")
         await seed_bilanci_once()
         await upgrade_once()
-        await tdb.visit_templates.update_many({"module_id": {"$exists": False}}, {"$set": {"module_id": module_for(await specialty_of(OWNER.get()))}})
+        auto = module_for(await specialty_of(OWNER.get()))
+        await tdb.visit_templates.update_many({"module_id": {"$exists": False}}, {"$set": {"module_id": auto}})
+        # una tantum: modelli rimasti su "Generale" passano alla cartella della specialità del medico
+        await tdb.visit_templates.update_many({"module_v": {"$exists": False}, "module_id": "generale"}, {"$set": {"module_id": auto}})
+        await tdb.visit_templates.update_many({"module_v": {"$exists": False}}, {"$set": {"module_v": 2}})
         docs = await tdb.visit_templates.find().sort("created_at", 1).to_list(None)
         return sorted(docs, key=lambda d: (bool(d.get("bilancio")), d.get("age_from") or 0))
 
@@ -432,8 +437,9 @@ def build_visit_templates(db, tdb, specialty_of, llm_json):
     @r.post("")
     async def create(body: TemplateIn):
         now = datetime.now(timezone.utc).isoformat()
-        fields = [f.model_dump() for f in body.fields] if body.fields is not None else await base_fields(await specialty_of(OWNER.get()))
-        doc = {"name": body.name, "fields": fields, "created_at": now, "updated_at": now}
+        mid = body.module_id if body.module_id in MODULES else module_for(await specialty_of(OWNER.get()))
+        fields = [f.model_dump() for f in body.fields] if body.fields is not None else [] if mid in STRUCTURED else await base_fields(await specialty_of(OWNER.get()))
+        doc = {"name": body.name, "fields": fields, "module_id": mid, "module_v": 2, "created_at": now, "updated_at": now}
         res = await tdb.visit_templates.insert_one(doc)
         return out({**doc, "_id": res.inserted_id})
 
@@ -443,6 +449,8 @@ def build_visit_templates(db, tdb, specialty_of, llm_json):
         upd = {"name": body.name, "updated_at": datetime.now(timezone.utc).isoformat(), "modified": True}
         if body.fields is not None:
             upd["fields"] = [f.model_dump() for f in body.fields]
+        if body.module_id in MODULES:
+            upd["module_id"] = body.module_id
         await tdb.visit_templates.update_one({"_id": ObjectId(tid)}, {"$set": upd})
         return out(await get_one(tid))
 

@@ -216,7 +216,7 @@ export const NoteEditor = ({ consultation: initialC, onSaved, onEditPatient, onL
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[0.75fr_1.6fr]" data-testid="note-editor">
       <div className="rounded-3xl border border-[var(--hair)] bg-[var(--sel)] p-5">
-        <div className="text-[11px] uppercase tracking-[0.22em] text-[var(--fg2)]">Trascrizione · Whisper</div>
+        <div className="text-[11px] uppercase tracking-[0.22em] text-[var(--fg2)]">Trascrizione · MantAI</div>
         {consultation.ai_provenance?.parti?.trascrizione && <AILabel variant="trascrizione" view="doctor" className="mt-2" testId="note-ai-label-transcript" />}
         {processing && !consultation.transcript ? (
           <div className="mt-4 space-y-2.5" data-testid="note-transcript-loading">

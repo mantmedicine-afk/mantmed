@@ -39,7 +39,8 @@ const Tile = ({ t, onOpen }) => (
 export const DoctorArea = ({ data, onSaved, tools }) => {
   const nav = useNavigate();
   const [params, setParams] = useSearchParams();
-  const list = tiles({ ...tools, nav });
+  const ped = /pediatr|neonatolog/i.test([data?.profile?.specialty, ...(data?.profile?.secondary_specialties ?? [])].join(" "));
+  const list = tiles({ ...tools, nav }).filter((t) => t.id !== "bilanci" || ped);
   const raw = params.get("sezione");
   const cur = list.find((t) => t.id === (ALIAS[raw] ?? raw));
   useEffect(() => {
