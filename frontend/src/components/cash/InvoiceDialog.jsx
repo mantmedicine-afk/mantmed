@@ -70,7 +70,7 @@ export const InvoiceDialog = ({ open, source, settings, onClose, onSaved }) => {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr]">
             <div><Label htmlFor="invoice-date">Data</Label><input id="invoice-date" type="date" value={f.date} max={today()} onChange={(e) => set({ date: e.target.value })} className={inp} data-testid="invoice-date" /></div>
             <div><Label htmlFor="invoice-clinic">Studio</Label>
-              <select id="invoice-clinic" value={f.clinic} onChange={(e) => set({ clinic: e.target.value })} className={inp} data-testid="invoice-clinic">{(settings?.clinics ?? []).map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
+              <select id="invoice-clinic" value={f.clinic} onChange={(e) => set({ clinic: e.target.value, ...(CLINIC_INFO[e.target.value]?.methods && !CLINIC_INFO[e.target.value].methods.includes(f.method) ? { method: "" } : {}) })} className={inp} data-testid="invoice-clinic">{(settings?.clinics ?? []).map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
           </div>
           <PatientFields f={f} set={set} patients={patients} />
           <div>

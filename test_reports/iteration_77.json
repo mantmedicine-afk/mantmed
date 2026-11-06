@@ -1,0 +1,39 @@
+{
+  "summary": "Passo 5 (configurable studios) tested via public URL. Backend: new tests/test_passo5_clinics.py 10/10 PASS (GET schedule shows the 2 oculista studios with header/phone/logo/methods/price override 123€/45'; logo served; 7 studios saved and persisted, logo kept on save, auto colours; invalid/empty methods 422; POST /api/payments Studio Nord+pos -> 400 'Studio Nord non accetta il metodo POS', bonifico -> 200 then deleted, contanti -> 400; old visit 6aed2716... PDF has no 'Visus'; new TEST visit in Studio principale PDF contains 'Poliambulatorio Visus', '06 1234567' and an embedded image (logo); after changing header+phone, the TEST visit PDF keeps the old header (versioning OK)). online_quote/schedule_of checked in-process: Studio principale Prima visita 123€ + 2€ bollo, 45 min. Requested regression (access_rules, eye_notes_access, oftalmologia) 21/21 PASS. Frontend: login texts and links OK (login-parent-link -> /portale, login-signup-parent -> /registrati/paziente); portal shell label 'PORTALE PAZIENTI'; ScheduleDialog (Area personale > Orari e disponibilità > account-open-schedule) shows all fields correctly (phone, email, colour swatches with the current one pressed, header, logo image loads at 120px, Cambia/Rimuovi, method pills, per-studio price/duration/offered); added 3rd+4th (and up to 6, no limit), saved -> persisted; Oggi filter became oggi-clinic-select with 5 options; removed extras and saved -> 2 studios restored exactly (segmented filter back). Agenda for medico@mantmed.it: rows have inset 4px left border in studio colour (Centro #2F6F8F, Provincia #B5651D), group dots match, Tutti/Centro/Provincia filter shows 10/6/4 rows. Cassa stat cards show total + per-studio rows (+ 'Senza studio'). Invoice dialog filters method options per studio (principale: Contanti+Carta; Nord: Bonifico) but keeps a stale hidden method when the studio is switched (bug below).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "clinics.letterhead_at", "issue": "If a document predates the first letterhead_log entry for its studio (e.g. a doctor without migration entries who creates visits before ever saving profile/schedule, or a studio added later), the fallback returns the CURRENT letterhead, so old docs change when the header changes. Safer fallback: the earliest logged version for that studio."},
+      {"endpoint": "PUT /api/settings/schedule", "issue": "Per-studio price overrides are keyed by service name; renaming a service in the general list silently drops all studio overrides for it."},
+      {"endpoint": "CORS (preview ingress)", "issue": "Login response has access-control-allow-origin: * together with allow-credentials: true (probably injected by the preview ingress; check the app's CORS config uses explicit origins)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "InvoiceDialog", "issue": "If you pick a method (e.g. Contanti) in Studio principale and then switch invoice-clinic to Studio Nord, f.method stays 'contanti' even though only Bonifico is shown. Bonifico is not selected, the 'Pagamento non tracciabile' warning still shows, and submitting gets a backend 400. Fix: reset method to '' (or the studio's single method) when the studio changes and the current method is not allowed.", "selector": "[data-testid=invoice-clinic], [data-testid^=invoice-method-]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Oggi segmented filter (<=3 studios)", "issues": ["shortClinic('Studio principale') shows lowercase 'principale' (and 'Nord'), which looks odd. Capitalise it or show the full name."]},
+      {"screen": "Text leftovers", "issues": ["frontend/src/components/bodychart/PinPhotos.jsx:35 still says 'Portale Famiglia' (should be 'Portale Pazienti')."]},
+      {"screen": "ScheduleDialog / InvoiceDialog", "issues": ["Native time and date inputs (shown as AM/PM in an en-US browser) instead of a shadcn picker or a 24h format."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_passo5_clinics.py"],
+  "action_items": [
+    "InvoiceDialog: clear or adjust the selected payment method when the studio changes and the method is not accepted there.",
+    "Replace the remaining 'Portale Famiglia' text in PinPhotos.jsx.",
+    "Optional: letterhead_at should fall back to the earliest logged version instead of the current one; keep price overrides when a service is renamed; capitalise the short studio names in the Oggi filter."
+  ],
+  "critical_code_review_comments": [
+    "clinics._logo_cache is an unbounded in-process dict (fine for an MVP; consider an LRU).",
+    "create_payment's PaymentIn.method only allows contanti/pos/bonifico, so a manual payment with 'carta' (accepted by Studio principale) gets a 422. Check that this is intended.",
+    "ScheduleDialog toBody does not send logo; the backend keeps it from the previous clinic by id (verified that the logo survives a save)."
+  ],
+  "updated_files": ["/app/backend/tests/test_passo5_clinics.py"],
+  "success_rate": {"backend": "100% (10/10 new + 21/21 regression)", "frontend": "~93% (1 UX bug in InvoiceDialog)"},
+  "seed_data_creation": "None kept. Temporary: TEST_P5_Paziente consultation, TEST_Pay payment (both deleted by id); TEST_Studio * studios (removed, and oculista clinics/schedule/billing restored to the 2 original studios). letterhead_log gained additive version entries (harmless history).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_passo5_clinics.py -p no:xdist -o addopts='' (self-restoring: snapshots oculista clinics/schedule/billing and restores them at teardown, then deletes the TEST visit and payment). The schedule dialog opens from /app/area-personale > card 'Orari e disponibilità' > account-open-schedule (also schedule-open-btn in PortalRequests). Oggi filter testids: oggi-filter-tutti/centro/provincia (segmented) or oggi-clinic-select when there are more than 3 studios."
+}

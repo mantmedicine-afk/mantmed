@@ -66,9 +66,12 @@ def current_letterhead(user: dict, clinic_name: str) -> dict:
 
 def letterhead_at(user: dict, clinic_name: str, at: str) -> dict:
     """Versione dell'intestazione valida alla data del documento (documenti già emessi invariati)."""
-    log = [v for v in user.get("letterhead_log") or [] if v["clinic"] == clinic_name and v["from"] <= (at or "")]
+    log = [v for v in user.get("letterhead_log") or [] if v["clinic"] == clinic_name]
+    valid = [v for v in log if v["from"] <= (at or "")]
+    if valid:
+        return max(valid, key=lambda v: v["from"])["data"]
     if log:
-        return max(log, key=lambda v: v["from"])["data"]
+        return min(log, key=lambda v: v["from"])["data"]  # documento precedente alla prima versione registrata
     return current_letterhead(user, clinic_name)
 
 

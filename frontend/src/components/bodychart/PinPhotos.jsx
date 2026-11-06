@@ -32,7 +32,7 @@ export const IntimateConfirm = ({ open, onOpenChange, onConfirm, action = "Conti
       <AlertDialogContent className="rounded-[24px]" data-testid="bodychart-intimate-dialog">
         <AlertDialogHeader>
           <AlertDialogTitle className="font-display text-2xl font-normal text-[var(--fg)]">Foto di una zona intima</AlertDialogTitle>
-          <AlertDialogDescription className="text-sm leading-relaxed text-[var(--fg2)]">La foto sarà marcata «riservata»: mai visibile nel Portale Famiglia ed esclusa da qualsiasi condivisione con altri medici.</AlertDialogDescription>
+          <AlertDialogDescription className="text-sm leading-relaxed text-[var(--fg2)]">La foto sarà marcata «riservata»: mai visibile nel Portale Pazienti ed esclusa da qualsiasi condivisione con altri medici.</AlertDialogDescription>
         </AlertDialogHeader>
         <label className="flex items-start gap-3 text-sm text-[var(--fg)]"><input type="checkbox" checked={a} onChange={(e) => setA(e.target.checked)} className="mt-0.5 h-5 w-5 accent-[var(--accent)]" data-testid="bodychart-intimate-need" /> Confermo la necessità clinica della documentazione fotografica.</label>
         <label className="flex items-start gap-3 text-sm text-[var(--fg)]"><input type="checkbox" checked={b} onChange={(e) => setB(e.target.checked)} className="mt-0.5 h-5 w-5 accent-[var(--accent)]" data-testid="bodychart-intimate-consent" /> Confermo di aver raccolto il consenso del genitore o tutore.</label>

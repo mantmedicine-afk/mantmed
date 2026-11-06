@@ -1,7 +1,7 @@
 export const DONE = ["completato", "completed"];
 export const CANCELLED = ["annullato", "cancelled"];
 export const nowHM = (d = new Date()) => d.toTimeString().slice(0, 5);
-export const shortClinic = (c = "") => c.replace(/^Studio\s+/i, "");
+export const shortClinic = (c = "") => { const s = c.replace(/^Studio\s+/i, ""); return s.charAt(0).toUpperCase() + s.slice(1); };
 export const isDone = (a) => DONE.includes(a.status);
 export const toMin = (hm) => { const [h, m] = hm.split(":").map(Number); return h * 60 + m; };
 
