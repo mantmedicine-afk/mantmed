@@ -27,10 +27,10 @@ const Locked = ({ data, onRequested }) => {
       <div className="flex items-start gap-3">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[var(--sel)]"><Lock size={18} /></span>
         <div className="min-w-0">
-          <div className="font-display text-2xl">{pending ? "Richiesta in attesa del genitore" : "Cartella condivisa non accessibile"}</div>
+          <div className="font-display text-2xl">{pending ? "Richiesta in attesa del paziente o del tutore" : "Cartella condivisa non accessibile"}</div>
           <p className="mt-1 text-sm text-[var(--fg2)]">
             {data.followers > 0 ? `${data.followers} ${data.followers === 1 ? "altro specialista segue" : "altri specialisti seguono"} questo paziente nella rete MantMed. ` : ""}
-            {pending ? `Inviata il ${day(data.requested_at)}: riceverà un avviso quando il genitore risponde.` : "Per consultare referti, visite e bilanci dei colleghi serve la delega firmata dal genitore."}
+            {pending ? `Inviata il ${day(data.requested_at)}: riceverà un avviso quando il paziente o il tutore risponde.` : "Per consultare referti, visite e bilanci dei colleghi serve la delega firmata dal paziente o dal tutore."}
           </p>
           {data.last_closed && <p className="mt-2 text-xs text-[var(--fg)]" data-testid="team-last-closed">Ultima delega {data.last_closed.status === "revoked" ? "revocata" : "rifiutata"} il {day(data.last_closed.at)}.</p>}
         </div>
@@ -44,7 +44,7 @@ const Locked = ({ data, onRequested }) => {
           </button>
         </div>
       )}
-      {!pending && !data.parent_linked && <p className="mt-4 rounded-2xl bg-[var(--sel)] p-3 text-sm text-[var(--fg2)]" data-testid="team-no-parent">Nessun genitore ha ancora collegato questa cartella al Portale Paziente: la richiesta sarà possibile dopo il collegamento.</p>}
+      {!pending && !data.parent_linked && <p className="mt-4 rounded-2xl bg-[var(--sel)] p-3 text-sm text-[var(--fg2)]" data-testid="team-no-parent">Nessun paziente o tutore ha ancora collegato questa cartella al Portale Paziente: la richiesta sarà possibile dopo il collegamento.</p>}
       {pending && <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-[var(--sel)] px-3 py-1.5 text-xs text-[var(--fg)]" data-testid="team-pending-badge"><Clock3 size={13} /> In attesa di autorizzazione</div>}
     </div>
   );

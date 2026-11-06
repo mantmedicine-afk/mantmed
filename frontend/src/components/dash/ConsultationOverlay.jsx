@@ -190,7 +190,7 @@ export const ConsultationOverlay = ({ open, patient, waiting, initial, onClose, 
         </div>
         <div className="flex flex-1 flex-col justify-center py-8">
           {stage === "setup" && (
-            <Setup {...{ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, hint, sending: sending || starting, starting }} picker={<><ModulePicker mods={mods} setId={(id) => setMods((m) => ({ ...m, id }))} /><ModelRow tpl={tpls.find((t) => t.id === tplId)}><TemplatePicker templates={tpls} value={tplId} onChange={pickTpl} suggested={suggested} ageM={ageM} /></ModelRow></>} newPatient={<NewPatient freeName={freeName} sel={sel} patients={patients} setSel={setSel} setFreeName={setFreeName} np={newPat} setNp={setNewPat} />} gate={<ConsentGate patient={patients.find((p) => p.id === sel?.patient_id)} free={!sel?.patient_id && Boolean(freeName.trim())} paper={paper} setPaper={setPaper} onSaved={onPatientsChange} />} />
+            <Setup {...{ waiting, sel, setSel, freeName, setFreeName, manual, setManual, text, setText, start, hint, sending: sending || starting, starting }} picker={<><ModulePicker mods={mods} setId={(id) => setMods((m) => ({ ...m, id }))} /><ModelRow tpl={tpls.find((t) => t.id === tplId)}><TemplatePicker templates={tpls} value={tplId} onChange={pickTpl} suggested={suggested} ageM={ageM} /></ModelRow></>} newPatient={<NewPatient freeName={name} sel={sel} patients={patients} setSel={setSel} setFreeName={setFreeName} np={newPat} setNp={setNewPat} />} gate={<ConsentGate patient={patients.find((p) => p.id === sel?.patient_id)} free={!sel?.patient_id && Boolean(name)} paper={paper} setPaper={setPaper} onSaved={onPatientsChange} />} />
           )}
           {(stage === "recording") && (
             <RecordingLayout panel={<LiveChecklist models={models} model={tplId} onModel={pickTpl} live={live} realtime={cfg.realtime || cfg.demo} />}
@@ -278,7 +278,7 @@ const NewPatient = ({ freeName, sel, patients, setSel, setFreeName, np, setNp })
       <div>
         <div className="text-[11px] uppercase tracking-[0.18em] text-[var(--fg2)]">{matches.length ? "Oppure crei una nuova scheda" : "Nuova scheda paziente"}</div>
         <div className="mt-2 flex flex-wrap gap-2">
-          <input type="date" value={np.birth_date} onChange={(e) => setNp((x) => ({ ...x, birth_date: e.target.value }))} className={field} aria-label="Data di nascita" data-testid="consult-new-patient-birth" />
+          <input type="date" lang="it" value={np.birth_date} onChange={(e) => setNp((x) => ({ ...x, birth_date: e.target.value }))} className={field} aria-label="Data di nascita" data-testid="consult-new-patient-birth" />
           {[["F", "Femmina"], ["M", "Maschio"]].map(([v, l]) => <button key={v} type="button" onClick={() => setNp((x) => ({ ...x, sex: v }))} className={`h-11 rounded-xl border px-3 ${np.sex === v ? "border-[var(--accent)] bg-[var(--accent)] font-semibold text-[var(--fg)]" : "border-[var(--hair)]"}`} data-testid={`consult-new-patient-sex-${v}`}>{l}</button>)}
         </div>
       </div>

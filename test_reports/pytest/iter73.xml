@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="6" time="8.177" timestamp="2026-11-06T00:26:12.251364+00:00" hostname="agent-env-f9af9b66-924f-4c3b-b396-d09e1a968def"><testcase classname="tests.test_fixes_iter73.TestTemplatesModule" name="test_cardio_templates_module" time="0.656" /><testcase classname="tests.test_fixes_iter73.TestTemplatesModule" name="test_put_module_and_restore" time="0.378" /><testcase classname="tests.test_fixes_iter73.TestTemplatesModule" name="test_new_template_default_module" time="0.209" /><testcase classname="tests.test_fixes_iter73.TestFreeVisitPatient" name="test_invalid_sex_or_date" time="0.214" /><testcase classname="tests.test_fixes_iter73.TestFreeVisitPatient" name="test_invalid_module_does_not_create_orphan_patient" time="0.095"><failure message="AssertionError: Patient created even though visit was rejected (invalid module)&#10;assert not {'_id': ObjectId('6aed1ea58d944ca43c3c233b'), 'name': 'TEST_Orphan73', 'birth_date': '1980-01-01', 'sex': 'F', ...}">self = &lt;test_fixes_iter73.TestFreeVisitPatient object at 0xfc958011ee10&gt;
+cardio = &lt;requests.sessions.Session object at 0xfc958011fe50&gt;
+
+    def test_invalid_module_does_not_create_orphan_patient(self, cardio):
+        r = cardio.post(f"{BASE_URL}/consultations/start", data={"patient_name": "TEST_Orphan73", "transcript": "Medico: prova.",
+                                                                 "paper_consent": "true", "new_birth_date": "1980-01-01", "new_sex": "F",
+                                                                 "module_id": "ginecologia"})
+        assert r.status_code == 400
+        orphan = DBM.patients.find_one({"name": "TEST_Orphan73"})
+        if orphan:
+            CREATED["patients"].append(str(orphan["_id"]))
+&gt;       assert not orphan, "Patient created even though visit was rejected (invalid module)"
+E       AssertionError: Patient created even though visit was rejected (invalid module)
+E       assert not {'_id': ObjectId('6aed1ea58d944ca43c3c233b'), 'name': 'TEST_Orphan73', 'birth_date': '1980-01-01', 'sex': 'F', ...}
+
+tests/test_fixes_iter73.py:101: AssertionError</failure></testcase><testcase classname="tests.test_fixes_iter73.TestFreeVisitPatient" name="test_derm_free_visit_creates_patient_no_cardio_fields" time="6.476" /></testsuite></testsuites>

@@ -79,12 +79,12 @@ export const Conversation = ({ data, side, onSend, onAttach, onBack, header, fil
         <div className="flex items-end gap-2">
           <input ref={pick} type="file" accept={ACCEPT} className="hidden" onChange={choose} data-testid="conversation-file-input" />
           <button type="button" onClick={() => pick.current?.click()} className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-[var(--hair)] text-[var(--fg2)] transition-colors hover:text-[var(--fg)]" aria-label="Allega foto o PDF" data-testid="conversation-attach-btn"><Paperclip size={17} /></button>
-          <textarea rows={2} maxLength={4000} value={text} onChange={(e) => setText(e.target.value)} placeholder={side === "doctor" ? "Scriva la risposta al genitore…" : "Scriva un messaggio allo studio…"}
+          <textarea rows={2} maxLength={4000} value={text} onChange={(e) => setText(e.target.value)} placeholder={side === "doctor" ? "Scriva la risposta…" : "Scriva un messaggio allo studio…"}
             className="min-h-[48px] flex-1 resize-none rounded-2xl border border-[var(--hair)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--fg)] outline-none focus:border-[var(--accent)]" data-testid="conversation-input" />
           <button disabled={busy || (!text.trim() && !file)} className="flex h-12 shrink-0 items-center gap-2 rounded-full bg-[var(--accent)] px-5 text-sm font-medium text-[var(--ink)] transition-transform hover:-translate-y-0.5 disabled:opacity-50" data-testid="conversation-send-btn">{busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}<span className="hidden sm:inline">Invia</span></button>
         </div>
       </form>
-      <p className="flex shrink-0 items-center gap-1.5 px-4 pb-3 text-[11px] text-[var(--fg2)]"><Lock size={11} /> Messaggi cifrati AES-256 · {side === "doctor" ? "il genitore riceve una notifica nel portale" : "lo studio riceve una notifica"}</p>
+      <p className="flex shrink-0 items-center gap-1.5 px-4 pb-3 text-[11px] text-[var(--fg2)]"><Lock size={11} /> Messaggi cifrati AES-256 · {side === "doctor" ? "il destinatario riceve una notifica nel portale" : "lo studio riceve una notifica"}</p>
     </div>
   );
 };

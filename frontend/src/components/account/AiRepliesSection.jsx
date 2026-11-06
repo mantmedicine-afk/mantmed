@@ -24,7 +24,7 @@ const SettingsCard = ({ s, def, onSaved }) => {
   return (
     <Card id="ai-settings-card" icon={Sparkles} title={`MantAI Risposte · ${s.clinic}`} text="Bozze di risposta ai messaggi del portale. Le risposte cliniche non partono mai senza la sua approvazione.">
       <form onSubmit={save} className="space-y-3">
-        <Toggle on={f.enabled} onChange={(v) => setF({ ...f, enabled: v })} label="Attiva MantAI Risposte per questo studio" hint="Disattivata: la messaggistica funziona come prima; l'avviso urgenze resta comunque visibile alle famiglie." testId="ai-settings-enabled" />
+        <Toggle on={f.enabled} onChange={(v) => setF({ ...f, enabled: v })} label="Attiva MantAI Risposte per questo studio" hint="Disattivata: la messaggistica funziona come prima; l'avviso urgenze resta comunque visibile ai pazienti." testId="ai-settings-enabled" />
         <Toggle on={f.auto_admin} onChange={(v) => setF({ ...f, auto_admin: v })} label="Invio automatico risposte amministrative" hint="Solo orari, prenotazioni, costi e uso del portale, usando esclusivamente la Base di conoscenza. Se un'informazione manca, diventa una bozza." testId="ai-settings-auto-admin" />
         <Field label="Avviso urgenze nel portale (sempre visibile sopra il campo di scrittura, anche con MantAI disattivato; [telefono studio] diventa il numero della Base di conoscenza)">
           <textarea rows={4} value={f.notice_text} onChange={(e) => setF({ ...f, notice_text: e.target.value })} className={area} data-testid="ai-settings-notice-text" />

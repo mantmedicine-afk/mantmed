@@ -110,7 +110,7 @@ export default function Dashboard() {
       { id: "elenco", label: "Elenco pazienti", desc: "Cartelle e passaporti", icon: Users, to: "/app/pazienti" },
       { id: "visite", label: "Tutte le visite", desc: "Diario clinico e note", icon: ListChecks, to: "/app/pazienti?vista=visite" }] }] },
     { id: "messaggi", to: "/app/messaggi", label: "Messaggi", icon: MessagesSquare, badge: unread, menu: [{ links: [
-      { id: "conversazioni", label: "Conversazioni", desc: "Messaggi con le famiglie", icon: MessagesSquare, to: "/app/messaggi#doctor-conversations" },
+      { id: "conversazioni", label: "Conversazioni", desc: "Messaggi con pazienti e tutori", icon: MessagesSquare, to: "/app/messaggi#doctor-conversations" },
       { id: "richieste", label: "Richieste dal portale", desc: requests > 0 ? `${requests} da gestire` : "Nessuna in attesa", icon: Inbox, to: "/app/messaggi#today-requests" }] }] },
     { id: "cassa", to: "/app/cassa", label: "Cassa", icon: ReceiptText, menu: [{ links: [
       { id: "home", label: "Home della cassa", desc: "Incassi per studio e fatture recenti", icon: CalendarDays, to: "/app/cassa#cassa-home" },

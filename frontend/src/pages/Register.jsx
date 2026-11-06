@@ -161,7 +161,7 @@ export default function Register({ role }) {
             ) : (
               <>
                 <Check id="privacy_policy" checked={f.privacy_policy} onChange={set("privacy_policy")} text={`Ho letto l'informativa privacy (${CONSENT_TEXT}).`} />
-                <Check id="health_data" checked={f.health_data} onChange={set("health_data")} text="Acconsento al trattamento dei dati sanitari di mio figlio per consultare referti, consensi e appuntamenti nel Portale Paziente (art. 9 Reg. UE 2016/679)." />
+                <Check id="health_data" checked={f.health_data} onChange={set("health_data")} text="Acconsento al trattamento dei dati sanitari (miei o della persona che assisto) per consultare referti, consensi e appuntamenti nel Portale Paziente (art. 9 Reg. UE 2016/679)." />
               </>
             )}
             {touched.consents && !consentsOk && <FieldMsg id="register-consents" error="Per proseguire servono i consensi obbligatori" />}

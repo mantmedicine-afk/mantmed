@@ -554,3 +554,6 @@ User choices: dati salvati in DB con demo modificabili; pulsante = trascrizione 
 
 ## 2026-11 Multispecialistica · Passo 3 (specialità principale + secondarie)
 - Scelta della specialità in registrazione e profilo, menu "Cartella" a inizio visita, etichetta della specialità nella storia del paziente; demo Ginecologia minori verificata (seed_gyn_demo.py)
+
+## 2026-11 Stato multispecialistico
+- Passi 1-3 + 6 correzioni feedback completati (iteration_70-73). Utente in verifica manuale in anteprima. Regola 18 anni e dettagli in PIANO_MULTISPECIALISTICO.md. Prossimo: passo 4 solo dopo "via al passaggio 4".

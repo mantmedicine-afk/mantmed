@@ -859,7 +859,7 @@ async def patient_summary(spec: str, transcript: str = "", note: Optional[dict] 
     who = "i genitori del bambino (dia del Lei ai genitori e parli del bambino in terza persona)" if ped else "il paziente (gli dia del Lei)"
     system = (f"Sei l'assistente di un medico specializzato in {spec}: scrivi a {who} un riepilogo della visita in italiano semplice. "
               "Il tuo unico compito è RIFORMULARE in parole semplici ciò che il medico ha detto: non sei tu a valutare. Massimo 130 parole, 3-5 frasi brevi o un breve elenco. "
-              "Riporta: cosa il medico ha riscontrato o detto, con le sue parole semplificate; i valori misurati così come detti, SENZA aggettivi di giudizio "
+              "Riporta: cosa il medico ha riscontrato o detto, mantenendo i suoi termini (se tecnici, spiegali tra parentesi senza cambiarne il significato); i valori misurati così come detti, SENZA aggettivi di giudizio "
               "(mai alto, basso, normale, nella norma, elevato, aumentato, buono, preoccupante, a meno che il medico abbia detto proprio quel giudizio per quel dato); "
               "le indicazioni (farmaci, dosi, comportamenti, controlli) SOLO se il medico le ha date esplicitamente, nella stessa forma detta "
               "(non calcolare, convertire o arrotondare dosi; un farmaco che il paziente dice di prendere NON diventa un'indicazione a proseguirlo); "
@@ -922,6 +922,11 @@ tpl_router, resolve_template = build_visit_templates(db, tdb, doctor_specialty, 
 module_router, doctor_module, module_layout, visit_module_options = build_module_settings(db, tdb, doctor_specialty, OWNER.get)
 
 
+async def check_module(uid: str, module_id: str):
+    if module_id and not any(module_id in (o["key"], o["id"]) for o in await visit_module_options(uid)):
+        raise HTTPException(400, "Modulo non disponibile per le sue specialità")
+
+
 async def free_visit_patient(name: str, birth_date: str, sex: str) -> str:
     """Visita libera: crea la scheda paziente (nome, nascita, sesso) con il consenso privacy cartaceo confermato dal medico."""
     try:
@@ -930,6 +935,9 @@ async def free_visit_patient(name: str, birth_date: str, sex: str) -> str:
         raise HTTPException(400, "Data di nascita non valida")
     if sex not in ("F", "M"):
         raise HTTPException(400, "Indichi il sesso del paziente")
+    async for p in tdb.patients.find({"birth_date": birth_date}, {"name": 1}):  # ripetizione dell'invio: stessa scheda, nessun doppione
+        if " ".join(p["name"].lower().split()) == " ".join(name.lower().split()):
+            return str(p["_id"])
     res = await tdb.patients.insert_one({**Patient(name=name.strip(), birth_date=birth_date, sex=sex).to_mongo(), "cf_hash": None})
     pid = str(res.inserted_id)
     c = Consent(patient_id=pid, signer_name=name.strip(), signer_relation="Paziente o tutore", privacy_policy=True, health_data=True,
@@ -959,6 +967,7 @@ async def create_consultation(body: ConsultationIn, user: dict = Depends(current
     if not body.transcript.strip():
         raise HTTPException(400, "Trascrizione vuota")
     if not body.patient_id and body.paper_consent and body.new_birth_date:
+        await check_module(user["id"], body.module_id)
         body.patient_id = await free_visit_patient(body.patient_name, body.new_birth_date, body.new_sex)
     patient = await get_patient(body.patient_id)
     if patient and not patient.get("consent_at"):
@@ -1187,6 +1196,7 @@ async def start_consultation(
     if not patient_name.strip():
         raise HTTPException(400, "Paziente mancante")
     if not patient_id and paper_consent and new_birth_date:
+        await check_module(user["id"], module_id)
         patient_id = await free_visit_patient(patient_name, new_birth_date, new_sex)
     patient = await get_patient(patient_id)
     if patient and not patient.get("consent_at"):

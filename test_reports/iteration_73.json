@@ -1,0 +1,47 @@
+{
+  "summary": "Tested the 6 fixes reported by the user (faithfulness, templates per module, plausibility Correggi, free-visit patient creation, neutral texts, labels/toast). Backend: test_mantai_faithfulness.py passed 3 times out of 3. Regression step2 + step3 + gyn_minor_guardian passed 20 of 20. The new test_fixes_iter73.py passed 5 of 6; the failure is an orphan patient created when the visit is rejected. I read the riepilogo by hand: values only, no alto/basso/normale/prosegua. One small paraphrase: 'ritmo sinusale' became 'ritmo regolare del cuore'. Templates: cardiologo templates are all on cardiologia; PUT module_id saves and persists; a new template gets cardiologia. A Dermatologia visit that forces a cardiology template_id has no cardiology sezioni (no Fattori di rischio, Auscultazione or ECG) and motivo is filled. Frontend: overlay heading 'Chi sta visitando?'. Cartella=Cardiologia shows 4 cardiology pills; Dermatologia hides the template row entirely. The free-name new-patient box (birth date + F/M) works: starting without it shows an error hint; with it plus paper consent the visit is created, the patient appears in Pazienti and the visit is linked (patient_id). Motivo is filled ('Palpitazioni da una settimana'). As medico, typing 'Aurora' shows a suggestion for Aurora Ricci; 'Usa questa scheda' selects it and hides the new-patient form. Pediatric overlay still shows the Bilanci section; Generale shows no template picker. Correggi on sistolica 1200 leaves sistolica empty and diastolica at 80. The transcript label reads 'TRASCRIZIONE · MANTAI', with no 'Whisper'. Cardiologo Area personale has no Bilanci tile; the pediatrician still has it. The Modelli Visita card explains how it relates to the Cartella. template-module-select (Cartella: Cardiologia/Dermatologia/Generale) saved dermatologia, persisted after reload, and was restored to cardiologia. Other checks: 'Messaggi dai pazienti' heading; neutral bio placeholder; Team text 'delega del paziente o del tutore'; register CF label 'Codice fiscale del paziente (lei o chi assiste)' with neutral Nome/Cognome; portal shows 'Collega un'altra cartella'. Toast auto-dismiss (6s + dismiss) was checked in code only.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/consultations/start and POST /api/consultations", "issue": "free_visit_patient() creates the patient and consent BEFORE visit_setup validates module_id, and before the other checks. If the request is rejected (e.g. module_id='ginecologia' for cardiologo -> 400), an orphan patient is left behind. A retry after any later error (upload, Whisper, live transcript 409) creates a DUPLICATE patient each time. There is also no server-side duplicate check on name+birth_date. Reproduced by test_invalid_module_does_not_create_orphan_patient."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ConsultationOverlay start() / NewPatient", "issue": "A waiting-room entry without patient_id (WaitingPatient.patient_id is Optional; e.g. POST /api/waiting {name, clinic, reason}) is a dead end. Selecting it and clicking Genera nota clinica shows 'Indichi data di nascita e sesso: verrà creata la scheda del paziente', but the NewPatient form is not shown because freeName is empty. The paper-consent checkbox is not shown either (ConsentGate free = !patient_id && freeName). The visit cannot be started. Fix: render NewPatient/ConsentGate when sel exists without patient_id (use sel.name), or skip the check for that case.", "selector": "[data-testid^=consult-select-], [data-testid=consult-begin-btn]", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Overlay new patient box", "issues": ["consult-new-patient-birth is a native <input type=date> (shows the browser default 'mm/dd/yyyy' picker, US order in an Italian UI). Use the shadcn Calendar/date picker or an Italian gg/mm/aaaa format."]},
+      {"screen": "Pediatric texts still shown to non-pediatric doctors / adult patients", "issues": [
+        "Register.jsx:164 consent checkbox 'Acconsento al trattamento dei dati sanitari di mio figlio' on /registrati/paziente (the header still says 'GENITORI E TUTORI')",
+        "AiRepliesSection.jsx:27 toggle hint '...l'avviso urgenze resta comunque visibile alle famiglie.' (visible to cardiologo)",
+        "Dashboard.jsx:113 nav menu Messaggi > Conversazioni desc 'Messaggi con le famiglie' (always shown)",
+        "Conversation.jsx:82/87 doctor placeholder 'Scriva la risposta al genitore…' and '...il genitore ric...'",
+        "TeamState.jsx:30/33/47 'Richiesta in attesa del genitore', 'Nessun genitore ha ancora collegato'; backend team.py TEAM_TEXT 'cartella condivisa di mio figlio/a ... bilanci di salute'",
+        "PatientDialog.jsx:23/51/52 'Email del genitore', 'Codice fiscale del genitore / tutore'; cash PartyFields.jsx:38 placeholder 'Nome del bambino'; PortalRequests 'genitore avvisato'; ConsentDialog informativa 'dati ... del minore'; portal Messages search 'Cerca medico, bambino, messaggio'"
+      ]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_fixes_iter73.py", "/app/backend/tests/test_mantai_faithfulness.py", "/app/backend/tests/inspect_riepilogo_iter73.py", "/app/test_reports/pytest/iter73.xml", "/app/test_reports/pytest/iter73_regression.xml"],
+  "action_items": [
+    "HIGH: Fix the overlay dead end for waiting-room entries without patient_id: show the NewPatient (birth date/sex) and paper-consent UI for them, or skip the birth-date requirement for them.",
+    "Move free_visit_patient() after visit_setup()/validation in both /consultations and /consultations/start, so a rejected request does not create an orphan patient. Consider idempotency/dedup (same name + birth_date + owner) so retries do not duplicate patients.",
+    "Neutralise the remaining pediatric texts listed in design_issues (Register consent 'mio figlio', AI Risposte hint 'famiglie', nav 'Messaggi con le famiglie', Conversation/TeamState/PatientDialog/PartyFields 'genitore/bambino') for non-pediatric doctors and adult patients.",
+    "Replace the native date input in the overlay NewPatient with the shadcn date picker (Italian format).",
+    "Optional: patient_summary prompt. 'ritmo sinusale' was paraphrased to 'ritmo regolare del cuore'. 'regolare' is mildly interpretive; consider requiring the doctor's term to be kept."
+  ],
+  "critical_code_review_comments": [
+    "server.py create_consultation/start_consultation: patient creation is a side effect before validation (orphan/duplicate patients).",
+    "ConsultationOverlay.jsx:138 the birth-date/sex requirement applies to every !sel?.patient_id, but NewPatient is only rendered for a typed freeName.",
+    "NewPatient suggestions match by substring only ('Ricci Aurora' does not match 'Aurora Ricci'); minor.",
+    "visit_templates.py PUT sets modified=True even when only module_id changes; harmless, but it affects pending-fields logic for seeded templates.",
+    "test_mantai_faithfulness.py cleanup hardcodes the DB name 'mantmed' and a MONGO_URL default; it should use os.environ DB_NAME/MONGO_URL from backend/.env. It also deletes by patient_name only (delete_one), not by the returned id."
+  ],
+  "updated_files": ["/app/backend/tests/test_fixes_iter73.py", "/app/backend/tests/inspect_riepilogo_iter73.py"],
+  "success_rate": {"backend": "96% (26/27 incl. regression; faithfulness 3/3)", "frontend": "92% (all requested checks pass; 1 HIGH dead-end bug found outside the happy path)"},
+  "seed_data_creation": "Created and then deleted by id/narrow name: TEST_Paziente Nuovo (patient + consent + consultation), TEST_Paziente Derm73, TEST_Orphan73, TEST_Inspect73, TEST_Fedelta, waiting entry TEST_Attesa73, template TEST_Modello73. Cardiologo template 'Prima visita' module was changed to dermatologia and restored to cardiologia (modified flag now true). No TEST_ patients or consults remain.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login at /app (not /login). Overlay: oggi-next-start-btn; consult-free-name-input -> consult-new-patient (consult-new-patient-birth, consult-new-patient-sex-F/M), consult-patient-suggestions / consult-patient-suggestion-<id>; consent checkbox = first input[type=checkbox]; consult-model-change expands template pills (consult-template-<id>); consult-module-select. Modelli: /app/area-personale?sezione=modelli, template-module-select loads async (wait ~2s), template-save-btn. AI Risposte: ?sezione=mantai-risposte. Run: cd /app/backend && python -m pytest tests/test_fixes_iter73.py tests/test_mantai_faithfulness.py -p no:xdist -o addopts=''. Waiting dead end repro: POST /api/waiting {name:'TEST_x',clinic:'Studio',reason:'Controllo'} as cardiologo, then select it in the overlay."
+}
